@@ -23,10 +23,18 @@ const fake = (id: "claude" | "codex"): Harness => ({
     // A delegated turn's words come framed as another agent's: the probe is the line that starts with it.
     const probe = /^probe (\[.*\])$/m.exec(String(io.input.content));
     if (probe) {
-      const asked = JSON.parse(probe[1] ?? "[]") as Array<{ kind: string; path?: string; command?: string }>;
+      const asked = JSON.parse(probe[1] ?? "[]") as Array<{
+        kind: string;
+        path?: string;
+        command?: string;
+        description?: string;
+      }>;
       const said: boolean[] = [];
       for (const [i, a] of asked.entries()) {
-        const input = a.command === undefined ? { path: a.path } : { command: a.command };
+        const input =
+          a.command === undefined
+            ? { path: a.path }
+            : { command: a.command, ...(a.description ? { description: a.description } : {}) };
         said.push(
           await io.approve({
             callId: `${io.run.id}-p${i}`,
@@ -398,7 +406,7 @@ test("an automatic outside session allows local commands but still asks before f
   }
 });
 
-test("an automatic outside session in a project worktree runs its own scripts without a card; a forced deletion still asks (DECISIONS.md#d-264)", async () => {
+test("an automatic outside session in a project worktree runs its own scripts without a card; a deletion asks once, with what goes and why (DECISIONS.md#d-264)", async () => {
   await using tmp = tempDir("apx-harness-");
   const repo = realpath(tmp.path);
   const git = (...args: string[]) =>
@@ -433,27 +441,42 @@ test("an automatic outside session in a project worktree runs its own scripts wi
     });
     const done = await env.settle(thread.id);
     assert.deepEqual(texts(done.messages.slice(-1)), [JSON.stringify(own.map(() => true))]);
-    // A forced deletion, even of a folder it just made, and what a shell is fed through a heredoc are still theirs.
-    const grave = [
-      `cd ${w}/work; D=en/subtitles\nrm -rf $D/words/es $D/captions/es.srt`,
-      `rm -rf ${r}/work/src`,
-      "bash <<'EOF'\nsudo ls\nEOF",
-    ];
+    // A forced deletion, even of a folder it just made, is the owner's to ask for: the card says what goes and why.
+    const deletion = {
+      kind: "execute",
+      command: `cd ${w}/work; D=en/subtitles\nrm -rf $D/words/es $D/captions/es.srt`,
+      description: "Drop the Spanish words copied from the original",
+    };
+    await env.client.call("threads.send", { thread: thread.id, text: `probe ${JSON.stringify([deletion])}` });
+    const card = await waitFor(
+      async () => (await env.client.call("runs.pending", { thread: thread.id })).inputs[0],
+      "the deletion card",
+    );
+    assert.match(card.prompt, /delete|borrar/);
+    assert.ok(card.detail?.includes(path.join(tree, "work", "en", "subtitles", "words", "es")), card.detail);
+    assert.match(card.detail ?? "", /Drop the Spanish words/);
+    assert.deepEqual(card.approval_scopes, ["once", "session"]);
+    await env.client.call("runs.respond", { input: card.id, decision: "approve", scope: "session" });
+    assert.deepEqual(texts((await env.settle(thread.id)).messages.slice(-1)), ["[true]"]);
+    // That OK covers the next deletion in its folder only: the main checkout and what a shell is fed still ask.
+    const next = [`rm -rf ${w}/work/en/words`, `rm -rf ${r}/work/src`, "bash <<'EOF'\nsudo ls\nEOF"];
     await env.client.call("threads.send", {
       thread: thread.id,
-      text: `probe ${JSON.stringify(grave.map((command) => ({ kind: "execute", command })))}`,
+      text: `probe ${JSON.stringify(next.map((command) => ({ kind: "execute", command })))}`,
     });
-    for (const command of grave) {
-      const card = await waitFor(
+    for (const [command, shown] of [
+      [next[1], path.join(repo, "work", "src")],
+      [next[2], "sudo ls"],
+    ] as const) {
+      const asked = await waitFor(
         async () => (await env.client.call("runs.pending", { thread: thread.id })).inputs[0],
         `a card for ${command}`,
       );
-      assert.match(card.prompt, /Auto/);
-      assert.equal(JSON.parse(card.detail ?? "{}").command, command);
-      await env.client.call("runs.respond", { input: card.id, decision: "deny" });
+      assert.ok(asked.detail?.includes(shown), asked.detail);
+      await env.client.call("runs.respond", { input: asked.id, decision: "deny" });
     }
     const after = await env.settle(thread.id);
-    assert.deepEqual(texts(after.messages.slice(-1)), ["[false,false,false]"]);
+    assert.deepEqual(texts(after.messages.slice(-1)), ["[true,false,false]"]);
   } finally {
     await env.client.call("agents.update", { agent: "superagent", autonomy: null });
   }

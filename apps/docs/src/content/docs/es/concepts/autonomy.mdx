@@ -85,7 +85,8 @@ herramientas que pueden usar todos los agentes de la cadena. Pedir una sesión q
 sesión nueva con el mismo agente ahí, con una nota que lo dice.
 
 Las sesiones externas de Claude Code, Codex y ACP usan estas mismas reglas de permisos. Auto no es Total: un
-comando que incluye `rm -f` sigue pidiendo tu OK, aunque borre un solo archivo generado dentro del proyecto. Un
+comando que incluye `rm -f` sigue pidiendo tu OK, aunque borre un solo archivo generado dentro del proyecto
+([Borrar](#borrar)). Un
 script pasado en un heredoc (`python3 - <<'PY'`) o un archivo escrito con `cat > … <<EOF` se lee como texto de ese
 programa, no como comandos, así que sus palabras no hacen que pregunte; lo que se le pasa así a un shell se revisa
 como cualquier comando. Una tarjeta que nadie contesta cuenta como no: la sesión se entera y sigue por otro camino. Si el
@@ -114,6 +115,16 @@ responder:
 
 Una acción `always` tiene las mismas cuatro respuestas, separadas de las otras llamadas de la herramienta: permitir
 sus llamadas comunes nunca cubre las destructivas. Lo que configuraste en APX se aprueba de a una llamada.
+
+### Borrar
+
+Un agente borra solo cuando vos se lo pediste, en el chat o como una regla tuya en el proyecto (quitar un worktree
+cuando ya está mergeado, por ejemplo). Se le dice así, y cuando no se lo pediste te pregunta y dice por qué. En todos
+los modos salvo Total, un comando que borra con `rm -r` o `rm -f` te espera, también dentro de su propia carpeta. Su
+tarjeta lista lo que se borraría, cada ruta completa, por qué el agente quiere hacerlo, en sus palabras, y el comando.
+Podés aceptarlo una vez, o durante este chat: entonces los próximos borrados de ese agente en este chat corren sin
+preguntar. Nunca se permite para siempre, y nunca cubre otra cosa que siempre pregunta, como `sudo` o una versión.
+`git worktree remove` y `git branch -d` son comandos comunes: git mismo los rechaza cuando se perdería trabajo.
 
 En el editor del agente, **Concedidos** lista lo que le permitiste para siempre. Podés limitar un permiso a ciertas
 rutas, dominios o nombres (`app/Http/, github.com`: sólo corren sin preguntar las llamadas cuyos argumentos coinciden)

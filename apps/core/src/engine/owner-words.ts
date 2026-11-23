@@ -59,3 +59,26 @@ export const stalledWords = (store: Store, agent: string) =>
   english(store)
     ? `Nobody is working on it: ${agent} was asked to go on and stopped again without closing it or saying what it waits for.`
     : `Nadie la está trabajando: se le pidió a ${agent} que siguiera y volvió a frenar sin cerrarla ni decir qué espera.`;
+
+/** A deletion card's question: the owner decides on what is deleted, not on a command (DECISIONS.md#d-264). */
+export const deletePrompt = (store: Store, agent: string) =>
+  english(store)
+    ? `${agent} wants to delete this. In Auto an agent deletes only when you ask:`
+    : `${agent} quiere borrar esto. En Auto un agente solo borra cuando vos se lo pedís:`;
+
+/** What a deletion card shows: each path, what only the running command knows, the agent's reason and the command. */
+export function deletionDetail(
+  store: Store,
+  d: { paths: string[]; later: string[] },
+  why: string | undefined,
+  command: string,
+): string {
+  const en = english(store);
+  return [
+    ...d.paths,
+    ...d.later.map((w) => `${en ? "Known only when it runs" : "Se sabe recién al correr"}: ${w}`),
+    "",
+    `${en ? "Why, in its words" : "Por qué, en sus palabras"}: ${why?.trim() || (en ? "it did not say" : "no lo dijo")}`,
+    `${en ? "Command" : "Comando"}: ${command}`,
+  ].join("\n");
+}

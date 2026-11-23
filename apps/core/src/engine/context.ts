@@ -393,9 +393,9 @@ export type Sections = {
 export const VISUAL_CHECK =
   "A change a person sees (a screen, a page, an app's text) is done once you saw it running: open it in your browser, click through what changed, check its errors and wording, fix, and report with a picture. Never leave the check to the owner; fix a browser in the way (tabs, a dialog, the size) first; only what none shows is UNVERIFIED.";
 
-/** Told to whoever can change files: git's commits and publishing follow what was asked, not the agent's guess. */
+/** Told to whoever can change files: commits, publishing and deleting follow what was asked (D-210, D-264). */
 export const GIT_ASKED =
-  "Commit, pull, merge or push only when the owner or the task asked, or a project rule or note says how; else ask_owner once.";
+  "Commit, pull, merge, push or delete only if the owner or task asked or a project rule or note says so; else ask, saying why.";
 
 export const COMPUTER_WORKSPACE = (dir: string) =>
   `Shared Linux computer: ${dir}, as your own unprivileged user on your own screen. Shell and browser tools run there; web access uses the protected proxy. When it is off, start it with the computer tool.`;

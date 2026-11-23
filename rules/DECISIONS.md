@@ -5906,7 +5906,7 @@ back to you" messages. Revocation stops new reads, not answers already delivered
 Docs impact: updated channels/overview in English and Spanish, HUMAN_MODEL.md, settings help and news.
 
 <a id="d-264"></a>
-## D-264 — 2026-11-23 — Heredoc data is not shell words, start_session runs in Auto, an unanswered card says why
+## D-264 — 2026-11-23 — Agents delete only when asked; heredoc data is not shell words; start_session runs in Auto
 In Auto an external Claude Code session producing a video in a git worktree of the owner's project stopped four times
 on "a high-impact action that needs your OK even in Auto" for ordinary work, and one card expired unanswered. Three
 of those commands were high-impact only because `commandRisk`'s static reading (D-097) scanned a heredoc's body as
@@ -5917,8 +5917,25 @@ Now:
 - A heredoc's body is its program's data unless a shell reads it (`bash <<EOF`, `cat <<EOF | sh`, `ssh host <<EOF`,
   `sudo`, `eval`, `exec`, `osascript`…): a script for Python or a file written with `cat > f <<EOF` is judged like a
   script file, which was never scanned (`tools/command-heredocs.ts`). A body fed to a shell is still scanned whole.
-- A forced deletion (`rm -r`/`rm -f`) keeps asking in Auto, even below the folder the agent works in, as decided on
-  2026-11-01: the owner's call when asked again ("No, que pregunte"). A command that also deletes asks as a whole.
+- An agent deletes only when the owner asked for it, in the chat or as a standing rule of theirs ("tiene que estar muy
+  claro que solo va a borrar cuando se lo pido"). APX cannot read intent, so a forced deletion (`rm -r`/`rm -f`,
+  also inside the agent's folder or a script fed to a shell) keeps asking in Auto, as decided on 2026-11-01, and the
+  card is about the deletion: it lists each path resolved where the command runs (following its own `cd`s and
+  variables; what only the running command knows, as written), the agent's reason in its own words (Claude Code's
+  Bash `description`; for APX's agents what they wrote just before the call) and the command
+  (`tools/command-deletions.ts`, `owner-words.ts`). A command whose only high-impact part is the deletion gets its own
+  grant key, `apx:delete`, offered "only this time" or "for this chat" (D-109) and never for good: the chat's OK
+  covers that agent's later deletions there, never `sudo`, a release or anything else that always asks, and for an
+  outside session only deletions the folder rule lets it make. Agents are told so in the line they already had for
+  git: "Commit, pull, merge, push or delete only if the owner or task asked or a project rule or note says so; else
+  ask, saying why." It replaced the old line at one character more, which fills the realistic owner's budget exactly
+  (8,250, PROMPT_SIZE.md).
+- Standing deletions: the owner's worktree cleanup after a merge (AGENTS.md rule 29) is `git worktree remove` and
+  `git branch -d`, which are ordinary commands (`ask`, so Auto runs them in the folder) and git itself refuses when
+  work would be lost. A note or project rule tells the agent it was asked, but does not open a card. The only
+  standing grant beyond a chat is the agent's own rule for `irreversible`, which covers every action that always asks:
+  a rule for deletions alone does not exist. Also left as they are: `git worktree remove --force` and `git branch -D`
+  run as ordinary commands although they discard work git would have kept.
 - `start_session` is `untrusted`: its calls pass the same policy in the caller's mode, and its write policy is never
   more than the caller's, so in Auto it starts without a card unless outside content is in the turn (rule 10: an
   injected page must not launch a session), as a delegation does. Manual asks, Plan refuses.
@@ -5928,6 +5945,6 @@ Now:
   reason readable. ACP's permission answer carries no message.
 
 Known limit: still a static reading, not a sandbox; a script run by Python, Node or a heredoc can do anything its
-program can, as before.
+program can, as before, and the listed paths are what the words say, not a check of the disk.
 
-Docs impact: updated concepts/autonomy and office/code in English and Spanish.
+Docs impact: updated concepts/autonomy and office/code in English and Spanish, PROMPT_SIZE.md.

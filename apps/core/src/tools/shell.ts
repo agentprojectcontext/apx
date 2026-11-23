@@ -5,12 +5,14 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { z } from "zod";
+import { deleteApproval, nativeApproval, strictApproval } from "../domain/approvals.ts";
 import type { Store } from "../domain/store.ts";
 import { namesApc } from "../engine/paths.ts";
 import { AGENT_WORKSPACE } from "../environments/worker.ts";
 import { insideReal } from "../paths.ts";
 import { commandShell } from "../processes.ts";
 import { apxReads } from "./apx-reads.ts";
+import { deletionTargets, FORCED_RM } from "./command-deletions.ts";
 import { shellCode } from "./command-heredocs.ts";
 import { namedPaths } from "./command-paths.ts";
 import { mayChange, readsOnly } from "./command-reads.ts";
@@ -30,8 +32,9 @@ import {
 import { untrusted } from "./result.ts";
 import { type Confirm, defineTool, type Tool, ToolFailed } from "./types.ts";
 
+/** Destructive or system-level commands, but for a forced deletion (command-deletions.ts FORCED_RM, checked apart). */
 const DESTRUCTIVE =
-  /\b(sudo|su|doas|mkfs|dd|shutdown|reboot|halt|diskutil|launchctl|crontab|shred|srm)\b|\brm\b[^|;&]*\s(-\w*[rf]|--recursive|--force)|\bgit\b[^|;&]*\s(reset\s+--hard|clean\b|filter-branch|update-ref\s+-d)|\b(curl|wget|fetch)\b[^|]*\|\s*(sudo\s+)?(ba|z|da|k)?sh\b|\bchmod\b[^|;&]*\s-\w*R|\bchown\b[^|;&]*\s-\w*R|:\(\)\s*\{|\/dev\/(sd|disk|nvme)/;
+  /\b(sudo|su|doas|mkfs|dd|shutdown|reboot|halt|diskutil|launchctl|crontab|shred|srm)\b|\bgit\b[^|;&]*\s(reset\s+--hard|clean\b|filter-branch|update-ref\s+-d)|\b(curl|wget|fetch)\b[^|]*\|\s*(sudo\s+)?(ba|z|da|k)?sh\b|\bchmod\b[^|;&]*\s-\w*R|\bchown\b[^|;&]*\s-\w*R|:\(\)\s*\{|\/dev\/(sd|disk|nvme)/;
 
 /**
  * A push that rewrites or deletes what others have, or that cuts a release (a tag, a package, a GitHub release). A
@@ -96,6 +99,23 @@ export function broadScan(command: string, home = os.homedir()): string | undefi
  * (DECISIONS.md#d-098); anything the classifier cannot be sure of asks.
  */
 export function commandRisk(command: string, apxPort?: number): Confirm {
+  return deletes(command) ? "always" : riskBesides(command, apxPort);
+}
+
+/** Whether a command forcibly deletes something: it asks in every mode but Total, unless the owner asked (D-264). */
+const deletes = (command: string) => {
+  const code = shellCode(command.trim());
+  return FORCED_RM.test(code) || FORCED_RM.test(normalize(code));
+};
+
+/**
+ * A forced deletion is all that makes this command always ask: its card is a deletion's, and the owner's OK for this
+ * chat (`apx:delete`) covers it (DECISIONS.md#d-264).
+ */
+export const onlyDeletes = (command: string, apxPort?: number) =>
+  deletes(command) && riskBesides(command, apxPort) !== "always";
+
+function riskBesides(command: string, apxPort?: number): Confirm {
   const c = command.trim();
   // A heredoc fed to Python or written to a file is that program's data, not shell words (DECISIONS.md#d-264).
   const code = shellCode(c);
@@ -321,6 +341,18 @@ export function shellTools(
       }),
       effect: "external",
       confirm: (a) => commandRisk(a.command, apxPort()),
+      // A deletion has its own grant, never one for sudo or a release (DECISIONS.md#d-264).
+      approvalForCall: async (a) =>
+        onlyDeletes(a.command, apxPort())
+          ? deleteApproval
+          : commandRisk(a.command, apxPort()) === "always"
+            ? strictApproval(nativeApproval("shell"))
+            : nativeApproval("shell"),
+      deletes(a, ctx) {
+        if (commandRisk(a.command, apxPort()) !== "always" || !FORCED_RM.test(a.command)) return undefined;
+        const where = vm?.hasThread(ctx.thread.id) ? undefined : commandFolder(store, home, ctx.thread, a);
+        return deletionTargets(a.command, where && !("refused" in where) ? where.at : (a.cwd ?? "."));
+      },
       keepsCard: (a) => publishCard(a.command, store.settings.read("owner_profile").publish ?? "auto"),
       // A command that could only be refused is not put to the owner.
       check(a, ctx) {

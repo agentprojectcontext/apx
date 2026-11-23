@@ -5,7 +5,7 @@ import path from "node:path";
 
 import type { MethodName, Params, Result, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
-import { type ApprovalTarget, strictApproval } from "../domain/approvals.ts";
+import { type ApprovalTarget, DELETE_GRANT, deleteApproval, strictApproval } from "../domain/approvals.ts";
 import type { InputRecord } from "../domain/inputs.ts";
 import type { JobRecord } from "../domain/jobs.ts";
 import { ownerAsked, type RunRecord } from "../domain/runs.ts";
@@ -13,16 +13,17 @@ import type { Store } from "../domain/store.ts";
 import { worksInFolder } from "../domain/threads.ts";
 import { errorMessage } from "../errors.ts";
 import type { TurnIO } from "../harness/index.ts";
+import { deletionTargets } from "../tools/command-deletions.ts";
 import { foundLater, TOOL_RUN, TOOL_SEARCH, unwrapCall } from "../tools/mcp-bridge.ts";
 import { authorize, type Decision, decide, keepsCard, modeOf, sessionGate } from "../tools/policy.ts";
 import { cap, UNTRUSTED_MARK } from "../tools/result.ts";
-import { commandRisk } from "../tools/shell.ts";
+import { commandRisk, onlyDeletes } from "../tools/shell.ts";
 import type { CheckContext, Confirm, ScopedThread, Tool, ToolContext } from "../tools/types.ts";
 import { prepareBrowserConsent } from "./browser-consent.ts";
 import type { Display } from "./display.ts";
 import { folderBinding, type Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
-import { confirmPrompt, folderPrompt, ownerCardPrompt } from "./owner-words.ts";
+import { confirmPrompt, deletePrompt, deletionDetail, folderPrompt, ownerCardPrompt } from "./owner-words.ts";
 import { guarded, inGitFolder, namesApc, pathsOf } from "./paths.ts";
 import type { Permissions } from "./permissions.ts";
 import { handedOff } from "./task-handoff.ts";
@@ -104,6 +105,12 @@ const FOREGROUND_OUTPUT_CHARS = 60_000;
 const STORED_OUTPUT_CHARS = 2_000_000;
 const STEP_SUMMARY_CHARS = 4000;
 const CARD_DETAIL_CHARS = 300;
+
+/** What the agent said just before a call: its reason, as the owner reads it on a deletion card (D-264). */
+function lastWords(display: Display): string | undefined {
+  const text = display.message.parts.findLast((p) => p.type === "text");
+  return text?.type === "text" ? text.text.slice(-400) : undefined;
+}
 
 /** The call's arguments for the confirmation card, whole. */
 function describe(args: Record<string, unknown>): string {
@@ -404,20 +411,25 @@ export function createExecutor(o: {
       !granted &&
       (target?.browser || !o.inputs.takeGrant(thread.id, agent.id, name, raw, target?.key))
     ) {
+      // A deletion shows what goes and why, in the agent's words just before the call (DECISIONS.md#d-264).
+      const gone = target?.key === DELETE_GRANT ? tool.deletes?.(args, { agent, thread: callThread }) : undefined;
       const answer = await o.inputs.ask({
         run,
         agent,
         display,
         callId,
         kind: "confirm",
-        prompt:
-          tool.ownerSetting?.(args) && tool.explain
+        prompt: gone
+          ? deletePrompt(store, agent.name)
+          : tool.ownerSetting?.(args) && tool.explain
             ? ownerCardPrompt(store, agent.name)
             : confirmPrompt(store, gate.why, agent.name, name),
         tool: name,
         approval: target,
         args: raw,
-        detail: tool.explain?.(args) ?? describe(args),
+        detail: gone
+          ? deletionDetail(store, gone, lastWords(display), String(args.command ?? ""))
+          : (tool.explain?.(args) ?? describe(args)),
         // A preview that fails only costs the patch: the owner still sees the arguments.
         change: await tool.preview?.(args, { agent, thread: callThread }).catch(() => undefined),
         external: o.external(),
@@ -650,15 +662,33 @@ export function createExecutor(o: {
     const decision = sessionGate(thread, decide(level, effect, agent, untrusted, workspace), changes);
     if (decision.kind === "allow") return allow();
     if (decision.kind === "deny") return false;
+    // A deletion is the owner's to ask for: its card says what goes and why, and their OK for this chat covers the next
+    // one in the folders it may change (a deletion elsewhere asks each time).
+    const deletion = decision.why === "always" && ran && onlyDeletes(command, o.apxPort());
+    const grantable = deletion && inside;
+    if (grantable && store.approvals.allows(deleteApproval, thread.id, agent.id)) return allow();
+    const reason = (req.input as { description?: unknown } | undefined)?.description;
     const answer = await o.inputs.ask({
       run: o.run(),
       agent,
       display,
       callId: req.callId,
       kind: "confirm",
-      prompt: confirmPrompt(store, decision.why, agent.name, req.title),
+      prompt: deletion ? deletePrompt(store, agent.name) : confirmPrompt(store, decision.why, agent.name, req.title),
       tool: req.kind,
-      ...(req.detail ? { detail: req.detail } : {}),
+      ...(grantable ? { approval: deleteApproval } : {}),
+      ...(deletion
+        ? {
+            detail: deletionDetail(
+              store,
+              deletionTargets(command, base),
+              typeof reason === "string" ? reason : undefined,
+              command,
+            ),
+          }
+        : req.detail
+          ? { detail: req.detail }
+          : {}),
       // The external agent's own tool is not ours to run later: past the wait it counts as no.
       external: false,
       stays: false,

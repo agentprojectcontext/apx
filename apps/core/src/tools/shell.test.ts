@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 import { after, before, test } from "node:test";
 import type { PendingInput } from "@apx/protocol";
 import { callTool, inputOrEnd, inputsOrEnd, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { realpath } from "../paths.ts";
 import { removeDir } from "../testkit/platform.ts";
-import { broadScan, commandFailed, commandRisk, reachesOut } from "./shell.ts";
+import { deletionTargets } from "./command-deletions.ts";
+import { broadScan, commandFailed, commandRisk, onlyDeletes, reachesOut } from "./shell.ts";
 
 test("command risk: reading runs, changing asks, destroying always asks", () => {
   for (const c of [
@@ -250,6 +252,16 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
   if (said.includes("scan please"))
     return callTool("s7", "shell", { command: "find /Volumes/disk -type d -name audit -print" });
   if (said.includes("touch please")) return callTool("s4", "shell", { command: "touch made-by-agent" });
+  if (said.includes("clean build please"))
+    return {
+      message: {
+        role: "assistant",
+        content: "I made build/old for the test run; removing it.",
+        tool_calls: [
+          { id: "d1", type: "function", function: { name: "shell", arguments: '{"command":"rm -rf build/old"}' } },
+        ],
+      },
+    };
   if (said.includes("fail please")) return callTool("f1", "shell", { command: `node -e "process.exit(7)"` });
   if (said.includes("find nothing please")) return callTool("f2", "shell", { command: "grep -r zzz-not-here-zzz ." });
   if (said.includes("escape please")) return callTool("s5", "shell", { command: "ls", cwd: "../.." });
@@ -287,6 +299,23 @@ test("a heredoc's body is its program's data: words in a Python script or a JSON
     "python3 - <<'PY'\nprint(1)\nPY\nsudo ls",
   ])
     assert.equal(commandRisk(c), "always", c);
+});
+
+test("a deletion card lists the paths a command deletes, resolved where it runs; a grant for deletions covers nothing else", () => {
+  const cwd = path.resolve("/work/acme/.worktrees/reels");
+  const at = (...p: string[]) => path.join(cwd, ...p);
+  assert.deepEqual(deletionTargets("cd work; D=en/subtitles\nrm -rf $D/words/es $D/captions/es.srt", cwd), {
+    paths: [at("work", "en", "subtitles", "words", "es"), at("work", "en", "subtitles", "captions", "es.srt")],
+    later: [],
+  });
+  assert.deepEqual(deletionTargets("rm -rf $OUT/x && ls | xargs rm -f", cwd), {
+    paths: [],
+    later: ["$OUT/x", "xargs rm -f"],
+  });
+  assert.equal(onlyDeletes("rm -rf build"), true);
+  assert.equal(onlyDeletes("python3 - <<'PY'\nprint(1)\nPY\nrm -rf out"), true);
+  for (const c of ["sudo rm -rf build", "rm -rf build && git push --force", "ls", "bash <<'EOF'\nsudo ls\nEOF"])
+    assert.equal(onlyDeletes(c), false, c);
 });
 
 test("a forced deletion asks in Auto even below the folder the command works in (DECISIONS.md#d-264)", () => {
@@ -423,6 +452,24 @@ test("manual: a command that changes something waits for the owner", async () =>
   } finally {
     await env.client.call("agents.update", { agent: "superagent", autonomy: null });
   }
+});
+
+test("auto: a deletion asks with what goes and why; the owner's OK for this chat covers the next one (DECISIONS.md#d-264)", async () => {
+  const t = await thread();
+  await env.client.call("threads.send", { thread: t, text: "clean build please" });
+  const [card] = await inputsOrEnd(env.client, t);
+  assert.equal(card?.tool, "shell");
+  assert.match(card?.prompt ?? "", /delete|borrar/);
+  assert.match(card?.detail ?? "", /[\\/]build[\\/]old$/m, "the resolved path, on a line of its own");
+  assert.match(card?.detail ?? "", /removing it/);
+  assert.match(card?.detail ?? "", /rm -rf build\/old/);
+  assert.deepEqual(card?.approval_scopes, ["once", "session"], "for this chat at most, never for good");
+  await env.client.call("runs.respond", { input: card?.id ?? "", decision: "approve", scope: "session" });
+  await env.settle(t);
+  await env.client.call("threads.send", { thread: t, text: "clean build please" });
+  await env.settle(t);
+  assert.deepEqual((await env.client.call("runs.pending", { thread: t })).inputs, []);
+  assert.match(lastSeen(), /exit 0/);
 });
 
 test("auto: a command that changes something where the agent works runs without a card", async () => {
