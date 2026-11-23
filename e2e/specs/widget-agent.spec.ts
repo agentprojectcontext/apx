@@ -113,6 +113,12 @@ for (const lang of ["en", "es"] as const)
           return messages.some((m) => m.parts.some((p) => p.type === "surface" && p.surface_id === made.id));
         })
         .toBe(true);
+      const sent = await rpc<{ messages: Message[] }>("threads.get", { thread: editing?.id });
+      expect(
+        sent.messages.some((m) =>
+          m.parts.some((p) => p.type === "text" && p.text.includes(`widget ${made.name}: ${made.title}`)),
+        ),
+      ).toBe(true);
       const { surfaces } = await rpc<{ surfaces: SurfaceSummary[] }>("surfaces.list", {});
       const same = surfaces.filter((s) => s.project_id === project.id);
       expect(same).toHaveLength(1);
