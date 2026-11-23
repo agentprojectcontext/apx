@@ -215,6 +215,9 @@ dozen looks at the page, which is faster and spends far fewer tokens.
   for it, your Chrome only for your own work, never passwords.
 - A memory note tells the agent the recipe exists, so it finds it again in a later chat: "use the LinkedIn recipe
   for these 20 posts".
+- When a recipe breaks (the site changed a button, a step needs to wait longer), the agent repairs it itself: it
+  changes the steps, checks that nothing was done twice and tries again, up to three times, then saves the fixed
+  recipe. If it still fails, it leaves that item, finishes the rest and asks you one specific thing.
 - To change a recipe, ask the agent to run the steps again with the fix and save it under the same name; to remove
   one, delete its file.
 
