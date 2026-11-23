@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
 import { browserTools } from "./browser.ts";
+import { planUsageTools } from "./plan-usage.ts";
 import { allowedTools, authorize, inherit } from "./policy.ts";
 import { shellTools } from "./shell.ts";
 import { type Confirm, defineTool, type Effect } from "./types.ts";
@@ -52,6 +53,16 @@ test("tools: lists filter by name or group and keep the always-available tools",
     "read_output",
     "ask_owner",
   ]);
+});
+
+test("quota reads obey explicit lists, risk rules and caller restrictions without opening administration", () => {
+  const quota = planUsageTools();
+  const all = [...ALL, ...quota, tool("apx_settings")];
+  assert.ok(allowedTools(agent(), all).some((t) => t.name === "plan_usage"));
+  assert.ok(!allowedTools(agent(), all).some((t) => t.name === "apx_settings"));
+  assert.ok(!allowedTools(agent({ rules: { read: "off" } }), all).some((t) => t.name === "plan_usage"));
+  assert.ok(!allowedTools(agent({ tools: ["browser"] }), all).some((t) => t.name === "plan_usage"));
+  assert.equal(inherit(agent(), [agent({ tools: ["browser"] })], all).allows("plan_usage"), false);
 });
 
 test("an explicit MCP-only list restricts builtins even when no MCP server supplies a bridge", () => {

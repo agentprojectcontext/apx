@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import path from "node:path";
 import { test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { tempDir } from "../testkit/platform.ts";
 
 test("new and existing project agents discover and read quotas; explicit tool restrictions still apply", async () => {
   const llm = scriptedLlm((req, { afterTool }) => {
@@ -18,8 +18,9 @@ test("new and existing project agents discover and read quotas; explicit tool re
     }
     return say(String(req.messages.at(-1)?.content));
   });
+  await using binaries = tempDir("quota-binaries-");
   const oldPath = process.env.PATH;
-  process.env.PATH = path.dirname(process.execPath);
+  process.env.PATH = binaries.path;
   const env = await startCore({ llm });
   try {
     const { project } = await env.client.call("projects.create", { name: "Acme" });
