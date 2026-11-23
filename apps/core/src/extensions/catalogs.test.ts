@@ -574,6 +574,25 @@ test("a plugin's declared creator is independent of the catalog's owner", async 
     assert.equal(local.find((e) => e.name === "declared")?.publisher, "Northwind");
     assert.equal(local.find((e) => e.name === "unknown")?.publisher, undefined);
     assert.equal(local.find((e) => e.name === "unknown")?.github, undefined);
+    const saved = env.core.store.extensionCatalogs.get(id);
+    assert.ok(saved);
+    env.core.store.extensionCatalogs.put({
+      ...saved,
+      entries: saved.entries.map((e) => ({
+        ...e,
+        publisher: "Acme",
+        publisher_source: undefined,
+      })),
+    });
+    const cached = (await env.client.call("extensions.catalog", {})).entries.filter((e) => e.catalog === id);
+    assert.ok(
+      cached.every((e) => e.publisher === undefined),
+      "an unsourced cached name is not an author",
+    );
+    await env.client.call("extensions.catalog_sync", { id });
+    const refreshed = (await env.client.call("extensions.catalog", {})).entries.filter((e) => e.catalog === id);
+    assert.equal(refreshed.find((e) => e.name === "declared")?.publisher, "Northwind");
+    assert.equal(refreshed.find((e) => e.name === "unknown")?.publisher, undefined);
   } finally {
     if (id) await env.client.call("extensions.catalog_remove", { id });
     await folder.remove();

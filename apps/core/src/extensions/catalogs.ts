@@ -261,7 +261,7 @@ export function createCatalogs(deps: {
         return entries.push({
           ...base,
           ...(version ? { version } : {}),
-          ...(author ? { publisher: author } : {}),
+          ...(author ? { publisher: author, publisher_source: "author" as const } : {}),
           license,
           via: { type: "path", path: rel },
           ...(read ? { contents: read.contents, brings: read.brings, needs: read.needs } : {}),
@@ -282,7 +282,7 @@ export function createCatalogs(deps: {
       const account = githubRepo(url)?.[0];
       return entries.push({
         ...base,
-        ...(author ? { publisher: author } : account ? { github: account } : {}),
+        ...(author ? { publisher: author, publisher_source: "author" as const } : account ? { github: account } : {}),
         license,
         via,
         ...(await remoteBrings(url, src.sha, base, via.path)),
