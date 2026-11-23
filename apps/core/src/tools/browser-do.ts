@@ -8,7 +8,7 @@ import { type BrowserRecipe, listRecipes, MAX_STEPS, RECIPE_NAME, readRecipe, sa
 import { type BrowserStep, fill, runSteps, StepArg, stepText, toSteps } from "./browser-steps.ts";
 import { workDir } from "./folders.ts";
 import { cap, untrusted } from "./result.ts";
-import { defineTool, type ScopedThread, type Tool, type ToolContext } from "./types.ts";
+import { defineTool, type ScopedThread, type Tool, type ToolContext, ToolFailed } from "./types.ts";
 
 /** What a failure shows of the page: enough to fix the step without another snapshot. */
 const FAILED_TREE_CHARS = 6000;
@@ -16,6 +16,8 @@ const FAILED_TREE_CHARS = 6000;
 const FIND_CHARS = 60_000;
 /** What `wait` reads of the page's text when the snapshot does not show it. */
 const TEXT_CHARS = 50_000;
+/** Runs of a broken sequence an agent repairs on its own before it asks the owner. */
+const REPAIR_TRIES = 3;
 
 export function browserDoTool(
   store: Store,
@@ -25,6 +27,18 @@ export function browserDoTool(
   /** A local file the agent may read, when `text` is its full path: a file field gets it attached, as browser_type does. */
   attachable: (text: string, thread: ScopedThread) => string | undefined,
 ): Tool {
+  /** Failed runs of a recipe or sequence in a turn (run id and name → count): how far its repair has gone. */
+  const failures = new Map<string, number>();
+  /** What the agent does next with a broken sequence: repair it itself, and ask only once its tries are spent. */
+  const repair = (run: string, what: string): string => {
+    const key = `${run}:${what}`;
+    const n = (failures.get(key) ?? 0) + 1;
+    failures.set(key, n);
+    if (failures.size > 200) failures.delete(failures.keys().next().value as string);
+    if (n < REPAIR_TRIES)
+      return `Try ${n} of ${REPAIR_TRIES} for this ${what} in this turn. Repair it yourself: from the reason and the page above, change the steps (their order, a control's name, within, a wait for what the page shows first) and run again. Check first what the steps before the failure already did (a draft, a half-filled form, an item sent), so nothing is done twice. Once it works, save_as the same name so the recipe stays fixed, and go on with the rest of the batch.`;
+    return `Try ${n} of ${REPAIR_TRIES}: stop retrying this ${what}. Leave the item undone and recorded as such, finish every other part of the task you can, then ask the owner one specific thing that would unblock it (what to sign in to, turn on, or decide), with what you tried.`;
+  };
   /** Recipes live in the thread's project (in the agent's work folder when it has none). */
   const projectDir = (ctx: Pick<ToolContext, "thread">) =>
     workDir(store, home, { project_id: ctx.thread.project_id ?? undefined });
@@ -32,7 +46,7 @@ export function browserDoTool(
     needsCap: BROWSER_CAP,
     name: "browser_do",
     description:
-      "Several browser actions in one call: open, click, type, wait. Controls are named as the snapshot shows them; each step waits for its control, and the call stops at the first that fails, showing the page. Once a sequence works, save_as keeps it as a project recipe; later run it with recipe and vars ({{name}} in steps).",
+      "Several browser actions in one call: open, click, type, wait. Controls are named as the snapshot shows them; each step waits for its control, and the call stops at the first that fails, showing the page: fix the steps and run again yourself (3 tries) before asking. Once a sequence works, save_as keeps it as a project recipe; later run it with recipe and vars ({{name}} in steps).",
     args: z.object({
       tab: z.string().min(1).describe("tab id"),
       steps: z.array(StepArg).min(1).max(MAX_STEPS).optional(),
@@ -114,7 +128,10 @@ export function browserDoTool(
         const page = out.failed.tree
           ? `\nthe page now:\n${untrusted("web_snapshot", { tab }, cap(out.failed.tree, FAILED_TREE_CHARS))}`
           : "";
-        return `${log}\n${out.failed.step}. failed: ${out.failed.why}${left ? ` (${left} later step${left === 1 ? "" : "s"} not done)` : ""}${page}`;
+        const what = a.recipe ? `recipe ${a.recipe}` : a.save_as ? `sequence for ${a.save_as}` : "sequence";
+        throw new ToolFailed(
+          `${log}\n${out.failed.step}. failed: ${out.failed.why}${left ? ` (${left} later step${left === 1 ? "" : "s"} not done)` : ""}${page}\n${repair(ctx.run.id, what)}`,
+        );
       }
       const lines = [log, `all ${filled.steps.length} steps done.`];
       if (a.save_as && given) {

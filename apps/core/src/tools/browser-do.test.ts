@@ -14,6 +14,14 @@ const STEPS = [
 ];
 
 const llm = scriptedLlm((req, { said, afterTool }) => {
+  const tries = req.messages.filter((m) => m.role === "tool").length;
+  if (said.includes("broken batch") && tries < 3)
+    return callTool(`b${tries}`, "browser_do", {
+      tab: "t1",
+      steps: [{ do: "click", target: 'button "Broken"' }],
+      save_as: "broken-batch",
+      about: "A batch whose button fails",
+    });
   if (afterTool) return say(`Done: ${String(req.messages.findLast((m) => m.role === "tool")?.content)}`);
   if (said.includes("learn"))
     return callTool("d1", "browser_do", {
@@ -60,6 +68,7 @@ const tree = () =>
         ]
       : []),
     ...(scheduled ? ['- status "Scheduled"'] : []),
+    '- button "Broken" [e9]',
     "</untrusted_web>",
   ].join("\n");
 
@@ -84,6 +93,7 @@ before(async () => {
     if (method === "browser.snapshot")
       return { url: "https://admin.example.com/", title: "Admin", tree: tree(), refs: 3, truncated: false };
     if (method === "browser.click") {
+      if (p.ref === "e9") throw new Error("the page did not answer the click");
       actions.push(`click ${p.ref} by ${p.by}`);
       if (p.ref === "e1") composing = true;
       if (p.ref === "e3") {
@@ -170,4 +180,25 @@ test("a file's full path, given as a value, is attached; a file the agent may no
   composing = false;
   await turn(`attach ${outside}`);
   assert.deepEqual(actions, ["click e1 by superagent", `type e4 ${outside}`]);
+});
+
+test("a broken sequence fails as an error that says to repair it, and after three tries to finish the rest and ask", async () => {
+  const { thread } = await turn("run the broken batch");
+  const tries = (await env.client.call("threads.get", { thread })).messages
+    .flatMap((m) => m.parts)
+    .filter((p) => p.type === "tool" && p.tool === "browser_do");
+  assert.deepEqual(
+    tries.map((p) => (p.type === "tool" ? p.status : "")),
+    ["error", "error", "error"],
+  );
+  const detail = (i: number) => {
+    const p = tries[i];
+    return p?.type === "tool" ? (p.detail ?? "") : "";
+  };
+  assert.match(detail(0), /the page did not answer the click/);
+  assert.match(detail(0), /Try 1 of 3 for this sequence for broken-batch.*Repair it yourself/s);
+  assert.match(detail(1), /Try 2 of 3/);
+  assert.match(detail(2), /Try 3 of 3: stop retrying.*finish every other part.*ask the owner one specific thing/s);
+  const saved = fs.readdirSync(env.home, { recursive: true, encoding: "utf8" });
+  assert.equal(saved.filter((f) => f.endsWith("broken-batch.json")).length, 0, "nothing broken is saved");
 });

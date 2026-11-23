@@ -5994,6 +5994,15 @@ hands it on, it is still me asking".
   Not decided here: an owner-given standing permission for an agent to use their Chrome in its own work; a contact's
   turn stays out of it whatever the agent.
 
+**A broken sequence is the agent's to repair.** The first real run stopped at its first failure (the site emptied the
+post's text when its date picker closed) and waited for the owner, as it had been told. The owner's rule: agents
+finish on their own, as a coding agent would. A failed step now ends the call as an error (the card shows it), and its
+result says what to do next: try 1 and 2 of a recipe or sequence in a turn tell the agent to change the steps from the
+reason and the page shown, check what the earlier steps already did so nothing is done twice, run again and `save_as`
+the same name once it works; try 3 tells it to leave that item undone and recorded, finish the rest of the task and
+ask the owner one specific thing. This lives in the tool's result, not the system prompt, whose realistic budget has no
+room (`RECOVERY` already says to fix a failure and go on).
+
 A chat on the agents' computer (D-154) does not get `browser_do`: its recipes are files of the owner's project on
 this computer, which those chats never read or write.
 
