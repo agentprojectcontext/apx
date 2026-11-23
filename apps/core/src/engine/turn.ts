@@ -384,6 +384,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     },
     execute: exec.execute,
     approve: exec.approve,
+    refusal: exec.refusal,
     observe: exec.observe,
     showImage: (file) => showImage(deps, { thread, run, display, owner: audience.kind === "owner" }, file),
     takeSteered: () => {

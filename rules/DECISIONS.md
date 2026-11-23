@@ -255,7 +255,8 @@ than the caller's and is capped at the destination project's autonomy (D-126); a
 sub-thread, so the caller's spend limits pause it (a tripped breaker refuses creating it and every later message) and
 later messages from the caller queue past the active-delegation cap. Confirmation: `confirm: "always"`, so the owner
 approves each start on a card even in Auto; only Total or the agent's own rule for that risk skips it (D-047), and
-Plan mode refuses it. Inside the session, the engine's commands and edits follow the same policy as any session's.
+Plan mode refuses it. *Amended by [D-266](#d-266) (2026-11-23): `untrusted`, so Auto starts it without a card unless
+outside content is in the turn; Manual still asks.* Inside the session, the engine's commands and edits follow the same policy as any session's.
 
 <a id="d-024"></a>
 ## D-024 — 2026-10-02 — v2 lives in ~/.apx/v2, beside v1's files
@@ -6005,3 +6006,57 @@ Not done yet: keys other than Enter.
 
 Docs impact: updated office/browser (recipes, the Chrome bullet, the terminal note) in English and Spanish,
 PROMPT_SIZE.md (browser tools), and news.
+
+<a id="d-266"></a>
+## D-266 — 2026-11-23 — Agents delete only when asked; heredoc data is not shell words; start_session runs in Auto
+In Auto an external Claude Code session producing a video in a git worktree of the owner's project stopped four times
+on "a high-impact action that needs your OK even in Auto" for ordinary work, and one card expired unanswered. Three
+of those commands were high-impact only because `commandRisk`'s static reading (D-097) scanned a heredoc's body as
+shell words: a Spanish docstring's "su" counted as `su`, and a Python regex's `\d\d` (backslashes dropped) as `dd`. The
+parent agent also asked the owner before starting that session, because `start_session` was `always`.
+
+Now:
+- A heredoc's body is its program's data unless a shell reads it (`bash <<EOF`, `cat <<EOF | sh`, `ssh host <<EOF`,
+  `sudo`, `eval`, `exec`, `osascript`…): a script for Python or a file written with `cat > f <<EOF` is judged like a
+  script file, which was never scanned (`tools/command-heredocs.ts`). A body fed to a shell is still scanned whole.
+- An agent deletes only when the owner asked for it, in the chat or as a standing rule of theirs ("tiene que estar muy
+  claro que solo va a borrar cuando se lo pido"). APX cannot read intent, so a forced deletion (`rm -r`/`rm -f`,
+  also inside the agent's folder or a script fed to a shell) keeps asking in Auto, as decided on 2026-11-01, and the
+  card is about the deletion: it lists each path resolved where the command runs (following its own `cd`s and
+  variables; what only the running command knows, as written), the agent's reason in its own words (Claude Code's
+  Bash `description`; for APX's agents what they wrote just before the call) and the command
+  (`tools/command-deletions.ts`, `owner-words.ts`). A command whose only high-impact part is the deletion gets its own
+  grant key, `apx:delete`, offered "only this time" or "for this chat" (D-109) and never for good: the chat's OK
+  covers that agent's later deletions there, never `sudo`, a release or anything else that always asks, and for an
+  outside session only deletions the folder rule lets it make. Agents are told so in the line they already had for
+  git: "Commit, pull, merge, push or delete only if the owner or task asked or a project rule or note says so; else
+  ask, saying why." It replaced the old line at one character more, which fills the realistic owner's budget exactly
+  (8,250, PROMPT_SIZE.md).
+- Git commands that throw away work git would otherwise keep are deletions too (the owner: "Sí, que pregunte"), with
+  the same card, listing the branch, worktree, files or stash they lose, and the same `apx:delete` grant:
+  `git worktree remove --force`/`-f`, `git branch -D` (and `--delete --force`, `-df`), `git clean` unless a dry run,
+  `git reset --hard` (moved here from the destructive list), `git checkout -- paths`, `git checkout .`,
+  `git checkout -f`, `git restore` of the working tree (not `--staged` alone), `git switch --discard-changes`/`-f`,
+  `git stash drop`/`clear`, `git rm -f` (not `--cached`), `git reflog expire`/`delete` and `git gc --prune=now`. Git's
+  own options before the command (`-C dir`) are read through, and a script fed to a shell is read as commands. Still
+  ordinary commands, since git refuses them when work would be lost or they keep it: `git worktree remove`,
+  `git branch -d`, `git worktree prune`, `git clean -n`, `git reset --soft`/`--mixed`, `git checkout <branch>`,
+  `git restore --staged`, `git stash`/`pop`, `git rm` and `git gc`. `git rm` is no longer read as a forced `rm`. So
+  the owner's worktree cleanup after a merge (AGENTS.md rule 29: `git worktree remove` and `git branch -d`) runs in
+  Auto without a card, and forcing it asks. Gaps left: a project rule or note tells the agent it was asked but does
+  not skip the card, and the only standing grant beyond a chat is the agent's rule for `irreversible`, which covers
+  every action that always asks; a rule for deletions alone does not exist. `git filter-branch` and
+  `git update-ref -d` stay high-impact actions (they rewrite history) and a push that deletes a branch keeps its
+  release card (D-208).
+- `start_session` is `untrusted`: its calls pass the same policy in the caller's mode, and its write policy is never
+  more than the caller's, so in Auto it starts without a card unless outside content is in the turn (rule 10: an
+  injected page must not launch a session), as a delegation does. Manual asks, Plan refuses.
+- An external agent's call the owner declined, or whose card expired, comes back to Claude Code with why ("the owner
+  did not answer in time … continue another way, or say what is left"), not the generic "policy does not allow it"
+  (`TurnIO.refusal`). The card already resolved as `expired` after its wait and the run went on; this only makes the
+  reason readable. ACP's permission answer carries no message.
+
+Known limit: still a static reading, not a sandbox; a script run by Python, Node or a heredoc can do anything its
+program can, as before, and the listed paths are what the words say, not a check of the disk.
+
+Docs impact: updated concepts/autonomy and office/code in English and Spanish, PROMPT_SIZE.md.

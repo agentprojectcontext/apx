@@ -51,6 +51,7 @@ async function start(
   decision?: "approve" | "deny",
   agent = "superagent",
   callerCwd?: string,
+  mode: "auto" | "manual" | "total" = decision ? "manual" : "total",
 ) {
   args = { engine: "claude", project, task: "review the change", ...options };
   const caller = await env.client.call("threads.create", {
@@ -60,7 +61,7 @@ async function start(
     ...(callerCwd ? { cwd: callerCwd } : {}),
   });
   if (write) await env.client.call("threads.update", { thread: caller.id, write });
-  await env.client.call("agents.update", { agent, autonomy: decision ? "auto" : "total" });
+  await env.client.call("agents.update", { agent, autonomy: mode });
   await env.client.call("threads.send", { thread: caller.id, text: "start it" });
   if (decision) {
     const pending = await inputsOrEnd(env.client, caller.id);
@@ -124,13 +125,21 @@ test("mismatched models, missing projects, escaping folders and permission escal
   }
 });
 
-test("the owner can decline starting an external engine, or approve it outside total mode", async () => {
+test("in manual the owner can decline starting an external engine, or approve it", async () => {
   const count = seen.length;
   assert.match((await start({}, undefined, "deny")).result, /declined/);
   assert.equal(seen.length, count);
   const started = JSON.parse((await start({}, undefined, "approve")).result) as { thread: string };
   await env.settle(started.thread);
   assert.ok(seen.some((io) => io.thread.id === started.thread));
+});
+
+test("in auto an agent starts an external session in its project without a card (DECISIONS.md#d-266)", async () => {
+  const { done, result } = await start({}, undefined, undefined, "superagent", undefined, "auto");
+  const started = JSON.parse(result) as { thread: string };
+  await env.settle(started.thread);
+  assert.ok(seen.some((io) => io.thread.id === started.thread));
+  assert.ok(!done.messages.some((m) => m.parts.some((p) => p.type === "input")), "no card was raised");
 });
 
 test("an external engine cannot edit from a read-only session", async () => {

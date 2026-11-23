@@ -270,8 +270,9 @@ function toolOptions(io: TurnIO, counts: Counts) {
     allowedTools: ours,
     permissionMode: "default" as const,
     canUseTool: async (name: string, input: Record<string, unknown>) => {
+      const callId = `${io.run.id}-p${++counts.permissions}`;
       const ok = await io.approve({
-        callId: `${io.run.id}-p${++counts.permissions}`,
+        callId,
         title: `${name} ${subjectOf(input).slice(0, 200)}`.trim(),
         kind: KIND[name] ?? "other",
         detail: JSON.stringify(input, null, 1),
@@ -279,7 +280,10 @@ function toolOptions(io: TurnIO, counts: Counts) {
       });
       return ok
         ? { behavior: "allow" as const, updatedInput: input }
-        : { behavior: "deny" as const, message: "The owner's policy does not allow this here." };
+        : {
+            behavior: "deny" as const,
+            message: io.refusal?.(callId) ?? "The owner's policy does not allow this here.",
+          };
     },
   };
 }

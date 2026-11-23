@@ -62,13 +62,13 @@ test("whoever can change files is told to look at a visible change running, unde
   assert.ok(!sectionLines({ mode: "auto" }).includes(`- ${VISUAL_CHECK}`));
 });
 
-test("whoever can change files commits and publishes only when asked or a project rule says how", () => {
+test("whoever can change files commits, publishes and deletes only when asked or a project rule says so", () => {
   assert.ok(sectionLines({ write: "auto", edits: true }).includes(`- ${GIT_ASKED}`));
   assert.ok(sectionLines({ mode: "auto", edits: true }).includes(`- ${GIT_ASKED}`));
   assert.ok(!sectionLines({ mode: "auto" }).includes(`- ${GIT_ASKED}`));
   assert.match(
     GIT_ASKED,
-    /only when the owner or the task asked, or a project rule or note says how; else ask_owner once/,
+    /push or delete only if the owner or task asked or a project rule or note says so; else ask, saying why/,
   );
 });
 

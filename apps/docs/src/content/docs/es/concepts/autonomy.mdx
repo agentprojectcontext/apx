@@ -52,7 +52,7 @@ no es un `git push`.
 | `never` | Leer archivos, buscar en la web, buscar en las notas, listar tareas, guardar una nota, mirar tu pantalla, comandos de shell que sólo leen en esta máquina (`ls`, `find . | grep`, `git log`, `git branch -a`, `apx status`, `apx tasks`, `apx mcps list`, `apx usage 7`, cualquier `apx … --help`): corren aunque haya contenido de afuera en el turno. Leer `AGENTS.md` o `.apc/` también es leer. |
 | `untrusted` | Escribir archivos del proyecto, escribirle a un contacto, publicar en un canal, tipear en el navegador, olvidar una nota, darle una herramienta a otro agente, la ubicación del teléfono, abrir una URL con query string, asignarle una tarea a un agente. |
 | `ask` | Cualquier comando de shell que no sea claramente de sólo lectura, incluido un `git push` común de una rama, abrir apps en tu pantalla. |
-| `always` | Comandos de shell destructivos (`rm -rf`, `sudo`, `git reset --hard`…), un push que saca una versión o reescribe la historia (un tag, `--force`, `gh release`, `npm publish`), cambiar `AGENTS.md` o algo dentro de `.apc/` (con una herramienta de archivos o un comando), comandos que llegan a la API de APX, o a su CLI para algo que no sea leer (`apx chat`, `apx runs respond`, `apx routines add`, o cualquier `apx` con una variable puesta antes), no una carpeta o una palabra que se llame apx, mandar un iMessage, responderle a un contacto, usar tu sesión del navegador, hacer clic, tipear o apretar teclas en tu pantalla. |
+| `always` | Comandos de shell destructivos (`rm -rf`, `sudo`, `git reset --hard`, `git branch -D`…), un push que saca una versión o reescribe la historia (un tag, `--force`, `gh release`, `npm publish`), cambiar `AGENTS.md` o algo dentro de `.apc/` (con una herramienta de archivos o un comando), comandos que llegan a la API de APX, o a su CLI para algo que no sea leer (`apx chat`, `apx runs respond`, `apx routines add`, o cualquier `apx` con una variable puesta antes), no una carpeta o una palabra que se llame apx, mandar un iMessage, responderle a un contacto, usar tu sesión del navegador, hacer clic, tipear o apretar teclas en tu pantalla. |
 
 Un agente que puede cambiar archivos hace commit, pull, merge o push solo cuando vos o su tarea lo pidieron, o una regla
 o nota del proyecto dice cómo (la web directo a `main`, por ejemplo); si no, te pregunta una vez. Publicar el trabajo
@@ -85,7 +85,11 @@ herramientas que pueden usar todos los agentes de la cadena. Pedir una sesión q
 sesión nueva con el mismo agente ahí, con una nota que lo dice.
 
 Las sesiones externas de Claude Code, Codex y ACP usan estas mismas reglas de permisos. Auto no es Total: un
-comando que incluye `rm -f` sigue pidiendo tu OK, aunque borre un solo archivo generado dentro del proyecto. Si el
+comando que incluye `rm -f` sigue pidiendo tu OK, aunque borre un solo archivo generado dentro del proyecto
+([Borrar](#borrar)). Un
+script pasado en un heredoc (`python3 - <<'PY'`) o un archivo escrito con `cat > … <<EOF` se lee como texto de ese
+programa, no como comandos, así que sus palabras no hacen que pregunte; lo que se le pasa así a un shell se revisa
+como cualquier comando. Una tarjeta que nadie contesta cuenta como no: la sesión se entera y sigue por otro camino. Si el
 comando combina varias operaciones, aprobarlo autoriza el comando entero, no solo su parte de lectura. Una sesión
 delegada configurada para preguntar antes de hacer cambios sigue preguntando aunque el agente normalmente use Auto.
 
@@ -111,6 +115,22 @@ responder:
 
 Una acción `always` tiene las mismas cuatro respuestas, separadas de las otras llamadas de la herramienta: permitir
 sus llamadas comunes nunca cubre las destructivas. Lo que configuraste en APX se aprueba de a una llamada.
+
+### Borrar
+
+Un agente borra solo cuando vos se lo pediste, en el chat o como una regla tuya en el proyecto (quitar un worktree
+cuando ya está mergeado, por ejemplo). Se le dice así, y cuando no se lo pediste te pregunta y dice por qué. En todos
+los modos salvo Total, un comando que borra con `rm -r` o `rm -f` te espera, también dentro de su propia carpeta. Su
+tarjeta lista lo que se borraría, cada ruta completa, por qué el agente quiere hacerlo, en sus palabras, y el comando.
+Podés aceptarlo una vez, o durante este chat: entonces los próximos borrados de ese agente en este chat corren sin
+preguntar. Nunca se permite para siempre, y nunca cubre otra cosa que siempre pregunta, como `sudo` o una versión.
+
+Los comandos de git que tiran trabajo que git guardaría preguntan igual, y su tarjeta nombra la rama, el worktree, los
+archivos o el stash que se pierden: `git worktree remove --force`, `git branch -D`, `git clean -f` (o `-fd`, `-fdx`),
+`git reset --hard`, `git checkout -- .` o `git checkout -f`, `git restore .`, `git switch --discard-changes`,
+`git stash drop` o `clear`, `git rm -f`, `git reflog expire` y `git gc --prune=now`. Sus formas comunes
+(`git worktree remove`, `git branch -d`, `git stash`, `git rm`) son comandos comunes: git mismo los rechaza cuando se
+perdería trabajo.
 
 En el editor del agente, **Concedidos** lista lo que le permitiste para siempre. Podés limitar un permiso a ciertas
 rutas, dominios o nombres (`app/Http/, github.com`: sólo corren sin preguntar las llamadas cuyos argumentos coinciden)
