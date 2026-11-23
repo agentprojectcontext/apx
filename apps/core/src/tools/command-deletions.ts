@@ -116,7 +116,7 @@ const operands = (args: string[]) => {
  * `reflog expire`/`delete` and `gc --prune=now`. Plain `worktree remove` and `branch -d` are not: git refuses them
  * when work would be lost.
  */
-export function gitLoss(words: string[]): GitLoss[] {
+function gitLoss(words: string[]): GitLoss[] {
   let i = words.findIndex((w) => !/^[A-Za-z_]\w*=/.test(w));
   if (i < 0 || path.basename(words[i] ?? "") !== "git") return [];
   for (i++; i < words.length && (words[i] ?? "").startsWith("-"); i++) if (GIT_VALUED.has(words[i] ?? "")) i++;

@@ -106,8 +106,7 @@ export function commandRisk(command: string, apxPort?: number): Confirm {
  * Whether a command deletes: a forced `rm` or a git command that discards work git would keep. It asks in every mode
  * but Total, unless the owner asked (D-266).
  */
-export const deletes = (command: string) =>
-  deletesHere(command) || FORCED_RM.test(normalize(shellCode(command.trim())));
+const deletes = (command: string) => deletesHere(command) || FORCED_RM.test(normalize(shellCode(command.trim())));
 
 /**
  * A forced deletion is all that makes this command always ask: its card is a deletion's, and the owner's OK for this

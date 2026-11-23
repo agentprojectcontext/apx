@@ -86,7 +86,7 @@ function teamSheet(store: Store, projectId: string | undefined, org: Organizatio
  * Why a `tools:` list cannot be saved, or undefined: each entry is one of APX's tools, a group of them, or an MCP
  * tool (`mcp_…`); what runs the team stays the super-agent's whatever a list says.
  */
-export function unknownTools(
+function unknownTools(
   list: readonly string[],
   catalog: ReadonlyArray<{ name: string; group?: string | undefined }>,
 ): string | undefined {
