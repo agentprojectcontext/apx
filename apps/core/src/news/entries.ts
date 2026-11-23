@@ -13,6 +13,7 @@ import { AGENT_REVIEW_NEWS } from "./agent-review.ts";
 import { APX_ACCOUNT_NEWS } from "./apx-account.ts";
 import { BROWSER_EDIT_NEWS } from "./browser-edit.ts";
 import { BROWSER_JAVASCRIPT_NEWS } from "./browser-javascript.ts";
+import { BROWSER_RECIPES_NEWS } from "./browser-recipes.ts";
 import { BROWSER_SIGN_IN_NEWS } from "./browser-sign-in.ts";
 import { CALL_SERVICES_NEWS } from "./call-services.ts";
 import { CHANNEL_AGENTS_NEWS } from "./channel-agents.ts";
@@ -200,6 +201,7 @@ export const NEWS: readonly NewsEntry[] = [
   CONTACT_NOTES_NEWS,
   CONTACT_PROJECT_READING_NEWS,
   SIMPLE_PANEL_NEWS,
+  BROWSER_RECIPES_NEWS,
   {
     id: "storage-screen",
     since: "2.13.0",

@@ -181,6 +181,26 @@ for the Chromium evaluation after 7 seconds. A timeout is **not cancellation or 
 other side effects may continue. Verify the page before retrying, especially after a send. This adds an agent tool, not a
 new DevTools panel or remote debugging port. Desktop must load the matching new build; a core-only restart is not enough.
 
+## Repeating a job: recipes
+
+When an agent does the same thing many times (scheduling 20 posts, filling the same form for each row of a list), it
+does not have to read the page between every click. It sends the whole sequence in one go with `browser_do`: open,
+click, type and wait, naming each button or field as the page shows it ("the **Schedule** button in the **New post**
+dialog"). Each step waits for its button to appear, and the sequence stops at the first one that does not work, saying
+which and showing the page.
+
+Once a sequence works, the agent can save it as a **recipe** of the project, with blanks for what changes each time
+(the text of the post, the date). Next time it runs the recipe by name with new values: one short step instead of a
+dozen looks at the page, which is faster and spends far fewer tokens.
+
+- Recipes live in the project, in `.apc/browser-recipes/`, one file each. They are a list of steps you can read,
+  never code, and they run only through the same browser rules as any click: your OK where the agent's mode asks
+  for it, your Chrome only for your own work, never passwords.
+- A memory note tells the agent the recipe exists, so it finds it again in a later chat: "use the LinkedIn recipe
+  for these 20 posts".
+- To change a recipe, ask the agent to run the steps again with the fix and save it under the same name; to remove
+  one, delete its file.
+
 ## Profiles
 
 Each agent browses with one of three profiles, set per agent in **Settings › Agents** (or the agent's own panel):
@@ -224,8 +244,9 @@ With APX's extension for Chrome, agents can also work in your own Chrome, where 
 - What you write in that side panel always uses your Chrome. Anywhere else (the app, your phone, a channel as you),
   agents use APX's own browser unless you ask for your Chrome ("do it in my Chrome") or a site needs your login: then
   they open a tab in the **APX** group, asking your OK first unless the agent's mode lets it act alone. A contact's
-  message, an outside app's agent, an agent working on its own or a task an agent created never reaches your Chrome;
-  your routines and the tasks you created do, as your own chat does.
+  message, an outside app's agent or an agent working on its own never reaches your Chrome; your routines and the
+  tasks you created do, as your own chat does, and so does a task an agent created or handed on while working for you
+  (you asked Roby, and Roby gave the job to a teammate).
 - Work an agent hands to a teammate for you goes on in your Chrome too: a helper asked from your chat, your routine
   or your task can use it as that chat can, and one asked from the side panel works only there. So does the agent
   when it hears the helper's answer.
@@ -265,7 +286,8 @@ apx browser cookies <source> [filter]        Domains with cookies (counts only)
 apx browser import <source> <domain,…> [--profile shared|agent:<id>]`}</Terminal>
 
 `snapshot` lists the page's elements with refs that `click` and `type` take. `control` sets who holds the tab.
-`cookies` shows only counts, never values.
+`cookies` shows only counts, never values. These commands act as you, so they do not run inside an agent's command:
+an agent that wants to repeat browser steps uses `browser_do` and recipes instead.
 
 Outside apps such as Claude Code can use this browser too, through `apx mcp`. See
 [Outside clients](/extend/outside-clients/).

@@ -168,8 +168,8 @@ test("work not done for the owner never sees or reaches their Chrome", async () 
     ["an agent on its own", helperOf(thread, loose.run)],
     // An outside app's agent naming the owner's run is still an outside app.
     ["an outside app", helperOf(thread, owner, { id: "client:acme", name: "Acme bot" })],
-    // A task an agent gave is not a delegation of the owner's turn (DECISIONS.md#d-223).
-    ["an agent's task", helperOf(thread, owner, { task_assignment: { task: "tk_acme", id: "as_acme" } })],
+    // A task an agent gave on its own is not the owner's work (DECISIONS.md#d-267).
+    ["an agent's own task", helperOf(thread, loose.run, { task_assignment: { task: "tk_acme", id: "as_acme" } })],
   ] as const;
   for (const [who, origin] of refused) {
     const turn = await turnFrom(thread, origin, "touch tab c1");
@@ -195,38 +195,90 @@ test("work not done for the owner never sees or reaches their Chrome", async () 
   );
   assert.equal(out.ok, false);
   assert.match(JSON.stringify(out), /only the owner's own work/);
-  assert.equal(calls.filter((c) => c.method === "browser.open").length, 0);
+  // A model-driven caller with no run (an outside app, a script an agent ran) is refused too.
+  const { agent: _, ...noRun } = ctx;
+  for (const [method, params] of [
+    ["browser.open", { url: "https://northwind.example/orders", chrome: true }],
+    ["browser.text", { tab: "c1" }],
+  ] as const) {
+    const anon = await env.core.dispatch(method, params, noRun, `anon-${method}`);
+    assert.equal(anon.ok, false, method);
+    assert.match(JSON.stringify(anon), /only the owner's own work/, method);
+  }
+  assert.equal(calls.filter((c) => c.node === "chrome" && c.method !== "browser.tabs").length, 0);
+});
+
+const CONTINUE: Origin = { kind: "task_continue", task_id: "tk_a", title: "Post the batch", part: 2, of: 3 };
+
+/**
+ * A task chat an agent created in `fromRun` (as `tasks.create` records it), with a turn in it reading tab c1 that came
+ * from no run of the owner's (an agent's message whose run is gone, like a wake-up hours later).
+ */
+async function agentTaskTurn(fromThread: string, fromRun: string) {
+  const store = env.core.store;
+  const thread = store.threads.create({ kind: "task", title: "Post the batch", agent_ids: ["superagent"] });
+  const task = store.tasks.create({
+    title: "Post the batch",
+    status: "todo",
+    thread_id: thread.id,
+    by: "superagent",
+    from: { thread: fromThread, run: fromRun },
+  });
+  const work = store.threads.create({ kind: "loose", title: task.title, agent_ids: ["superagent"], task_id: task.id });
+  return turnFrom(work.id, helperOf(work.id, "run_gone"), "touch tab c1");
+}
+
+test("a task an agent created in the owner's turn reaches their Chrome; one it made on its own does not", async () => {
+  const thread = await chat();
+  const owner = await ownerTurn(thread);
+  calls.length = 0;
+  const asked = await agentTaskTurn(thread, owner);
+  assert.match(asked.said, /chrome text/);
+  const mail = await turnFrom(thread, { kind: "mail", count: 1 }, "hello", { trigger: "routine" });
+  calls.length = 0;
+  const alone = await agentTaskTurn(thread, mail.run);
+  assert.match(alone.said, /unknown tab c1|only the owner's own work/);
+  assert.equal(calls.filter((c) => c.node === "chrome" && c.method !== "browser.tabs").length, 0);
 });
 
 test("the reach follows every hop up to whoever asked, and stops after ten", () => {
   const runs = new Map<string, ReachRun>([
-    ["r_owner", { origin: { kind: "user" }, ownerTask: false }],
-    ["r_panel", { origin: { kind: "user", via: "chrome" }, ownerTask: false }],
-    ["r_help", { origin: helperOf("t", "r_panel"), parent_run_id: "r_panel", ownerTask: false }],
-    ["r_help2", { origin: helperOf("t", "r_owner"), parent_run_id: "r_owner", ownerTask: false }],
-    ["r_task", { origin: helperOf("t", "r_gone"), ownerTask: true }],
+    ["r_owner", { origin: { kind: "user" }, task: undefined }],
+    ["r_panel", { origin: { kind: "user", via: "chrome" }, task: undefined }],
+    ["r_help", { origin: helperOf("t", "r_panel"), parent_run_id: "r_panel", task: undefined }],
+    ["r_help2", { origin: helperOf("t", "r_owner"), parent_run_id: "r_owner", task: undefined }],
+    ["r_task", { origin: helperOf("t", "r_gone"), task: "owner" }],
   ]);
   const at: ReachLookup = { inputRun: (id) => (id === "in_help" ? "r_help" : undefined), run: (id) => runs.get(id) };
   const result = (run: string) =>
     ({ agent_id: "a", name: "A", thread_id: "t", run_id: run, state: "completed" }) as const;
-  assert.equal(chromeReach(helperOf("t", "r_help"), false, at), "all");
-  assert.equal(chromeReach({ kind: "input_answer", input_id: "in_help" }, false, at), "all");
-  assert.equal(chromeReach({ kind: "delegation_result", ...result("r_help2") }, false, at), "asked");
+  assert.equal(chromeReach(helperOf("t", "r_help"), undefined, at), "all");
+  assert.equal(chromeReach({ kind: "input_answer", input_id: "in_help" }, undefined, at), "all");
+  assert.equal(chromeReach({ kind: "delegation_result", ...result("r_help2") }, undefined, at), "asked");
   assert.equal(
-    chromeReach({ kind: "delegation_results", results: [{ ...result("r_help2"), answer: "done" }] }, false, at),
+    chromeReach({ kind: "delegation_results", results: [{ ...result("r_help2"), answer: "done" }] }, undefined, at),
     "asked",
   );
   // A helper asked from a chat of a task the owner created.
-  assert.equal(chromeReach(helperOf("t", "r_task"), false, at), "asked");
+  assert.equal(chromeReach(helperOf("t", "r_task"), undefined, at), "asked");
   assert.equal(
     chromeReach(
       { kind: "hours_began", channel: "x", conversation: "x", person_id: "p", name: "P", since: "" },
-      false,
+      undefined,
       at,
     ),
     undefined,
   );
+  // A task an agent created or assigned in the owner's work is theirs too, reached when asked, never only in Chrome.
+  const assigned = { task_assignment: { task: "tk_a", id: "as_a" } };
+  assert.equal(chromeReach(helperOf("t", "r_panel", assigned), undefined, at), "asked");
+  assert.equal(chromeReach(CONTINUE, { run: "r_panel" }, at), "asked");
+  assert.equal(chromeReach(CONTINUE, { run: "r_help2" }, at), "asked");
+  // One an agent made on its own reaches nothing.
+  runs.set("r_alone", { origin: helperOf("t", "r_gone"), task: undefined });
+  assert.equal(chromeReach(helperOf("t", "r_alone", assigned), undefined, at), undefined);
+  assert.equal(chromeReach(CONTINUE, { run: "r_alone" }, at), undefined);
   // A chain that loops on itself ends without reach.
-  runs.set("r_loop", { origin: helperOf("t", "r_loop"), ownerTask: false });
-  assert.equal(chromeReach(helperOf("t", "r_loop"), false, at), undefined);
+  runs.set("r_loop", { origin: helperOf("t", "r_loop"), task: undefined });
+  assert.equal(chromeReach(helperOf("t", "r_loop"), undefined, at), undefined);
 });

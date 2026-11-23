@@ -11,6 +11,7 @@ import type { Store } from "../domain/store.ts";
 import { expandHome } from "../paths.ts";
 import { pruneUploads, saveUpload } from "../services/uploads.ts";
 import type { SignIn } from "../sign-in.ts";
+import { browserDoTool } from "./browser-do.ts";
 import { browserEvaluateTool } from "./browser-evaluate.ts";
 import { browserSignInTool } from "./browser-sign-in.ts";
 import { folderAccess } from "./folders.ts";
@@ -137,6 +138,7 @@ export function browserTools(
   const attachable = attachableIn(store, home, vm);
   return [
     browserEvaluateTool(store, home, own, vm),
+    browserDoTool(store, home, own, card),
     browserSignInTool(store, signIn, own, vm),
     defineTool({
       needsCap: BROWSER_CAP,

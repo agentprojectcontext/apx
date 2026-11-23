@@ -4692,6 +4692,7 @@ caller's words that went unseen, not the caller who was unaware).
 
 <a id="d-223"></a>
 ## D-223 — 2026-11-12 — Working alone is not working with less: a routine or task run has its agent's tools, and a routine acts as the owner chose on it
+*Revised by [D-267](#d-267) (2026-11-23): a task an agent created or assigned while working for the owner reaches their Chrome too.*
 A routine assigned to the agent an owner talks to in a project answered "I don't have this tool available" for that
 project's MCP tools, which the same agent used when asked in chat. Reproduced on a scratch core: the chat ran in the
 project, and the routine, made on the Routines page (which since 2.14 lists every project's routines) with no project
@@ -4803,6 +4804,7 @@ middle), and renaming the stored titles in the core (the threads already kept wo
 
 <a id="d-226"></a>
 ## D-226 — 2026-11-13 — What an agent does for the owner's work reaches their Chrome; a form holding a password is theirs to send
+*Revised by [D-267](#d-267) (2026-11-23): that includes a task the agent created or assigned there.*
 D-198 kept the owner's Chrome to their own turns, and D-223 added their routines and the tasks they created. Work an
 agent handed to a teammate from one of those still used APX's own browser, so a routine that delegated "check the late
 orders in my Chrome" got a helper that could not. The owner decided: **a helper inherits the reach of the turn it works
@@ -5904,3 +5906,53 @@ back to you" messages. Revocation stops new reads, not answers already delivered
 
 Docs impact: updated channels/overview in English and Spanish, HUMAN_MODEL.md, settings help and news.
 
+
+<a id="d-267"></a>
+## D-267 — 2026-11-23 — Repeated browser work runs as one step list (`browser_do`), saved as recipes; agent tasks made for the owner reach their Chrome
+An agent asked to schedule 22 posts on a company page did the first by hand (about ten snapshots, clicks and typings,
+each a model round trip carrying a page of up to 12,000 characters and a picture), then wrote a Node script that ran
+`apx browser snapshot|click|type` in a loop to do the rest without spending turns. It failed three ways. The CLI acts
+as the owner, so the script drove the owner's Chrome past every check the agent has (who may reach that Chrome,
+typing after reading a page, which tabs are the agent's); the shell's own `apx` rule asks before such a command, but
+cannot see one inside a script. The CLI marks its actions `by: "terminal"`, so the agent's own tools then found the tab
+"used by another agent". And the task the script ran in had been created by the super-agent when the owner asked it,
+which D-223 counted as "an agent's task" and kept out of the owner's Chrome. The owner's ask: once an agent has
+learned a sequence, repeating it should be one short call, saved somewhere it finds again, and "if I ask Roby and Roby
+hands it on, it is still me asking".
+
+- **`browser_do`** (`tools/browser-do.ts`, the browser's `screen_do`) takes up to 40 steps: `open`, `click`, `type`,
+  `wait`. A step names its control as the snapshot shows it (`button "Schedule"`, or the name alone; `within` a dialog
+  when names repeat). The core finds it on a fresh snapshot before each action (`tools/browser-steps.ts`): an exact
+  name first, else a name containing it, exactly one or the step fails with the candidates. Each step waits up to
+  10 s for its control; `wait` waits for a text to show or go. It stops at the first step that fails and returns the
+  log with the page (6,000 chars) so the agent fixes the step without another look. Every action goes through
+  `browser.click|type|navigate` as the agent, the same router calls as `browser_click` and `browser_type`, so tab
+  ownership, holds, the owner's-Chrome reach, refused credential fields and page checks are unchanged. It asks as
+  `browser_type` does when it types (`untrusted`) and runs alone where clicks do. The model reads none of the pages
+  between steps, which is the saving; a fixed list cannot be steered by them either. The steps are one flat object in
+  the tool's schema (1,532 chars for the whole tool), checked into kinds inside.
+- **Recipes** are data, not code: `save_as` (with `about`) writes the steps that just all worked, with their
+  `{{name}}` blanks, to `<project>/.apc/browser-recipes/<name>.json`, and adds a project note to memory saying the
+  recipe exists and its variables, so recall brings it back in a later chat. `recipe` + `vars` runs it: a missing
+  value or an unknown name fails before anything runs (an unknown one lists the saved names). Script files (`.mjs`)
+  were rejected: they run with whatever the process can reach, cannot be shown on an approval card, and are what
+  failed here. Files in the project were chosen over the database so the owner can read, version and delete them,
+  and over memory text so a recipe is not paid for in every turn that recalls it.
+- **`apx browser` refuses inside an agent's command** (`APX_AGENT` set), as `apx chat` does (D-127): it would act as
+  the owner. In the core, a call for the owner's Chrome from a model-driven caller with no run to follow (an outside
+  app, a script whose client says it is an agent) is refused like an agent working on its own (`rpc/browser.ts`),
+  which D-198 already meant for outside apps.
+- **Revises D-223 and D-226:** a task an agent created, or assigned, from a run that reaches the owner's Chrome is the
+  owner's work too (`taskOrigin` in `domain/runs.ts` follows the task's `create` event to its run). Its chat reaches
+  the Chrome when asked, never only there, even when made from the Chrome side panel, since a task outlives that
+  panel. A task an agent made on its own (from a contact's message, a mail, its own wake-up) still reaches nothing.
+  Not decided here: an owner-given standing permission for an agent to use their Chrome in its own work; a contact's
+  turn stays out of it whatever the agent.
+
+A chat on the agents' computer (D-154) does not get `browser_do`: its recipes are files of the owner's project on
+this computer, which those chats never read or write.
+
+Not done yet: attaching files from a step (`browser_type`'s local-file upload) and keys other than Enter.
+
+Docs impact: updated office/browser (recipes, the Chrome bullet, the terminal note) in English and Spanish,
+PROMPT_SIZE.md (browser tools), and news.
