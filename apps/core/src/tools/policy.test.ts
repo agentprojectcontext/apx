@@ -54,6 +54,12 @@ test("tools: lists filter by name or group and keep the always-available tools",
   ]);
 });
 
+test("an explicit MCP-only list restricts builtins even when no MCP server supplies a bridge", () => {
+  for (const tools of [["mcp"], ["mcp_notes_echo"], ["tool_search", "tool_run"]]) {
+    assert.deepEqual(names(agent({ tools })), ["read_output", "ask_owner"]);
+  }
+});
+
 test("tools: a list of MCP tools still restricts once they come through tool_search and tool_run", () => {
   const withBridge = [...ALL, tool("tool_search"), tool("tool_run")];
   const a = agent({ tools: ["mcp_notes_echo"] });

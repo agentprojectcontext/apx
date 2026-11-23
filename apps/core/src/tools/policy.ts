@@ -107,7 +107,7 @@ function byList(agent: AgentRecord, tools: Tool[]): (name: string) => boolean {
   if (!wanted.length) return () => true;
   const bridge = (name: string) => BRIDGE.has(name) && wanted.some((w) => w === "mcp" || w.startsWith("mcp_"));
   const match = (name: string) => wanted.some((w) => w === name || GROUPS[w]?.(name)) || bridge(name);
-  if (!tools.some((t) => !ALWAYS.has(t.name) && match(t.name))) return () => true;
+  if (!tools.some((t) => !ALWAYS.has(t.name) && match(t.name)) && ![...BRIDGE].some(match)) return () => true;
   return (name) => ALWAYS.has(name) || match(name);
 }
 
