@@ -389,9 +389,22 @@
   color: var(--apx-fg-muted);
   text-overflow: ellipsis;
 }
+/* What it goes in as and where: the badges wrap under each other instead of being cut. */
 .resvars__sites {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--apx-space-1);
+  max-width: 100%;
   margin-left: var(--apx-space-1);
   font-family: var(--apx-font-sans);
+  vertical-align: middle;
+}
+.resvars__sites > * {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 18px;
 }
 /* The value takes the room left: showing or hiding it never moves the other columns. */
 .resvars__table th:nth-child(3),

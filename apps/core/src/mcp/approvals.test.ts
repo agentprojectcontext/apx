@@ -315,6 +315,7 @@ test("a tool that becomes destructive on reconnection cannot use its old reading
           delegate: unused,
           askOwner: unused,
           requestGrant: unused,
+          askSignIn: unused,
           proposeAction: unused,
           withdrawQuestion: () => {
             throw new Error("unused");

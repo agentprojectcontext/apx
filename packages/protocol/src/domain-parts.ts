@@ -187,6 +187,17 @@ const KnownPart = z.discriminatedUnion("type", [
       tool: () => z.string().optional(),
       detail: () => z.string().optional(),
       artifact_draft: () => z.string().uuid().optional(),
+      /** An agent's sign-in card: the owner types a username and password for that site (DECISIONS.md#d-264). */
+      login: () =>
+        z
+          .object(
+            schemaFields({
+              origin: () => z.string(),
+              /** The field the agent is at: the username one asks for it, a password one may go without. */
+              kind: () => z.enum(["username", "password"]),
+            }),
+          )
+          .optional(),
       browser: () =>
         z
           .object(

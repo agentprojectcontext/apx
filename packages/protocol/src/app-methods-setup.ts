@@ -22,6 +22,7 @@ import { filesMethods } from "./files-methods.ts";
 import { gitMethods } from "./git-methods.ts";
 import { officeMethods } from "./office-methods.ts";
 import { resourceMethods } from "./resource-methods.ts";
+import { SecretField } from "./resource-methods-schemas.ts";
 import { teamMethods } from "./team-methods.ts";
 
 /** What a simple setup leaves ready on its own: memory by meaning, APX's voice for notes and calls, images. */
@@ -362,8 +363,18 @@ export const appSetupMethods = {
         .object({
           /** The same shape `secret://NAME` references accept (an MCP env var name like GH_TOKEN works as is). */
           name: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/),
-          /** null removes it. */
-          value: z.string().min(1).max(16384).nullable(),
+          /** null removes it. Absent with `login`, or to change only what it is for (`field`). */
+          value: z.string().min(1).max(16384).nullable().optional(),
+          /**
+           * A sign-in: a username and a password kept as one variable. A part left out keeps the one stored, so the
+           * owner changes a password without typing the username again.
+           */
+          login: z
+            .object({ username: z.string().max(1024).optional(), password: z.string().min(1).max(4096).optional() })
+            .strict()
+            .optional(),
+          /** What it is for; null makes it a plain variable again. `login` sets "login". */
+          field: SecretField.nullable().optional(),
           /** A project's own value, over the global one for that project's MCP servers. */
           project: Id.optional(),
         })

@@ -7,6 +7,7 @@ import { type SecretInfo, setSecret } from "../data/resources.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, usePack, useT } from "../i18n/index.ts";
 import { useNav } from "../shell/nav.ts";
+import { FIELD_LABEL } from "./fieldLabels.ts";
 import type { TabProps, VarKind } from "./ResourcesView.tsx";
 import { SignInSitesDialog, siteLabel } from "./SignInSites.tsx";
 import { VariableDialog } from "./VariableDialog.tsx";
@@ -18,6 +19,8 @@ type Row = {
   hint?: string | undefined;
   stored: boolean;
   usedIn: string[];
+  /** What the owner said it is for: a username, a password, a code seed, or both (a sign-in). */
+  field?: SecretInfo["field"];
   /** Where agents may sign in with it (DECISIONS.md#d-193). */
   sites: SecretInfo["sites"];
   /** APX keeps it for itself: it is changed where that was connected, not here. */
@@ -25,6 +28,14 @@ type Row = {
   lastUsed?: SecretInfo["last_used"];
 };
 const keyOf = (r: Pick<Row, "name" | "project">) => `${r.project ?? ""}/${r.name}`;
+
+/** What a value goes in as, said by the owner or by the fields it is marked for. */
+function fieldOf(r: Pick<Row, "field" | "sites">): NonNullable<SecretInfo["field"]> | undefined {
+  if (r.field) return r.field;
+  const kinds = new Set(r.sites.map((s) => s.kind));
+  if (kinds.size === 1) return [...kinds][0];
+  return kinds.has("username") && kinds.has("password") && kinds.size === 2 ? "login" : undefined;
+}
 
 /** What each kind of list says above it, and when it is empty. */
 const KIND_NOTE = {
@@ -85,6 +96,7 @@ function VariablesTabBody({ projectId, query, scope, adding, setAdding, res, own
       hint: s.hint,
       stored: true,
       usedIn: s.used_in,
+      field: s.field,
       sites: s.sites,
       lastUsed: s.last_used,
       system: s.system,
@@ -98,7 +110,9 @@ function VariablesTabBody({ projectId, query, scope, adding, setAdding, res, own
         missing.set(v.name, [...(missing.get(v.name) ?? []), `mcp:${srv.name}`]);
   const empty: Row[] = [...missing].map(([name, usedIn]) => ({ name, stored: false, usedIn, sites: [] }));
   const rows: Row[] = [...stored, ...empty]
-    .filter((r) => (varKind === "system" ? r.system : !r.system && (varKind === "own" || r.sites.length > 0)))
+    .filter((r) =>
+      varKind === "system" ? r.system : !r.system && (varKind === "own" || r.sites.length > 0 || Boolean(r.field)),
+    )
     .filter((r) => !query || `${r.name} ${r.usedIn.join(" ")}`.toLowerCase().includes(query))
     .sort((a, b) => a.name.localeCompare(b.name) || Number(Boolean(a.project)) - Number(Boolean(b.project)));
   // The one in that scope, else the first of that name (a link that cannot tell which one a server uses).
@@ -199,16 +213,17 @@ function VariablesTabBody({ projectId, query, scope, adding, setAdding, res, own
                   {r.stored ? <Reveal row={r} /> : <span className="resvars__missing">{t("res.noValue")}</span>}
                 </td>
                 <td className="resvars__used">
-                  {usedLabel(t, r) || (r.sites.length ? "" : "—")}
-                  {r.sites.length > 0 && (
+                  {usedLabel(t, r) || (r.sites.length || fieldOf(r) ? "" : "—")}
+                  {(r.sites.length > 0 || fieldOf(r)) && (
                     <span className="resvars__sites">
-                      {r.sites.some((x) => x.origin === "*") ? (
+                      {fieldOf(r) && <Badge tone="info">{t(FIELD_LABEL[fieldOf(r) ?? "password"])}</Badge>}
+                      {!r.sites.length ? null : r.sites.some((x) => x.origin === "*") ? (
                         <Badge tone="warning">{t("res.signIn.badgeAny")}</Badge>
                       ) : (
                         <Badge>
-                          {r.sites.length === 1
+                          {new Set(r.sites.map((x) => x.origin)).size === 1
                             ? t("res.signIn.badge", { sites: siteLabel(r.sites[0]?.origin ?? "") })
-                            : t("res.signIn.badgeCount", { n: r.sites.length })}
+                            : t("res.signIn.badgeCount", { n: new Set(r.sites.map((x) => x.origin)).size })}
                         </Badge>
                       )}
                     </span>
@@ -247,7 +262,7 @@ function VariablesTabBody({ projectId, query, scope, adding, setAdding, res, own
       )}
       {(adding || editing) && (
         <VariableDialog
-          row={editing}
+          row={editing && { ...editing, field: fieldOf(editing) }}
           projectId={projectId}
           onClose={() => {
             setAdding(false);
@@ -264,6 +279,7 @@ function VariablesTabBody({ projectId, query, scope, adding, setAdding, res, own
         <SignInSitesDialog
           name={signing.name}
           project={signing.project}
+          field={fieldOf(signing)}
           sites={signing.sites}
           lastUsed={signing.lastUsed}
           onClose={() => setSigning(undefined)}
@@ -316,18 +332,26 @@ const SHOWN_MS = 20_000;
 function Reveal({ row }: { row: Row }) {
   const t = useT();
   const [value, setValue] = useState<string>();
+  const [username, setUsername] = useState<string>();
   useEffect(() => {
     if (value === undefined) return;
-    const hide = setTimeout(() => setValue(undefined), SHOWN_MS);
+    const hide = setTimeout(() => {
+      setValue(undefined);
+      setUsername(undefined);
+    }, SHOWN_MS);
     return () => clearTimeout(hide);
   }, [value]);
   const toggle = async () => {
-    if (value !== undefined) return setValue(undefined);
+    if (value !== undefined) {
+      setUsername(undefined);
+      return setValue(undefined);
+    }
     try {
       const r = await client.call("secrets.reveal", {
         name: row.name,
         ...(row.project ? { project: row.project } : {}),
       });
+      setUsername(r.username);
       setValue(r.value);
     } catch (e) {
       notify(t("error.load", { error: e instanceof Error ? e.message : String(e) }));
@@ -335,7 +359,9 @@ function Reveal({ row }: { row: Row }) {
   };
   return (
     <span className="resvars__reveal">
-      <span className={value !== undefined ? "resvars__shown" : undefined}>{value ?? `••••••••${row.hint ?? ""}`}</span>
+      <span className={value !== undefined ? "resvars__shown" : undefined}>
+        {value === undefined ? `••••••••${row.hint ?? ""}` : username ? `${username} · ${value}` : value}
+      </span>
       <IconButton
         size="sm"
         label={value !== undefined ? t("res.varHide", { name: row.name }) : t("res.varShow", { name: row.name })}

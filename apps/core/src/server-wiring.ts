@@ -85,6 +85,7 @@ import { runHandlers } from "./rpc/runs.ts";
 import { sessionHandlers } from "./rpc/sessions.ts";
 import { setupHandlers } from "./rpc/setup.ts";
 import { prepareHandlers } from "./rpc/setup-prepare.ts";
+import { signInCardHandlers } from "./rpc/sign-in-card.ts";
 import { artifactHandlers } from "./rpc/surfaces.ts";
 import {
   newsHandlers,
@@ -408,6 +409,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...threadHandlers(d.store, d.engine, d.upkeep, d.aside, d.groups, (ref) => refProblem(ref, d.engines, undefined)),
     ...threadAdminHandlers(d.store, d.app.home, d.vm?.beforeDelete),
     ...runHandlers(d.store, d.engine, d.publications),
+    ...signInCardHandlers({ store: d.store, secrets: d.secrets, signIn: d.signIn, respond: d.engine.respond }),
     ...jobHandlers(d.store, d.engine),
     ...memoryHandlers(d.store, d.memory, d.memoryMaintenance),
     ...channelsH,

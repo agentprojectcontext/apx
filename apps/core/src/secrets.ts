@@ -21,7 +21,28 @@ export type { SecretsBackend } from "./secrets-stores.ts";
 /** Where agents may sign in with a secret, and its last such use (DECISIONS.md#d-193). Kept with the secret. */
 export type SecretSite = { origin: string; kind: "password" | "username" | "otp" };
 export type SecretUse = { origin: string; at: string; agent?: string };
-type Entry = { value?: string; updated_at: string; hint?: string; sites?: SecretSite[]; used?: SecretUse };
+/** What the owner said a variable is for; a `login` holds a username and a password together (DECISIONS.md#d-264). */
+export type SecretField = SecretSite["kind"] | "login";
+export type Login = { username: string; password: string };
+type Entry = {
+  value?: string;
+  updated_at: string;
+  hint?: string;
+  field?: SecretField;
+  sites?: SecretSite[];
+  used?: SecretUse;
+};
+
+/** A sign-in's two parts, from its stored value; undefined for anything else. */
+export function parseLogin(stored: string | undefined): Login | undefined {
+  if (!stored) return undefined;
+  try {
+    const v = JSON.parse(stored) as Partial<Login>;
+    return typeof v.password === "string" ? { username: String(v.username ?? ""), password: v.password } : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 /** Values at least this long keep their last four characters as a hint; shorter ones would give too much away. */
 const HINT_MIN = 12;
@@ -125,14 +146,51 @@ export function createSecrets(
         }
       return api.resolve(ref);
     },
-    list(): Array<{ name: string; updated_at: string; hint?: string; sites: SecretSite[]; last_used?: SecretUse }> {
+    list(): Array<{
+      name: string;
+      updated_at: string;
+      hint?: string;
+      field?: SecretField;
+      sites: SecretSite[];
+      last_used?: SecretUse;
+    }> {
       return Object.entries(read()).map(([name, e]) => ({
         name,
         updated_at: e.updated_at,
         ...(e.hint ? { hint: e.hint } : {}),
+        ...(e.field ? { field: e.field } : {}),
         sites: e.sites ?? [],
         ...(e.used ? { last_used: e.used } : {}),
       }));
+    },
+    /** What the owner said it is for, if they did. */
+    field(name: string): SecretField | undefined {
+      return read()[name]?.field;
+    },
+    /** Sets what it is for (null: a plain variable); false when no value is stored under that name. */
+    setField(name: string, field: SecretField | null): boolean {
+      const all = read();
+      const e = all[name];
+      if (!e) return false;
+      if (field) e.field = field;
+      else delete e.field;
+      write(all);
+      return true;
+    },
+    /** A sign-in's username and password; undefined when the variable is not one. */
+    login(name: string): Login | undefined {
+      return read()[name]?.field === "login" ? parseLogin(api.resolve(`secret://${name}`)) : undefined;
+    },
+    /**
+     * Stores a sign-in. A part left out keeps the stored one (a new password, the same username); false when nothing
+     * gives a password.
+     */
+    setLogin(name: string, parts: Partial<Login>): boolean {
+      const before = api.login(name);
+      const password = parts.password ?? before?.password;
+      if (!password) return false;
+      api.set(name, JSON.stringify({ username: parts.username ?? before?.username ?? "", password }), "login");
+      return true;
     },
     /** The sites a stored secret may be used on to sign in; none for a name nobody stored. */
     sites(name: string): SecretSite[] {
@@ -165,8 +223,8 @@ export function createSecrets(
       if (Object.hasOwn(before, to)) return "taken";
       const value = Object.hasOwn(before, from) ? api.resolve(`secret://${from}`) : undefined;
       if (value === undefined) return "missing";
-      const { sites, used } = before[from] ?? {};
-      api.set(to, value);
+      const { sites, used, field } = before[from] ?? {};
+      api.set(to, value, field);
       const all = read();
       const e = all[to];
       if (e && sites) e.sites = sites;
@@ -175,7 +233,8 @@ export function createSecrets(
       api.set(from, null);
       return "moved";
     },
-    set(name: string, value: string | null): void {
+    /** `field` undefined keeps what it was for; null makes it a plain variable. */
+    set(name: string, value: string | null, field?: SecretField | null): void {
       const all = read();
       if (store) {
         store.set(name, value);
@@ -184,11 +243,14 @@ export function createSecrets(
       if (value === null) delete all[name];
       else {
         // A new value keeps the sites it may sign in on: the owner changed a password, not where it goes.
-        const { sites, used } = all[name] ?? {};
+        const { sites, used, field: was } = all[name] ?? {};
+        const kind = field === undefined ? was : (field ?? undefined);
         all[name] = {
           ...(store ? {} : { value }),
           updated_at: new Date().toISOString(),
-          ...(value.length >= HINT_MIN ? { hint: value.slice(-4) } : {}),
+          // A sign-in's value is its two parts together: no part of it is shown.
+          ...(value.length >= HINT_MIN && kind !== "login" ? { hint: value.slice(-4) } : {}),
+          ...(kind ? { field: kind } : {}),
           ...(sites ? { sites } : {}),
           ...(used ? { used } : {}),
         };
