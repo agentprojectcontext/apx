@@ -25,7 +25,9 @@ export function externalSessionTools(store: Store): Tool[] {
         task: z.string().min(1).max(50_000),
       }),
       effect: "external",
-      confirm: "always",
+      // Its calls pass the same policy in the caller's mode and its write is never more than the caller's: like a
+      // delegation it runs in Auto, unless outside content in the turn could have asked for it (DECISIONS.md#d-264).
+      confirm: "untrusted",
       deadlineMs: 15_000,
       when: () => store.projects.list().length > 0,
       title: (a) => `Started a ${a.engine} session`,
@@ -52,7 +54,7 @@ export function externalSessionTools(store: Store): Tool[] {
           (ctx.thread.write === "ask" && write === "auto") ||
           (ctx.agent.rules?.write === "off" && write !== "read-only")
         )
-          return "refused: a session cannot have more write permission than its caller";
+          return `refused: a session cannot have more write permission than its caller (${ctx.agent.rules?.write === "off" ? "writing off" : (ctx.thread.write ?? "ask")})`;
         // A global caller in total mode cannot lift a destination project's ceiling (D-126).
         write = strictestWrite(
           write,

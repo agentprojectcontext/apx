@@ -127,8 +127,9 @@ checkout code". The agent picks the engine, the project and, if you named one, t
 default), and sends the session its first task. The session shows under **External sessions** in that project, like
 one you started, and its answer comes back to the agent that asked, so you don't need to check on it.
 
-- Each start asks for your OK on a card, even in Auto. Only Total, or the agent's **irreversible** rule set to run
-  without asking, skips it ([Rules by case](/concepts/autonomy/#rules-by-case)); in Plan the agent can't start one.
+- In Auto and Total the agent starts it when you ask, without a card; it asks first when content from outside (a web
+  page, another agent, a message) is in its turn. In Manual each start asks for your OK; in Plan the agent can't
+  start one ([Rules by case](/concepts/autonomy/#rules-by-case)).
 - The session never gets more than the agent that asked: no freer write policy than its chat, no more than the
   project's autonomy allows, and only inside the agent's folder. An agent tied to one project can't open a session in
   another.
