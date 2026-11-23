@@ -93,7 +93,8 @@ export function unknownTools(
   const known = new Set(catalog.flatMap((t) => [t.name, ...(t.group ? [t.group] : [])]));
   const wanted = list.map((t) => t.trim().toLowerCase());
   const own = wanted.filter((t) => SUPER_AGENT_TOOLS.has(t));
-  if (own.length) return `${own.join(", ")} stay the super-agent's: another agent asks it for those changes`;
+  if (own.length)
+    return `${own.join(", ")} stay the super-agent's: another agent asks it for those changes and reads quotas with plan_usage`;
   const unknown = wanted.filter((t) => !known.has(t) && t !== "mcp" && !t.startsWith("mcp_"));
   return unknown.length
     ? `no tool or group named ${unknown.join(", ")}. Tools: ${[...known].sort().join(", ")}`

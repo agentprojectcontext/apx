@@ -143,7 +143,9 @@ export function agentTools(store: Store): Tool[] {
         }
         const notes = [
           missing.length ? `Not found: ${missing.join(", ")}` : "",
-          superOnly.length ? `${superOnly.join(", ")} stay yours: ${found.agent.name} asks you for those changes` : "",
+          superOnly.length
+            ? `${superOnly.join(", ")} stay yours: ${found.agent.name} asks you for those changes; it reads quotas with plan_usage`
+            : "",
           notMine.length ? `Not granted, you ask the owner for them yourself: ${notMine.join(", ")}` : "",
           notListed.length
             ? `Not granted, ${found.agent.name}'s tool list leaves them out (agent_set tools adds them): ${notListed.join(", ")}`

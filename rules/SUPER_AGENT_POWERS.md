@@ -44,7 +44,7 @@ reverse a standing decision, so they are not changed here):
 | `transcription.install` (a local Whisper model) | `settings-reach.ts:145` | the `embeddings.install` treatment: library models only |
 | `voice.install`, `profiles.install` | `settings-reach.ts:146`, `:144` | a download from a known library; same treatment |
 | `mcp.approveTool`, `mcp.toolMode`, `mcp.trust` | `settings-reach.ts:99`, `:100`, `:91` | `card` like `mcp.set` (they decide what a command on this computer may do) |
-| `engines.set_usage` | `settings-reach.ts:43` | low risk: the owner's opt-in to query account limits; reading quotas is `engines.usage` already, and a project agent gets `plan_usage` on `fix/default-tool-discovery` |
+| `engines.set_usage` | `settings-reach.ts:43` | low risk: the owner's opt-in to query account limits; reading quotas is `engines.usage` for the super-agent and `plan_usage` for every agent already |
 | `tools.grant_set` (narrow a grant to a condition or a date) | `settings-reach.ts:88` | `grant_tool` taking `condition` and `expires_at` |
 
 `apx_settings`, `agent_set`, `apx_flow` and `task_tidy` stay the super-agent's (`policy.ts:102`): another agent asks
