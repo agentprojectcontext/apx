@@ -63,7 +63,8 @@ for (const lang of ["en", "es"] as const)
         route.fulfill({ json: { ok: false, error: { code: "conflict", message: "Try again" } } }),
       );
       await page.getByRole("option", { name: /Reviewer/ }).click();
-      await expect(page.getByText(/Try again/)).toBeVisible();
+      await expect(page.getByText(en ? /Could not open the chat\./ : /No se pudo abrir el chat\./)).toBeVisible();
+      await expect(page.getByText(/Try again/)).toHaveCount(0);
       await expect(picker).toContainText("Builder");
       await page.screenshot({ path: info.outputPath("error.png") });
       await page

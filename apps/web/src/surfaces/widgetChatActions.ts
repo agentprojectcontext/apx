@@ -47,8 +47,8 @@ async function newChat(surface: SurfaceSummary, chosenAgent?: string): Promise<s
     addRef(thread.id, { kind: "widget", id: surface.name, label: surface.title });
     keepDraft(thread.id, tr("widget.chatDraft", { title: surface.title }));
     return thread.id;
-  } catch (e) {
-    notify(tr("error.change", { error: errText(e) }));
+  } catch {
+    notify(tr("widget.chatOpenError"));
     return undefined;
   }
 }

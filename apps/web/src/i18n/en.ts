@@ -708,6 +708,8 @@ export const en = {
   "widget.chatDraftCancel": "Keep editing",
   "widget.chatAgentHint": "Choosing another agent opens a new chat about this widget. Your previous chat stays saved.",
   "widget.chatSwitching": "Opening chat…",
+  "widget.chatOpenError":
+    "Could not open the chat. Choose the agent again to retry. Your current chat and draft are unchanged.",
   "widget.chatShort": "Ask for changes",
   "widget.askTitle": "New widget",
   "widget.askDraft": "Make a widget for this project's board and pin it to the board: ",

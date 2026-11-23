@@ -695,6 +695,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "widget.chatAgentHint":
     "Elegí otro agente para abrir un nuevo chat sobre este widget. El chat anterior queda guardado.",
   "widget.chatSwitching": "Abriendo chat…",
+  "widget.chatOpenError":
+    "No se pudo abrir el chat. Elegí el agente de nuevo para reintentar. Tu chat y borrador actuales no cambiaron.",
   "widget.chatShort": "Pedir cambios",
   "widget.askTitle": "Widget nuevo",
   "widget.askDraft": "Haceme un widget para el tablero de este proyecto y fijalo al tablero: ",
