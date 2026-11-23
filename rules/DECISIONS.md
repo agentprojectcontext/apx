@@ -739,7 +739,7 @@ notes, where the owner let that person's chat read them).
 
 <a id="d-060"></a>
 ## D-060 — 2026-10-10 — The super-agent runs the team with `agent_set`; the owner approves each change
-*Models part reversed by [D-265](#d-265) (2026-11-23): the super-agent sets models and voice at the owner's word.*
+*Models part reversed by [D-266](#d-266) (2026-11-23): the super-agent sets models and voice at the owner's word.*
 v1 had nine tools to manage agents (create, import, configure, rename, remove, set a prompt, set identity…), offered
 to every agent. v2 has one, `agent_set`, and only the super-agent gets it (policy.ts filters it out for every other
 agent, whatever its `tools:` list says): with only `agent` it reads that agent's definition and whole prompt (no OK
@@ -4130,7 +4130,7 @@ without the owner seeing what goes.
 
 <a id="d-203"></a>
 ## D-203 — 2026-11-06 — What the owner asks the super-agent for follows its mode; a short list keeps the card
-*Auto part superseded by [D-264](#d-264) (2026-11-23): in Auto what the owner asks runs unless outside content is in the turn.*
+*Auto part superseded by [D-265](#d-265) (2026-11-23): in Auto what the owner asks runs unless outside content is in the turn.*
 The owner asked the super-agent, on Total, to add a contact and their WhatsApp, and got two cards. Since D-140 and D-143
 every `apx_settings` change, and every `agent_set` and `task_tidy` change, showed the owner's card in every mode with no
 "always" answer. The owner wants the super-agent independent: what they ask it themselves, it does as its mode says,
@@ -5906,8 +5906,8 @@ back to you" messages. Revocation stops new reads, not answers already delivered
 
 Docs impact: updated channels/overview in English and Spanish, HUMAN_MODEL.md, settings help and news.
 
-<a id="d-264"></a>
-## D-264 — 2026-11-23 — The super-agent does what the owner asks in Auto, and sets up memory's engine and agents' tools
+<a id="d-265"></a>
+## D-265 — 2026-11-23 — The super-agent does what the owner asks in Auto, and sets up memory's engine and agents' tools
 The owner asked Roby, on Discord, to set up an embedding engine for memory and to let a project agent read quotas; it
 could do neither, and every settings change it could make still showed a card in Auto. The owner's rule: the
 super-agent can do on request whatever the owner could do in the panel or CLI, and asks only for what is genuinely
@@ -5944,9 +5944,9 @@ sent to an address the agent picks: that stays the owner's, as MCP servers' do);
 Docs impact: updated concepts/autonomy, concepts/memory, concepts/agents and office/secretary in English and Spanish,
 the apx-agents skill, rules/SUPER_AGENT_POWERS.md and news.
 
-<a id="d-265"></a>
-## D-265 — 2026-11-23 — The super-agent sets models, voice, transcription and MCP tools at the owner's word
-D-264's audit left six things for the owner to decide, because D-060 kept which model runs the owner's. The owner
+<a id="d-266"></a>
+## D-266 — 2026-11-23 — The super-agent sets models, voice, transcription and MCP tools at the owner's word
+D-265's audit left six things for the owner to decide, because D-060 kept which model runs the owner's. The owner
 said to open them: the super-agent may change them when the owner asks it themselves. This reverses D-060 for
 models; how far agents may act (`access.set`, autonomy, rules) stays the owner's.
 
@@ -5959,12 +5959,12 @@ models; how far agents may act (`access.set`, autonomy, rules) stays the owner's
   from APX's whisper.cpp list (whisper.cpp itself stays the owner's to install).
 - **An MCP server's tools.** `mcp.approveTool` and `mcp.toolMode` run in Auto for a server already added. `mcp.trust`
   with `trusted: true` starts a project's server, a command on this computer: like adding one, it keeps the card in
-  every mode (D-264's B list); `trusted: false` stops it and runs in Auto.
+  every mode (D-265's B list); `trusted: false` stops it and runs in Auto.
 - **Narrowing a grant.** `grant_tool` takes `condition` and `expires_at` (in the future). Granting a tool the agent
   already holds no longer replaces the grant, so a condition or end date the owner set stays unless this call sets a
   new one.
 
-Every change is `untrusted` (D-264): Auto and Total run it unless outside content is in the turn, Manual asks. Each is
+Every change is `untrusted` (D-265): Auto and Total run it unless outside content is in the turn, Manual asks. Each is
 checked before anything is written and the methods write once, so a refused or failed change leaves the previous
 setup working.
 

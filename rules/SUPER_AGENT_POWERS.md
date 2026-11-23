@@ -1,6 +1,6 @@
 # What the super-agent can do for the owner
 
-The owner's rule ([D-264](DECISIONS.md#d-264)): the super-agent can do, when the owner asks it themselves, whatever
+The owner's rule ([D-265](DECISIONS.md#d-265)): the super-agent can do, when the owner asks it themselves, whatever
 the owner could do in the panel or the CLI, and asks only for what is genuinely harmful. In Auto and Total it does not
 ask, except for grave or system-touching actions; a failed change leaves the previous setup working.
 
@@ -33,7 +33,7 @@ Done in this change:
 | Choose which tools another agent may use | `agent_set` had no `tools` (staging `tools/agent-set.ts:107`); `agents.update` takes it | `agent_set` `tools`, checked against `agents.tools` before writing |
 | Make what the owner asked without a card in Auto | every `apx_settings` change but a few was `always` (staging `tools/settings.ts:206`), every `agent_set` change too (staging `tools/agent-set.ts:132`) | `untrusted` by default; `always` and `card` only where listed in B |
 
-Opened by the owner afterwards ([D-265](DECISIONS.md#d-265), reversing D-060 for models):
+Opened by the owner afterwards ([D-266](DECISIONS.md#d-266), reversing D-060 for models):
 
 | Need | Was blocked by | Now |
 |---|---|---|
@@ -57,7 +57,7 @@ it, so a project agent never changes the owner's setup on someone else's word.
 
 - Keys and commands reaching somewhere: MCP servers (`mcp.set`, D-141, `hermes.import`, which adds them, and
   `mcp.trust` starting a project's server), a service change that sends a saved key to another address
-  or deletes it (`services.set`, D-264).
+  or deletes it (`services.set`, D-265).
 - Who reaches the owner and who is the owner: channels (`channels.set`), an address with no person, claiming one, the
   owner role (`contacts.address`, `contacts.claim`, `contacts.set`), contact sources (D-144, D-203), letting a contact
   in (`answer_contact_request`).

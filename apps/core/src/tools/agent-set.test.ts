@@ -58,7 +58,7 @@ after(async () => {
   await env.cleanup();
 });
 
-/** With a decision, the super-agent works in Manual so the owner's card shows (Auto runs it: DECISIONS.md#d-264). */
+/** With a decision, the super-agent works in Manual so the owner's card shows (Auto runs it: DECISIONS.md#d-265). */
 async function ask(text: string, agent = "superagent", decision?: "approve" | "deny"): Promise<string> {
   if (decision) await env.client.call("agents.update", { agent: "superagent", autonomy: "manual" });
   try {
@@ -202,7 +202,7 @@ test("the owner can ask for an agent's fallback models; its main model stays the
   assert.equal((await env.client.call("runs.pending", {})).inputs.length, 0);
 });
 
-test("in Auto, an agent the owner asks for is made at once, with no card (DECISIONS.md#d-264)", async () => {
+test("in Auto, an agent the owner asks for is made at once, with no card (DECISIONS.md#d-265)", async () => {
   assert.match(await ask("hire a scout"), /created: Pathfinder \(id: pathfinder\)/);
   assert.equal((await env.client.call("runs.pending", {})).inputs.length, 0);
 });
