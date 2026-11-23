@@ -34,6 +34,7 @@ export const enMarketplace = {
   "mkt.group.active": "Active",
   "mkt.from": "Created by {name}",
   "mkt.creatorUnknown": "Creator not listed",
+  "mkt.published": "Published",
   "mkt.from.github": "Code on GitHub: {name}",
   "mkt.source.label": "Catalog",
   "mkt.source.all": "All catalogs",

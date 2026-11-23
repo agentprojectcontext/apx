@@ -450,9 +450,6 @@
   gap: 3px;
   color: var(--apx-info-soft-fg);
 }
-.mkt-facts__sub {
-  color: var(--apx-fg-muted);
-}
 @container (max-width: 560px) {
   .mkt-facts {
     grid-template-columns: minmax(0, 1fr);

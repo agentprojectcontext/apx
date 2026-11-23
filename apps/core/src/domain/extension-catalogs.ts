@@ -17,7 +17,7 @@ export type CatalogItem = {
   category?: string | undefined;
   homepage?: string | undefined;
   license?: string | undefined;
-  /** Who makes it, as its catalog says (the plugin's author, or the catalog's owner for one kept in its repository). */
+  /** Who makes it, explicitly declared by its catalog; ownership of the catalog is not authorship. */
   publisher?: string | undefined;
   /** The GitHub account its code lives under, when nobody is named. */
   github?: string | undefined;

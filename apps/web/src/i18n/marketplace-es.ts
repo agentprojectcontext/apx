@@ -36,6 +36,7 @@ export const esMarketplace = {
   "mkt.group.active": "Activas",
   "mkt.from": "Creada por {name}",
   "mkt.creatorUnknown": "Sin autor indicado",
+  "mkt.published": "Publicada",
   "mkt.from.github": "Código en GitHub: {name}",
   "mkt.source.label": "Catálogo",
   "mkt.source.all": "Todos los catálogos",

@@ -33,6 +33,7 @@ test("a package names its creator without being able to grant itself APX review"
   await expect(header).toContainText("Creada por Northwind");
   await expect(page.getByText("Verificada por APX", { exact: true })).toHaveCount(0);
   await expect(page.locator(".mkt-facts")).not.toContainText("Northwind");
+  await expect(page.locator(".mkt-facts")).not.toContainText("1.0.0");
   await page.getByRole("button", { name: "Conectar", exact: true }).click();
   const box = page.getByRole("dialog");
   await expect(box).toContainText("Creada por Northwind");

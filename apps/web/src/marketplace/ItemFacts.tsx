@@ -69,16 +69,14 @@ export function ItemFacts({ item }: { item: Item }) {
   const auth = authText(item, t);
   const day = dayText(item.published, lang);
   const links = linksOf(item);
-  const version = item.version ?? item.ext?.version;
   // Files nobody verified (another catalog, a file, an address): said before adding, beside what it may reach.
   const third = item.label === "third";
   const hash = item.ext?.hash ?? item.entry?.contents?.hash;
   return (
     <section className="mkt-facts" aria-label={t("mkt.info")}>
-      {(version || day) && (
-        <Fact title="extx.kv.version">
-          <span>{[version, day].filter(Boolean).join(" · ")}</span>
-          {item.update && <span className="mkt-facts__sub">{t("mkt.updateAvailable", { version: item.update })}</span>}
+      {day && (
+        <Fact title="mkt.published">
+          <span>{day}</span>
         </Fact>
       )}
       {(access.length > 0 || third) && (
