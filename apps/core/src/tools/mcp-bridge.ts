@@ -33,6 +33,7 @@ export const appOf = (name: string): string | undefined => APPS[name.split("_")[
  * (DECISIONS.md#d-233, #d-234).
  */
 const OWN_GROUPS: Record<string, string[]> = {
+  "AI plan usage and quotas": ["plan_usage"],
   Routines: ["routine_list", "routine_set"],
   "Settings and team": ["apx_settings", "apx_flow", "agent_set", "agent_limits", "grant_tool", "voice_replies"],
   "Owner and attention": ["notify_owner", "attention_hours", "suggest_connection", "commitment_settle"],

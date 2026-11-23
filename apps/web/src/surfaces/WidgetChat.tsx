@@ -1,12 +1,17 @@
 import "../styles/panel-parts.css";
 import type { SurfaceSummary } from "@apx/protocol";
-import { IconButton, Icons, Skeleton } from "@apx/ui";
-import { useEffect } from "react";
+import { ConfirmDialog, IconButton, Icons, Skeleton } from "@apx/ui";
+import { useEffect, useState } from "react";
 import { ChatComposer } from "../chat/composer/ChatComposer.tsx";
+import { refsOf } from "../chat/composer/contextRefs.ts";
 import { Transcript } from "../chat/Transcript.tsx";
 import { Drawer } from "../common/Drawer.tsx";
+import { useAgentOptions } from "../common/pickers/agentOptions.tsx";
+import { SearchSelect } from "../common/pickers/SearchSelect.tsx";
 import { loadThread } from "../data/actions.ts";
+import { attachmentsOf } from "../data/attachmentDrafts.ts";
 import { useSlice } from "../data/createStore.ts";
+import { draftOf } from "../data/drafts.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
@@ -34,6 +39,26 @@ export function WidgetChatHost() {
   const thread = useData((s) => (threadId ? s.threads[threadId] : undefined));
   const load = useData((s) => (threadId ? s.threadLoad[threadId] : undefined));
   const agent = useData((s) => (thread ? s.agents[thread.agent_ids[0] ?? ""] : undefined));
+  const agents = useAgentOptions(surface?.project_id, false, "secretary");
+  const [switching, setSwitching] = useState(false);
+  const [pendingAgent, setPendingAgent] = useState<string>();
+  const requestChat = (agentId: string | undefined) => {
+    if (!surface || !threadId || !agentId) return;
+    const draft = draftOf(threadId);
+    const ownDraft = draft.trim() && draft !== t("widget.chatDraft", { title: surface.title });
+    if (ownDraft || attachmentsOf(threadId).snapshot().length || refsOf(threadId).some((r) => r.kind !== "widget")) {
+      setPendingAgent(agentId);
+    } else void startChat(agentId);
+  };
+  const startChat = async (agentId?: string) => {
+    if (!surface || switching) return;
+    setSwitching(true);
+    try {
+      await restartChat(surface, agentId);
+    } finally {
+      setSwitching(false);
+    }
+  };
   useEffect(() => {
     if (threadId && load == null) void loadThread(threadId);
   }, [threadId, load]);
@@ -57,7 +82,8 @@ export function WidgetChatHost() {
               size="sm"
               label={t("widget.chatNew")}
               icon={<Icons.RotateCcw size={14} />}
-              onClick={() => void restartChat(surface)}
+              disabled={switching}
+              onClick={() => requestChat(agent?.id)}
             />
           )}
           <IconButton
@@ -74,6 +100,36 @@ export function WidgetChatHost() {
         </>
       }
     >
+      {pendingAgent && (
+        <ConfirmDialog
+          title={t("widget.chatDraftTitle")}
+          description={t("widget.chatDraftKeep")}
+          confirmLabel={t("widget.chatDraftContinue")}
+          cancelLabel={t("widget.chatDraftCancel")}
+          closeLabel={t("common.close")}
+          danger={false}
+          onClose={() => setPendingAgent(undefined)}
+          onConfirm={() => startChat(pendingAgent)}
+        />
+      )}
+      {surface && (
+        <div className="widgetchat__agent">
+          <SearchSelect
+            label={t("widget.chatAgent")}
+            searchPlaceholder={t("pickers.searchAgent")}
+            emptyLabel={t("pickers.noMatch")}
+            size="sm"
+            value={agent?.id ?? null}
+            placeholder={t("widget.chatAgent")}
+            options={agents}
+            disabled={switching}
+            onValueChange={(id) => {
+              if (id && id !== agent?.id) requestChat(id);
+            }}
+          />
+          <p role="status">{switching ? t("widget.chatSwitching") : t("widget.chatAgentHint")}</p>
+        </div>
+      )}
       {surface ? (
         <div className="widgetchat__preview">
           <SurfaceFrame surfaceId={surface.id} maxHeight={420} />

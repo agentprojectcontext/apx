@@ -126,6 +126,7 @@ import { messageTools } from "./tools/message.ts";
 import { ownerTools } from "./tools/owner.ts";
 import { phoneTools } from "./tools/phone.ts";
 import { planTools } from "./tools/plan.ts";
+import { planUsageTools } from "./tools/plan-usage.ts";
 import { requestTools } from "./tools/requests.ts";
 import { routineTools } from "./tools/routines.ts";
 import { settingsTools } from "./tools/settings.ts";
@@ -258,6 +259,7 @@ export function builtinTools(
     ...computerTools(store),
     ...taskTools(store, home),
     ...planTools(),
+    ...planUsageTools(),
     ...videoTools(findProgram("yt-dlp")),
     ...webTools(),
     ...contactTools(store),

@@ -47,6 +47,10 @@ const SETTING_AREA: Record<string, string> = {
   mcp: "un servidor MCP",
   extensions: "una extensión",
   services: "los servicios de medios",
+  embeddings: "el motor de embeddings de la memoria",
+  models: "los modelos",
+  voice: "la voz de APX",
+  transcription: "la transcripción",
   surfaces: "un widget",
   stickers: "los stickers",
 };
@@ -79,6 +83,7 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
         : "Revisó los límites de los agentes",
   contact_list: () => "Revisó los contactos",
   sticker_list: () => "Revisó los stickers",
+  plan_usage: () => "Consultó el consumo de tus planes de IA",
   apx_settings: (a) => {
     const { act, area } = settingAct(a);
     const what = SETTING_AREA[area] ?? "la configuración";
@@ -99,7 +104,7 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
           ? `Cambió a ${str(a.agent)}`
           : `Miró a ${str(a.agent)}`,
   grant_tool: (a) =>
-    `Dejó que ${str(a.agent ?? "un agente")} use ${(Array.isArray(a.tools) ? a.tools : []).join(", ").slice(0, 60)}`,
+    `${a.revoke ? "Le quitó a" : "Dejó que"} ${str(a.agent ?? "un agente")} ${a.revoke ? "" : "use "}${(Array.isArray(a.tools) ? a.tools : []).join(", ").slice(0, 60)}`,
   delegate: (a) => {
     const worker = a.worker as { name?: unknown } | undefined;
     return `Le pidió a ${str(worker?.name ?? a.agent ?? a.session)}`;

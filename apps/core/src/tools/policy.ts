@@ -107,11 +107,23 @@ function byList(agent: AgentRecord, tools: Tool[]): (name: string) => boolean {
   if (!wanted.length) return () => true;
   const bridge = (name: string) => BRIDGE.has(name) && wanted.some((w) => w === "mcp" || w.startsWith("mcp_"));
   const match = (name: string) => wanted.some((w) => w === name || GROUPS[w]?.(name)) || bridge(name);
-  if (!tools.some((t) => !ALWAYS.has(t.name) && match(t.name))) return () => true;
+  if (!tools.some((t) => !ALWAYS.has(t.name) && match(t.name)) && ![...BRIDGE].some(match)) return () => true;
   return (name) => ALWAYS.has(name) || match(name);
 }
 
 const BRIDGE = new Set(["tool_search", "tool_run"]);
+
+/**
+ * Whether an agent's own `tools:` list (and the super-agent's own tools) let it use `name`, decided over the tool
+ * names `known`: what grant_tool checks before letting an agent use a tool without asking.
+ */
+export function listAllows(agent: AgentRecord, name: string, known: readonly string[]): boolean {
+  if (agent.kind !== "secretary" && SUPER_AGENT_TOOLS.has(name)) return false;
+  return byList(
+    agent,
+    known.map((n) => ({ name: n }) as Tool),
+  )(name);
+}
 
 /**
  * `untrusted` is whether text from outside (web pages, other agents, channel messages) is in the turn's context:

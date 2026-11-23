@@ -197,6 +197,7 @@ export const PEOPLE: Readonly<Record<string, Setting>> = {
   },
   "contacts.cancel_booking": {
     does: "cancel an appointment a contact booked (id from contacts.bookings): it leaves the calendar and the contact is told, unless tell false",
+    asks: "always",
     says: (p, { store }) => {
       const b = typeof p.id === "string" ? contactBookings(store).get(p.id) : undefined;
       const who = b ? (store.persons.get(b.person_id)?.name ?? "") : "";

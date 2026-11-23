@@ -1,5 +1,5 @@
 // agent_set: the super-agent runs the team for the owner (create, rename, rewrite a prompt, archive), each change at
-// the owner's word, asked first as the agent's mode says (DECISIONS.md#d-203). Autonomy and the main model stay the owner's own (DECISIONS.md#d-060); the fallback models after
+// the owner's word, run in Auto unless outside content is in the turn (DECISIONS.md#d-267). Autonomy and the main model stay the owner's own (DECISIONS.md#d-060); the fallback models after
 // it are set here too (DECISIONS.md#d-195).
 import { type Organization, randomAgentName } from "@apx/protocol";
 import { z } from "zod";
@@ -28,6 +28,7 @@ function card(store: Store, a: AgentRecord): string {
     a.personality ? `personality: ${a.personality}` : "",
     a.model_choice?.model ? `model: ${a.model_choice.model}` : "",
     a.model_choice?.fallbacks?.length ? `fallbacks: ${a.model_choice.fallbacks.join(", ")}` : "",
+    `tools: ${a.tools?.length ? a.tools.join(", ") : "all it may use (no list)"}`,
     `revision: ${agentRevision(store, a)}`,
     "prompt:",
     a.prompt || "(empty)",
@@ -81,6 +82,25 @@ function teamSheet(store: Store, projectId: string | undefined, org: Organizatio
     .join("\n");
 }
 
+/**
+ * Why a `tools:` list cannot be saved, or undefined: each entry is one of APX's tools, a group of them, or an MCP
+ * tool (`mcp_…`); what runs the team stays the super-agent's whatever a list says.
+ */
+export function unknownTools(
+  list: readonly string[],
+  catalog: ReadonlyArray<{ name: string; group?: string | undefined }>,
+): string | undefined {
+  const known = new Set(catalog.flatMap((t) => [t.name, ...(t.group ? [t.group] : [])]));
+  const wanted = list.map((t) => t.trim().toLowerCase());
+  const own = wanted.filter((t) => SUPER_AGENT_TOOLS.has(t));
+  if (own.length)
+    return `${own.join(", ")} stay the super-agent's: another agent asks it for those changes and reads quotas with plan_usage`;
+  const unknown = wanted.filter((t) => !known.has(t) && t !== "mcp" && !t.startsWith("mcp_"));
+  return unknown.length
+    ? `no tool or group named ${unknown.join(", ")}. Tools: ${[...known].sort().join(", ")}`
+    : undefined;
+}
+
 /** A role is a title shown in lists and on cards. */
 const ROLE_MAX = 40;
 
@@ -105,6 +125,7 @@ export function agentSetTools(store: Store): Tool[] {
     archive: z.boolean().optional(),
     // Refs and their count are checked by agents.update; a plain list keeps the schema short.
     fallbacks: z.array(z.string()).optional(),
+    tools: z.array(z.string().trim().min(1).max(80)).max(200).optional().describe("whole list; [] = all"),
   });
   type Args = z.output<typeof args>;
   const changes = (a: Args) =>
@@ -119,6 +140,7 @@ export function agentSetTools(store: Store): Tool[] {
       a.personality,
       a.parent,
       a.fallbacks,
+      a.tools,
     ].some((v) => v !== undefined) ||
     a.archive === true ||
     (!!a.agent && a.review === true);
@@ -126,10 +148,12 @@ export function agentSetTools(store: Store): Tool[] {
     defineTool({
       name: "agent_set",
       description:
-        "Manage agents; load apx-agents first. No args: team; agent: read. Create: slug, role. review: queue/ack.",
+        "Manage agents; load apx-agents first. No args: team; agent: read. Create: slug, role. review: queue/ack. tools: which tools it may use.",
       args,
       effect: "local",
-      confirm: (a) => (changes(a) ? "always" : "never"),
+      // The owner's word runs in Auto unless outside content is in the turn; applying or acknowledging a reviewed
+      // proposal keeps the owner's yes there (DECISIONS.md#d-267).
+      confirm: (a) => (!changes(a) ? "never" : a.if_revision || a.review ? "always" : "untrusted"),
       ownerSetting: changes,
       deadlineMs: 15_000,
       title: (a) =>
@@ -180,6 +204,11 @@ export function agentSetTools(store: Store): Tool[] {
         if (cur && !changes(a)) return card(store, cur);
         if (!ctx.callAsOwner) return "not run: the owner did not approve it";
         const asOwner = ctx.callAsOwner;
+        // A list naming a tool APX does not have would be dropped silently: refused before anything is written.
+        if (a.tools?.length) {
+          const wrong = unknownTools(a.tools, (await asOwner("agents.tools", {})).tools);
+          if (wrong) return `not saved: ${wrong}`;
+        }
         // Where the agent lives decides whether it can have an area, and which areas and roles are there to pick.
         let pid = cur?.project_id ?? ctx.thread.project_id;
         if (!cur && a.project) {
@@ -229,6 +258,7 @@ export function agentSetTools(store: Store): Tool[] {
             ...(a.personality ? { personality: a.personality } : {}),
             ...(a.orchestrator ? { orchestrator: true } : {}),
           });
+          if (a.tools) await asOwner("agents.update", { agent: made.id, tools: a.tools });
           // Where it landed, so the agent never tells the owner it is in a project it is not.
           const home = made.project_id ? (store.projects.get(made.project_id)?.name ?? made.project_id) : "";
           return `created: ${made.name} (id: ${made.id}) ${home ? `in the project ${home}` : "as a global agent (no project)"}`;

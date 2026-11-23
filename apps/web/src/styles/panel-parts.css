@@ -277,6 +277,19 @@
 .diff__line--hunk .diff__text {
   padding: 2px 0;
 }
+.widgetchat__agent {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+.widgetchat__agent p {
+  flex: 1 1 220px;
+  margin: 0;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
 .widgetchat__preview {
   flex: none;
   max-height: 40%;

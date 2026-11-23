@@ -33,7 +33,7 @@ test("channels: a change shows only the fields that change, and keeps the rest a
     /^- Acme bot \[tg\] \(telegram, on, .*strangers: ask/,
   );
   const call = { method: "channels.set", params: { id: "tg", channel: { strangers: "pair", reactions: false } } };
-  const { detail, answer } = await h.ask(call, "approve");
+  const { detail, answer } = await h.card(call, "approve");
   assert.match(detail, /^Change the channel Acme bot/);
   assert.match(detail, /channel\.strangers: "ask" → "pair"/);
   assert.match(detail, /channel\.reactions: .* → false/);
@@ -62,34 +62,34 @@ test("channels: the sign-in, removing one, research and a new channel stay the o
 });
 
 test("channels: iMessage is turned on once the owner approves", async () => {
-  const { detail } = await h.ask({ method: "imessage.set", params: { on: true } }, "approve");
+  const { detail } = await h.card({ method: "imessage.set", params: { on: true } }, "approve");
   assert.match(detail, /^Turn iMessage on\non: false → true/);
   assert.equal(h.env.core.store.settings.read("imessage").on, true);
 });
 
 test("owner: a change to their profile keeps what was not asked", async () => {
   const tz = { method: "owner.set", params: { timezone: "America/New_York" } };
-  const { detail } = await h.ask(tz, "approve");
+  const { detail } = await h.card(tz, "approve");
   assert.match(detail, /^Change your profile\ntimezone: \(none\) → "America\/New_York"$/);
   const me = await h.env.client.call("owner.get", {});
   assert.equal(me.timezone, "America/New_York");
   assert.equal(me.name, "Acme Owner");
   assert.equal(me.language, "es");
-  await h.ask({ method: "owner.set", params: { language: "en" } }, "deny");
+  await h.card({ method: "owner.set", params: { language: "en" } }, "deny");
   assert.equal((await h.env.client.call("owner.get", {})).language, "es");
   assert.match((await h.ask({ method: "owner.get" })).answer, /time zone: America\/New_York/);
 });
 
 test("notices: quiet hours and the daily budget change, the rest stays", async () => {
   const quiet = { method: "notices.set", params: { quiet_from: "23:00", quiet_to: "08:00", budget_per_day: 5 } };
-  const { detail } = await h.ask(quiet, "approve");
+  const { detail } = await h.card(quiet, "approve");
   assert.match(detail, /^Change when you are notified/);
   assert.match(detail, /budget_per_day: 3 → 5/);
   assert.match(detail, /quiet_from: \(none\) → "23:00"/);
   const prefs = await h.env.client.call("notices.get", {});
   assert.equal(prefs.budget_per_day, 5);
   assert.equal(prefs.kind_gap_min, 120);
-  await h.ask({ method: "notices.set", params: { budget_per_day: 1 } }, "deny");
+  await h.card({ method: "notices.set", params: { budget_per_day: 1 } }, "deny");
   assert.equal((await h.env.client.call("notices.get", {})).budget_per_day, 5);
 });
 

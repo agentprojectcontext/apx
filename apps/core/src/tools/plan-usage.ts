@@ -1,7 +1,23 @@
 import { z } from "zod";
 import { untrusted } from "./result.ts";
 import type { Setting } from "./settings-kit.ts";
-import type { ToolContext } from "./types.ts";
+import { defineTool, type Tool, type ToolContext } from "./types.ts";
+
+export function planUsageTools(): Tool[] {
+  return [
+    defineTool({
+      name: "plan_usage",
+      description:
+        "Read AI plan usage, quotas, limits and reset times for Claude, Anthropic, ChatGPT, Codex and other detected engines. Only when the owner asks, not for unsolicited monitoring. Uses the core's local accounts and shared cache; no browser or model session needed. Missing data is unknown, not zero.",
+      args: ARGS,
+      effect: "none",
+      confirm: "never",
+      deadlineMs: 45_000,
+      title: () => "Read AI plan usage",
+      run: (args, ctx) => planUsage(args.query, ctx.call),
+    }),
+  ];
+}
 
 const ARGS = z.object({ query: z.string().trim().min(1).max(100).optional() }).strict();
 

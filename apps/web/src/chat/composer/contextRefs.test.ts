@@ -13,6 +13,17 @@ test("context added to a message goes after the words, each by kind, id and name
   );
 });
 
+test("a widget context keeps its stable name separate from the editable draft", () => {
+  const widget = { kind: "widget" as const, id: "weekly-report", label: "Weekly report" };
+  addRef("th_widget", widget);
+  assert.deepEqual(refsOf("th_widget"), [widget]);
+  assert.equal(
+    withRefs("Add a chart", takeRefs("th_widget")),
+    "Add a chart\n\n[context the owner added]\n- widget weekly-report: Weekly report",
+  );
+  assert.deepEqual(refsOf("th_widget"), []);
+});
+
 test("each chat keeps its own context once, until it is sent or given back", () => {
   const task = { kind: "task" as const, id: "tk_1", label: "Launch the blog" };
   addRef("th_a", task);

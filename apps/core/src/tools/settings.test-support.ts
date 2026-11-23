@@ -45,5 +45,9 @@ export async function settingsCore({
     }
   }
 
-  return { env, llm, ask, inMode };
+  /** The owner's card for a change Auto makes at once (DECISIONS.md#d-267): shown in Manual. */
+  const card = (call: object | string, decision: "approve" | "deny", agent = "superagent") =>
+    inMode("manual", () => ask(call, decision, agent));
+
+  return { env, llm, ask, inMode, card };
 }

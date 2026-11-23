@@ -117,6 +117,7 @@ export const TEAM: Readonly<Record<string, Setting>> = {
   },
   "routines.remove": {
     does: "delete a routine for good (routine: its id, routine_list)",
+    asks: "always",
     named: ["routine"],
     says: (p, { store }) =>
       `Delete the routine ${inlineName(store.routines.get(str(p.routine))?.name ?? str(p.routine))}`,
@@ -170,6 +171,7 @@ export const TEAM: Readonly<Record<string, Setting>> = {
   },
   "profiles.remove": {
     does: "remove an installed agent profile (id); APX's own stay",
+    asks: "always",
     named: ["id"],
     says: (p) => `Remove the agent profile ${str(p.id)}`,
   },
@@ -181,6 +183,7 @@ export const TEAM: Readonly<Record<string, Setting>> = {
   },
   "tasks.delete": {
     does: "delete a task for good, with its history and its chat (task)",
+    asks: "always",
     named: ["task"],
     says: (p, { store }) =>
       `Delete for good the task ${quoted(store.tasks.get(str(p.task))?.title ?? str(p.task), 80)}`,
@@ -206,7 +209,8 @@ export const TEAM: Readonly<Record<string, Setting>> = {
   "hermes.import": {
     does: "bring a Hermes home folder (path) into APX: agents, memory, skills, routines turned off, MCP servers; never secrets",
     named: ["path"],
-    // Like mcp.set's card, it names every server it adds and what it runs (DECISIONS.md#d-143).
+    // It adds MCP servers, commands on this computer: mcp.set's card in every mode, naming each (DECISIONS.md#d-267).
+    asks: "card",
     says: (p) => hermesCard(hermesHome(str(p.path))) ?? `Bring the Hermes setup in ${str(p.path)} into APX`,
     refuse: (p) => (readHermes(hermesHome(str(p.path))) ? undefined : `no Hermes setup in ${hermesHome(str(p.path))}`),
   },

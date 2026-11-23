@@ -204,6 +204,10 @@ agent's own. The notice above it says which model did not answer and why.
 Fallbacks only apply to turns that APX's own loop runs. A Claude Code, Codex or ACP session runs its own CLI with its
 own model, so the agent's fallbacks are not used there.
 
+You can also ask your super-agent to change the default, the router or one chat's model. It only saves models from an
+engine that is on and has its key or sign-in, and it never leaves the router with an empty chain; otherwise nothing
+changes.
+
 ## Usage
 
 Every turn records its model and tokens, and whether they were **included** in a subscription or **metered** (paid
@@ -230,11 +234,13 @@ plan; Codex metadata still needs its separately linked local CLI account. Turnin
 hides cached results. Your explicit choice is remembered. Chat tokens, costs and context usage remain separate
 from these account limits.
 
-Ask your super-agent “Check all my plan quotas” or “How much of my Claude weekly limit have I used?” It reads every
+Ask any of your agents, including a project agent, “Check all my plan quotas” or “How much of my Claude weekly limit have I used?” It reads every
 engine detected on this computer, including those you keep out of the top bar, with the menu's source and cache (up to
 60 seconds), regardless of its own model. It can ask about all of them or filter by a provider/plan name or engine id
 (`Claude`, `Claude Auto`, `Codex`, `ChatGPT`, `Cursor`), and gets reported percentages, window durations, reset times
-and the report's check time. What the top bar shows is still your choice: the agent's read does not change it.
+and the report's check time. Agents discover `plan_usage` through `tool_search`; explicit tool restrictions still apply.
+The super-agent can also use `apx_settings` with `engines.usage`. These are requested reads, not background monitoring.
+What the top bar shows is still your choice: the agent's read does not change it.
 
 Only Claude and Codex currently provide quota windows. Other configured engines can report unsupported or unavailable
 limits. A disabled or unknown account may be absent entirely; a missing match is not zero usage. `not_available` means

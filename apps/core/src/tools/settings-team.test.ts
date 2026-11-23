@@ -19,7 +19,7 @@ const archived = async () => (await h.env.client.call("agents.archived", {})).ag
 
 test("agents: an archived agent comes back once the owner approves, and a declined delete keeps it", async () => {
   assert.match((await h.ask({ method: "agents.archived" })).answer, /- Acme reader \[acme-reader\]/);
-  const back = await h.ask({ method: "agents.restore", params: { agent: "acme-reader" } }, "approve");
+  const back = await h.card({ method: "agents.restore", params: { agent: "acme-reader" } }, "approve");
   assert.equal(back.detail, "Bring back the archived agent Acme reader");
   assert.ok(!(await archived()).includes("acme-reader"));
   const gone = await h.ask({ method: "agents.delete", params: { agent: "acme-helper" } }, "deny");
@@ -55,11 +55,11 @@ test("routines: deleting one waits for the owner", async () => {
 
 test("agent profiles: one runs once the owner approves, a declined switch keeps it", async () => {
   assert.match((await h.ask({ method: "profiles.list" })).answer, /- focus: Focus coach/);
-  const { detail } = await h.ask({ method: "profiles.set", params: { id: "focus" } }, "approve");
+  const { detail } = await h.card({ method: "profiles.set", params: { id: "focus" } }, "approve");
   assert.match(detail, /^Run the agent profile Focus coach\nid: \(none\) → "focus"/);
   const active = async () => (await h.env.client.call("profiles.list", {})).active.id;
   assert.equal(await active(), "focus");
-  await h.ask({ method: "profiles.set", params: { id: null } }, "deny");
+  await h.card({ method: "profiles.set", params: { id: null } }, "deny");
   assert.equal(await active(), "focus");
   assert.match((await h.ask({ method: "profiles.list" })).answer, /- focus: Focus coach, running with/);
 });
@@ -100,10 +100,10 @@ test("imported sessions: a chat brought from a coding app is handed to another a
   });
   h.env.core.store.threads.mergeContext(chat.id, { imported: { engine: "claude", session: "acme-session-1" } });
   const adopt = { method: "sessions.adopt", params: { thread: chat.id, agent: "acme-writer" } };
-  await h.ask(adopt, "deny");
+  await h.card(adopt, "deny");
   const agents = async () => (await h.env.client.call("threads.get", { thread: chat.id })).thread.agent_ids;
   assert.deepEqual(await agents(), ["superagent"]);
-  const { detail } = await h.ask(adopt, "approve");
+  const { detail } = await h.card(adopt, "approve");
   assert.equal(detail, 'Hand the chat "Acme refactor" to Acme writer');
   assert.deepEqual(await agents(), ["acme-writer"]);
 });

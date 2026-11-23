@@ -22,6 +22,10 @@ const CALLS: Record<string, [string, object]> = {
   "back the coder up": ["agent_set", { agent: "acme-coder", fallbacks: ["fake/backup-1", "fake/backup-2"] }],
   "back the writer up": ["agent_set", { agent: "acme-reader", fallbacks: ["fake/backup-1"] }],
   "show me the coder": ["agent_set", { agent: "acme-coder" }],
+  "hire a scout": ["agent_set", { slug: "pathfinder", name: "Pathfinder", role: "Looks around" }],
+  "keep the reader to the browser": ["agent_set", { agent: "acme-reader", tools: ["browser", "file_read"] }],
+  "give the reader a wish": ["agent_set", { agent: "acme-reader", tools: ["browser", "wishful_thinking"] }],
+  "give the reader the settings": ["agent_set", { agent: "acme-reader", tools: ["apx_settings"] }],
   "hire a lead": [
     "agent_set",
     { slug: "lead", name: "Lead", role: "Head of design", area: "design", orchestrator: true },
@@ -54,7 +58,17 @@ after(async () => {
   await env.cleanup();
 });
 
+/** With a decision, the super-agent works in Manual so the owner's card shows (Auto runs it: DECISIONS.md#d-267). */
 async function ask(text: string, agent = "superagent", decision?: "approve" | "deny"): Promise<string> {
+  if (decision) await env.client.call("agents.update", { agent: "superagent", autonomy: "manual" });
+  try {
+    return await asked(text, agent, decision);
+  } finally {
+    if (decision) await env.client.call("agents.update", { agent: "superagent", autonomy: null });
+  }
+}
+
+async function asked(text: string, agent: string, decision?: "approve" | "deny"): Promise<string> {
   const thread = await env.client.call("threads.create", {
     kind: "loose",
     agent_id: agent,
@@ -87,7 +101,7 @@ test("only the super-agent is offered agent_set", async () => {
 test("reading an agent's definition and prompt needs no OK", async () => {
   assert.match(
     await ask("show me Acme Writer"),
-    /^Acme Writer \(id: acme-writer\)\nrole: Writes copy\nrevision: [a-f0-9]{64}\nprompt:\nWrite long\.$/,
+    /^Acme Writer \(id: acme-writer\)\nrole: Writes copy\ntools: all it may use \(no list\)\nrevision: [a-f0-9]{64}\nprompt:\nWrite long\.$/,
   );
 });
 
@@ -186,4 +200,17 @@ test("the owner can ask for an agent's fallback models; its main model stays the
   assert.match(await ask("back the writer up"), /runs on the router, not a model of its own/);
   assert.equal((await agent("acme-reader"))?.model_choice, undefined);
   assert.equal((await env.client.call("runs.pending", {})).inputs.length, 0);
+});
+
+test("in Auto, an agent the owner asks for is made at once, with no card (DECISIONS.md#d-267)", async () => {
+  assert.match(await ask("hire a scout"), /created: Pathfinder \(id: pathfinder\)/);
+  assert.equal((await env.client.call("runs.pending", {})).inputs.length, 0);
+});
+
+test("an agent's tools are set by name or group; an unknown one or the super-agent's own is refused before saving", async () => {
+  assert.match(await ask("keep the reader to the browser"), /saved: Acme Reader/);
+  assert.deepEqual((await agent("acme-reader"))?.tools, ["browser", "file_read"]);
+  assert.match(await ask("give the reader a wish"), /not saved: no tool or group named wishful_thinking/);
+  assert.match(await ask("give the reader the settings"), /not saved: apx_settings stay the super-agent's/);
+  assert.deepEqual((await agent("acme-reader"))?.tools, ["browser", "file_read"]);
 });

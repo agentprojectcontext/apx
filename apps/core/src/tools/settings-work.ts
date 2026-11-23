@@ -147,7 +147,11 @@ export const WORK: Readonly<Record<string, Setting>> = {
   "memory.set_settings": {
     does: "change memory's settings (only what changes: mode, auto_recall, auto_capture, auto_compact…); its model stays the owner's",
     says: () => "Change how memory works",
-    refuse: (p, { store }) => ownersField(p, memorySettings(store), "aux_model", MODEL),
+    refuse: (p, { store }) =>
+      ownersField(p, memorySettings(store), "aux_model", MODEL) ??
+      (p.mode === "semantic" && !store.settings.read("services").some((s) => s.kind === "embedding" && s.enabled)
+        ? "no embedding engine is on to search by meaning: set one up first (embeddings.local)"
+        : undefined),
     now: (_p, { store }) => memorySettings(store),
     keep: (p, { store }) => merged(memorySettings(store), p),
   },
@@ -208,6 +212,7 @@ export const WORK: Readonly<Record<string, Setting>> = {
   },
   "skills.runtimes": {
     does: "copy APX's skills into the other agent apps on this computer (Claude Code, Codex…); dry_run only lists",
+    asks: "always",
     named: ["dry_run"],
     says: (p) =>
       p.dry_run
@@ -338,16 +343,6 @@ export const WORK: Readonly<Record<string, Setting>> = {
       return e ? { id: e.id, enabled: e.enabled } : undefined;
     },
   },
-  "services.list": {
-    does: "the media services (image, speech, embedding, transcription), in the order they are tried, and the image defaults",
-    read: (_p, { store }) =>
-      [
-        ...store.settings
-          .read("services")
-          .map((s) => `- ${inlineName(s.label)} [${s.id}] (${s.kind}, ${s.enabled ? "on" : "off"})`),
-        `image defaults: ${JSON.stringify(imageDefaultsOf(store))}`,
-      ].join("\n"),
-  },
   "services.order": {
     does: "the order services of one kind are tried in (kind, ids)",
     says: (p) => `Change the order ${str(p.kind)} services are tried in`,
@@ -386,12 +381,14 @@ export const WORK: Readonly<Record<string, Setting>> = {
   },
   "surfaces.memory_clear": {
     does: "make a widget forget what it remembers (surface, parts)",
+    asks: "always",
     named: ["surface", "parts"],
     says: (p, { store }) =>
       `Make the widget ${widget(store, p.surface)} forget its ${(p.parts as string[] | undefined)?.join(", ") ?? ""}`,
   },
   "surfaces.remove": {
     does: "delete a widget for good, with what it remembers (surface)",
+    asks: "always",
     named: ["surface"],
     says: (p, { store }) => `Delete for good the widget ${widget(store, p.surface)} and what it remembers`,
   },

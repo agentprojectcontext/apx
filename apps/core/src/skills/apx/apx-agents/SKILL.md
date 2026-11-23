@@ -28,6 +28,16 @@ description: Create, edit, clone, import and review APX agents in their destinat
 5. Read back the result. Verify its destination, prompt, role, hierarchy and available capabilities. Creation or a
    successful write does not prove that its actual job works. State what was verified and what remains untested.
 
+## Tools and grants
+
+- Every agent has all the tools its place allows unless its `tools` list narrows it. When the owner asks to give or
+  take a tool, read the agent (`agent_set {agent}` shows `tools:`), then save the whole list with
+  `agent_set {agent, tools}`; `[]` goes back to all. Names are tools (`file_write`) or groups (`browser`, `files`,
+  `shell`, `mcp`); an unknown name is refused before anything is saved.
+- To let an agent run a tool without asking the owner each time, `grant_tool {agent, tools}`; `revoke: true` takes it
+  back. Only tools you run without asking yourself. `apx_settings`, `agent_set`, `apx_flow` and `task_tidy` stay
+  yours: another agent asks you for those changes, and reads AI plan quotas with `plan_usage`.
+
 ## Moving an agent between projects
 
 Use a supported move, not `agent_set project`, cloning, or manual database/file edits. Both project folders must be

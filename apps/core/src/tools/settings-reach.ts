@@ -32,7 +32,7 @@ export const TOTAL_SKIPS: Readonly<Record<string, string>> = {
 };
 
 const SECRET = "carries a key, a password or a sign-in the owner types themselves";
-const POWER = "what agents may do or which model runs them stays the owner's (DECISIONS.md#d-060)";
+const POWER = "how far agents may act stays the owner's (DECISIONS.md#d-060, DECISIONS.md#d-268)";
 const MACHINE = "installs or controls this computer and its devices";
 const PANEL = "the panel's own view of chats, files, git and the terminal; agents have tools of their own for these";
 const AS_OWNER = "the owner's own word: their answer, their send, their read";
@@ -61,7 +61,6 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "secrets.set_sites":
     "where agents may sign in with a stored secret is the owner's to say; an agent asks with its own card (DECISIONS.md#d-193)",
   "providers.set": SECRET,
-  "services.set": SECRET,
   "clients.create": SECRET,
   "clients.revoke": SECRET,
   "public_routes.rotate": SECRET,
@@ -83,13 +82,12 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "extensions.add_agent": "the Add agent button on an extension's page; agents make an agent with agent_set",
   "access.set": POWER,
   "webhooks.set": MACHINE,
-  "models.set_config": POWER,
-  "threads.model": POWER,
   "threads.group": "the owner picks who is in a group chat in the panel (D-218)",
   "threads.group_set": "the owner changes a group chat's members and models in its card (D-218)",
-  "tools.grant_set": POWER,
-  "tools.revoke": POWER,
-  "mcp.trust": POWER,
+  "tools.grant_set":
+    "narrowing a grant to a condition or a date is the owner's, in Resources; agents grant with grant_tool",
+  "tools.revoke":
+    "the owner takes back any grant, a chat's too, in Resources; agents take back one agent's with grant_tool revoke",
   // A drawing is published and run by hand through apx_flow's card or in the panel's Flows editor (DECISIONS.md#d-184).
   "flows.draft_discard": "the owner deletes a Flow draft on purpose",
   "flows.cancel_run": "the owner stops a Flow run they are looking at",
@@ -97,8 +95,6 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "flows.test_stop": "the owner stops waiting for the test event they started",
   "flows.history_restore": "the owner brings back an earlier drawing from the Flow's page, having looked at it",
   "flows.path_set": "a new address stops the old one, which the services that call it still use",
-  "mcp.approveTool": POWER,
-  "mcp.toolMode": POWER,
   "environments.enable": POWER,
   "environments.bind": POWER,
   "telemetry.set": POWER,
@@ -143,10 +139,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "extensions.catalog_sync": MACHINE,
   "extensions.catalog_remove": MACHINE,
   "profiles.install": MACHINE,
-  "embeddings.install": MACHINE,
-  "transcription.install": MACHINE,
   "voice.install": MACHINE,
-  "voice.set": `${POWER}; APX's voice and the model calls talk with are set in Settings › Voice and calls`,
   "files.keep": PANEL,
   "files.open": PANEL,
   "files.rename": PANEL,

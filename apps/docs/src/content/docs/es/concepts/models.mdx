@@ -216,6 +216,9 @@ cuando no fue el suyo. El aviso de arriba dice qué modelo no respondió y por q
 Los respaldos sólo se aplican a los turnos que corre el loop propio de APX. Una sesión de Claude Code, Codex o ACP corre
 su propia CLI con su propio modelo, así que ahí no se usan los respaldos del agente.
 
+También podés pedirle a tu super-agente que cambie el modelo por defecto, el router o el modelo de un chat. Sólo guarda
+modelos de un motor encendido y con su clave o sesión, y nunca deja el router sin cadena; si no, no cambia nada.
+
 ## Consumo
 
 Cada turno anota su modelo y sus tokens, y si estaban **incluidos** en una suscripción o eran **medidos** (pagados por
@@ -242,12 +245,14 @@ defecto salvo para un plan ChatGPT vinculado; los datos de Codex igual requieren
 por separado. Desactivarlo detiene las consultas y oculta los resultados guardados. Tu elección explícita se
 conserva. Los tokens, costos y contexto del chat siguen separados de estos límites de cuenta.
 
-Pedile a tu superagente «Consultá las cuotas de todos mis planes» o «¿Cuánto usé del límite semanal de Claude?». Lee
+Pedile a cualquiera de tus agentes, también uno de un proyecto, «Consultá las cuotas de todos mis planes» o «¿Cuánto usé del límite semanal de Claude?». Lee
 todos los motores que encuentra en esta computadora, también los que dejaste fuera de la barra superior, con la fuente y
 la caché del menú (hasta 60 segundos), sin depender de su propio modelo. Puede consultar todos o filtrar por nombre del
 proveedor/plan o identificador del motor (`Claude`, `Claude Auto`, `Codex`, `ChatGPT`, `Cursor`), y obtiene los
-porcentajes informados, las duraciones de las ventanas, los horarios de reinicio y la fecha de consulta del informe. Lo
-que muestra la barra superior sigue siendo tu elección: la consulta del agente no la cambia.
+porcentajes informados, las duraciones de las ventanas, los horarios de reinicio y la fecha de consulta del informe.
+Los agentes descubren `plan_usage` con `tool_search`; las restricciones explícitas de herramientas siguen vigentes.
+El superagente también puede usar `apx_settings` con `engines.usage`. Son consultas a pedido, no un monitoreo de fondo.
+Lo que muestra la barra superior sigue siendo tu elección: la consulta del agente no la cambia.
 
 Hoy solo Claude y Codex aportan ventanas de cuota. Otros motores configurados pueden informar límites no compatibles
 o no disponibles. Una cuenta desactivada o desconocida puede no aparecer: no encontrarla no significa consumo cero.

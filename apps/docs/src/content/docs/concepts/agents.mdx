@@ -146,6 +146,10 @@ what they should never do alone.
 what the list says, because they only read or ask you: reading output, asking you a question, loading a skill and
 recalling notes.
 
+Your super-agent can change this list for you (`agent_set` with `tools`) and let an agent run one of APX's tools
+without asking you each time (`grant_tool`, which also takes a grant back). Your super-agent's own settings tools stay
+its own whatever a list says.
+
 <Aside type="tip">
   A `tools:` list that names nothing APX knows (a file written for another tool) is ignored rather than leaving the
   agent with no tools at all.
@@ -209,6 +213,11 @@ Pick its model (see [Models and engines](/concepts/models/)):
 from your APX v1 vault, read-only). A loose `<slug>.md` is a single agent, like the Researcher or the Price Finder. A
 folder with a `TEAM.md` is a team: the product team (an orchestrator, a PM, a developer, a designer, QA…) or the
 executive team, which also brings its weekly routines.
+
+Bundled templates use all tools permitted in their context by default; you can restrict them explicitly later.
+Reporting lines do not prevent direct requests: an executive answers you directly and carries out permitted work
+in its area, without requiring CEO approval. Review-only roles, project boundaries and confirmations still apply.
+Installing templates does not rewrite the prompts or restrictions of agents you already have.
 
 Installing copies the file into `.apc/agents/` as written. Only `parent` may change, to hang a team's lead under the
 project's existing orchestrator. A slug the project already has is skipped, never overwritten.

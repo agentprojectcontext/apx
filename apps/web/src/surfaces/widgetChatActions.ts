@@ -1,4 +1,5 @@
 import type { SurfaceSummary } from "@apx/protocol";
+import { addRef } from "../chat/composer/contextRefs.ts";
 import { createThread } from "../data/actions.ts";
 import { client } from "../data/client.ts";
 import { keepDraft } from "../data/drafts.ts";
@@ -28,11 +29,11 @@ export function rememberChat(surfaceId: string, threadId: string) {
   } catch {}
 }
 
-/** A new chat about the widget with the agent that made it (the super-agent when that was the owner). */
-async function newChat(surface: SurfaceSummary): Promise<string | undefined> {
+/** Starts in the widget's project; choosing another agent does not copy the widget or its memory. */
+async function newChat(surface: SurfaceSummary, chosenAgent?: string): Promise<string | undefined> {
   const d = data.get();
   const home = Object.values(d.threads).find((th) => th.kind === "home");
-  const agentId = d.agents[surface.created_by] ? surface.created_by : home?.agent_ids[0];
+  const agentId = chosenAgent ?? (d.agents[surface.created_by] ? surface.created_by : home?.agent_ids[0]);
   if (!agentId) {
     notify(tr("widget.chatNoAgent"));
     return undefined;
@@ -43,11 +44,11 @@ async function newChat(surface: SurfaceSummary): Promise<string | undefined> {
       ...(surface.project_id ? { projectId: surface.project_id } : {}),
       title: surface.title,
     });
-    // Its first words name the widget, so the agent updates that one instead of making another.
-    keepDraft(thread.id, tr("widget.chatDraft", { title: surface.title, name: surface.name }));
+    addRef(thread.id, { kind: "widget", id: surface.name, label: surface.title });
+    keepDraft(thread.id, tr("widget.chatDraft", { title: surface.title }));
     return thread.id;
-  } catch (e) {
-    notify(tr("error.change", { error: errText(e) }));
+  } catch {
+    notify(tr("widget.chatOpenError"));
     return undefined;
   }
 }
@@ -59,7 +60,13 @@ async function newChat(surface: SurfaceSummary): Promise<string | undefined> {
 export async function openWidgetChat(surface: SurfaceSummary): Promise<void> {
   const d = data.get();
   const usable = (id: string | undefined) =>
-    id && d.threads[id] && !d.threads[id]?.archived && d.threads[id]?.kind !== "home" ? id : undefined;
+    id &&
+    d.threads[id] &&
+    !d.threads[id]?.archived &&
+    d.threads[id]?.kind !== "home" &&
+    d.threads[id]?.project_id === surface.project_id
+      ? id
+      : undefined;
   const threadId = usable(chatsMade()[surface.id]) ?? usable(surface.thread_id) ?? (await newChat(surface));
   if (!threadId) return;
   rememberChat(surface.id, threadId);
@@ -67,8 +74,13 @@ export async function openWidgetChat(surface: SurfaceSummary): Promise<void> {
 }
 
 /** Starts the widget's chat over: a new session, which from then on is the widget's chat. */
-export async function restartChat(surface: SurfaceSummary): Promise<void> {
-  const threadId = await newChat(surface);
+export async function restartChat(surface: SurfaceSummary, agentId?: string): Promise<void> {
+  const before = open.get();
+  const threadId = await newChat(surface, agentId);
+  if (open.get() !== before) {
+    if (threadId) void deleteThread(threadId);
+    return;
+  }
   if (!threadId) return;
   rememberChat(surface.id, threadId);
   open.set({ surfaceId: surface.id, threadId, topic: undefined });

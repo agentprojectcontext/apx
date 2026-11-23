@@ -34,7 +34,7 @@ function lastWords(messages: Message[]): string {
       : Array.isArray(last?.content)
         ? last.content.map((p) => (p as { text?: string }).text ?? "").join("\n")
         : "";
-  const lines = text
+  const lines = (text.split("\n\n[context the owner added]")[0] ?? "")
     .split("\n")
     .map((l) => l.trim())
     .filter((l) => l && !l.startsWith("[") && !l.startsWith("<") && !l.startsWith("(This is"));
