@@ -43,6 +43,7 @@ import { ROOM_AGENT_NEWS } from "./room-agent.ts";
 import { ROOM_HANDOFF_NEWS } from "./room-handoff.ts";
 import { ROUTINE_PERMISSIONS_NEWS } from "./routine-permissions.ts";
 import { SIDE_QUESTION_NEWS } from "./side-question.ts";
+import { SIGN_IN_CARDS_NEWS } from "./sign-in-cards.ts";
 import { SIMPLE_PANEL_NEWS } from "./simple-panel.ts";
 import { STORE_COMPACT_NEWS } from "./store-compact.ts";
 import { SUBPROJECTS_NEWS } from "./subprojects.ts";
@@ -132,6 +133,7 @@ export type NewsEntry = {
 };
 
 export const NEWS: readonly NewsEntry[] = [
+  SIGN_IN_CARDS_NEWS,
   CALL_SERVICES_NEWS,
   {
     id: "email-retained-history",

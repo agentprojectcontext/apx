@@ -4,11 +4,12 @@ import { useState } from "react";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
+import { FIELD_LABEL } from "./fieldLabels.ts";
 
 type Kind = SecretInfo["sites"][number]["kind"];
 
 /** What the owner typed as a site, as the origin it is kept by ("acme.com/login" → "https://acme.com"). */
-function siteOf(typed: string): string | undefined {
+export function siteOf(typed: string): string | undefined {
   const raw = typed.trim();
   if (!raw) return undefined;
   try {
@@ -26,15 +27,21 @@ export const siteLabel = (origin: string) => (origin.startsWith("https://") ? or
 export function SignInSitesDialog(props: {
   name: string;
   project: string | undefined;
+  /** What it goes in as, when known: then the field is not asked again (a sign-in fills both of its own). */
+  field?: SecretInfo["field"] | undefined;
   sites: SecretInfo["sites"];
   lastUsed: SecretInfo["last_used"];
   onClose(): void;
   onSaved(): void;
 }) {
   const t = useT();
-  const [kind, setKind] = useState<Kind>(props.sites[0]?.kind ?? "password");
+  const [kind, setKind] = useState<Kind>(
+    props.field && props.field !== "login" ? props.field : (props.sites[0]?.kind ?? "password"),
+  );
   const [anySite, setAnySite] = useState(props.sites.some((s) => s.origin === "*"));
-  const [typed, setTyped] = useState(props.sites.filter((s) => s.origin !== "*").map((s) => siteLabel(s.origin)));
+  const [typed, setTyped] = useState([
+    ...new Set(props.sites.filter((s) => s.origin !== "*").map((s) => siteLabel(s.origin))),
+  ]);
   const [busy, setBusy] = useState(false);
   const wrong = typed.filter((s) => !siteOf(s));
   const save = async () => {
@@ -71,17 +78,21 @@ export function SignInSitesDialog(props: {
       }
     >
       <div className="pform">
-        <SegmentedControl
-          size="sm"
-          label={t("res.signIn.kind")}
-          value={kind}
-          onValueChange={(v) => setKind(v as Kind)}
-          options={[
-            { value: "password", label: t("res.signIn.password") },
-            { value: "username", label: t("res.signIn.username") },
-            { value: "otp", label: t("res.signIn.otp") },
-          ]}
-        />
+        {props.field ? (
+          <p className="resd__note">{t("res.signIn.goesAs", { kind: t(FIELD_LABEL[props.field]) })}</p>
+        ) : (
+          <SegmentedControl
+            size="sm"
+            label={t("res.signIn.kind")}
+            value={kind}
+            onValueChange={(v) => setKind(v as Kind)}
+            options={[
+              { value: "password", label: t("res.signIn.password") },
+              { value: "username", label: t("res.signIn.username") },
+              { value: "otp", label: t("res.signIn.otp") },
+            ]}
+          />
+        )}
         {kind === "otp" && <p className="resd__note">{t("res.signIn.otpHint")}</p>}
         <div className="pform__field">
           <span className="pform__label">{t("res.signIn.anySite")}</span>

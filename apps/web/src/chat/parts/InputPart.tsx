@@ -8,10 +8,10 @@ import { ApprovalText } from "../../common/ApprovalText.tsx";
 import { useMarkdownLabels } from "../../common/useMarkdownLabels.ts";
 import { respond } from "../../data/actions.ts";
 import { type MessageKey, useT } from "../../i18n/index.ts";
-import { PublicCopyInput } from "../../lazy.ts";
+import { PublicCopyInput, SignInCard } from "../../lazy.ts";
 import { DiffView } from "../../panel/DiffView.tsx";
 import { BrowserHelp, BrowserReview } from "./BrowserReview.tsx";
-import { cardLine, SAYS_ITSELF } from "./input-words.ts";
+import { cardLine, SAYS_ITSELF, siteHost } from "./input-words.ts";
 
 const DONE: Record<Exclude<Extract<Part, { type: "input" }>["state"], "pending">, MessageKey> = {
   approved: "input.approved",
@@ -46,6 +46,12 @@ export function InputPart({ part }: { part: InputPartData }) {
 function InputBody({ part }: { part: InputPartData }) {
   const { state } = part;
   if (state !== "pending") return <SettledInput part={part} state={state} />;
+  if (part.login)
+    return (
+      <Suspense fallback={null}>
+        <SignInCard part={{ ...part, login: part.login }} />
+      </Suspense>
+    );
   return part.artifact_draft ? (
     <Suspense fallback={null}>
       <PublicCopyInput part={part} />
@@ -63,15 +69,17 @@ function SettledInput({ part, state }: { part: InputPartData; state: Exclude<Inp
   const what =
     part.tool === "browser_evaluate"
       ? t("input.browserTitle")
-      : part.folders
-        ? t("input.askedFolder")
-        : action
-          ? t("input.askedAction")
-          : part.kind === "confirm" && part.tool && SAYS_ITSELF.has(part.tool) && part.detail
-            ? t("input.askedOk", { what: cardLine(part.detail) })
-            : part.kind === "confirm"
-              ? t("input.asked", { tool: part.tool ?? t("input.anAction") })
-              : t("input.askedQuestion");
+      : part.login
+        ? t("input.askedSignIn", { site: siteHost(part.login.origin) })
+        : part.folders
+          ? t("input.askedFolder")
+          : action
+            ? t("input.askedAction")
+            : part.kind === "confirm" && part.tool && SAYS_ITSELF.has(part.tool) && part.detail
+              ? t("input.askedOk", { what: cardLine(part.detail) })
+              : part.kind === "confirm"
+                ? t("input.asked", { tool: part.tool ?? t("input.anAction") })
+                : t("input.askedQuestion");
   return (
     <ActionGroup
       className={`turn__tools inputline is-${state}`}
@@ -322,18 +330,22 @@ function PendingInput({ part }: { part: InputPartData }) {
                 {t("input.send")}
               </Button>
             ) : null}
-            <Button size="sm" variant="ghost" disabled={busy} onClick={() => send({ text: t("input.skipped") })}>
-              {t("input.skip")}
-            </Button>
+            {part.tool !== "browser_sign_in" && (
+              <Button size="sm" variant="ghost" disabled={busy} onClick={() => send({ text: t("input.skipped") })}>
+                {t("input.skip")}
+              </Button>
+            )}
           </div>
-          <input
-            className="inputcard__input"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder={t("input.answerPlaceholder")}
-            aria-label={t("input.answerPlaceholder")}
-            disabled={busy}
-          />
+          {part.tool !== "browser_sign_in" && (
+            <input
+              className="inputcard__input"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder={t("input.answerPlaceholder")}
+              aria-label={t("input.answerPlaceholder")}
+              disabled={busy}
+            />
+          )}
         </form>
       )}
     </div>

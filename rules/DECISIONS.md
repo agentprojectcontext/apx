@@ -3768,6 +3768,8 @@ account's, and a provider would send it to the address the file gives).
 
 <a id="d-193"></a>
 ## D-193 — 2026-11-05 — An agent signs in with a stored secret it never sees
+*Amended by [D-264](#d-264) (2026-11-23): the agent finds the owner's sign-in for a site, asks which one, or has the
+owner type one on a card; a variable may hold a username and a password together.*
 Amends rule 10. Until now the embedded browser never typed a password, one-time code or card data: the agent handed
 the tab to the owner. Now an agent may put one of the owner's stored secrets into a sign-in field, and the value never
 reaches the model, the transcript, the run's steps, logs, traces or a picture of the tab.
@@ -5904,3 +5906,45 @@ back to you" messages. Revocation stops new reads, not answers already delivered
 
 Docs impact: updated channels/overview in English and Spanish, HUMAN_MODEL.md, settings help and news.
 
+
+<a id="d-264"></a>
+## D-264 — 2026-11-23 — An agent finds the owner's sign-in for a site, or the owner types one on a card it never sees
+Amends D-193. Signing in with a stored secret worked, but the owner had to tell the agent which variable to use and
+mark each one as a login (and which field) through a dialog that was easy to get wrong. Without a variable the agent
+handed the tab over every time. The owner asked that an agent at a sign-in form look first, ask when unsure, and
+otherwise give them a place to type the username and password, without the agent ever seeing them.
+
+- **What a variable is for.** A stored variable may say what it is for (`field`): `username`, `password`, `otp`, or
+  `login`, a username and a password kept together as one value and filled each into its own field. The value of a
+  `login` is its two parts as JSON; no part is kept as a hint. Its sign-in marks are always both fields, whatever the
+  owner's dialog or "Always on this site" sends. A field the owner set wins over the kinds a variable is marked for.
+  Variables shows the type as a badge beside the sites; the new-variable dialog asks the type, a `login`'s two fields
+  and its sites.
+- **Found, asked, or typed.** `browser_sign_in` without `secret` looks, in order: a sign-in typed for this time in this
+  chat and site; a variable marked for this exact site and field (used without asking when there is one); variables
+  whose name matches the site's own words (`google` in `accounts.google.com`, skipping `www`, `accounts`, `login`,
+  top-level domains…) and are for that field (offered on a card; picking one marks it for the site, like "Always");
+  then a card where the owner types a username and password. A plain variable with no field or marks is offered only
+  when its name says it signs in (user, pass, login, auth, email…); APX's own secrets (providers, channels,
+  integrations) never are. A one-time code is never typed on a card.
+- **The typing card.** An input of kind question, tool `browser_sign_in`, `args.login = { origin, kind }`, app only,
+  with no free text (every sign-in card loses the free-text answer, which would reach the agent). The panel sends
+  what the owner typed with `secrets.provide_login` (human access only, refused from a channel or an agent), never
+  with `runs.respond`. **Save** stores a `login` under a name made from the site and the user (`GOOGLE_PAT_LOGIN`),
+  numbered when any variable, global or a project's own, already has it, global and marked for the site. **Just this
+  once** holds the two parts in the core's memory for ten minutes, bound to that chat and site, each field filled once,
+  under a random handle the fill names; nothing is written. The card's answer, which the agent and the transcript see,
+  says only "Saved as NAME" or "Just this once". The card is answered first, so an expired one keeps nothing.
+- **Unchanged.** The browser's own checks at fill time (D-193: exact origin, frame, field kind, leak scan), the audit
+  line (it names the handle for a typed-once sign-in), "Once / Always / No" when the agent names a variable not marked
+  for the site, the isolated computer and the owner's Chrome refusing stored secrets, and handoff for captchas, SMS
+  codes and a site where nothing could be filled.
+
+Rejected: a value as `user:password` (a password may hold a colon; JSON keeps both parts whole); matching by
+registrable domain to pick a variable silently (only the owner's mark makes a site use one without asking); the typed
+sign-in as the answer text of a question card (it would reach the model and the transcript).
+
+Known limits: a site whose words are generic (`app.example.com` → `example`) or shared by several services may offer
+an unrelated variable; the owner says No. A typed-once sign-in lives in memory and is gone after a restart.
+
+Docs impact: updated office/browser in English and Spanish, and the news entry.

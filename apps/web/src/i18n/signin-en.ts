@@ -19,4 +19,12 @@ export const enSignIn = {
   "res.signIn.badge": "Sign in: {sites}",
   "res.signIn.badgeAny": "Sign in: any site",
   "res.signIn.badgeCount": "Sign in: {n} sites",
+  "res.signIn.goesAs": "It goes in as: {kind}.",
+  "res.field.plain": "Variable",
+  "res.field.login": "Username and password",
+  "res.field.username": "Username",
+  "res.field.password": "Password",
+  "res.field.otp": "One-time code",
+  "res.varType": "Type",
+  "res.varSitesHint": "Agents use it on these sites without asking you; on any other, they ask first.",
 } as const;

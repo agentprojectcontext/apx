@@ -78,9 +78,36 @@ export const resourceMethodsPart1 = {
         .strict(),
     result: () =>
       z.object({
+        /** For a sign-in (`field: "login"`), its password. */
         value: z.string(),
+        /** A sign-in's username. */
+        username: z.string().optional(),
       }),
     effect: false,
+    access: "human",
+  }),
+  /**
+   * The owner's answer to an agent's sign-in card: the username and password they typed, used for that sign-in only or
+   * kept as a new variable for the site. The values go to the browser that fills them, never to the agent, the card's
+   * answer or a log (DECISIONS.md#d-264).
+   */
+  "secrets.provide_login": deferMethod({
+    params: () =>
+      z
+        .object({
+          input: Id,
+          username: z.string().max(1024),
+          password: z.string().min(1).max(4096),
+          /** Keep it as a variable marked for the site; otherwise it lasts for this sign-in only. */
+          save: z.boolean(),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        /** The variable it was saved as. */
+        name: z.string().optional(),
+      }),
+    effect: true,
     access: "human",
   }),
   /**
