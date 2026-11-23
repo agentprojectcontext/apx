@@ -90,6 +90,38 @@ test("a catalog entry not added yet shows what its package holds", () => {
   assert.deepEqual([unread.hosts, unread.runsCode, unread.servers, unread.hash], [[], true, 1, undefined]);
 });
 
+test("the add box preserves declared authorship without inferring it from provenance", () => {
+  const listing = {
+    summary: "Community connector.",
+    publisher: { name: "Northwind", verified: false },
+    features: [],
+    requirements: [],
+    limits: [],
+    pricing: "",
+    privacy: "",
+    prompts: [],
+    captions: [],
+    screenshots: [],
+    tools: [],
+  };
+  assert.equal(aboutExtension(ext({ listing }), "en", { label: "official" }).publisher, "Northwind");
+  assert.equal(aboutExtension(ext(), "en", { label: "official" }).publisher, undefined);
+  assert.equal(aboutExtension(ext(), "en", { label: "own", look: { listing } }).publisher, "Northwind");
+  const entry: CatalogEntry = {
+    id: "billing",
+    name: "Acme Billing",
+    description: "Invoices.",
+    categories: [],
+    version: "1.0.0",
+    provenance: "official",
+    publisher: "Northwind",
+    github: "acme",
+  };
+  assert.equal(aboutEntry(entry, "en").publisher, "Northwind");
+  assert.equal(aboutEntry({ ...entry, listing }, "en").publisher, "Northwind");
+  assert.equal(aboutEntry({ ...entry, publisher: undefined }, "en").publisher, undefined);
+});
+
 test("where it comes from, how it connects and its tools, in a few words", () => {
   assert.deepEqual(originOf("~/work/crm"), { kind: "folder", path: "~/work/crm" });
   assert.deepEqual(originOf("https://dl.example.com/crm.apxext"), { kind: "url", host: "dl.example.com" });

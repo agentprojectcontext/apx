@@ -620,7 +620,6 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "mkt.info": "Información",
   "mkt.about": "Acerca de",
   "mkt.screenshots": "Capturas",
-  "mkt.kv.publisher": "Desarrollador",
   "mkt.kv.category": "Categoría",
   "mkt.kv.website": "Sitio web",
   "mkt.kv.privacy": "Política de privacidad",

@@ -29,6 +29,8 @@ export type About = {
   version?: string | undefined;
   tagline?: string | undefined;
   label: Label;
+  publisher?: string | undefined;
+  github?: string | undefined;
   origin?: Origin | undefined;
   hosts: string[];
   /** One of its servers connects to an address the owner sets. */
@@ -101,6 +103,8 @@ export function aboutExtension(
     version: e.version === "0.0.0" ? undefined : e.version,
     tagline: listingIn(e.listing, lang)?.tagline ?? (e.description || undefined),
     label: opts.label,
+    publisher: e.listing?.publisher?.name ?? opts.look?.listing?.publisher?.name ?? opts.look?.entry?.publisher,
+    github: opts.look?.entry?.github,
     origin: opts.origin ?? originOf(e.source),
     hosts: e.hosts,
     ownerHost: Boolean(e.owner_host),
@@ -133,6 +137,8 @@ export function aboutEntry(c: CatalogEntry, lang: string): About {
     version: c.version === "0.0.0" ? undefined : c.version,
     tagline: copy?.tagline ?? c.tagline ?? (c.description || undefined),
     label: c.provenance === "official" ? "official" : "third",
+    publisher: c.listing?.publisher?.name ?? c.publisher,
+    github: c.github,
     origin: c.catalog ? { kind: "catalog", name: c.catalog_name ?? c.catalog } : { kind: "apx" },
     hosts: k?.hosts ?? [],
     ownerHost: false,

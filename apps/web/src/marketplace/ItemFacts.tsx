@@ -1,4 +1,4 @@
-import { Badge, Icons, Tooltip } from "@apx/ui";
+import { Icons, Tooltip } from "@apx/ui";
 import type { ReactNode } from "react";
 import { type MessageKey, useLanguage, useT } from "../i18n/index.ts";
 import type { Item } from "../resources/extensionItems.ts";
@@ -65,8 +65,6 @@ export function ItemFacts({ item }: { item: Item }) {
   const t = useT();
   const lang = useLanguage();
   const copy = listingIn(item.listing, lang);
-  const publisher = item.listing?.publisher;
-  const verified = publisher?.verified || item.label === "official" || item.label === "included";
   const access = accessLines(item, t);
   const auth = authText(item, t);
   const day = dayText(item.published, lang);
@@ -77,19 +75,6 @@ export function ItemFacts({ item }: { item: Item }) {
   const hash = item.ext?.hash ?? item.entry?.contents?.hash;
   return (
     <section className="mkt-facts" aria-label={t("mkt.info")}>
-      {item.publisher && item.label !== "own" && (
-        <Fact title="mkt.kv.publisher">
-          <span className="mkt-facts__inline">
-            {item.publisher}
-            {verified && (
-              <Badge tone="neutral">
-                <Icons.BadgeCheck size={12} />
-                {t(item.label === "included" ? "mkt.label.included" : "mkt.verifiedShort")}
-              </Badge>
-            )}
-          </span>
-        </Fact>
-      )}
       {(version || day) && (
         <Fact title="extx.kv.version">
           <span>{[version, day].filter(Boolean).join(" · ")}</span>

@@ -6,6 +6,7 @@ import { useT } from "../i18n/index.ts";
 import { type About, connectText, listText, originText, toolsLine } from "./about.ts";
 import { ItemIcon } from "./ConnectHead.tsx";
 import { ItemLabel } from "./ItemLabel.tsx";
+import { fromText } from "./itemText.ts";
 
 // The pieces that say what an extension is in the add box's card: what it brings, the facts, and the lines to read
 // before deciding. Its page says the same at length (ItemBrings, ItemFacts).
@@ -167,8 +168,8 @@ export function AboutCard({
     <SummaryCard
       icon={<ItemIcon item={a} size={36} />}
       title={a.name}
-      meta={a.version}
-      badge={<ItemLabel label={a.label} />}
+      meta={[fromText(a, t), a.version].filter(Boolean).join(" · ")}
+      badge={<ItemLabel label={a.label} compact={false} />}
       description={a.tagline}
       aside={
         aside || onToggle ? (
