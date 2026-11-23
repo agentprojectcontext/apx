@@ -66,7 +66,10 @@ for (const lang of ["en", "es"] as const)
       await expect(page.getByText(/Try again/)).toBeVisible();
       await expect(picker).toContainText("Builder");
       await page.screenshot({ path: info.outputPath("error.png") });
-      await page.locator(".toasts").getByRole("button", { name: en ? "Close" : "Cerrar", exact: true }).click();
+      await page
+        .locator(".toasts")
+        .getByRole("button", { name: en ? "Close" : "Cerrar", exact: true })
+        .click();
       expect(await rpc("surfaces.memory", { surface: made.id })).toEqual(memory);
       await page.unroute("**/rpc/threads.create");
       await composer.fill("Keep this unsent draft");
