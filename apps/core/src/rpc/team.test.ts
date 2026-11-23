@@ -89,6 +89,47 @@ test("install: the team keeps its shape, its lead hangs under the orchestrator, 
   assert.match(again.skipped[0]?.reason ?? "", /already has security/);
 });
 
+test("bundled teams keep full default tools and direct owner work without changing installed restrictions", async () => {
+  const { project: fresh } = await env.client.call("projects.create", { name: "Acme defaults" });
+  const executive = await env.client.call("agents.install", {
+    project_id: fresh.id,
+    templates: ["cmo", "cfo", "coo", "chro", "gc"].map((slug) => `apx:executive-team:${slug}`),
+  });
+  for (const agent of executive.installed) {
+    const { prompt } = await env.client.call("agents.get", { agent: agent.id });
+    assert.match(prompt, /carrying out requested work/);
+    assert.match(prompt, /Answer the owner directly/);
+    assert.match(prompt, /no CEO approval is needed for a direct request/);
+    assert.match(prompt, /explicit restrictions and confirmations/);
+    assert.ok(!agent.tools?.length);
+    if (agent.slug === "gc") assert.match(prompt, /never gives final legal advice/);
+  }
+  const product = await env.client.call("agents.install", {
+    project_id: fresh.id,
+    templates: ["architect", "developer", "qa-engineer", "security"].map((slug) => `apx:product-team:${slug}`),
+  });
+  assert.equal(product.installed.length, 4);
+  for (const agent of product.installed) assert.ok(!agent.tools?.length, `${agent.slug} has full contextual defaults`);
+  const qa = product.installed.find((a) => a.slug === "qa-engineer");
+  assert.ok(qa);
+  assert.match((await env.client.call("agents.get", { agent: qa.id })).prompt, /try to break a change/);
+  await env.client.call("agents.update", {
+    agent: qa.id,
+    tools: ["browser"],
+    prompt: "Review only; do not change code.",
+  });
+  const customized = await env.client.call("agents.get", { agent: qa.id });
+  assert.match(customized.prompt, /Review only; do not change code\./);
+  const again = await env.client.call("agents.install", {
+    project_id: fresh.id,
+    templates: ["apx:product-team:qa-engineer"],
+  });
+  assert.equal(again.installed.length, 0);
+  const kept = await env.client.call("agents.get", { agent: qa.id });
+  assert.deepEqual(kept.agent.tools, ["browser"]);
+  assert.equal(kept.prompt, customized.prompt);
+});
+
 test("install refuses a parent that is not in the project", async () => {
   await assert.rejects(
     env.client.call("agents.install", { project_id: project, templates: ["v1:-:scout"], hang_under: "nobody" }),
