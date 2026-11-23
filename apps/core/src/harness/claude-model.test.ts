@@ -22,7 +22,7 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
     const resumed = process.argv.some((arg) => arg.startsWith("--resume="));
     send({ type: "system", subtype: "init", model: resumed ? "reported-b" : "reported-a", session_id: "fixture-session" });
     if (JSON.stringify(m.message.content).includes("wait")) {
-      send({ type: "control_request", request_id: "permission", request: { subtype: "can_use_tool", tool_name: "Bash", input: { command: "rm -f ../output.wav" } } });
+      send({ type: "control_request", request_id: "permission", request: { subtype: "can_use_tool", tool_name: "Bash", input: { command: "rm -f output.wav" } } });
     } else {
       send({ type: "result", subtype: "success", result: "Done", session_id: "fixture-session", modelUsage: {}, usage: { input_tokens: 1, output_tokens: 1 } });
     }
@@ -196,7 +196,7 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
       } else if (${JSON.stringify(retry)} === "report") {
         send({ type: "system", subtype: "init", model: "replacement", session_id: "fresh-session" });
       } else if (${JSON.stringify(retry)} === "wait") {
-        send({ type: "control_request", request_id: "permission", request: { subtype: "can_use_tool", tool_name: "Bash", input: { command: "rm -f ../output.wav" } } });
+        send({ type: "control_request", request_id: "permission", request: { subtype: "can_use_tool", tool_name: "Bash", input: { command: "rm -f output.wav" } } });
         return;
       }
       send({ type: "result", subtype: "success", result: "Done", session_id: "fresh-session", modelUsage: {}, usage: { input_tokens: 1, output_tokens: 1 } });

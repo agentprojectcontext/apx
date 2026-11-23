@@ -28,7 +28,7 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
   if (m.type === "control_request") {
     send({ type: "control_response", response: { subtype: "success", request_id: m.request_id, response: {} } });
   } else if (m.type === "control_response" && m.response.request_id === "permission") {
-    const content = [{ type: "tool_use", id: "t1", name: "Bash", input: { command: "rm -f ../output.wav" } }];
+    const content = [{ type: "tool_use", id: "t1", name: "Bash", input: { command: "rm -f output.wav" } }];
     send({ type: "assistant", parent_tool_use_id: null, session_id, message: { id: "m1", model: "reported", content, usage } });
     send({ type: "user", parent_tool_use_id: null, session_id, message: { role: "user", content: [{ type: "tool_result", tool_use_id: "t1", content: "" }] } });
   } else if (m.type === "user") {
@@ -36,7 +36,7 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
     if (prompts.length === 1) {
       send({ type: "system", subtype: "init", model: "reported", session_id });
       if (said(m).includes("run"))
-        send({ type: "control_request", request_id: "permission", request: { subtype: "can_use_tool", tool_name: "Bash", input: { command: "rm -f ../output.wav" } } });
+        send({ type: "control_request", request_id: "permission", request: { subtype: "can_use_tool", tool_name: "Bash", input: { command: "rm -f output.wav" } } });
     } else if (m.priority === "now") {
       // The step it was on stops; the words run next, in the same session.
       answer("error_during_execution", undefined, [prompts[0].uuid]);

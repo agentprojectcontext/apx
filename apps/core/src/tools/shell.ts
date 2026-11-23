@@ -11,9 +11,9 @@ import { AGENT_WORKSPACE } from "../environments/worker.ts";
 import { insideReal } from "../paths.ts";
 import { commandShell } from "../processes.ts";
 import { apxReads } from "./apx-reads.ts";
+import { shellCode } from "./command-heredocs.ts";
 import { namedPaths } from "./command-paths.ts";
 import { mayChange, readsOnly } from "./command-reads.ts";
-import { confinedRemovals, FORCED_RM, shellCode } from "./command-removals.ts";
 import {
   type Access,
   folderAccess,
@@ -30,9 +30,8 @@ import {
 import { untrusted } from "./result.ts";
 import { type Confirm, defineTool, type Tool, ToolFailed } from "./types.ts";
 
-/** Destructive or system-level commands, but for a forced deletion (command-removals.ts FORCED_RM, judged apart). */
 const DESTRUCTIVE =
-  /\b(sudo|su|doas|mkfs|dd|shutdown|reboot|halt|diskutil|launchctl|crontab|shred|srm)\b|\bgit\b[^|;&]*\s(reset\s+--hard|clean\b|filter-branch|update-ref\s+-d)|\b(curl|wget|fetch)\b[^|]*\|\s*(sudo\s+)?(ba|z|da|k)?sh\b|\bchmod\b[^|;&]*\s-\w*R|\bchown\b[^|;&]*\s-\w*R|:\(\)\s*\{|\/dev\/(sd|disk|nvme)/;
+  /\b(sudo|su|doas|mkfs|dd|shutdown|reboot|halt|diskutil|launchctl|crontab|shred|srm)\b|\brm\b[^|;&]*\s(-\w*[rf]|--recursive|--force)|\bgit\b[^|;&]*\s(reset\s+--hard|clean\b|filter-branch|update-ref\s+-d)|\b(curl|wget|fetch)\b[^|]*\|\s*(sudo\s+)?(ba|z|da|k)?sh\b|\bchmod\b[^|;&]*\s-\w*R|\bchown\b[^|;&]*\s-\w*R|:\(\)\s*\{|\/dev\/(sd|disk|nvme)/;
 
 /**
  * A push that rewrites or deletes what others have, or that cuts a release (a tag, a package, a GitHub release). A
@@ -96,11 +95,11 @@ export function broadScan(command: string, home = os.homedir()): string | undefi
  * How much the owner must be asked for this command. Commands that only read on this machine run without asking
  * (DECISIONS.md#d-098); anything the classifier cannot be sure of asks.
  */
-export function commandRisk(command: string, apxPort?: number, folder?: string): Confirm {
+export function commandRisk(command: string, apxPort?: number): Confirm {
   const c = command.trim();
   // A heredoc fed to Python or written to a file is that program's data, not shell words (DECISIONS.md#d-264).
-  const { code, toShell } = shellCode(c);
-  if (destroys(code, toShell, folder)) return "always";
+  const code = shellCode(c);
+  if (DESTRUCTIVE.test(code) || DESTRUCTIVE.test(normalize(code))) return "always";
   if (RELEASES.test(code) || RELEASES.test(normalize(code))) return "always";
   // A command that talks to APX's own API could act as the owner (answer its own confirmation): always asked.
   if (apxPort && new RegExp(`(127\\.0\\.0\\.1|localhost|\\[::1\\]|0\\.0\\.0\\.0):${apxPort}\\b`).test(c))
@@ -112,17 +111,6 @@ export function commandRisk(command: string, apxPort?: number, folder?: string):
   if (runsApxCli(code)) return "always";
   // APC definitions and AGENTS.md set agents' modes: changed by a command as by file_write, the owner says yes first.
   return mayChange(c, namesApc) ? "always" : "ask";
-}
-
-/**
- * Whether a command destroys what is not the agent's own work: a system-level or destructive program, or a forced
- * deletion outside the folder it starts in (`folder`, absolute when known), the folder itself or something only the
- * shell can place (DECISIONS.md#d-264).
- */
-function destroys(code: string, toShell: boolean, folder: string | undefined): boolean {
-  if (DESTRUCTIVE.test(code) || DESTRUCTIVE.test(normalize(code))) return true;
-  if (!FORCED_RM.test(code) && !FORCED_RM.test(normalize(code))) return false;
-  return toShell || !confinedRemovals(code, folder);
 }
 
 /** Programs that run the command after them: `env apx …`, `xargs apx`, `bash -c "apx …"`, `pnpm exec apx`. */
@@ -332,8 +320,7 @@ export function shellTools(
           .describe("relative to the project, or an absolute temp or read-only folder"),
       }),
       effect: "external",
-      // A cwd of its own choosing is the folder a deletion must stay below; a relative one stays inside the project.
-      confirm: (a) => commandRisk(a.command, apxPort(), a.cwd && path.isAbsolute(a.cwd) ? a.cwd : undefined),
+      confirm: (a) => commandRisk(a.command, apxPort()),
       keepsCard: (a) => publishCard(a.command, store.settings.read("owner_profile").publish ?? "auto"),
       // A command that could only be refused is not put to the owner.
       check(a, ctx) {

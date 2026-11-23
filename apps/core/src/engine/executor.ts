@@ -604,8 +604,7 @@ export function createExecutor(o: {
     if (READING.has(kind)) return inside ? "never" : "ask";
     // Fetching sends something out; in a code thread it could carry the code with it.
     if (kind === "fetch") return worksInFolder(thread) ? "ask" : "untrusted";
-    // Its commands start in the folder it works in: a forced deletion below it is its own work (DECISIONS.md#d-264).
-    if (kind === "execute" && typeof command === "string") return commandRisk(command, o.apxPort(), o.workDir);
+    if (kind === "execute" && typeof command === "string") return commandRisk(command, o.apxPort());
     // APC files and AGENTS.md define agents and their modes: changing them is high impact, as file_write's.
     if (paths.some((p) => namesApc(p) || guarded(o.workDir, p))) return "always";
     return "ask";
