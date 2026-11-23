@@ -82,6 +82,7 @@ for (const lang of ["en", "es"] as const)
       await search.fill("Reviewer");
       await search.press("ArrowDown");
       await search.press("Enter");
+      await expect(page.getByRole("dialog", { name: copy.pick, exact: true })).toHaveCount(0);
       await page.getByRole("button", { name: copy.cancel, exact: true }).click();
       await expect(composer).toHaveValue("Keep this unsent draft");
       await picker.click();

@@ -97,7 +97,11 @@ export function SearchSelect({
     <Combobox.Root
       items={groups}
       value={current}
-      onValueChange={(o: SelectOption | null) => onValueChange(o?.value ?? null)}
+      onValueChange={(o: SelectOption | null) => {
+        setOpen(false);
+        setQuery("");
+        onValueChange(o?.value ?? null);
+      }}
       isItemEqualToValue={(a: SelectOption, b: SelectOption) => a.value === b.value}
       filter={(o: SelectOption, q: string) => matches(o, q)}
       autoHighlight
