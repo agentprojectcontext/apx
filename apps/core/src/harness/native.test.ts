@@ -238,3 +238,99 @@ test("after a step that only worked the screen, the next call reasons lighter; o
     [undefined, "low", "low", undefined],
   );
 });
+
+/** The native loop over a provider that fails on some calls; waits are recorded, never slept. */
+async function flaky(fail: (call: number, tools: number) => boolean) {
+  let call = 0;
+  const llm = scriptedLlm((req) => {
+    if (fail(call++, toolResults(req.messages))) throw new ProviderError("empty", "fake/fake-1: empty stream");
+    return toolResults(req.messages) < 2 ? callTool(`c${call}`, "any", {}) : say("all done");
+  });
+  const waits: number[] = [];
+  const ran: string[] = [];
+  const logged: ChatItem[] = [];
+  const io = {
+    system: "system",
+    history: [],
+    input: { role: "user", content: "go" },
+    tools: [{ type: "function", function: { name: "any", description: "", parameters: {} } }],
+    models: ["fake/fake-1"],
+    signal: new AbortController().signal,
+    thread: { id: "t1" },
+    onText() {},
+    log: (items: ChatItem[]) => logged.push(...items),
+    async execute(id: string) {
+      ran.push(id);
+      return { ok: true, text: "ok" };
+    },
+  } as unknown as TurnIO;
+  const run = nativeHarness(llm, {
+    patienceMs: [10, 20, 40],
+    sleep: async (ms) => void waits.push(ms),
+  }).run(io);
+  return { run, waits, ran, logged };
+}
+
+test("a stream that comes back empty once is asked again and the turn completes", async () => {
+  const { run, waits, ran } = await flaky((call) => call === 1);
+  assert.equal((await run).text, "all done");
+  assert.deepEqual(waits, [10]);
+  assert.equal(ran.length, 2, "the tool work before and after the hiccup ran once each");
+});
+
+test("a provider that stays empty fails after bounded tries, the tool results so far kept", async () => {
+  const { run, waits, ran, logged } = await flaky((call) => call >= 2);
+  await assert.rejects(run, (err: Error) => {
+    assert.match(err.message, /empty stream/);
+    assert.match(err.message, /asked again 3 times/);
+    return true;
+  });
+  assert.deepEqual(waits, [10, 20, 40]);
+  assert.equal(ran.length, 2);
+  assert.equal(logged.filter((m) => m.role === "tool").length, 2, "the finished tool calls stay in the log");
+});
+
+test("a usage limit or a rejected request is not asked again by the turn", async () => {
+  const llm = scriptedLlm(() => {
+    throw new ProviderError("quota", "fake/fake-1: out of credit");
+  });
+  const waits: number[] = [];
+  const io = {
+    system: "system",
+    history: [],
+    input: { role: "user", content: "go" },
+    tools: [],
+    models: ["fake/fake-1"],
+    signal: new AbortController().signal,
+    thread: { id: "t1" },
+    onText() {},
+    log() {},
+  } as unknown as TurnIO;
+  await assert.rejects(nativeHarness(llm, { sleep: async (ms) => void waits.push(ms) }).run(io), /out of credit/);
+  assert.deepEqual(waits, []);
+});
+
+test("canceling during the wait ends the turn at once", async () => {
+  const ctl = new AbortController();
+  const llm = scriptedLlm(() => {
+    throw new ProviderError("network", "fake/fake-1: fetch failed");
+  });
+  const io = {
+    system: "system",
+    history: [],
+    input: { role: "user", content: "go" },
+    tools: [],
+    models: ["fake/fake-1"],
+    signal: ctl.signal,
+    thread: { id: "t1" },
+    onText() {},
+    log() {},
+  } as unknown as TurnIO;
+  const run = nativeHarness(llm, {
+    sleep: async () => {
+      ctl.abort(new Error("canceled"));
+      throw ctl.signal.reason;
+    },
+  }).run(io);
+  await assert.rejects(run, /canceled/);
+});

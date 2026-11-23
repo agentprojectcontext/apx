@@ -205,6 +205,11 @@ no le vuelve a preguntar a un modelo en su límite antes del reinicio, y cuando 
 principal, el turno siguiente vuelve a él solo. Si elegís otro modelo para un chat en el compositor, los respaldos del
 agente siguen detrás de ese modelo.
 
+Si todos los modelos de la lista fallan por algo pasajero (una respuesta vacía o cortada, un proveedor sobrecargado,
+sin conexión), el turno espera y vuelve a pedir a toda la lista, hasta tres veces más en alrededor de un minuto, dentro
+del límite de tiempo del turno. El trabajo con herramientas que ya se hizo queda en el chat. Recién entonces el turno
+termina, con el motivo.
+
 Debajo de cada respuesta, la línea con el nombre del agente muestra qué modelo respondió y agrega **Con respaldo**
 cuando no fue el suyo. El aviso de arriba dice qué modelo no respondió y por qué.
 

@@ -125,7 +125,7 @@ function describe(args: Record<string, unknown>): string {
 const CUT_SHORT =
   "stopped part way: the owner sent you a message to read now. It may have done part of its work; check before repeating it.";
 
-function unanswered(answer: InputRecord): { card: string; text: string } | undefined {
+export function unanswered(answer: InputRecord): { card: string; text: string } | undefined {
   if (answer.state === "pending")
     return {
       card: "waiting for the owner",

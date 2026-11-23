@@ -102,7 +102,7 @@ export function retryWait(err: ProviderError, attempt: number, baseMs: number, n
 }
 
 /** A wait the turn's signal cuts short. */
-function pause(ms: number, signal: AbortSignal): Promise<void> {
+export function pause(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     const stop = () => {
       clearTimeout(timer);
