@@ -3,6 +3,7 @@ import { ContextMenu, EmptyState, IconButton, Icons, Skeleton, Tooltip } from "@
 import { type ReactNode, useEffect, useState } from "react";
 import { client } from "../../data/client.ts";
 import { coreOnThisComputer, type FileWhere, mediaKind, mediaOf, revealFile } from "../../data/files.ts";
+import { relativeInside } from "../../data/paths.ts";
 import { useT } from "../../i18n/index.ts";
 import { type FileChange, fileMenu, RenameDialog, TrashDialog } from "./FileActions.tsx";
 import { FileHead } from "./FileHead.tsx";
@@ -26,6 +27,8 @@ type TreeCtx = {
   onAct(kind: "rename" | "trash", entry: FileEntry): void;
 };
 
+export type OpenFile = { path: string } | { at: string };
+
 /** A project with no folder on this machine. */
 export function NoFolder() {
   const t = useT();
@@ -48,18 +51,25 @@ export function FilesPane({
   root: known = "",
   label,
   stacked = false,
+  open,
 }: {
   where: FileWhere;
   root?: string | undefined;
   /** The folder's name at the top: a project's says "Repository", a chat's shows the folder's own name. */
   label?: string | undefined;
   stacked?: boolean;
+  /** A file to show: by its path in the folder, or its full path (opened once the folder is known, when it is in it). */
+  open?: OpenFile | undefined;
 }) {
   const t = useT();
   const [picked, setPicked] = useState<string>();
   const [version, setVersion] = useState(0);
   const [acting, setActing] = useState<{ kind: "rename" | "trash"; entry: FileEntry }>();
   const [root, setRoot] = useState(known);
+  useEffect(() => {
+    const rel = !open ? undefined : "path" in open ? open.path : root ? relativeInside(root, open.at) : undefined;
+    if (rel) setPicked(rel);
+  }, [open, root]);
   const done = (c: FileChange) => {
     setActing(undefined);
     setVersion((v) => v + 1);

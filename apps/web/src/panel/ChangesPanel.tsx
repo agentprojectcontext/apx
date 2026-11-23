@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { client } from "../data/client.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { nav, useNav } from "../shell/nav.ts";
 import { type ChangeRow, recordedChanges } from "./change-records.ts";
 import { FileChange } from "./FileChange.tsx";
 import { LIST_TAB, PanelTabs } from "./PanelTabs.tsx";
@@ -39,6 +40,17 @@ export function ChangesPanel({ thread, ws }: { thread: Thread; ws?: Workspace | 
     [messages, thread.id, selection],
   );
   const scope = selection ?? (records.length || !hasFolder ? "latest" : "folder");
+  // A file picked in the chat: shown open, from every turn when the last one did not change it.
+  const asked = useNav((s) => s.panelFile);
+  const [focus, setFocus] = useState<{ key: string }>();
+  useEffect(() => {
+    if (!asked) return;
+    const key = `${asked.cwd}\0${asked.path}`;
+    const latest = recordedChanges(messages, threadId, "latest");
+    setScope(latest.some((r) => `${r.cwd}\0${r.file.path}` === key) ? "latest" : "all");
+    setFocus({ key });
+    nav.set({ panelFile: undefined });
+  }, [asked, messages, threadId]);
   useEffect(() => {
     if (scope === "folder" && !busy) void load();
   }, [scope, busy, load]);
@@ -55,6 +67,7 @@ export function ChangesPanel({ thread, ws }: { thread: Thread; ws?: Workspace | 
           key={`${row.cwd}:${row.file.path}:${row.message}:${row.part}:${version}`}
           thread={thread.id}
           row={row}
+          focus={focus?.key === `${row.cwd}\0${row.file.path}` ? focus : undefined}
         />
       ))}
     </ul>

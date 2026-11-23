@@ -895,6 +895,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "changes.none": "Sin cambios",
   "changes.noneBody": "Todo lo de la carpeta está commiteado. Lo que cambie el agente (o vos) aparece acá.",
   "changes.new": "Nuevo",
+  "changes.viewFile": "Ver archivo",
+  "changes.viewChanges": "Ver cambios",
   "changes.deleted": "Borrado",
   "changes.binary": "Archivo binario: no se muestra",
   "changes.empty": "Sin diferencias para mostrar",

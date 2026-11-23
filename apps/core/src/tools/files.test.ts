@@ -196,14 +196,16 @@ test("a file write waiting for the owner shows the patch it would make, and noth
   assert.equal(await tool("file_write")?.preview?.({ path: "../outside.md", content: "x" }, ctx), undefined);
 });
 
-test("the files an agent writes in a turn show in its answer, with the lines added and removed", async () => {
+test("the files an agent writes in a turn show in its answer, with the lines added and removed and their folder", async () => {
   const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "card" });
   await env.client.call("threads.send", { thread: t.id, text: "write new" });
   let { messages } = await env.settle(t.id);
   const card = () => messages.at(-1)?.parts.find((p) => p.type === "changes");
+  // Named as the files panel names the folder, so a file on the card opens there (a temp home is often behind a link).
+  const { root } = await env.client.call("files.tree", { thread: t.id });
   assert.deepEqual(card(), {
     type: "changes",
-    cwd: path.join(env.home, "work"),
+    cwd: root,
     edits: true,
     files: [
       {

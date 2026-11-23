@@ -156,10 +156,20 @@
   border-bottom: 1px solid var(--apx-border);
   overflow: hidden;
 }
-.wchanges__row {
+.wchanges__head {
   display: flex;
   align-items: center;
+}
+.wchanges__view {
+  flex: none;
+  margin-right: 6px;
+}
+.wchanges__row {
+  display: flex;
+  flex: 1;
+  align-items: center;
   gap: 6px;
+  min-width: 0;
   width: 100%;
   min-height: 32px;
   padding: 4px 10px 4px 8px;

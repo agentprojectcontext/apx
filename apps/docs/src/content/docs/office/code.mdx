@@ -70,6 +70,10 @@ Open the side panel from the chat header. Three views matter most when code is i
 | **Files** | The chat's folder (**Chat folder**) and its scratch files (**Temporary**). Open a file to read it; Markdown reads as a page. |
 | **Changes** | The edits the agent recorded, for the **Last turn** or **All turns**, and the **Current folder**'s git diff, file by file. |
 
+The files a turn changed also show at the end of the agent's message. Each one has **View file**, which opens it in
+**Files** (in **Temporary** when the agent wrote it there), and **View changes**, which opens **Changes** with that file
+unfolded. In **Changes**, the eye on a file opens it in **Files** too.
+
 A command that cannot start appears as **Could not start**, with the reason in its output. It is no longer active;
 correct the command or the problem it reports before asking the agent to try again.
 

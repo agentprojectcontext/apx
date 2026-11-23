@@ -7,7 +7,7 @@ import { z } from "zod";
 import type { Store } from "../domain/store.ts";
 import { textDiff } from "../engine/changes.ts";
 import { guarded, inGitFolder, namesApc } from "../engine/paths.ts";
-import { insideReal, writeAtomic } from "../paths.ts";
+import { insideReal, real, writeAtomic } from "../paths.ts";
 import { chatMedia } from "../services/media-temp.ts";
 import { artifactOfFile, publishArtifactFile } from "./artifact-files.ts";
 import { type FolderThread, folderAccess, outsideFolders, scratchRoot } from "./folders.ts";
@@ -114,7 +114,8 @@ export function fileTools(store: Store, home: string): Tool[] {
     files.set(key, { file, before: original, scratch: where.scratch });
     ctx.upsertPart((p) => p.type === "changes" && !p.scratch === !where.scratch, {
       type: "changes",
-      cwd: where.base,
+      // As the files panel names folders, so a file on the card opens there.
+      cwd: real(where.base),
       edits: true,
       ...(where.scratch ? { scratch: true } : {}),
       files: [...files.values()].filter((edit) => edit.scratch === where.scratch).map((edit) => edit.file),

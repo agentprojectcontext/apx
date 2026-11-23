@@ -907,6 +907,8 @@ export const en = {
   "changes.none": "No changes",
   "changes.noneBody": "Everything in the folder is committed. What the agent (or you) changes shows here.",
   "changes.new": "New",
+  "changes.viewFile": "View file",
+  "changes.viewChanges": "View changes",
   "changes.deleted": "Deleted",
   "changes.binary": "Binary file: not shown",
   "changes.empty": "No differences to show",

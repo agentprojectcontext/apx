@@ -2,9 +2,9 @@ import type { Result } from "@apx/protocol";
 import { Button, Checkbox, Icons } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { client } from "../../data/client.ts";
+import { isInside, samePath } from "../../data/paths.ts";
 import { useT } from "../../i18n/index.ts";
 import { migrationPathSelected, toggleMigrationPath } from "./migration.ts";
-import { isInside, samePath } from "./migration-path.ts";
 
 export function MigrationFiles({
   project,

@@ -187,6 +187,12 @@ textarea.inputcard__detail {
 .changes__file .changes__stat {
   font-size: inherit;
 }
+.changes__actions {
+  display: flex;
+  flex: none;
+  gap: 2px;
+  margin-right: -4px;
+}
 .changes__stat .is-add {
   color: var(--apx-brand-soft-fg);
 }

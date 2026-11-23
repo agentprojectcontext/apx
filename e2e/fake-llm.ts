@@ -6,7 +6,8 @@
 // for each other; "start a worker and keep going" hands one off and takes a while to answer, so the worker's result
 // waits behind that turn); "write an email" answers with an email draft; "make a note file" runs a command that
 // needs the owner's OK; "look around the parent folder" reads outside the project's folder (a folder card); "show a
-// widget" makes one; "open a report" writes one and opens it as a document; "show a table for task_…" answers with a wide table whose last
+// widget" makes one; "open a report" writes one and opens it as a document; "write a scratch note" writes one in the
+// chat's temp folder; "show a table for task_…" answers with a wide table whose last
 // column holds that task's chip; "connect <app> for me" offers that app or channel to connect; "draw a flow in
 // <project id>" makes a Flow there with apx_flow (a draft the chat shows as a card); asked from a Flow's editor,
 // "add a cleanup step" adds one to that Flow's draft and "make this flow" makes the new one in its project. It also
@@ -211,6 +212,14 @@ function toolCall(messages: Message[], said: string): { name: string; arguments:
     if (done === 1)
       return { name: "open_document", arguments: JSON.stringify({ path: "notes/report.md", title: "Quarter report" }) };
     return undefined;
+  }
+  // A note written in the chat's temp folder, which the system prompt names.
+  if (/^write a scratch note/i.test(said)) {
+    const temp = /your temp folder, (.+?), never/.exec(textOf(messages.find((m) => m.role === "system")))?.[1];
+    const sinceOwner = messages.slice(messages.findLastIndex((m) => m.role === "user"));
+    return temp && !sinceOwner.some((m) => m.role === "tool")
+      ? { name: "file_write", arguments: JSON.stringify({ path: `${temp}/note.md`, content: "# Scratch note\n" }) }
+      : undefined;
   }
   const worker = { name: "Researcher", instructions: "Check every source and list it." };
   const delegate = { name: "delegate", arguments: JSON.stringify({ worker, task: "check the sources" }) };
