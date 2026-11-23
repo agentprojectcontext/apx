@@ -50,7 +50,7 @@ const ownersOwn = (p: Params, store: Store) =>
 /** A contact changes like a message to them; making someone the owner, or the owner someone else, keeps its card. */
 const contactAsks = (p: Params, { store }: { store: Store }) => {
   const cur = personOf(p, store);
-  // Opening a project to a contact shares it like a document grant: the owner's card even in Total (DECISIONS.md#d-262).
+  // Opening a project to a contact shares it like a document grant: the owner's card even in Total (DECISIONS.md#d-263).
   const opensProject = (p.perms as { project_reading?: unknown } | undefined)?.project_reading === true;
   return ownersOwn(p, store) || (p.role === "owner" && cur?.role !== "owner") || opensProject ? "card" : "untrusted";
 };

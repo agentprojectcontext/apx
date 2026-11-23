@@ -77,7 +77,7 @@ export function contactToolNames(who: Holder | undefined): Set<string> {
     names.add(CONSULT_CONTACT_SOURCES);
     names.add(PROPOSE_CONTACT_UPDATE);
   }
-  // Each also checks the explicit assignment and the project on every call (DECISIONS.md#d-262).
+  // Each also checks the explicit assignment and the project on every call (DECISIONS.md#d-263).
   if (who?.rights.project_reading) {
     names.add(SEARCH_PROJECT_CONTEXT);
     names.add(READ_PROJECT_DOCUMENT);

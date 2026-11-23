@@ -1,4 +1,4 @@
-// Project reading for a contact's chat (DECISIONS.md#d-262): read-only, offered only with the person's own right, and
+// Project reading for a contact's chat (DECISIONS.md#d-263): read-only, offered only with the person's own right, and
 // only documents the owner referenced in the assigned agent's project. Drive is read through the owner's connection.
 import { z } from "zod";
 import { contactProjectReading, type DriveReader } from "../domain/contact-project-reading.ts";

@@ -45,7 +45,7 @@ const RIGHTS = {
   any_hour: z.boolean(),
   /**
    * Read-only reading of the assigned agent's project: its notes, the owner's chats there and the documents the owner
-   * referenced in them. Set per person only, never by an account (DECISIONS.md#d-262).
+   * referenced in them. Set per person only, never by an account (DECISIONS.md#d-263).
    */
   project_reading: z.boolean(),
 };
