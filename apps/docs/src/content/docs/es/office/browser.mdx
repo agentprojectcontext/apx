@@ -52,23 +52,39 @@ el navegador propio de APX, el que se usa con la app cerrada, el agente escribe 
 
 ## Iniciar sesión con tus claves guardadas
 
-Un agente puede iniciar sesión por vos sin ver nunca tu contraseña. Guardala una vez y decí para qué sitios es:
+Un agente puede iniciar sesión por vos sin ver nunca tu contraseña. Cuando llega a un formulario de inicio de sesión,
+busca tu acceso para ese sitio antes de preguntarte nada:
+
+- **Una variable marcada para el sitio** se usa enseguida, sin preguntar.
+- **Una variable cuyo nombre coincide con el sitio** (`GOOGLE_LOGIN` en `accounts.google.com`) se ofrece en una
+  tarjeta: **Sí**, **Escribir otro** o **No**. Sí la deja marcada para ese sitio, así la próxima vez no se pregunta.
+  Una variable común se ofrece solo si su nombre dice que es para iniciar sesión (`USER`, `PASS`, `LOGIN`, `EMAIL`…),
+  nunca una clave de API.
+- **Nada para el sitio:** una tarjeta te pide escribir el usuario y la contraseña. **Guardar** los deja como una
+  variable nueva para ese sitio, con el nombre del sitio y del usuario (`GOOGLE_PAT_LOGIN`, con un número si ese nombre
+  ya existe); **Solo esta vez** los usa para este inicio de sesión (unos minutos, en ese chat, en ese sitio) y no guarda
+  nada. **Lo hago yo** deja que el agente te pase la pestaña.
+
+Lo que escribís en la tarjeta va a APX, no al agente: el agente solo sabe el nombre de la variable, o que escribiste
+uno para esta vez. Estas tarjetas no tienen respuesta de texto libre y se responden solo en la app, nunca desde una app
+de chat como Telegram.
+
+Para guardar uno de antemano:
 
 <Steps>
 
-1. En **Recursos › Variables**, agregá el valor como variable (por ejemplo `ACME_PASSWORD`). Un usuario se guarda
-   igual. Para los códigos de dos pasos, pegá la clave de configuración, o la dirección `otpauth://`, que el sitio da
-   para una app de autenticación.
-2. Abrí **Sitios para iniciar sesión** de la variable y elegí el campo donde va (**Contraseña**, **Usuario** o
-   **Código de un solo uso**) y los sitios, como `app.acme.com`. **Cualquier sitio** deja que los agentes la usen en
-   todos.
-3. Pedile al agente que inicie sesión. Nombra la variable y el campo; el navegador lo completa.
+1. En **Recursos › Variables**, agregá una variable y elegí su **Tipo**: **Usuario y contraseña** (los dos en una
+   variable, cada uno en su campo), **Contraseña**, **Usuario** o **Código de un solo uso**. Para los códigos de dos
+   pasos, pegá la clave de configuración, o la dirección `otpauth://`, que el sitio da para una app de autenticación.
+2. Agregá los **Sitios** donde va, como `app.acme.com`. Su diálogo **Sitios para iniciar sesión** también ofrece
+   **Cualquier sitio**, que deja que los agentes la usen en todos.
+3. Pedile al agente que inicie sesión. Encuentra la variable, o se la podés nombrar.
 
 </Steps>
 
-En un sitio que no está en la variable, el agente te pregunta antes en la app: **Una vez**, **Siempre en este sitio**
-o **No**. Esa tarjeta no se puede responder desde una app de chat como Telegram, y **Siempre en este sitio** agrega
-ese sitio a la variable, nunca "cualquier sitio".
+La lista de Variables muestra el tipo de cada una (**Usuario y contraseña**, **Contraseña**…) junto a sus sitios. En
+un sitio que no está en la variable, el agente que la nombra te pregunta antes: **Una vez**, **Siempre en este sitio**
+o **No**. **Siempre en este sitio** agrega ese sitio a la variable, nunca "cualquier sitio".
 
 El agente recibe solo "rellenado" o "rechazado". El valor no llega al modelo, al chat, a los pasos de la ejecución,
 a los registros de la core ni a las imágenes de la pestaña que mira el agente. La core guarda el valor y se lo pasa
@@ -189,6 +205,27 @@ timers, solicitudes u otros efectos pueden continuar. Verificá la página antes
 Esto agrega una herramienta para agentes, no un panel DevTools ni un puerto de depuración. Desktop debe cargar el build
 nuevo compatible; reiniciar solo el core no alcanza.
 
+## Repetir un trabajo: recetas
+
+Cuando un agente hace lo mismo muchas veces (programar 20 posts, completar el mismo formulario para cada fila de una
+lista), no necesita leer la página entre cada clic. Manda la secuencia entera de una vez con `browser_do`: abrir, hacer
+clic, escribir y esperar, nombrando cada botón o campo como lo muestra la página ("el botón **Programar** del diálogo
+**Nueva publicación**"). Cada paso espera a que aparezca su botón, y la secuencia para en el primero que no funciona,
+diciendo cuál y mostrando la página.
+
+Cuando una secuencia funciona, el agente puede guardarla como **receta** del proyecto, con huecos para lo que cambia
+cada vez (el texto del post, la fecha, la imagen a adjuntar: la ruta completa de un archivo en un campo de archivo lo
+adjunta, siempre que el agente pueda leer ese archivo). La próxima vez corre la receta por su nombre con valores nuevos: un paso corto
+en lugar de una docena de miradas a la página, más rápido y con muchos menos tokens.
+
+- Las recetas viven en el proyecto, en `.apc/browser-recipes/`, un archivo cada una. Son una lista de pasos que podés
+  leer, nunca código, y corren solo con las mismas reglas del navegador que cualquier clic: tu OK donde el modo del
+  agente lo pide, tu Chrome solo para tu propio trabajo, nunca contraseñas.
+- Una nota de memoria le recuerda al agente que la receta existe, así la encuentra en otro chat: "usá la receta de
+  LinkedIn para estos 20 posts".
+- Para cambiar una receta, pedile al agente que corra los pasos otra vez con el arreglo y la guarde con el mismo
+  nombre; para sacarla, borrá su archivo.
+
 ## Perfiles
 
 Cada agente navega con uno de tres perfiles, que se elige por agente en **Configuración › Agentes** (o en el panel
@@ -235,8 +272,9 @@ sesión.
 - Lo que escribís en ese panel lateral siempre usa tu Chrome. En cualquier otro lado (la app, el teléfono, un canal
   como vos), los agentes usan el navegador de APX salvo que pidas tu Chrome ("hacelo en mi Chrome") o que un sitio
   necesite tu sesión: ahí abren una pestaña en el grupo **APX**, pidiéndote OK antes salvo que el modo del agente lo
-  deje actuar solo. El mensaje de un contacto, el agente de una app de afuera, un agente que trabaja por su cuenta o una
-  tarea que creó un agente nunca llega a tu Chrome; tus rutinas y las tareas que creaste vos sí, como tu propio chat.
+  deje actuar solo. El mensaje de un contacto, el agente de una app de afuera o un agente que trabaja por su cuenta nunca
+  llega a tu Chrome; tus rutinas y las tareas que creaste vos sí, como tu propio chat, y también una tarea que un agente
+  creó o pasó mientras trabajaba para vos (le pediste algo a Roby y Roby se lo dio a un compañero).
 - El trabajo que un agente le pasa a un compañero para vos sigue en tu Chrome también: un ayudante pedido desde tu
   chat, tu rutina o tu tarea lo puede usar como ese chat, y uno pedido desde el panel lateral trabaja solo ahí. Lo mismo
   el agente cuando recibe la respuesta del ayudante.
@@ -277,7 +315,8 @@ apx browser cookies <source> [filter]        Domains with cookies (counts only)
 apx browser import <source> <domain,…> [--profile shared|agent:<id>]`}</Terminal>
 
 `snapshot` lista los elementos de la página con referencias que toman `click` y `type`. `control` define quién tiene
-la pestaña. `cookies` muestra solo cantidades, nunca valores.
+la pestaña. `cookies` muestra solo cantidades, nunca valores. Estos comandos actúan como vos, así que no corren dentro
+del comando de un agente: un agente que quiere repetir pasos en el navegador usa `browser_do` y las recetas.
 
 Las apps de afuera, como Claude Code, también pueden usar este navegador, con `apx mcp`. Mirá
 [Clientes externos](/es/extend/outside-clients/).

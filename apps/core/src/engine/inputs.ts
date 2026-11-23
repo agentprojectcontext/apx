@@ -31,6 +31,14 @@ const APP_ONLY = "this approval is answered in the app (panel, desktop or phone)
 export const folderBinding = (folders: string[], write = false) =>
   `${write ? "write-folders" : "folders"}:${folders.join("\n")}`;
 
+/** The site and field of an agent's sign-in card (DECISIONS.md#d-264), or undefined for any other input. */
+export function loginRequest(r: InputRecord): { origin: string; kind: "username" | "password" } | undefined {
+  const login = r.tool === "browser_sign_in" && r.kind === "question" ? r.args?.login : undefined;
+  if (!login || typeof login !== "object") return undefined;
+  const { origin, kind } = login as { origin?: unknown; kind?: unknown };
+  return typeof origin === "string" && (kind === "username" || kind === "password") ? { origin, kind } : undefined;
+}
+
 /** A stored question or confirmation as the chat shows it. */
 export const inputPartOf = (r: InputRecord): Extract<Part, { type: "input" }> => {
   const artifact = publicInput(r).artifact_draft;
@@ -42,6 +50,7 @@ export const inputPartOf = (r: InputRecord): Extract<Part, { type: "input" }> =>
     ...(r.tool ? { tool: r.tool } : {}),
     ...(r.detail ? { detail: r.detail } : {}),
     ...(artifact ? { artifact_draft: artifact } : {}),
+    ...(loginRequest(r) ? { login: loginRequest(r) } : {}),
     ...(r.approval?.browser && typeof r.args?.document === "string"
       ? {
           browser: {

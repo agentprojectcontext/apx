@@ -79,7 +79,7 @@ export function browserHandlers(
   const reach = store && reachIn(store);
   const reachOf = (ctx: Ctx) => {
     const run = ctx.agent && reach?.run(ctx.agent.run_id);
-    return run && reach ? chromeReach(run.origin, run.ownerTask, reach) : undefined;
+    return run && reach ? chromeReach(run.origin, run.task, reach) : undefined;
   };
   /** An agent's call in a turn written in APX's panel in Chrome (or work done for one): all its browsing is there. */
   const chromeTurn = (ctx: Ctx): boolean => reachOf(ctx) === "all";
@@ -203,8 +203,9 @@ export function browserHandlers(
       // The owner's own tabs: nothing is held or bound here, their Chrome closes nothing for being idle.
       if (chromeTurn(ctx)) return (await inOwnersChrome(method, params)) as never;
       if (forChrome(method, params)) {
-        // A contact's words, an outside app or an agent working on its own never reach the owner's signed-in Chrome.
-        if (ctx.agent && !ownersTurn(ctx))
+        // A contact's words, an outside app or an agent working on its own never reach the owner's signed-in Chrome;
+        // neither does a model-driven caller with no run to follow up to the owner (DECISIONS.md#d-265).
+        if (ctx.agent ? !ownersTurn(ctx) : ctx.actor !== "human")
           throw unauthorized(
             "only the owner's own work (their turn, routine or task, or a helper's part of it) may use their Chrome",
           );

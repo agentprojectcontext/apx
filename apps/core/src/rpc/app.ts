@@ -28,6 +28,7 @@ import type { Catalog } from "../models/catalog.ts";
 import { modelSettings, refProblem } from "../models/choice.ts";
 import { projectSecretName, type Secrets } from "../secrets.ts";
 import type { Services } from "../services/registry.ts";
+import { marksFor } from "../sign-in.ts";
 import { withKit } from "../surface-kit.ts";
 import { countUsage } from "../telemetry-counts.ts";
 import { checkReadOnly } from "../tools/folders.ts";
@@ -112,9 +113,34 @@ export function appHandlers(deps: {
       store.settings.write("desktop", p);
       return desktopPrefs(store);
     },
-    "secrets.set": ({ name, value, project }) => {
+    "secrets.set": ({ name, value, login, field, project }) => {
       if (project && !store.projects.get(project)) throw notFound(`project ${project}`);
-      secrets.set(project ? projectSecretName(project, name) : name, value);
+      const key = project ? projectSecretName(project, name) : name;
+      if (login) {
+        if (value !== undefined || (field != null && field !== "login"))
+          throw badRequest("a sign-in is given as login alone");
+        if (!secrets.setLogin(key, login)) throw badRequest("a sign-in needs a password");
+      } else if (value !== undefined) {
+        if (field === "login") throw badRequest("a sign-in is given as login, with a username and a password");
+        // A plain value over a sign-in is no longer one.
+        const was = secrets.field(key);
+        secrets.set(key, value, field !== undefined ? field : value !== null && was === "login" ? null : undefined);
+      } else if (field !== undefined) {
+        if (field === "login" && !secrets.login(key)) throw badRequest("give the sign-in's username and password");
+        if (!secrets.setField(key, field)) throw notFound(`variable ${name}`);
+      } else throw badRequest("nothing to change");
+      // Its sites follow what it is for: a sign-in is marked for both of its fields.
+      const now = secrets.field(key);
+      const sites = secrets.sites(key);
+      if (now && sites.length)
+        secrets.setSites(
+          key,
+          marksFor(
+            now,
+            sites.map((s) => s.origin),
+            sites[0]?.kind ?? "password",
+          ),
+        );
       return { ok: true as const };
     },
     "secrets.set_sites": ({ name, project, sites }) => {
@@ -126,9 +152,18 @@ export function appHandlers(deps: {
           throw badRequest(`not a site's address: ${s.origin}`);
         return { origin, kind: s.kind };
       });
-      const unique = clean.filter((s, i) => clean.findIndex((o) => o.origin === s.origin && o.kind === s.kind) === i);
-      if (!secrets.setSites(project ? projectSecretName(project, name) : name, unique))
-        throw notFound(`variable ${name}`);
+      const key = project ? projectSecretName(project, name) : name;
+      // A variable that says what it is for goes into that field (both, for a sign-in), whatever the kind sent.
+      const field = secrets.field(key);
+      const marked = field
+        ? marksFor(
+            field,
+            clean.map((s) => s.origin),
+            "password",
+          )
+        : clean;
+      const unique = marked.filter((s, i) => marked.findIndex((o) => o.origin === s.origin && o.kind === s.kind) === i);
+      if (!secrets.setSites(key, unique)) throw notFound(`variable ${name}`);
       return { sites: unique };
     },
     "models.list": async ({ refresh }) => {

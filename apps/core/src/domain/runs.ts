@@ -176,9 +176,25 @@ export function ownerAsked(
   return ownerAsked(askedIn(o.input_id), askedIn, depth + 1);
 }
 
-/** A task chat of a task the owner created themselves (an agent's task is not their word). */
-export const ownersTask = (tasks: { get(id: string): { created_by: string } | undefined }, taskId?: string): boolean =>
-  Boolean(taskId) && tasks.get(taskId ?? "")?.created_by === "owner";
+/**
+ * Who a task chat's task came from: the owner, or the run of the agent that created it (that run decides whether the
+ * task is the owner's work, DECISIONS.md#d-265); undefined outside a task chat.
+ */
+export type TaskOrigin = "owner" | { run: string } | undefined;
+
+export function taskOrigin(
+  tasks: {
+    get(id: string): { created_by: string } | undefined;
+    events(id: string): Array<{ op: string; data: Record<string, unknown> }>;
+  },
+  taskId?: string,
+): TaskOrigin {
+  const task = taskId ? tasks.get(taskId) : undefined;
+  if (!task || !taskId) return undefined;
+  if (task.created_by === "owner") return "owner";
+  const run = tasks.events(taskId).find((e) => e.op === "create")?.data.from_run;
+  return typeof run === "string" ? { run } : undefined;
+}
 
 /** An outside app's agent (a model-driven client), never one of the owner's own agents. */
 export const outsideAgent = (id: string): boolean => id === "external" || id.startsWith("client:");
@@ -190,37 +206,43 @@ export const outsideAgent = (id: string): boolean => id === "external" || id.sta
 export type ChromeReach = "all" | "asked" | undefined;
 
 /** A run as `chromeReach` follows it up to whoever asked for it. */
-export type ReachRun = { origin?: Origin; parent_run_id?: string; ownerTask: boolean };
+export type ReachRun = { origin?: Origin; parent_run_id?: string; task: TaskOrigin };
 
-/** The run that raised an input, and a run by id; `ownerTask`: its chat is a task the owner created. */
+/** The run that raised an input, and a run by id; `task`: where its chat's task came from. */
 export type ReachLookup = { inputRun(inputId: string): string | undefined; run(runId: string): ReachRun | undefined };
 
 /**
  * The owner's own work reaches their Chrome: their words, their answers, a routine they scheduled (it runs their
  * words), a task they created (DECISIONS.md#d-223), and what their own agents do for one of those: a helper it delegated
- * to and the turn that hears its result (DECISIONS.md#d-226). A contact, an outside app's agent and a task an agent gave
- * reach nothing.
+ * to and the turn that hears its result (DECISIONS.md#d-226), and a task it created or assigned there
+ * (DECISIONS.md#d-265). A contact, an outside app's agent and work an agent started on its own reach nothing.
  */
-export function chromeReach(o: Origin | undefined, ownerTask: boolean, at: ReachLookup, depth = 0): ChromeReach {
+export function chromeReach(o: Origin | undefined, task: TaskOrigin, at: ReachLookup, depth = 0): ChromeReach {
   if (o?.kind === "user" && o.via === "chrome") return "all";
-  if (ownerOrigin(o) || o?.kind === "routine" || ownerTask) return "asked";
+  if (ownerOrigin(o) || o?.kind === "routine" || task === "owner") return "asked";
   if (depth >= 10) return undefined;
   const up = (runId: string | undefined): ChromeReach => {
     const run = runId ? at.run(runId) : undefined;
-    return run && chromeReach(run.origin, run.ownerTask, at, depth + 1);
+    return run && chromeReach(run.origin, run.task, at, depth + 1);
   };
-  switch (o?.kind) {
-    case "input_answer":
-      return up(at.inputRun(o.input_id));
-    case "agent":
-      return outsideAgent(o.id) || o.task_assignment ? undefined : up(o.run_id);
-    case "delegation_result":
-      return up(at.run(o.run_id)?.parent_run_id);
-    case "delegation_results":
-      return up(at.run(o.results[0]?.run_id ?? "")?.parent_run_id);
-    default:
-      return undefined;
-  }
+  /** A task outlives the turn that made it: it reaches the owner's Chrome when asked, never only there. */
+  const asTask = (reach: ChromeReach): ChromeReach => reach && "asked";
+  const viaOrigin = (): ChromeReach => {
+    switch (o?.kind) {
+      case "input_answer":
+        return up(at.inputRun(o.input_id));
+      case "agent":
+        if (outsideAgent(o.id)) return undefined;
+        return o.task_assignment ? asTask(up(o.run_id)) : up(o.run_id);
+      case "delegation_result":
+        return up(at.run(o.run_id)?.parent_run_id);
+      case "delegation_results":
+        return up(at.run(o.results[0]?.run_id ?? "")?.parent_run_id);
+      default:
+        return undefined;
+    }
+  };
+  return viaOrigin() ?? (typeof task === "object" ? asTask(up(task.run)) : undefined);
 }
 
 /** `chromeReach`'s lookups over the store. */
@@ -228,7 +250,7 @@ export const reachIn = (store: {
   inputs: { get(id: string): { run_id: string } | undefined };
   runs: { get(id: string): RunRecord | undefined };
   threads: { get(id: string): { task_id?: string | null } | undefined };
-  tasks: { get(id: string): { created_by: string } | undefined };
+  tasks: Parameters<typeof taskOrigin>[0];
 }): ReachLookup => ({
   inputRun: (id) => store.inputs.get(id)?.run_id,
   run(id) {
@@ -238,7 +260,7 @@ export const reachIn = (store: {
     return {
       ...(run.input?.origin ? { origin: run.input.origin } : {}),
       ...(run.parent_run_id ? { parent_run_id: run.parent_run_id } : {}),
-      ownerTask: ownersTask(store.tasks, task),
+      task: taskOrigin(store.tasks, task),
     };
   },
 });

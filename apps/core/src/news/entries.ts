@@ -13,6 +13,7 @@ import { AGENT_REVIEW_NEWS } from "./agent-review.ts";
 import { APX_ACCOUNT_NEWS } from "./apx-account.ts";
 import { BROWSER_EDIT_NEWS } from "./browser-edit.ts";
 import { BROWSER_JAVASCRIPT_NEWS } from "./browser-javascript.ts";
+import { BROWSER_RECIPES_NEWS } from "./browser-recipes.ts";
 import { BROWSER_SIGN_IN_NEWS } from "./browser-sign-in.ts";
 import { CALL_SERVICES_NEWS } from "./call-services.ts";
 import { CHANNEL_AGENTS_NEWS } from "./channel-agents.ts";
@@ -43,6 +44,7 @@ import { ROOM_AGENT_NEWS } from "./room-agent.ts";
 import { ROOM_HANDOFF_NEWS } from "./room-handoff.ts";
 import { ROUTINE_PERMISSIONS_NEWS } from "./routine-permissions.ts";
 import { SIDE_QUESTION_NEWS } from "./side-question.ts";
+import { SIGN_IN_CARDS_NEWS } from "./sign-in-cards.ts";
 import { SIMPLE_PANEL_NEWS } from "./simple-panel.ts";
 import { STORE_COMPACT_NEWS } from "./store-compact.ts";
 import { SUBPROJECTS_NEWS } from "./subprojects.ts";
@@ -132,6 +134,7 @@ export type NewsEntry = {
 };
 
 export const NEWS: readonly NewsEntry[] = [
+  SIGN_IN_CARDS_NEWS,
   CALL_SERVICES_NEWS,
   {
     id: "email-retained-history",
@@ -200,6 +203,7 @@ export const NEWS: readonly NewsEntry[] = [
   CONTACT_NOTES_NEWS,
   CONTACT_PROJECT_READING_NEWS,
   SIMPLE_PANEL_NEWS,
+  BROWSER_RECIPES_NEWS,
   {
     id: "storage-screen",
     since: "2.13.0",

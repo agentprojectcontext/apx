@@ -175,6 +175,7 @@ export const MarketplaceScreen = lazy(
 export const ResourcesScreen = lazy(
   withPacks(["resources"], () => import("./project/ResourcesScreen.tsx").then((m) => ({ default: m.ResourcesScreen }))),
 );
+export const SignInCard = lazy(() => import("./chat/parts/SignInCard.tsx").then((m) => ({ default: m.SignInCard })));
 export const PublicCopyInput = lazy(() =>
   import("./surfaces/PublicCopyInput.tsx").then((m) => ({ default: m.PublicCopyInput })),
 );

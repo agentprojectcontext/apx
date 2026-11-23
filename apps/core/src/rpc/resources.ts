@@ -126,9 +126,11 @@ export function resourceHandlers(deps: {
       return { ok: true as const };
     },
     "secrets.reveal": ({ name, project }) => {
-      const value = deps.secrets.resolve(`secret://${project ? projectSecretName(project, name) : name}`);
+      const key = project ? projectSecretName(project, name) : name;
+      const value = deps.secrets.resolve(`secret://${key}`);
       if (value === undefined) throw notFound(`variable ${name}`);
-      return { value };
+      const login = deps.secrets.login(key);
+      return login ? { value: login.password, username: login.username } : { value };
     },
     "skills.list": ({ project }) => ({
       skills: allSkills(store, roots, project).map((s) => skillInfo(store, s, project)),
