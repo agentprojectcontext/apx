@@ -255,7 +255,7 @@ than the caller's and is capped at the destination project's autonomy (D-126); a
 sub-thread, so the caller's spend limits pause it (a tripped breaker refuses creating it and every later message) and
 later messages from the caller queue past the active-delegation cap. Confirmation: `confirm: "always"`, so the owner
 approves each start on a card even in Auto; only Total or the agent's own rule for that risk skips it (D-047), and
-Plan mode refuses it. *Amended by [D-264](#d-264) (2026-11-23): `untrusted`, so Auto starts it without a card unless
+Plan mode refuses it. *Amended by [D-266](#d-266) (2026-11-23): `untrusted`, so Auto starts it without a card unless
 outside content is in the turn; Manual still asks.* Inside the session, the engine's commands and edits follow the same policy as any session's.
 
 <a id="d-024"></a>
@@ -5905,8 +5905,8 @@ back to you" messages. Revocation stops new reads, not answers already delivered
 
 Docs impact: updated channels/overview in English and Spanish, HUMAN_MODEL.md, settings help and news.
 
-<a id="d-264"></a>
-## D-264 — 2026-11-23 — Agents delete only when asked; heredoc data is not shell words; start_session runs in Auto
+<a id="d-266"></a>
+## D-266 — 2026-11-23 — Agents delete only when asked; heredoc data is not shell words; start_session runs in Auto
 In Auto an external Claude Code session producing a video in a git worktree of the owner's project stopped four times
 on "a high-impact action that needs your OK even in Auto" for ordinary work, and one card expired unanswered. Three
 of those commands were high-impact only because `commandRisk`'s static reading (D-097) scanned a heredoc's body as

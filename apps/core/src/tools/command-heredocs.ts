@@ -1,4 +1,4 @@
-// Which text of a command line is shell code, before the destructive-command rule reads it (DECISIONS.md#d-264).
+// Which text of a command line is shell code, before the destructive-command rule reads it (DECISIONS.md#d-266).
 import path from "node:path";
 
 /** Programs that run the text they are fed as commands: a heredoc for them is shell code, not data. */

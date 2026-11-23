@@ -106,7 +106,7 @@ const STORED_OUTPUT_CHARS = 2_000_000;
 const STEP_SUMMARY_CHARS = 4000;
 const CARD_DETAIL_CHARS = 300;
 
-/** What the agent said just before a call: its reason, as the owner reads it on a deletion card (D-264). */
+/** What the agent said just before a call: its reason, as the owner reads it on a deletion card (D-266). */
 function lastWords(display: Display): string | undefined {
   const text = display.message.parts.findLast((p) => p.type === "text");
   return text?.type === "text" ? text.text.slice(-400) : undefined;
@@ -411,7 +411,7 @@ export function createExecutor(o: {
       !granted &&
       (target?.browser || !o.inputs.takeGrant(thread.id, agent.id, name, raw, target?.key))
     ) {
-      // A deletion shows what goes and why, in the agent's words just before the call (DECISIONS.md#d-264).
+      // A deletion shows what goes and why, in the agent's words just before the call (DECISIONS.md#d-266).
       const gone = target?.key === DELETE_GRANT ? tool.deletes?.(args, { agent, thread: callThread }) : undefined;
       const answer = await o.inputs.ask({
         run,

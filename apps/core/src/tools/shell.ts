@@ -104,21 +104,21 @@ export function commandRisk(command: string, apxPort?: number): Confirm {
 
 /**
  * Whether a command deletes: a forced `rm` or a git command that discards work git would keep. It asks in every mode
- * but Total, unless the owner asked (D-264).
+ * but Total, unless the owner asked (D-266).
  */
 export const deletes = (command: string) =>
   deletesHere(command) || FORCED_RM.test(normalize(shellCode(command.trim())));
 
 /**
  * A forced deletion is all that makes this command always ask: its card is a deletion's, and the owner's OK for this
- * chat (`apx:delete`) covers it (DECISIONS.md#d-264).
+ * chat (`apx:delete`) covers it (DECISIONS.md#d-266).
  */
 export const onlyDeletes = (command: string, apxPort?: number) =>
   deletes(command) && riskBesides(command, apxPort) !== "always";
 
 function riskBesides(command: string, apxPort?: number): Confirm {
   const c = command.trim();
-  // A heredoc fed to Python or written to a file is that program's data, not shell words (DECISIONS.md#d-264).
+  // A heredoc fed to Python or written to a file is that program's data, not shell words (DECISIONS.md#d-266).
   const code = shellCode(c);
   if (DESTRUCTIVE.test(code) || DESTRUCTIVE.test(normalize(code))) return "always";
   if (RELEASES.test(code) || RELEASES.test(normalize(code))) return "always";
@@ -342,7 +342,7 @@ export function shellTools(
       }),
       effect: "external",
       confirm: (a) => commandRisk(a.command, apxPort()),
-      // A deletion has its own grant, never one for sudo or a release (DECISIONS.md#d-264).
+      // A deletion has its own grant, never one for sudo or a release (DECISIONS.md#d-266).
       approvalForCall: async (a) =>
         onlyDeletes(a.command, apxPort())
           ? deleteApproval

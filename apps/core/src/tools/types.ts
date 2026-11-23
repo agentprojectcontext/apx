@@ -178,7 +178,7 @@ export type Tool = {
   preview?: ((args: Record<string, unknown>, ctx: CheckContext) => Promise<FileChange | undefined>) | undefined;
   /** What the owner reads about the call when asked to confirm it, in place of arguments that say nothing (an id). */
   explain?: ((args: Record<string, unknown>) => string | undefined) | undefined;
-  /** What the call deletes when it does (a forced `rm`), resolved where it runs, for the owner's card (D-264). */
+  /** What the call deletes when it does (a forced `rm`), resolved where it runs, for the owner's card (D-266). */
   deletes?: ((args: Record<string, unknown>, ctx: CheckContext) => Deletion | undefined) | undefined;
   /**
    * The call changes what the owner set up (their contacts, channels, agents, settings): it runs only on the owner's

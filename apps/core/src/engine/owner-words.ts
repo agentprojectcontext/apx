@@ -61,7 +61,7 @@ export const stalledWords = (store: Store, agent: string) =>
     ? `Nobody is working on it: ${agent} was asked to go on and stopped again without closing it or saying what it waits for.`
     : `Nadie la está trabajando: se le pidió a ${agent} que siguiera y volvió a frenar sin cerrarla ni decir qué espera.`;
 
-/** A deletion card's question: the owner decides on what is deleted, not on a command (DECISIONS.md#d-264). */
+/** A deletion card's question: the owner decides on what is deleted, not on a command (DECISIONS.md#d-266). */
 export const deletePrompt = (store: Store, agent: string) =>
   english(store)
     ? `${agent} wants to delete this. In Auto an agent deletes only when you ask:`

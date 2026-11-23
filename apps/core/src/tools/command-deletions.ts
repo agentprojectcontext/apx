@@ -1,4 +1,4 @@
-// What a command line deletes, for the owner's card (DECISIONS.md#d-264): forced `rm`s and the git commands that throw
+// What a command line deletes, for the owner's card (DECISIONS.md#d-266): forced `rm`s and the git commands that throw
 // away work git would otherwise keep. A static reading, as the destructive rule's, following the line's `cd`s and
 // variables.
 import path from "node:path";

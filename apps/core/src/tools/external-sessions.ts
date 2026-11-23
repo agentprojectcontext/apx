@@ -26,7 +26,7 @@ export function externalSessionTools(store: Store): Tool[] {
       }),
       effect: "external",
       // Its calls pass the same policy in the caller's mode and its write is never more than the caller's: like a
-      // delegation it runs in Auto, unless outside content in the turn could have asked for it (DECISIONS.md#d-264).
+      // delegation it runs in Auto, unless outside content in the turn could have asked for it (DECISIONS.md#d-266).
       confirm: "untrusted",
       deadlineMs: 15_000,
       when: () => store.projects.list().length > 0,

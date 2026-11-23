@@ -134,7 +134,7 @@ test("in manual the owner can decline starting an external engine, or approve it
   assert.ok(seen.some((io) => io.thread.id === started.thread));
 });
 
-test("in auto an agent starts an external session in its project without a card (DECISIONS.md#d-264)", async () => {
+test("in auto an agent starts an external session in its project without a card (DECISIONS.md#d-266)", async () => {
   const { done, result } = await start({}, undefined, undefined, "superagent", undefined, "auto");
   const started = JSON.parse(result) as { thread: string };
   await env.settle(started.thread);

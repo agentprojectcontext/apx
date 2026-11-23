@@ -282,7 +282,7 @@ test("a command that changes APC definitions or AGENTS.md always asks, as file_w
   assert.equal(commandRisk("touch .apc/worktrees/fix-a/src/a.ts"), "ask");
 });
 
-test("a heredoc's body is its program's data: words in a Python script or a JSON file are not shell commands (DECISIONS.md#d-264)", () => {
+test("a heredoc's body is its program's data: words in a Python script or a JSON file are not shell commands (DECISIONS.md#d-266)", () => {
   const asks = [
     // Spanish "su" and a regex's \\d\\d (read as dd) once made these high-impact.
     "python3 - <<'PY' | tee qa/sync.txt\nimport re\ncues=re.findall(r'(\\d\\d):(\\d\\d)', '')\nPY",
@@ -320,7 +320,7 @@ test("a deletion card lists the paths a command deletes, resolved where it runs;
     assert.equal(onlyDeletes(c), false, c);
 });
 
-test("git commands that throw away work git would keep ask like a deletion; the forms git itself guards do not (DECISIONS.md#d-264)", () => {
+test("git commands that throw away work git would keep ask like a deletion; the forms git itself guards do not (DECISIONS.md#d-266)", () => {
   const cwd = path.resolve("/work/acme/.worktrees/reels");
   const at = (...p: string[]) => path.join(cwd, ...p);
   const discards: Array<[string, Array<{ what: string; target: string }>]> = [
@@ -381,7 +381,7 @@ test("git commands that throw away work git would keep ask like a deletion; the 
     assert.equal(commandRisk(c), "ask", c);
 });
 
-test("a forced deletion asks in Auto even below the folder the command works in (DECISIONS.md#d-264)", () => {
+test("a forced deletion asks in Auto even below the folder the command works in (DECISIONS.md#d-266)", () => {
   for (const c of [
     "rm -rf build",
     "rm -f audio/clip.raw.wav",
@@ -517,7 +517,7 @@ test("manual: a command that changes something waits for the owner", async () =>
   }
 });
 
-test("auto: a deletion asks with what goes and why; the owner's OK for this chat covers the next one (DECISIONS.md#d-264)", async () => {
+test("auto: a deletion asks with what goes and why; the owner's OK for this chat covers the next one (DECISIONS.md#d-266)", async () => {
   const t = await thread();
   await env.client.call("threads.send", { thread: t, text: "clean build please" });
   const [card] = await inputsOrEnd(env.client, t);

@@ -33,7 +33,7 @@ export const approvalScopes = (a: ApprovalTarget): ApprovalScope[] =>
 
 /**
  * A forced deletion (`rm -r`/`rm -f`) and nothing else that always asks: its own key, so the owner's OK for this chat
- * covers deletions only, never `sudo` or a release; never for good, as an agent deletes only when asked (DECISIONS.md#d-264).
+ * covers deletions only, never `sudo` or a release; never for good, as an agent deletes only when asked (DECISIONS.md#d-266).
  */
 export const DELETE_GRANT = "apx:delete";
 export const deleteApproval: ApprovalTarget = {

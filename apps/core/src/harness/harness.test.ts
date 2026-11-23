@@ -406,7 +406,7 @@ test("an automatic outside session allows local commands but still asks before f
   }
 });
 
-test("an automatic outside session in a project worktree runs its own scripts without a card; a deletion asks once, with what goes and why (DECISIONS.md#d-264)", async () => {
+test("an automatic outside session in a project worktree runs its own scripts without a card; a deletion asks once, with what goes and why (DECISIONS.md#d-266)", async () => {
   await using tmp = tempDir("apx-harness-");
   const repo = realpath(tmp.path);
   const git = (...args: string[]) =>
