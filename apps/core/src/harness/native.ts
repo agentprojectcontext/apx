@@ -2,7 +2,7 @@
 // logged as they happen.
 
 import { TURN_STEPS } from "@apx/protocol";
-import type { Llm } from "../providers/llm.ts";
+import { type Llm, pause } from "../providers/llm.ts";
 import { type ChatItem, type ModelFailure, ProviderError, type Usage } from "../providers/types.ts";
 import { readsImages } from "../providers/vision.ts";
 import { contextWindow } from "../providers/windows.ts";
@@ -60,7 +60,21 @@ function canonical(value: unknown): string {
   return JSON.stringify(value) ?? "null";
 }
 
-export function nativeHarness(llm: Llm): Harness {
+/**
+ * When every model of the chain failed in a way that passes (a dropped stream, an overload, no connection), the step
+ * is asked again after these waits, still inside the turn's deadline: the work done so far stays in the log.
+ */
+const STEP_PATIENCE_MS = [5_000, 15_000, 45_000] as const;
+
+/** A failure worth asking the whole chain again for: the provider, not the request or the account. */
+const passes = (err: unknown): err is ProviderError => err instanceof ProviderError && err.retryable && !err.limit;
+
+export function nativeHarness(
+  llm: Llm,
+  opts: { patienceMs?: readonly number[]; sleep?: (ms: number, signal: AbortSignal) => Promise<void> } = {},
+): Harness {
+  const patience = opts.patienceMs ?? STEP_PATIENCE_MS;
+  const sleep = opts.sleep ?? pause;
   return {
     id: "native",
     async run(io) {
@@ -95,6 +109,22 @@ export function nativeHarness(llm: Llm): Harness {
       let onScreen = false;
 
       const step = async (tools: boolean, cut?: AbortSignal) => {
+        for (let round = 0; ; round++) {
+          try {
+            return await attempt(tools, cut);
+          } catch (err) {
+            const wait = patience[round];
+            if (wait === undefined || !passes(err) || io.signal.aborted || cut?.aborted) {
+              if (round > 0 && err instanceof ProviderError)
+                err.message += `\n(asked again ${round} time${round === 1 ? "" : "s"} over ${Math.round(patience.slice(0, round).reduce((a, b) => a + b, 0) / 1000)}s; the work so far is kept)`;
+              throw err;
+            }
+            io.onText(prefix);
+            await sleep(wait, io.signal);
+          }
+        }
+      };
+      const attempt = async (tools: boolean, cut?: AbortSignal) => {
         const c = await llm.complete({
           ...(onScreen && tools ? { lighter: SCREEN_EFFORT } : {}),
           models: io.models,
