@@ -8,6 +8,7 @@ const ICON: Record<ContextRef["kind"], ReactNode> = {
   chat: <Icons.MessageCircle size={12} />,
   task: <Icons.ListChecks size={12} />,
   file: <Icons.FileText size={12} />,
+  widget: <Icons.LayoutGrid size={12} />,
 };
 
 /** What was added as context to the next message, each with a way to take it out. */

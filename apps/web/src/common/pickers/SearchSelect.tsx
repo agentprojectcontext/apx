@@ -69,6 +69,7 @@ export function SearchSelect({
 }: SearchSelectProps) {
   const { portalRef } = useApx();
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const search = useRef<HTMLInputElement>(null);
   const current = options.find((o) => o.value === value) ?? null;
   const groups = useMemo<Group[]>(() => {
@@ -102,7 +103,12 @@ export function SearchSelect({
       autoHighlight
       disabled={disabled}
       open={open}
-      onOpenChange={setOpen}
+      inputValue={query}
+      onInputValueChange={setQuery}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setQuery("");
+      }}
     >
       {trigger ? (
         <Combobox.Trigger render={trigger} />
@@ -135,7 +141,11 @@ export function SearchSelect({
               <Icons.Search size={14} />
               <Combobox.Input ref={search} className="apx-searchselect__input" placeholder={searchPlaceholder} />
             </div>
-            <Combobox.Empty className="apx-searchselect__empty">{emptyLabel}</Combobox.Empty>
+            {!options.some((o) => matches(o, query)) && (
+              <div className="apx-searchselect__empty" role="status">
+                {emptyLabel}
+              </div>
+            )}
             <Combobox.List className="apx-searchselect__list">
               {(g: Group) =>
                 g.value ? (
