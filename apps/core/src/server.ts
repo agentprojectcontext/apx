@@ -329,6 +329,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     llm,
     onDetected: ({ codex }) => codexSeen?.(codex),
     home: config.home,
+    stepPatienceMs: config.stepPatienceMs,
     mcpProxy: () => ({
       command: process.execPath,
       args: [TERMINAL_MAIN, "mcp", "--run"],

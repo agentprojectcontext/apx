@@ -116,7 +116,7 @@ export function nativeHarness(
             const wait = patience[round];
             if (wait === undefined || !passes(err) || io.signal.aborted || cut?.aborted) {
               if (round > 0 && err instanceof ProviderError)
-                err.message += `\n(asked again ${round} time${round === 1 ? "" : "s"} over ${Math.round(patience.slice(0, round).reduce((a, b) => a + b, 0) / 1000)}s; the work so far is kept)`;
+                err.message += `\n(asked again ${round} time${round === 1 ? "" : "s"}; the work so far is kept)`;
               throw err;
             }
             io.onText(prefix);

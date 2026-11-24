@@ -108,6 +108,8 @@ const core = spawn(process.execPath, ["--no-warnings", "--import", hook, path.jo
     APX_LLM_BASE_URL: llm.url,
     APX_LLM_KEY: "e2e",
     APX_LLM_MODELS: "fake-1,fake-2",
+    // The model list is asked again after a passing failure, here after a blink instead of 5s, 15s and 45s.
+    APX_STEP_PATIENCE_MS: "20,40",
     APX_TELEGRAM_API: tg.url,
     APX_DISCORD_API: dc.urls.api,
     APX_DISCORD_GATEWAY: dc.urls.gateway,
