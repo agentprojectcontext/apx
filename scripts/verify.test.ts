@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { tempDir } from "../apps/core/src/testkit/platform.ts";
-import { clock, expand, PLANS, progress, readHistory, runSteps, type Step, statusLine } from "./verify.ts";
+import { clock, expand, plans, progress, readHistory, runSteps, type Step, statusLine } from "./verify.ts";
 
 const CLEAR = "\r\x1b[2K";
 const node = (code: string) => `node -e "${code}"`;
@@ -53,8 +53,8 @@ test("a plan expands chained root scripts into their parts, in order, without re
   const root = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, "..", "package.json"), "utf8")) as {
     scripts: Record<string, string>;
   };
-  const verify = expand(PLANS.verify ?? [], root.scripts).map((s) => s.command);
-  const preflight = expand(PLANS.preflight ?? [], root.scripts).map((s) => s.command);
+  const verify = expand(plans(0).verify ?? [], root.scripts).map((s) => s.command);
+  const preflight = expand(plans(0).preflight ?? [], root.scripts).map((s) => s.command);
   assert.deepEqual(verify.slice(0, preflight.length), preflight);
   assert.ok(verify.includes("pnpm test:coverage:all"));
   assert.ok(verify.includes("pnpm test:chrome-extension:browser"));
@@ -64,6 +64,15 @@ test("a plan expands chained root scripts into their parts, in order, without re
     "the extension gate runs against built assets",
   );
   assert.ok(!verify.some((c) => /scripts\/verify\.ts/.test(c)), "the runner never runs itself");
+});
+
+test("a machine that splits the unit tests runs coverage's parts at once too, in the same place in the plan", () => {
+  const one = plans(0).verify ?? [];
+  const split = plans(4).verify ?? [];
+  assert.deepEqual(split.slice(0, 2), ["pnpm preflight:static", "pnpm check:tests"]);
+  assert.ok(split.includes("node scripts/test-shard.ts all/4"));
+  assert.equal(split.indexOf("node scripts/coverage-parallel.ts"), one.indexOf("pnpm test:coverage:all") + 1);
+  assert.ok(!split.includes("pnpm test:coverage:all"));
 });
 
 test("steps run in order, the first failure stops the run with its exit code", async (t) => {
