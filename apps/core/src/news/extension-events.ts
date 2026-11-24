@@ -2,7 +2,7 @@ import type { NewsEntry } from "./entries.ts";
 
 export const EXTENSION_EVENTS_NEWS: NewsEntry = {
   id: "extension-observations",
-  since: "2.16.1",
+  since: "2.17.0",
   title: {
     en: "Let an extension tell your agent when something changes",
     es: "Dejá que una extensión le avise a tu agente cuando algo cambia",
