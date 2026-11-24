@@ -196,8 +196,9 @@ function targetsIn(text: string, project: { path?: string | undefined; present: 
     } catch {
       // A folder gone since the last scan: its files are unavailable when read.
     }
+    // A name right after a backslash is the tail of a Windows path, never a file of this project.
     for (const [, raw = ""] of text.matchAll(
-      /(?<![\w:/.~-])((?:\/[^\s"'`<>()[\]]+)|(?:[\w-]+\/)*[\w-][\w.-]*)(?![\w/])/g,
+      /(?<![\w:/\\.~-])((?:\/[^\s"'`<>()[\]]+)|(?:[\w-]+\/)*[\w-][\w.-]*)(?![\w/\\])/g,
     )) {
       const clean = raw.replace(/[.,;:!?]+$/, "");
       if (!TEXT_FILE.test(clean)) continue;
