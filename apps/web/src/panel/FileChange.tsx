@@ -1,15 +1,27 @@
 import "../styles/panel-parts.css";
-import type { Result } from "@apx/protocol";
 import { Button, IconButton, Icons, Skeleton, Tooltip } from "@apx/ui";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { client } from "../data/client.ts";
+import { useEffect, useRef, useState } from "react";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import type { ChangeRow } from "./change-records.ts";
 import { DiffView } from "./DiffView.tsx";
+import { useFileDiff } from "./useFileDiff.ts";
 
-/** A changed file: its row opens its diff; asked for from the chat (`focus`), it opens and comes into view. */
-export function FileChange({ thread, row, focus }: { thread: string; row: ChangeRow; focus?: object | undefined }) {
+/**
+ * A changed file: its row unfolds a quick look at what changed; `onOpen` shows the whole file with its changes in a tab.
+ * Asked for from the chat (`focus`), it unfolds and comes into view.
+ */
+export function FileChange({
+  thread,
+  row,
+  focus,
+  onOpen,
+}: {
+  thread: string;
+  row: ChangeRow;
+  focus?: object | undefined;
+  onOpen(row: ChangeRow): void;
+}) {
   const t = useT();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLLIElement>(null);
@@ -19,26 +31,7 @@ export function FileChange({ thread, row, focus }: { thread: string; row: Change
     ref.current?.scrollIntoView({ block: "nearest" });
   }, [focus]);
   const { file } = row;
-  const [loadedDiff, setDiff] = useState<Result<"files.diff"> | { error: string }>();
-  const diff =
-    file.diff === undefined
-      ? loadedDiff
-      : { path: file.path, diff: file.diff, truncated: file.truncated ?? false, source: "recorded" as const };
-  const [loading, setLoading] = useState(false);
-  const load = useCallback(() => {
-    setLoading(true);
-    client
-      .call("files.diff", { thread, path: file.path, ...(row.message ? { message: row.message, part: row.part } : {}) })
-      .then(setDiff)
-      .catch((e: unknown) => setDiff({ error: e instanceof Error ? e.message : String(e) }))
-      .finally(() => setLoading(false));
-  }, [thread, file.path, row.message, row.part]);
-  useEffect(() => {
-    if (file.diff !== undefined) setDiff(undefined);
-  }, [file.diff]);
-  useEffect(() => {
-    if (open && !diff && !loading) load();
-  }, [open, diff, loading, load]);
+  const { diff, loading, load } = useFileDiff(thread, row, open);
   const toggle = () => {
     setOpen((value) => !value);
   };
@@ -60,6 +53,13 @@ export function FileChange({ thread, row, focus }: { thread: string; row: Change
             {file.removed != null && <span className="wchanges__del">−{file.removed}</span>}
           </button>
         </Tooltip>
+        <IconButton
+          size="sm"
+          className="wchanges__view"
+          label={t("changes.openTab")}
+          icon={<Icons.FileDiff size={14} />}
+          onClick={() => onOpen(row)}
+        />
         {!file.status.includes("D") && (
           <IconButton
             size="sm"

@@ -27,7 +27,6 @@ import { useWorkspace } from "./workspace.ts";
 export function SidePanel() {
   const t = useT();
   const panel = useNav((s) => s.panel);
-  const wide = useNav((s) => s.panelWide);
   const ws = useWorkspace();
   const threadId = useNav((s) => s.threadId);
   const thread = useData((s) => (threadId ? s.threads[threadId] : undefined));
@@ -107,7 +106,6 @@ export function SidePanel() {
                 thread={thread.id}
                 root={ws?.folder}
                 label={ws ? undefined : t("files.workFolder")}
-                stacked={!wide}
               />
             </Suspense>
           )}

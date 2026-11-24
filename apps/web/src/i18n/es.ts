@@ -896,6 +896,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "changes.new": "Nuevo",
   "changes.viewFile": "Ver archivo",
   "changes.viewChanges": "Ver cambios",
+  "changes.openTab": "Abrir el archivo completo con sus cambios",
+  "changes.wholeStale": "El archivo cambió de nuevo después: se muestra solo lo que cambió acá.",
   "changes.deleted": "Borrado",
   "changes.binary": "Archivo binario: no se muestra",
   "changes.empty": "Sin diferencias para mostrar",

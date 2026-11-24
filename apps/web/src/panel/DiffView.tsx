@@ -1,5 +1,7 @@
 import "../styles/panel-parts.css";
+import { forwardRef } from "react";
 import { useT } from "../i18n/index.ts";
+import { type DiffRow, patchRows } from "./diff.ts";
 
 /** Unified patch lines, or a clearly labeled current-source fallback for older records. */
 export function DiffView({
@@ -12,33 +14,27 @@ export function DiffView({
   current?: boolean;
 }) {
   const t = useT();
-  const rows: Array<{ kind: "add" | "del" | "ctx" | "hunk"; text: string; n?: number }> = [];
-  let oldN = 0;
-  let newN = 0;
-  let body = false;
-  for (const [i, line] of text.split("\n").entries()) {
-    if (current) {
-      rows.push({ kind: "ctx", text: line, n: i + 1 });
-      continue;
-    }
-    const hunk = /^@@ -(\d+)(?:,\d+)? \+(\d+)/.exec(line);
-    if (hunk) {
-      oldN = Number(hunk[1]);
-      newN = Number(hunk[2]);
-      body = true;
-      rows.push({ kind: "hunk", text: line });
-    } else if (!body) {
-      if (line.startsWith("Binary files")) rows.push({ kind: "hunk", text: t("changes.binary") });
-    } else if (line.startsWith("+")) rows.push({ kind: "add", text: line.slice(1), n: newN++ });
-    else if (line.startsWith("-")) rows.push({ kind: "del", text: line.slice(1), n: oldN++ });
-    else if (line.startsWith(" ")) {
-      rows.push({ kind: "ctx", text: line.slice(1), n: newN++ });
-      oldN++;
-    }
-  }
+  const { rows, binary } = current
+    ? { rows: text.split("\n").map((line, i): DiffRow => ({ kind: "ctx", text: line, n: i + 1 })), binary: false }
+    : patchRows(text);
   return (
-    <div className="diff">
-      {current && <p className="wchanges__notice">{t("changes.currentSource")}</p>}
+    <DiffLines
+      rows={binary ? [{ kind: "hunk", text: t("changes.binary") }, ...rows] : rows}
+      truncated={truncated}
+      notice={current ? t("changes.currentSource") : undefined}
+    />
+  );
+}
+
+/** Diff rows as lines: number, sign and text. */
+export const DiffLines = forwardRef<
+  HTMLDivElement,
+  { rows: DiffRow[]; truncated: boolean; notice?: string | undefined; className?: string }
+>(function DiffLines({ rows, truncated, notice, className }, ref) {
+  const t = useT();
+  return (
+    <div ref={ref} className={className ? `diff ${className}` : "diff"}>
+      {notice && <p className="wchanges__notice">{notice}</p>}
       {!rows.length && <p className="wchanges__error">{t("changes.empty")}</p>}
       {rows.map((r, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: patch lines are positional
@@ -51,4 +47,4 @@ export function DiffView({
       {truncated && <p className="wchanges__error">{t("changes.truncated")}</p>}
     </div>
   );
-}
+});

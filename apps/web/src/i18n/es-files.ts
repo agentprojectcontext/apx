@@ -58,7 +58,6 @@ export const esFiles: Partial<Record<MessageKey, string>> = {
   "document.failed": "No se pudo cargar el documento. Volvé a intentar.",
   "document.retry": "Reintentar",
   "files.tree": "Archivos del proyecto",
-  "files.back": "Archivos",
   "files.repo": "Repositorio",
   "files.none": "Elegí un archivo",
   "files.noneBody": "Su texto aparece acá. El Markdown se lee como página, como fuente o las dos cosas.",

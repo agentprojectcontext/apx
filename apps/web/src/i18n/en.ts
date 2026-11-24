@@ -909,6 +909,8 @@ export const en = {
   "changes.new": "New",
   "changes.viewFile": "View file",
   "changes.viewChanges": "View changes",
+  "changes.openTab": "Open the whole file with its changes",
+  "changes.wholeStale": "The file changed again after this: only what changed here is shown.",
   "changes.deleted": "Deleted",
   "changes.binary": "Binary file: not shown",
   "changes.empty": "No differences to show",

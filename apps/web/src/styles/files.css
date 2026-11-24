@@ -5,10 +5,7 @@
   display: grid;
   grid-template-columns: minmax(200px, 280px) 1fr;
 }
-.files--stacked {
-  grid-template-columns: 1fr;
-}
-/* A chat's files: which folder on top, the tree below. */
+/* A chat's files: the Explorer (which folder, then its tree) or one opened file, each under its tab. */
 .chatfiles {
   flex: 1;
   min-width: 0;
@@ -33,23 +30,24 @@
   color: var(--apx-fg-muted);
   font-size: var(--apx-text-xs);
 }
-.files__back {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin: 8px 10px 0;
-  padding: 2px 6px;
-  border: 0;
-  border-radius: var(--apx-radius-sm);
-  background: none;
-  color: var(--apx-fg-muted);
-  font: inherit;
-  font-size: var(--apx-text-xs);
-  cursor: pointer;
+.chatfiles__explorer {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
-.files__back:hover {
-  background: var(--apx-fill-hover);
-  color: var(--apx-fg);
+.chatfiles__explorer[hidden] {
+  display: none;
+}
+.chatfiles__explorer > .files__tree {
+  flex: 1;
+  border-right: 0;
+}
+.chatfiles__explorer > .chatfiles__bar {
+  align-items: flex-start;
+}
+.chatfiles__file {
+  flex: 1;
 }
 .files--empty {
   display: flex;
@@ -62,9 +60,6 @@
   overflow: auto;
   padding: 10px 6px;
   border-right: 1px solid var(--apx-border);
-}
-.files--stacked .files__tree {
-  border-right: 0;
 }
 .files__root {
   display: flex;
@@ -130,37 +125,53 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+  container-type: inline-size;
+}
+/* Narrow (the chat's side panel): the head keeps one line, its modes as icons and the size in the path's tip. */
+@container (max-width: 560px) {
+  .files__size {
+    display: none;
+  }
+  .files__modes .apx-segmented__item {
+    padding-inline: 8px;
+  }
+  .files__modes .apx-segmented__item > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 .files__head {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   min-height: 44px;
-  padding: 6px 16px;
+  padding: 6px 12px 6px 16px;
   border-bottom: 1px solid var(--apx-border);
 }
 .files__path {
+  flex: 0 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: var(--apx-font-mono);
   font-size: var(--apx-text-xs);
 }
-/* Narrow: the path takes its own line over the size and the view's controls. */
-.files--stacked .files__head {
-  flex-wrap: wrap;
-  row-gap: 4px;
-}
-.files--stacked .files__path {
-  flex-basis: 100%;
+/* Narrow: the path gives way first; the view's controls keep their size. */
+.files__head > :not(.files__path) {
+  flex: none;
 }
 .files__size {
   flex: none;
   color: var(--apx-fg-subtle);
   font-size: var(--apx-text-xs);
 }
-.files__spacer {
+.files__head > .files__spacer {
   flex: 1;
 }
 /* The file fills the pane: its code (or page) scrolls inside, never the pane around it. */

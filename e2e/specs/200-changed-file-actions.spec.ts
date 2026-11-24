@@ -22,8 +22,10 @@ test("a changed file in the chat opens in the files panel and shows its changes"
 
   // The temp folder's file, open in the files panel.
   await card.getByRole("button", { name: "Ver archivo" }).click();
-  await expect(panel.getByRole("radio", { name: "Temporales" })).toBeChecked();
+  await expect(panel.getByRole("tab", { name: "note.md" })).toHaveAttribute("aria-selected", "true");
   await expect(panel.getByRole("heading", { name: "Scratch note" })).toBeVisible();
+  await panel.getByRole("tab", { name: "Explorador" }).click();
+  await expect(panel.getByRole("radio", { name: "Temporales" })).toBeChecked();
 
   // Its changes, already unfolded in the changes panel, with a way back to the file.
   await card.getByRole("button", { name: "Ver cambios" }).click();
