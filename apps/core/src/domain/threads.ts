@@ -7,7 +7,7 @@ import type { Bus } from "../bus.ts";
 import type { ThreadsTable } from "../db/schema.ts";
 import { newId, now, qb, type Sql } from "./sql.ts";
 import { joinModelLogs, moveChatRows } from "./thread-join.ts";
-import { toThread } from "./thread-projection.ts";
+import { toThread as projectThread } from "./thread-projection.ts";
 
 /** A summary that stands for the model log up to `upto`: a new epoch of the thread's context (engine/upkeep.ts). */
 export type Epoch = { upto: number; summary: string; untrusted: boolean; runs: number; at: string };
@@ -208,6 +208,41 @@ export const previewOf = (text: string) =>
     .slice(0, PREVIEW_CHARS);
 
 export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (thread: string) => void = () => {}) {
+  function inheritedTask(parent: string | null): string | undefined {
+    if (!parent) return undefined;
+    // Stop at the nearest explicit task; UNION also terminates malformed parent cycles.
+    return (
+      one(
+        qb
+          .withRecursive("ancestors", (db) =>
+            db
+              .selectFrom("threads as t")
+              .leftJoin("tasks as task", "task.thread_id", "t.id")
+              .select(["t.id", "t.parent_id"])
+              .select((eb) => eb.fn.coalesce("t.task_id", "task.id").as("task_id"))
+              .where("t.id", "=", parent)
+              .union((db) =>
+                db
+                  .selectFrom("threads as t")
+                  .innerJoin("ancestors as a", "a.parent_id", "t.id")
+                  .leftJoin("tasks as task", "task.thread_id", "t.id")
+                  .select(["t.id", "t.parent_id"])
+                  .select((eb) => eb.fn.coalesce("t.task_id", "task.id").as("task_id"))
+                  .where("a.task_id", "is", null),
+              ),
+          )
+          .selectFrom("ancestors")
+          .select("task_id")
+          .where("task_id", "is not", null)
+          .limit(1),
+      )?.task_id ?? undefined
+    );
+  }
+  const toThread = (row: Parameters<typeof projectThread>[0]): Thread =>
+    projectThread({
+      ...row,
+      task_id: row.task_id ?? (row.kind === "code" && row.engine ? inheritedTask(row.parent_id) : null) ?? null,
+    });
   const repo = {
     list(
       opts: {
@@ -412,9 +447,35 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
     },
     /** The chats a task is worked in, oldest first. */
     byTask(taskId: string): Thread[] {
-      return all(qb.selectFrom("threads").selectAll().where("task_id", "=", taskId).orderBy("created_at")).map(
-        toThread,
-      );
+      return all(
+        qb
+          .withRecursive("task_threads", (db) =>
+            db
+              .selectFrom("threads as t")
+              .leftJoin("tasks as task", "task.thread_id", "t.id")
+              .select("t.id")
+              .where((eb) => eb(eb.fn.coalesce("t.task_id", "task.id"), "=", taskId))
+              .union((db) =>
+                db
+                  .selectFrom("threads as t")
+                  .innerJoin("task_threads as p", "p.id", "t.parent_id")
+                  .leftJoin("tasks as task", "task.thread_id", "t.id")
+                  .select("t.id")
+                  .where("t.task_id", "is", null)
+                  .where((eb) => eb.or([eb("task.id", "is", null), eb("task.id", "=", taskId)])),
+              ),
+          )
+          .selectFrom("threads")
+          .innerJoin("task_threads", "task_threads.id", "threads.id")
+          .selectAll("threads")
+          .where((eb) =>
+            eb.or([
+              eb("threads.task_id", "=", taskId),
+              eb.and([eb("threads.kind", "=", "code"), eb("threads.engine", "is not", null)]),
+            ]),
+          )
+          .orderBy("threads.created_at"),
+      ).map((row) => projectThread({ ...row, task_id: taskId }));
     },
     /** The thread of a channel conversation. */
     byConversation(channel: string, conversation: string): Thread | undefined {
@@ -448,7 +509,7 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
           agent_ids: JSON.stringify(t.agent_ids),
           project_id: t.project_id ?? null,
           parent_id: t.parent_id ?? null,
-          task_id: t.task_id ?? null,
+          task_id: t.task_id ?? (t.kind === "code" && t.engine ? inheritedTask(t.parent_id ?? null) : null) ?? null,
           session: t.session ?? null,
           cwd: t.cwd ?? null,
           write_policy: t.write ?? null,

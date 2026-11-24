@@ -34,7 +34,7 @@ const thread = (id: string, extra: Partial<Thread> = {}): Thread =>
 const rows = (threads: Record<string, Thread>, opts: Parameters<typeof inboxEntries>[1] = {}) =>
   inboxEntries(threads, opts).flatMap((e) => (e.kind === "thread" ? [e.thread.id] : e.threads.map((t) => t.id)));
 
-test("a tool-started external session stays listed in its registered project", () => {
+test("a tool-started external session stays in its task even without its parent loaded", () => {
   const threads = {
     home: thread("home", { kind: "task" }),
     session: thread("session", {
@@ -43,6 +43,8 @@ test("a tool-started external session stays listed in its registered project", (
       project_id: "p_acme",
       parent_id: "home",
       cwd: "/different/folder",
+      task_id: "task_inventory",
+      unread: 2,
     }),
     internal: thread("internal", { kind: "code", project_id: "p_acme", parent_id: "home" }),
   };
@@ -51,9 +53,17 @@ test("a tool-started external session stays listed in its registered project", (
     listedThreads(threads, { projectId: "p_acme" }).map((t) => t.id),
     ["session"],
   );
+  const entries = inboxEntries({ session: threads.session }, { projectId: "p_acme" });
+  assert.equal(entries[0]?.kind, "task");
   assert.deepEqual(
-    archivedThreads({ session: { ...threads.session, archived: true } }, { projectId: "p_acme" }).map((t) => t.id),
-    ["session"],
+    entries.flatMap((e) => (e.kind === "task" ? [e.taskId] : [])),
+    ["task_inventory"],
+  );
+  assert.deepEqual(unreadUnder(threads, [threads.session]), ["session"]);
+  assert.deepEqual(
+    archivedThreads({ session: { ...threads.session, archived: true } }, { projectId: "p_acme" }),
+    [],
+    "an archived task session does not leak back into Chats",
   );
 });
 

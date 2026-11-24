@@ -107,7 +107,7 @@ export const unreadWhere = (threads: Record<string, Thread>, keep: (t: Thread) =
 
 /** The archived chats, most recent first: shown apart, under Archived. */
 export function archivedThreads(threads: Record<string, Thread>, opts: Filter): Thread[] {
-  return visible(threads, opts, (t) => !!t.archived && isTopLevel(t)).sort(newest);
+  return visible(threads, opts, (t) => !!t.archived && !t.task_id && isTopLevel(t)).sort(newest);
 }
 
 /** A row of a chat list: a chat, or (`task`) every chat the agents keep for one task, together. */
