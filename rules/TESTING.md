@@ -233,7 +233,9 @@ pnpm verify:mac                    # on the Mac: what Linux cannot prove (native
 Each branch has one run at a time; several branches run side by side, each capped at `APX_REMOTE_CPUS` (24) and
 `APX_REMOTE_MEMORY` (40g). In the box the unit tests run in `APX_REMOTE_SHARDS` (4) parts at once
 (`APX_TEST_SHARDS`, `node scripts/test-shard.ts all/4`), since the core's own run goes one file at a time. The screen is a desktop on `:99` inside the box: Electron and anything headed shows there;
-its VNC port only listens on the machine's loopback, reached through the tunnel. `APX_SECRETS=file` is set in the box.
+its VNC port only listens on the machine's loopback, reached through the tunnel. `APX_SECRETS=file`, `APX_TELEMETRY=off` and `DO_NOT_TRACK=1` are set in the box, so no core started there counts as an
+install in telemetry; `DO_NOT_TRACK` also reaches a core the desktop app starts, which passes it no `APX_*` variable.
+A scratch core started by hand sets the same three (`APX_SECRETS=file APX_TELEMETRY=off DO_NOT_TRACK=1`).
 The box runs under the `apx-remote` AppArmor profile (`scripts/remote/apparmor`, installed by `setup` with sudo) and
 without Docker's seccomp filter, so the core's headless Chromium keeps its sandbox; `--init` reaps the processes tests
 orphan, as their process-tree checks expect.

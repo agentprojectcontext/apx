@@ -24,6 +24,8 @@ const launch = (env: Record<string, string> = {}) =>
     XDG_CONFIG_HOME: path.join(home, ".config"),
     APX_DESKTOP_DATA: path.join(home, "desktop"),
     APX_QUIT_CONFIRM: "off",
+    APX_TELEMETRY: "off",
+    DO_NOT_TRACK: "1",
     APX_URL: "",
     APX_HOME: coreHome,
     APX_PORT: process.env.E2E_PORT ?? "7460",
