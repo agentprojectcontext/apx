@@ -224,16 +224,9 @@ export function unitAreas(files: readonly string[], max = AREA_FILES): UnitArea[
   });
 }
 
-/** The unit suites, area by area, then the mobile app's own; their coverage lands in `raw` and `nativeOutput`. */
-function runUnitSuites(
-  root: string,
-  raw: string,
-  nativeOutput: string,
-  snapshot: (directory: string) => void,
-  prebuilt: boolean,
-) {
-  const failedAreas: string[] = [];
-  const allTests = testFiles(root).filter(
+/** The Node unit test files the unit part runs (absolute): every package's own, so verify need not run them again. */
+export function unitTestFiles(root: string): string[] {
+  return testFiles(root).filter(
     (file) =>
       file.includes(".test.") &&
       !file.startsWith(path.join(root, "e2e")) &&
@@ -243,6 +236,18 @@ function runUnitSuites(
       // The extension's tests run through its own runner, which hides the agent CLIs this computer has.
       !file.startsWith(path.join(root, "apps/chrome-extension")),
   );
+}
+
+/** The unit suites, area by area, then the mobile app's own; their coverage lands in `raw` and `nativeOutput`. */
+function runUnitSuites(
+  root: string,
+  raw: string,
+  nativeOutput: string,
+  snapshot: (directory: string) => void,
+  prebuilt: boolean,
+) {
+  const failedAreas: string[] = [];
+  const allTests = unitTestFiles(root);
   // UI tests consume the public build, including JSX and the design-system export boundary.
   if (!prebuilt) {
     const build = spawnSync(process.execPath, ["scripts/build.mjs"], {

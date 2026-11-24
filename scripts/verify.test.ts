@@ -3,6 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { tempDir } from "../apps/core/src/testkit/platform.ts";
+import { unitTestFiles } from "./test-coverage.ts";
+import { suites } from "./test-shard.ts";
 import { clock, expand, plans, progress, readHistory, runSteps, type Step, statusLine } from "./verify.ts";
 
 const CLEAR = "\r\x1b[2K";
@@ -54,8 +56,9 @@ test("a plan expands chained root scripts into their parts, in order, without re
     scripts: Record<string, string>;
   };
   const verify = expand(plans(0).verify ?? [], root.scripts).map((s) => s.command);
-  const preflight = expand(plans(0).preflight ?? [], root.scripts).map((s) => s.command);
-  assert.deepEqual(verify.slice(0, preflight.length), preflight);
+  const statics = expand(["pnpm preflight:static"], root.scripts).map((s) => s.command);
+  assert.deepEqual(verify.slice(0, statics.length), statics, "verify starts with every check preflight makes");
+  assert.ok(!verify.includes("pnpm -r --if-present test"), "unit tests run once, in coverage");
   assert.ok(verify.includes("pnpm test:coverage:all"));
   assert.ok(verify.includes("pnpm test:chrome-extension:browser"));
   const browserGate = verify.indexOf("pnpm test:chrome-extension:browser");
@@ -66,13 +69,32 @@ test("a plan expands chained root scripts into their parts, in order, without re
   assert.ok(!verify.some((c) => /scripts\/verify\.ts/.test(c)), "the runner never runs itself");
 });
 
-test("a machine that splits the unit tests runs coverage's parts at once too, in the same place in the plan", () => {
+test("a machine that splits the unit tests runs coverage's parts side by side, in the same place in the plan", () => {
   const one = plans(0).verify ?? [];
-  const split = plans(4).verify ?? [];
-  assert.deepEqual(split.slice(0, 2), ["pnpm preflight:static", "pnpm check:tests"]);
-  assert.ok(split.includes("node scripts/test-shard.ts all/4"));
-  assert.equal(split.indexOf("node scripts/coverage-parallel.ts"), one.indexOf("pnpm test:coverage:all") + 1);
+  const split = plans(8).verify ?? [];
+  assert.ok(plans(8).preflight?.includes("node scripts/test-shard.ts all/8"));
+  assert.ok(!split.some((c) => c.includes("test-shard")), "verify's unit tests run in coverage");
+  assert.equal(split.indexOf("node scripts/coverage-parallel.ts"), one.indexOf("pnpm test:coverage:all"));
   assert.ok(!split.includes("pnpm test:coverage:all"));
+});
+
+test("coverage's unit part runs every unit test file preflight runs, so verify loses none by running them once", () => {
+  const root = path.join(import.meta.dirname, "..");
+  const covered = new Set(unitTestFiles(root).map((f) => path.relative(root, f)));
+  const missing: string[] = [];
+  for (const s of suites(root)) {
+    if ("whole" in s) continue;
+    for (const f of s.files) {
+      const file = path.relative(root, path.resolve(root, s.dir, f));
+      if (!covered.has(file)) missing.push(file);
+    }
+  }
+  assert.deepEqual(missing, []);
+  // Run whole by preflight: the phone app's (its Jest screens run in coverage too) and the repo scripts' own.
+  const whole = suites(root).flatMap((s) => ("whole" in s ? [s.dir] : []));
+  assert.deepEqual(whole.sort(), [".", "apps/mobile"].sort());
+  assert.ok([...covered].some((f) => f.startsWith(`apps${path.sep}mobile${path.sep}src`)));
+  assert.ok([...covered].some((f) => f.startsWith(`scripts${path.sep}`)));
 });
 
 test("steps run in order, the first failure stops the run with its exit code", async (t) => {

@@ -172,7 +172,7 @@ Every Playwright run (coverage or not) picks free loopback ports and a run id in
 Local browser coverage runs the same six Playwright shards as CI sequentially, replaying setup for each shard
 and merging their counters into the same report. An explicit `--part=web --shard=i/6` still runs only that part.
 `node scripts/coverage-parallel.ts` runs CI's eight parts (unit, panel in six, desktop) side by side on one machine
-instead, four at a time (`APX_COVERAGE_JOBS`; all eight at once start six cores and Chromiums in the same second and the
+instead, five at a time (`APX_COVERAGE_JOBS`; all eight at once start six cores and Chromiums in the same second and the
 setup each panel part replays misses its budget). It makes the coverage builds once (panel, Worker, desktop), starts
 each part with `--together` (no part rebuilds a
 `dist/` another is reading, and each keeps Playwright's results in `coverage/all/parts/<part>/test-results`), writes
@@ -212,11 +212,13 @@ While developing against a scratch state, set `APX_HOME` to a temp dir so `~/.ap
 ## 5. All at once
 ```bash
 pnpm preflight                     # check:private, check:decisions, check:since, check:schema, check:design-sync, lint, check:ui, check:dead, typecheck, unit tests
-pnpm verify                        # preflight, all-suite execution coverage, then lightness budgets
+pnpm verify                        # static checks, all-suite execution coverage (unit tests run there), then lightness budgets
 pnpm verify --stream               # the same, with every step's output as it runs
 ```
 Both run through `scripts/verify.ts`, which expands the root scripts they name (`preflight:static`, `test`,
-`test:coverage:all`) into steps and stops at the first failure with its exit code. In a terminal it keeps one status
+`test:coverage:all`) into steps and stops at the first failure with its exit code. Verify does not run preflight's unit
+tests first: coverage's unit part runs every file they do (`unitTestFiles`, checked in `scripts/verify.test.ts`) plus the
+phone app's, so a unit failure shows there. In a terminal it keeps one status
 line: step k of N, a bar, time for the step and in total, and the time left estimated from each step's last passing
 duration (`node_modules/.cache/apx-verify/history.json`; none on the first run). The steps' output goes to
 `node_modules/.cache/apx-verify/logs/`, and only a failing step's is shown. Outside a terminal (CI, a log file) or with
@@ -240,9 +242,9 @@ pnpm remote stop [branch]
 pnpm verify:mac                    # on the Mac: what Linux cannot prove (native pointer, desktop app's macOS paths)
 ```
 Each branch has one run at a time; several branches run side by side, each capped at `APX_REMOTE_CPUS` (24) and
-`APX_REMOTE_MEMORY` (40g). In the box the unit tests run in `APX_REMOTE_SHARDS` (4) parts at once
-(`APX_TEST_SHARDS`, `node scripts/test-shard.ts all/4`), since the core's own run goes one file at a time, and
-verify runs coverage's eight parts four at a time (`node scripts/coverage-parallel.ts`) instead of one after another. The screen is a desktop on `:99` inside the box: Electron and anything headed shows there;
+`APX_REMOTE_MEMORY` (40g). In the box the unit tests run in `APX_REMOTE_SHARDS` (8) parts at once
+(`APX_TEST_SHARDS`, `node scripts/test-shard.ts all/8`), since the core's own run goes one file at a time, and
+verify runs coverage's eight parts five at a time (`node scripts/coverage-parallel.ts`) instead of one after another. The screen is a desktop on `:99` inside the box: Electron and anything headed shows there;
 its VNC port only listens on the machine's loopback, reached through the tunnel. `APX_SECRETS=file`, `APX_TELEMETRY=off` and `DO_NOT_TRACK=1` are set in the box, so no core started there counts as an
 install in telemetry; `DO_NOT_TRACK` also reaches a core the desktop app starts, which passes it no `APX_*` variable.
 A scratch core started by hand sets the same three (`APX_SECRETS=file APX_TELEMETRY=off DO_NOT_TRACK=1`).

@@ -26,8 +26,9 @@ export function plans(shards: number): Record<string, string[]> {
   const preflight = ["pnpm preflight:static", ...tests];
   return {
     preflight,
+    // Coverage's unit part runs every unit test preflight runs (and the phone app's), so verify runs them once, there.
     verify: [
-      ...preflight,
+      "pnpm preflight:static",
       "pnpm build:web",
       "pnpm test:chrome-extension:browser",
       coverage,
