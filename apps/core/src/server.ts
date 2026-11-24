@@ -319,6 +319,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       providers: providers.active,
       secrets,
       firstByteMs: config.llmTimeoutMs,
+      ...(config.llmRetryMs ? { retryDelayMs: config.llmRetryMs } : {}),
       media: (id) => mediaData(store, id),
       signIns,
     });

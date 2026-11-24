@@ -110,6 +110,8 @@ const core = spawn(process.execPath, ["--no-warnings", "--import", hook, path.jo
     APX_LLM_MODELS: "fake-1,fake-2",
     // The model list is asked again after a passing failure, here after a blink instead of 5s, 15s and 45s.
     APX_STEP_PATIENCE_MS: "20,40",
+    // Each model is tried again from 10ms on instead of 0.8s, so a dropped connection fails within a spec's wait.
+    APX_LLM_RETRY_MS: "10",
     APX_TELEGRAM_API: tg.url,
     APX_DISCORD_API: dc.urls.api,
     APX_DISCORD_GATEWAY: dc.urls.gateway,

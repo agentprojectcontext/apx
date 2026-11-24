@@ -83,6 +83,8 @@ necesita un reinicio.
 | `APX_APP` | `~/.apx/v2/app` | Donde el script de instalación pone el paquete (sus versiones y `current`). |
 | `APX_AGENT_NAME` | uno al azar | El nombre de Home en una instalación nueva. |
 | `APX_LLM_TIMEOUT_MS` | `45000` | Cuánto espera el core el primer byte de la respuesta de un modelo. |
+| `APX_LLM_RETRY_MS` | `800` | Primera espera antes de volver a probar un modelo que falló por algo pasajero; se duplica en cada intento. |
+| `APX_STEP_PATIENCE_MS` | `5000,15000,45000` | Esperas antes de volver a preguntarle a toda la lista de modelos cuando todos fallaron por algo pasajero. |
 | `APX_IMESSAGE` | prendido | `off` esconde las herramientas de iMessage (solo Mac). |
 | `APX_HEADLESS` | prendido | `off`: sin Chrome sin ventana cuando ninguna app de escritorio presta un navegador. |
 | `APX_CHROME` | lo busca solo | El binario de Chrome, Chromium o Edge para el navegador sin ventana. |
