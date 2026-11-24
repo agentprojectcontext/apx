@@ -1,7 +1,7 @@
 import "../styles/panel-parts.css";
 import "../styles/screens.css";
 import { SegmentedControl } from "@apx/ui";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { client } from "../data/client.ts";
 import { relativeInside } from "../data/paths.ts";
 import { useT } from "../i18n/index.ts";
@@ -42,24 +42,23 @@ export function ChatFiles({
   // A file asked for from the chat: a temp file is named from the temp folder itself; another by its full path, which
   // may be in a folder inside the chat's.
   const asked = useNav((s) => s.panelFile);
+  // The ask is cleared as soon as it is taken, so the folder's answer is matched to the latest ask, not to the effect.
+  const lastAsk = useRef(0);
   // biome-ignore lint/correctness/useExhaustiveDependencies: only a new ask opens a file.
   useEffect(() => {
     if (!asked) return;
     nav.set({ panelFile: undefined });
+    const ask = ++lastAsk.current;
     const s: Scope = asked.scratch ? "temp" : "chat";
     setScope(s);
     if (asked.scratch) return setActive(tabId(s, asked.path));
-    let live = true;
     client.call("files.tree", { ...where(s), dir: "" }).then(
       (r) => {
         const rel = relativeInside(r.root, `${asked.cwd}/${asked.path}`);
-        if (live && rel) setActive(tabId(s, rel));
+        if (ask === lastAsk.current && rel) setActive(tabId(s, rel));
       },
       () => {},
     );
-    return () => {
-      live = false;
-    };
   }, [asked]);
 
   // A rename or a trash in the tree: its tabs follow the new name, or close.

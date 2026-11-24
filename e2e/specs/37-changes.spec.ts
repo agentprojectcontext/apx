@@ -78,6 +78,15 @@ test("cambios: lista unificada, diff expandible en vivo, historial y registros a
     await expect(code.locator(".diff")).toHaveCount(0);
     await code.getByRole("button", { name: /src\/app\.ts/ }).click();
     await page.screenshot({ path: "/tmp/apx-changes.png", fullPage: true });
+    // A file in the chat's folder, from the turn's card: open in its own tab in Files, not just the Explorer.
+    await page
+      .locator(".transcript .changes__file")
+      .filter({ hasText: "src/app.ts" })
+      .getByRole("button", { name: "Ver archivo" })
+      .click();
+    await expect(panel.getByRole("tab", { name: "app.ts" })).toHaveAttribute("aria-selected", "true");
+    await expect(panel.locator(".files__path")).toHaveText("src/app.ts");
+    await page.goto(`${env.core.url}/#thread=${thread.id}&panel=changes`);
     await env.client.call("threads.send", { thread: thread.id, text: "single" });
     await env.settle(thread.id);
     await expect(panel.getByRole("tab", { name: "Archivos (1)" })).toBeVisible();
