@@ -1,4 +1,16 @@
+import type { Locator, Page } from "@playwright/test";
 import { expect, open, rpc, test } from "./kit.ts";
+
+/** Hovers until the usage tip shows: top-bar controls that load later can move the trigger from under the pointer. */
+async function hoverTip(page: Page, trigger: Locator): Promise<Locator> {
+  const tip = page.locator(".engine-usage-tip");
+  await expect(async () => {
+    await page.mouse.move(0, 0);
+    await trigger.hover();
+    await expect(tip).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 7_000 });
+  return tip;
+}
 
 const claude = () => ({
   checked_at: new Date().toISOString(),
@@ -34,8 +46,7 @@ test("a plan with two limits shows the tightest one and lists both", async ({ pa
   await open(page);
   const trigger = page.getByTestId("engine-usage-button");
   await expect(trigger.getByTestId("engine-usage-quick")).toHaveText("13%");
-  await trigger.hover();
-  const tip = page.locator(".engine-usage-tip");
+  const tip = await hoverTip(page, trigger);
   await expect(tip).toContainText("Claude · Sesión (5 h) · 85% disponible · Se reinicia en 2 h");
   await expect(tip).toContainText("Claude · Semanal · 13% disponible · Se reinicia el");
   await page.screenshot({ path: info.outputPath("desktop-hover.png") });
@@ -58,6 +69,6 @@ test("a plan with one limit looks as before", async ({ page }) => {
   await open(page);
   const trigger = page.getByTestId("engine-usage-button");
   await expect(trigger.getByTestId("engine-usage-quick")).toHaveText("85%");
-  await trigger.hover();
-  await expect(page.locator(".engine-usage-tip")).not.toContainText("Semanal");
+  const tip = await hoverTip(page, trigger);
+  await expect(tip).not.toContainText("Semanal");
 });
