@@ -1,8 +1,27 @@
 import { say, scriptedLlm, startCore } from "../../apps/core/src/engine/testkit.ts";
 import { expect, test } from "./kit.ts";
 
-for (const width of [1280, 390]) {
-  test(`task sections fold without indentation and keep task sessions out of Chats at ${width}px`, async ({
+for (const [width, lang] of [
+  [1280, "es"],
+  [390, "es"],
+  [1280, "en"],
+  [390, "en"],
+] as const) {
+  const labels =
+    lang === "es"
+      ? {
+          back: "Volver a los chats",
+          tasks: /^Tareas/,
+          sections: ["En curso", "Te esperan", "Pendientes", "Descartadas", "Listo"],
+          search: "Buscar chats",
+        }
+      : {
+          back: "Back to the chats",
+          tasks: /^Tasks/,
+          sections: ["In progress", "Waiting for you", "Pending", "Dropped", "Done"],
+          search: "Search chats",
+        };
+  test(`task sections fold without indentation and keep task sessions out of Chats at ${width}px in ${lang}`, async ({
     page,
   }, info) => {
     const env = await startCore({ port: 0, llm: scriptedLlm(() => say("Ready.")) });
@@ -49,50 +68,59 @@ for (const width of [1280, 390]) {
         body: JSON.stringify({ url: env.core.url, code_sha: health.code_sha }),
         contentType: "application/json",
       });
-      await page.goto(`${env.core.url}/?lang=es`);
-      if (width < 600) await page.getByRole("button", { name: "Volver a los chats", exact: true }).click();
+      await page.goto(`${env.core.url}/?lang=${lang}`);
+      if (width < 600) await page.getByRole("button", { name: labels.back, exact: true }).click();
       const inbox = page.getByRole("region", { name: "Inbox", exact: true });
-      await inbox.getByRole("radio", { name: /^Tareas/ }).click();
-      await expect(inbox.locator(".inboxsec__heading")).toHaveText([
-        "En curso1",
-        "Te esperan1",
-        "Pendientes2",
-        "Descartadas1",
-        "Listo2",
-      ]);
+      await inbox.getByRole("radio", { name: labels.tasks }).click();
+      await expect(inbox.locator(".inboxsec__heading")).toHaveText(
+        labels.sections.map((label, i) => `${label}${[1, 1, 2, 1, 2][i]}`),
+      );
       const sections = inbox.locator("section.inboxsec");
       for (const section of await sections.all())
         await expect(section.locator(".inboxsec__tasktoggle")).toHaveAttribute("aria-expanded", "true");
-      const done = inbox.getByRole("region", { name: "Listo", exact: true });
-      const toggle = done.getByRole("button", { name: "Listo 2", exact: true });
+      const done = inbox.getByRole("region", { name: labels.sections[4], exact: true });
+      const toggle = done.getByRole("button", { name: `${labels.sections[4]} 2`, exact: true });
       await toggle.focus();
       await page.keyboard.press("Space");
       await expect(toggle).toHaveAttribute("aria-expanded", "false");
       await expect(done.locator(".taskbundle").first()).not.toBeVisible();
       await page.keyboard.press("Enter");
       await expect(toggle).toHaveAttribute("aria-expanded", "true");
+      await expect(inbox.locator(".taskbundle > .threadrow-wrap")).toHaveCount(7);
       const x = await inbox
         .locator(".taskbundle > .threadrow-wrap")
         .evaluateAll((rows) => rows.map((row) => row.getBoundingClientRect().x));
       expect(x.length).toBe(7);
       expect(new Set(x).size).toBe(1);
       expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
-      await page.screenshot({ path: info.outputPath(`tasks-${width}.png`), fullPage: true });
+      await page.screenshot({ path: info.outputPath(`tasks-${width}-${lang}.png`), fullPage: true });
       await toggle.click();
       await page.evaluate((thread) => {
         location.hash = `thread=${thread}`;
       }, work["Inventory done"]);
-      if (width < 600)
-        await page
-          .getByRole("button", { name: /Volver/ })
-          .first()
-          .click();
+      if (width < 600) await page.getByRole("button", { name: labels.back, exact: true }).first().click();
       await expect(toggle).toHaveAttribute("aria-expanded", "true");
       await expect(done.locator(".taskbundle").filter({ hasText: "Inventory done" }).first()).toBeVisible();
       await inbox.getByRole("radio", { name: /^Chats/ }).click();
       await expect(inbox.locator(".threadrow", { hasText: "Inventory external session" })).toHaveCount(0);
-      await inbox.getByRole("radio", { name: /^Tareas/ }).click();
-      await expect(inbox.locator(".taskbundle", { hasText: "Inventory pending" })).toHaveCount(1);
+      await inbox.getByRole("radio", { name: labels.tasks }).click();
+      const pending = inbox.locator(".taskbundle", { hasText: "Inventory pending" });
+      await expect(pending).toHaveCount(1);
+      await pending.locator(".inboxtask").click();
+      await expect(page).toHaveURL(new RegExp(`thread=${code.id}`));
+      if (width < 600) {
+        await page
+          .getByRole("button", { name: lang === "es" ? "Volver al chat" : "Back to the chat", exact: true })
+          .click();
+        await page.getByRole("button", { name: labels.back, exact: true }).click();
+      }
+      await inbox.getByRole("button", { name: labels.search, exact: true }).click();
+      await inbox.getByRole("searchbox").fill("Inventory pending");
+      await expect(inbox.locator(".inboxsec__heading")).toHaveText([`${labels.sections[2]}1`]);
+      await inbox.getByRole("searchbox").fill("No matching inventory");
+      await expect(inbox.locator(".inboxsec__heading")).toHaveCount(0);
+      await expect(inbox.locator(".apx-empty__title")).toHaveText(lang === "es" ? "Sin resultados" : "No results");
+      await page.screenshot({ path: info.outputPath(`tasks-empty-${width}-${lang}.png`), fullPage: true });
       expect(errors).toEqual([]);
     } finally {
       await page.goto("about:blank");
