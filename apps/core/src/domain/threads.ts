@@ -328,6 +328,7 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
               .select(sql<number>`row_number() over (partition by parent_id order by updated_at desc)`.as("rank"))
               // One statement whatever the number of parents: a JSON array, not a list of placeholders.
               .where(sql<boolean>`parent_id in (select value from json_each(${JSON.stringify(parents)}))`)
+              .where("kind", "in", ["a2a", "agent"])
               .where("archived", "=", 0)
               .as("d"),
           )
@@ -344,6 +345,7 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
           .selectFrom("threads")
           .select(["parent_id", (eb) => eb.fn.countAll<number>().as("n")])
           .where(sql<boolean>`parent_id in (select value from json_each(${JSON.stringify(parents)}))`)
+          .where("kind", "in", ["a2a", "agent"])
           .where("archived", "=", 0)
           .groupBy("parent_id"),
       );
@@ -356,6 +358,7 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
           .selectFrom("threads as c")
           .innerJoin("threads as p", "p.id", "c.parent_id")
           .selectAll("c")
+          .where("c.kind", "in", ["a2a", "agent"])
           .where("c.archived", "=", 0)
           .where("c.project_id", "is not", null)
           .where((eb) => eb.or([eb("p.project_id", "is", null), eb("p.project_id", "!=", eb.ref("c.project_id"))]))

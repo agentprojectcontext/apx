@@ -33,6 +33,10 @@ export function projectName(projects: Project[], id: string | undefined): string
 /** The base project's name as the owner set it ("Default" until then): the label of what has no project. */
 export const baseName = (): string => data.get().base.name;
 
+/** Chats displayed under their caller; external sessions keep their own row in their task or Chats. */
+export const isDelegated = (t: Pick<Thread, "kind" | "parent_id" | "archived">) =>
+  (t.kind === "a2a" || t.kind === "agent") && !!t.parent_id && !t.archived;
+
 /** Delegated chats shown under their caller before "N more" (and how many the list loads per chat). */
 export const DELEGATED_SHOWN = 5;
 

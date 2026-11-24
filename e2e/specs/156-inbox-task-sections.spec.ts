@@ -1,6 +1,69 @@
 import { say, scriptedLlm, startCore } from "../../apps/core/src/engine/testkit.ts";
 import { expect, test } from "./kit.ts";
 
+for (const width of [1280, 390]) {
+  test(`mixed external sessions and delegated chats expand without phantom counts at ${width}px`, async ({
+    page,
+  }, info) => {
+    const env = await startCore({ port: 0, llm: scriptedLlm(() => say("Ready.")) });
+    try {
+      await env.client.call("setup.finish", {});
+      const task = await env.client.call("tasks.create", { title: "Mixed session task", status: "doing" });
+      for (let i = 0; i < 6; i++)
+        env.core.store.threads.create({
+          kind: i === 0 ? "agent" : "a2a",
+          title: `Helper ${i}`,
+          agent_ids: ["superagent"],
+          parent_id: task.thread_id,
+        });
+      const sessions = ["Earlier external session", "Latest external session"].map((title) =>
+        env.core.store.threads.create({
+          kind: "code",
+          engine: "claude",
+          title,
+          agent_ids: ["superagent"],
+          parent_id: task.thread_id,
+        }),
+      );
+      for (const [i, session] of sessions.entries())
+        env.core.store.threads.settle(session.id, `209${i + 8}-01-01T00:00:00.000Z`, session.title);
+      await info.attach("runtime", {
+        body: JSON.stringify(await env.client.call("system.health", {})),
+        contentType: "application/json",
+      });
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(`${env.core.url}/?lang=es`);
+      if (width < 600) await page.getByRole("button", { name: "Volver a los chats", exact: true }).click();
+      const inbox = page.getByRole("region", { name: "Inbox", exact: true });
+      await inbox.getByRole("radio", { name: /^Tareas/ }).click();
+      const bundle = inbox.locator(".taskbundle", { hasText: "Mixed session task" });
+      await expect(bundle).toHaveCount(1);
+      await expect(bundle.locator(".inboxtask__count").first()).toHaveText("8");
+      const fold = bundle.locator(":scope > .threadrow-wrap .rowfold");
+      await fold.click();
+      await expect(bundle.locator(".tree__session")).toHaveCount(6);
+      const more = bundle.getByRole("button", { name: "Ver 1 más", exact: true });
+      await expect(more).toBeVisible();
+      await more.click();
+      await expect(bundle.locator(".tree__session")).toHaveCount(7);
+      await expect(bundle.locator(".tree__more")).toHaveCount(0);
+      await expect(bundle.locator(".inboxtask__count").first()).toHaveText("8");
+      await expect(bundle.getByRole("button", { name: /Earlier external session/ })).toHaveCount(1);
+      await page.screenshot({ path: info.outputPath(`mixed-expanded-${width}.png`), fullPage: true });
+      await fold.click();
+      await expect(bundle.locator(".tree__session")).toHaveCount(0);
+      await fold.click();
+      await expect(bundle.locator(".tree__session")).toHaveCount(6);
+      await bundle.getByRole("button", { name: /Earlier external session/ }).click();
+      await expect(page).toHaveURL(new RegExp(`thread=${sessions[0]?.id}`));
+    } finally {
+      await page.goto("about:blank");
+      await env.core.close();
+      await env.cleanup();
+    }
+  });
+}
+
 for (const [width, lang] of [
   [1280, "es"],
   [390, "es"],

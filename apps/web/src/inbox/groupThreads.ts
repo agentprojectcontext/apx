@@ -1,15 +1,10 @@
 import type { Thread } from "@apx/protocol";
-import { inInbox, inProject, isTopLevel } from "../data/identity.ts";
+import { inInbox, inProject, isDelegated, isTopLevel } from "../data/identity.ts";
+
+export { isDelegated } from "../data/identity.ts";
 
 /** `routines`: routine runs that told something are listed too. */
 type Filter = { projectId?: string; query?: string; routines?: boolean };
-
-/**
- * A chat that hangs under the chat it came from: one an agent delegated, or what a call asked the super-agent (an
- * agent's chat inside the call).
- */
-export const isDelegated = (t: Pick<Thread, "kind" | "parent_id" | "archived">) =>
-  (t.kind === "a2a" || t.kind === "agent") && !!t.parent_id && !t.archived;
 
 const delegatedCache = new WeakMap<Record<string, Thread>, Map<string, Thread[]>>();
 
