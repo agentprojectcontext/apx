@@ -7,7 +7,7 @@ import { after, before, test } from "node:test";
 import { type BrowserFillSecret, SCOPE_METHODS, siteAllowed } from "@apx/protocol";
 import { ApxClient, type ApxSocket } from "@apx/protocol/client";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
-import { waitFor } from "../testkit/platform.ts";
+import { filesUnder, waitFor } from "../testkit/platform.ts";
 import { totp } from "../totp.ts";
 
 const PASSWORD = "Northwind-hunter2-correct";
@@ -54,15 +54,7 @@ after(async () => {
 
 /** Every file the core keeps, except the test's file store of secret values, holds none of these. */
 function assertNowhere(...values: string[]) {
-  const files: string[] = [];
-  const walk = (dir: string) => {
-    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-      const at = path.join(dir, e.name);
-      if (e.isDirectory()) walk(at);
-      else if (e.name !== "secrets.json") files.push(at);
-    }
-  };
-  walk(env.home);
+  const files = filesUnder(env.home).filter((f) => path.basename(f) !== "secrets.json");
   for (const v of values) {
     for (const f of files) assert.ok(!fs.readFileSync(f).includes(v), `${path.basename(f)} holds a secret's value`);
     assert.ok(!JSON.stringify(llm.calls).includes(v), "a model call carried a secret's value");
