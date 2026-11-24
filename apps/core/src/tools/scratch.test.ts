@@ -8,7 +8,7 @@ import { after, before, test } from "node:test";
 import type { Message } from "@apx/protocol";
 import { z } from "zod";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
-import { realpath } from "../paths.ts";
+import { isInside, realpath, samePath } from "../paths.ts";
 import { removeDir } from "../testkit/platform.ts";
 import { scratchRoot } from "./folders.ts";
 import { untrusted } from "./result.ts";
@@ -76,7 +76,7 @@ test("a project chat writes, runs and sends its temporary files from its temp fo
   assert.equal(runs[0]?.state, "completed");
   assert.deepEqual(asked(messages), []);
   assert.equal(named, path.join(scratchRoot(env.home), t.id));
-  assert.ok(!named.startsWith(env.home) && !named.startsWith(root));
+  assert.ok(!isInside(env.home, named) && !isInside(root, named));
   assert.equal(fs.readFileSync(path.join(named, "numbers.py"), "utf8"), "print(1 + 2 + 3)\n");
   assert.deepEqual(fs.readdirSync(root), [".apc"]);
   const parts = messages.flatMap((m) => m.parts);
@@ -84,7 +84,9 @@ test("a project chat writes, runs and sends its temporary files from its temp fo
   const changes = parts.filter((p) => p.type === "changes");
   assert.equal(changes.length, 1, "temp files are shown, apart from the owner's changes");
   assert.ok(changes[0]?.type === "changes" && changes[0].scratch && changes[0].edits);
-  assert.equal(changes[0]?.type === "changes" && changes[0].cwd, named);
+  // The same temp folder may be named through a link (/var on macOS) or a short name (RUNNER~1 on Windows).
+  const cwd = changes[0]?.type === "changes" ? changes[0].cwd : undefined;
+  assert.ok(cwd && samePath(realpath(cwd), realpath(named)), `${cwd} is ${named}`);
   assert.deepEqual(changes[0]?.type === "changes" && changes[0].files.map((f) => [f.path, f.status, f.added]), [
     ["numbers.py", "A", 1],
   ]);
