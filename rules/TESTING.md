@@ -177,7 +177,8 @@ setup each panel part replays misses its budget). It makes the coverage builds o
 each part with `--together` (no part rebuilds a
 `dist/` another is reading, and each keeps Playwright's results in `coverage/all/parts/<part>/test-results`), writes
 each part's output to `coverage/all/logs/<part>.log`, shows a failing part's last lines, and merges them as CI's
-coverage report does (`--merge --expect-parts=8`). The unit part gets `TEST_TIME_SCALE=2`, as in CI; a part still
+coverage report does (`--merge --expect-parts=8`). The unit part gets `TEST_TIME_SCALE=2`, as in CI, and runs at most
+12 test files at once so the panel parts beside it keep their CPU; a part still
 running after 45 minutes is stopped and fails the run. The remote runner's `verify` uses it.
 Each E2E command retains its 15-minute deadline; a timeout fails the run and stops its owned process tree before
 the next sandbox starts. Failed builds do not run tests against stale output.

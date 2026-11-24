@@ -198,6 +198,9 @@ export const AREA_FILES = 160;
 /** How long one area (or part of one) may run: a slow runner gets room, a hung test still ends the run. */
 const AREA_MS = 10 * 60_000;
 
+/** Test files the unit part runs at once when it shares the machine with panel parts (`--together`). */
+const TOGETHER_CONCURRENCY = 12;
+
 export type UnitArea = { name: string; dir: string; files: string[] };
 
 /**
@@ -263,7 +266,12 @@ function runUnitSuites(
     const cwd = area.dir === "scripts" ? root : path.join(root, area.dir);
     const run = spawnSync(
       process.execPath,
-      ["--test", ...area.files.map((file) => path.relative(cwd, path.join(root, file)))],
+      [
+        "--test",
+        // Beside panel parts (coverage-parallel.ts) all-core concurrency starves their browsers and sandbox cores.
+        ...(prebuilt ? [`--test-concurrency=${TOGETHER_CONCURRENCY}`] : []),
+        ...area.files.map((file) => path.relative(cwd, path.join(root, file))),
+      ],
       {
         cwd,
         env: { ...process.env, NODE_V8_COVERAGE: raw, APX_UI_TEST_COVERAGE_DIR: raw },
