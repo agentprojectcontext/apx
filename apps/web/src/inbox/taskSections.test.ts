@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Task, Thread } from "@apx/protocol";
-import { taskSections } from "./taskSections.ts";
+import { movedSection, sectionOrder, taskSections } from "./taskSections.ts";
 
 const task = (id: string, extra: Partial<Task> = {}): Task => ({
   id,
@@ -54,8 +54,8 @@ test("Inbox task sections keep every state, closed last and activity order withi
       ["doing", ["doing", "running"]],
       ["waiting", ["waiting", "owner-review", "explicit-owner-review", "waiting-proposal"]],
       ["pending", ["agent-review", "proposed", "todo", "custom", "backlog"]],
-      ["dropped", ["dropped"]],
       ["done", ["done"]],
+      ["dropped", ["dropped"]],
     ],
   );
   assert.equal(
@@ -84,4 +84,29 @@ test("missing metadata never hides a task and closed states beat a running sessi
     ],
   );
   assert.deepEqual(taskSections([], { closed }), []);
+});
+
+test("the owner's section order comes first, unknown ids dropped and missing ones after in their default order", () => {
+  assert.deepEqual(sectionOrder([]), ["doing", "waiting", "pending", "done", "dropped"]);
+  assert.deepEqual(sectionOrder(["waiting", "gone", "dropped", "waiting"]), [
+    "waiting",
+    "dropped",
+    "doing",
+    "pending",
+    "done",
+  ]);
+  const tasks = { a: task("a", { status: "doing" }), b: task("b", { awaits_owner: true }), c: task("c") };
+  const entries = ["a", "b", "c"].map((id) => entry(id));
+  assert.deepEqual(
+    taskSections(entries, tasks, ["waiting"]).map((g) => g.id),
+    ["waiting", "doing", "pending"],
+  );
+});
+
+test("a dragged section lands before the one it was dropped on, empty sections keep their place", () => {
+  assert.deepEqual(movedSection([], "waiting", "doing"), ["waiting", "doing", "pending", "done", "dropped"]);
+  assert.deepEqual(movedSection([], "dropped", "done"), ["doing", "waiting", "pending", "dropped", "done"]);
+  // Only doing, pending and done on screen: dropped after the last one on screen.
+  assert.deepEqual(movedSection([], "doing", undefined, "done"), ["waiting", "pending", "done", "doing", "dropped"]);
+  assert.deepEqual(movedSection(["done"], "done", undefined), ["doing", "waiting", "pending", "dropped", "done"]);
 });

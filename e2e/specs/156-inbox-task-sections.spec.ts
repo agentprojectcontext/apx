@@ -75,13 +75,13 @@ for (const [width, lang] of [
       ? {
           back: "Volver a los chats",
           tasks: /^Tareas/,
-          sections: ["En curso", "Te esperan", "Pendientes", "Descartadas", "Listo"],
+          sections: ["En curso", "Te esperan", "Pendientes", "Listo", "Descartadas"],
           search: "Buscar chats",
         }
       : {
           back: "Back to the chats",
           tasks: /^Tasks/,
-          sections: ["In progress", "Waiting for you", "Pending", "Dropped", "Done"],
+          sections: ["In progress", "Waiting for you", "Pending", "Done", "Dropped"],
           search: "Search chats",
         };
   test(`task sections fold without indentation and keep task sessions out of Chats at ${width}px in ${lang}`, async ({
@@ -136,13 +136,13 @@ for (const [width, lang] of [
       const inbox = page.getByRole("region", { name: "Inbox", exact: true });
       await inbox.getByRole("radio", { name: labels.tasks }).click();
       await expect(inbox.locator(".inboxsec__heading")).toHaveText(
-        labels.sections.map((label, i) => `${label}${[1, 1, 2, 1, 2][i]}`),
+        labels.sections.map((label, i) => `${label}${[1, 1, 2, 2, 1][i]}`),
       );
       const sections = inbox.locator("section.inboxsec");
       for (const section of await sections.all())
         await expect(section.locator(".inboxsec__tasktoggle")).toHaveAttribute("aria-expanded", "true");
-      const done = inbox.getByRole("region", { name: labels.sections[4], exact: true });
-      const toggle = done.getByRole("button", { name: `${labels.sections[4]} 2`, exact: true });
+      const done = inbox.getByRole("region", { name: labels.sections[3], exact: true });
+      const toggle = done.getByRole("button", { name: `${labels.sections[3]} 2`, exact: true });
       await toggle.focus();
       await page.keyboard.press("Space");
       await expect(toggle).toHaveAttribute("aria-expanded", "false");

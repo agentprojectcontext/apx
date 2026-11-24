@@ -143,6 +143,8 @@ export const ChannelBundle = lazy(() =>
   import("./inbox/ChannelBundle.tsx").then((m) => ({ default: m.ChannelBundle })),
 );
 export const TaskBundle = lazy(() => import("./inbox/TaskBundle.tsx").then((m) => ({ default: m.TaskBundle })));
+/** The Tasks tab's sections, paging and reordering. */
+export const InboxTasks = lazy(() => import("./inbox/InboxTasks.tsx").then((m) => ({ default: m.InboxTasks })));
 // The Inbox's Calls row, once there is a call.
 export const CallBundle = lazy(() => import("./inbox/CallBundle.tsx").then((m) => ({ default: m.CallBundle })));
 // The call buttons (top bar, the super-agent's chat, a call's chat) show once calls can run here; the card that places

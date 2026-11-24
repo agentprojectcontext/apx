@@ -547,6 +547,7 @@ export const en = {
   "inbox.taskSections.dropped": "Dropped",
   "inbox.taskSections.done": "Done",
   "inbox.taskSections.count": "Tasks in this list",
+  "inbox.taskSections.loading": "Loading tasks",
   "inbox.recent": "Recent",
   "inbox.tabEmpty.tasks": "No task chats here yet",
   "inbox.tabEmpty.routines": "No routine has run yet",

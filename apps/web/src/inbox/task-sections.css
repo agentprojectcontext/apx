@@ -27,3 +27,27 @@
   flex-direction: column;
   gap: 2px;
 }
+.inboxsec__heading {
+  -webkit-touch-callout: none;
+}
+.inboxsec.is-moving {
+  transition: transform var(--apx-duration) ease;
+}
+.inboxsec.is-held {
+  position: relative;
+  z-index: 1;
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-surface-raised);
+  box-shadow: var(--apx-shadow-md);
+  cursor: grabbing;
+}
+.inboxtasks.is-sorting {
+  user-select: none;
+  -webkit-user-select: none;
+}
+.inbox .inboxsec__more {
+  align-self: flex-start;
+  padding: 4px 10px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}

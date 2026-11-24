@@ -532,6 +532,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "inbox.taskSections.dropped": "Descartadas",
   "inbox.taskSections.done": "Listo",
   "inbox.taskSections.count": "Tareas en esta lista",
+  "inbox.taskSections.loading": "Cargando tareas",
   "inbox.recent": "Recientes",
   "inbox.tabEmpty.tasks": "Todavía no hay chats de tareas acá",
   "inbox.tabEmpty.routines": "Ninguna rutina corrió todavía",
