@@ -13,18 +13,28 @@ import { attachmentsOf } from "../data/attachmentDrafts.ts";
 import { useSlice } from "../data/createStore.ts";
 import { draftOf } from "../data/drafts.ts";
 import { useData } from "../data/state.ts";
-import { useT } from "../i18n/index.ts";
+import { usePack, useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { SurfaceFrame } from "./SurfaceFrame.tsx";
 import { asking, close, rememberChat, restartChat } from "./widgetChatActions.ts";
 import { widgetChatOpen as open } from "./widgetChatOpen.ts";
+
+/** Mounted with the shell; its strings load the first time a widget's chat opens, never with the first screen. */
+export function WidgetChatHost() {
+  const threadId = useSlice(open, (s) => s.threadId);
+  return threadId ? <WidgetChatWithStrings /> : null;
+}
+
+function WidgetChatWithStrings() {
+  return usePack("widgetChat") ? <WidgetChat /> : null;
+}
 
 /**
  * The open widget's chat, floating over the page like a task: the widget live on top, the conversation and the
  * composer below, so the owner asks for a change and watches it land. Asking for a new one, the widget the chat makes
  * shows there once it exists (and becomes the widget's chat).
  */
-export function WidgetChatHost() {
+function WidgetChat() {
   const t = useT();
   const { surfaceId, threadId, topic } = useSlice(open, (s) => s);
   const surface = useData((s) => {

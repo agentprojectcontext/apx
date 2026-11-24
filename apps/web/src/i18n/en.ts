@@ -46,6 +46,7 @@ import { enTeamShared } from "./team-shared-en.ts";
 import type { enThreadDialogs } from "./thread-dialogs-en.ts";
 import { enTopbar } from "./topbar-en.ts";
 import type { enVoice } from "./voice-en.ts";
+import type { enWidgetChat } from "./widget-chat-en.ts";
 
 // UI strings, English: the source of truth. Every key lives here; `{name}` placeholders are filled by t().
 export const en = {
@@ -697,17 +698,6 @@ export const en = {
   "artifact.delete.title": "Delete it for good?",
   "widget.delete.body": "It is deleted for good, with what it remembers. The chats that showed it keep their messages.",
   "widget.delete.what": "“{title}” will be deleted.",
-  "widget.chatOf": "Chat of the widget {title}",
-  "widget.chatOpen": "Open the whole chat",
-  "widget.chatNew": "New session for this widget",
-  "widget.chatAgent": "Edit with",
-  "widget.chatDraftTitle": "Open a new chat?",
-  "widget.chatDraftKeep":
-    "Your draft and attachments stay in the current chat. You can return to it from your chat list.",
-  "widget.chatDraftContinue": "Open new chat",
-  "widget.chatDraftCancel": "Keep editing",
-  "widget.chatAgentHint": "Choosing another agent opens a new chat about this widget. Your previous chat stays saved.",
-  "widget.chatSwitching": "Opening chat…",
   "widget.chatOpenError":
     "Could not open the chat. Choose the agent again to retry. Your current chat and draft are unchanged.",
   "widget.chatShort": "Ask for changes",
@@ -2026,6 +2016,7 @@ export type MessageKey =
   | keyof typeof enVoice
   | keyof typeof enSignIn
   | keyof typeof enMove
+  | keyof typeof enWidgetChat
   | keyof typeof enMemoryPanel
   | keyof typeof enEmailSignatures
   | keyof typeof enThreadDialogs

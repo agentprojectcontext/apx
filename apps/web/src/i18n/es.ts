@@ -684,17 +684,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "widget.delete.body":
     "Se borra para siempre, con lo que recuerda. Los chats que lo mostraban conservan sus mensajes.",
   "widget.delete.what": "Se va a borrar «{title}».",
-  "widget.chatOf": "Chat del widget {title}",
-  "widget.chatOpen": "Abrir el chat completo",
-  "widget.chatNew": "Nueva sesión para este widget",
-  "widget.chatAgent": "Editar con",
-  "widget.chatDraftTitle": "¿Abrir un chat nuevo?",
-  "widget.chatDraftKeep": "Tu borrador y los adjuntos quedan en el chat actual. Podés volver desde la lista de chats.",
-  "widget.chatDraftContinue": "Abrir chat nuevo",
-  "widget.chatDraftCancel": "Seguir editando",
-  "widget.chatAgentHint":
-    "Elegí otro agente para abrir un nuevo chat sobre este widget. El chat anterior queda guardado.",
-  "widget.chatSwitching": "Abriendo chat…",
   "widget.chatOpenError":
     "No se pudo abrir el chat. Elegí el agente de nuevo para reintentar. Tu chat y borrador actuales no cambiaron.",
   "widget.chatShort": "Pedir cambios",

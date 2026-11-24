@@ -128,6 +128,10 @@ const PACKS = {
     en: () => import("./sysusage-en.ts").then((m) => m.enSysUsage),
     es: () => import("./sysusage-es.ts").then((m) => m.esSysUsage),
   },
+  widgetChat: {
+    en: () => import("./widget-chat-en.ts").then((m) => m.enWidgetChat),
+    es: () => import("./widget-chat-es.ts").then((m) => m.esWidgetChat),
+  },
 } satisfies Record<string, Record<Language, () => Promise<Messages>>>;
 export type Pack = keyof typeof PACKS;
 
