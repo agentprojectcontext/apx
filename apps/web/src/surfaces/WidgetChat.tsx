@@ -1,4 +1,5 @@
 import "../styles/panel-parts.css";
+import "../styles/widget-chat.css";
 import type { SurfaceSummary } from "@apx/protocol";
 import { ConfirmDialog, IconButton, Icons, Skeleton } from "@apx/ui";
 import { useEffect, useState } from "react";
