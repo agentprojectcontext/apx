@@ -14,6 +14,7 @@ export function taskSections(entries: readonly Entry[], tasks: Readonly<Record<s
     const task = tasks[entry.taskId];
     let section: TaskSectionId = "pending";
     if (task?.state === "done" || task?.state === "dropped") section = task.state;
+    else if (task?.awaits_owner || (task?.status === "review" && task.reviewer === "owner")) section = "waiting";
     else if (task) {
       const running = new Set(entry.threads.some((th) => isPending(th.state)) ? [task.thread_id] : []);
       const group = taskGroupOf(task, running);

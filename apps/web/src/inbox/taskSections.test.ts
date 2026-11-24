@@ -36,6 +36,8 @@ test("Inbox task sections keep every state, closed last and activity order withi
       task("doing", { status: "doing" }),
       task("waiting", { awaits_owner: true, status: "doing" }),
       task("owner-review", { status: "review" }),
+      task("explicit-owner-review", { status: "review", reviewer: "owner" }),
+      task("waiting-proposal", { proposed: true, awaits_owner: true }),
       task("agent-review", { status: "review", reviewer: "reviewer" }),
       task("proposed", { proposed: true }),
       task("todo", { status: "todo" }),
@@ -50,7 +52,7 @@ test("Inbox task sections keep every state, closed last and activity order withi
     groups.map((g) => [g.id, g.entries.map((e) => e.taskId)]),
     [
       ["doing", ["doing", "running"]],
-      ["waiting", ["waiting", "owner-review"]],
+      ["waiting", ["waiting", "owner-review", "explicit-owner-review", "waiting-proposal"]],
       ["pending", ["agent-review", "proposed", "todo", "custom", "backlog"]],
       ["dropped", ["dropped"]],
       ["done", ["done"]],
