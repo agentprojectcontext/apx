@@ -1,10 +1,12 @@
+import "./task-sections.css";
 import type { Thread } from "@apx/protocol";
-import { ConversationRow, Icons, Spinner } from "@apx/ui";
-import { type ReactNode, Suspense, useEffect, useMemo } from "react";
+import { Button, ConversationRow, Icons, Spinner, Tooltip } from "@apx/ui";
+import { type ReactNode, Suspense, useEffect, useId, useMemo, useState } from "react";
 import { shortWhen } from "../common/format.ts";
 import { DEFAULT_PID, isWorking, projectName, routineName, threadAgent } from "../data/identity.ts";
 import { loadRoutines, useRoutines } from "../data/routines.ts";
 import { useData, useShownAgents } from "../data/state.ts";
+import { ensureTask, useTasks } from "../data/tasks.ts";
 import { useT } from "../i18n/index.ts";
 import { CallBundle, ChannelBundle, TaskBundle } from "../lazy.ts";
 import { scheduleText } from "../routines/scheduleText.ts";
@@ -15,6 +17,7 @@ import { ProjectBadge } from "./ProjectBadge.tsx";
 import { selectionPath } from "./selectionPath.ts";
 import { ThreadAvatar } from "./ThreadAvatar.tsx";
 import { ThreadRow } from "./ThreadRow.tsx";
+import { taskSections } from "./taskSections.ts";
 import { useOpenRow } from "./useOpenRow.ts";
 
 type Routines = Extract<ListEntry, { kind: "routine" }>;
@@ -154,17 +157,84 @@ export function ChatRow({
   );
 }
 
-/** Tasks: one row each, its agents' chats under it once opened. */
+/** Tasks keep their row alignment and activity order within each status section. */
 export function TasksTab({ entries }: { entries: Tasks[] }) {
+  const t = useT();
   const selected = useNav((s) => s.threadId);
+  const loaded = useData((s) => s.threads);
+  const tasks = useTasks((s) => s.tasks);
+  useEffect(() => {
+    for (const entry of entries) ensureTask(entry.taskId);
+  }, [entries]);
+  const path = useMemo(() => selectionPath(loaded, selected), [loaded, selected]);
+  const groups = useMemo(() => taskSections(entries, tasks), [entries, tasks]);
   return (
     <>
-      {entries.map((e) => (
-        <Suspense key={e.taskId} fallback={null}>
-          <TaskBundle taskId={e.taskId} threads={e.threads} selected={selected} />
-        </Suspense>
+      {groups.map((group) => (
+        <TaskSection
+          key={group.id}
+          label={t(`inbox.taskSections.${group.id}`)}
+          count={group.entries.length}
+          reveal={
+            group.entries.some(
+              (e) => e.threads.some((th) => path.has(th.id)) || tasks[e.taskId]?.thread_id === selected,
+            )
+              ? selected
+              : undefined
+          }
+        >
+          {group.entries.map((e) => (
+            <Suspense key={e.taskId} fallback={null}>
+              <TaskBundle taskId={e.taskId} threads={e.threads} selected={selected} />
+            </Suspense>
+          ))}
+        </TaskSection>
       ))}
     </>
+  );
+}
+
+function TaskSection({
+  label,
+  count,
+  reveal,
+  children,
+}: {
+  label: string;
+  count: number;
+  reveal: string | undefined;
+  children: ReactNode;
+}) {
+  const t = useT();
+  const id = useId();
+  const [closed, setClosed] = useState(false);
+  useEffect(() => {
+    if (reveal) setClosed(false);
+  }, [reveal]);
+  return (
+    <section className="inboxsec" aria-label={label}>
+      <h2 className="inboxsec__heading">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="inboxsec__tasktoggle"
+          aria-expanded={!closed}
+          aria-controls={id}
+          leadingIcon={
+            closed ? <Icons.ChevronRight size={12} aria-hidden /> : <Icons.ChevronDown size={12} aria-hidden />
+          }
+          onClick={() => setClosed(!closed)}
+        >
+          <span>{label}</span>
+          <Tooltip content={t("inbox.taskSections.count")}>
+            <span className="inboxsec__count">{count}</span>
+          </Tooltip>
+        </Button>
+      </h2>
+      <div id={id} className="inboxsec__tasks" hidden={closed}>
+        {children}
+      </div>
+    </section>
   );
 }
 
