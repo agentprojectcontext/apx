@@ -33,6 +33,8 @@ export function createHarnesses(deps: {
   /** How a child process reaches this core's tool gate (the MCP proxy command, minus the token). */
   mcpProxy: () => { command: string; args: string[]; env: Record<string, string> };
   overrides?: Partial<Record<HarnessId, Harness>>;
+  /** Waits before the native loop asks its model list again (default in native.ts). */
+  stepPatienceMs?: readonly number[] | undefined;
   /** Told each time the CLIs are asked again whether they are here and signed in. */
   onDetected?(found: { claude: CliStatus; codex: CliStatus }): void;
 }) {
@@ -57,7 +59,8 @@ export function createHarnesses(deps: {
     return { command, close: () => gates.delete(token) };
   };
   const registry: Record<HarnessId, Harness> = {
-    native: deps.overrides?.native ?? nativeHarness(llm),
+    native:
+      deps.overrides?.native ?? nativeHarness(llm, deps.stepPatienceMs ? { patienceMs: deps.stepPatienceMs } : {}),
     aider: deps.overrides?.aider ?? oneshotHarness("aider", { cwd }),
     antigravity: deps.overrides?.antigravity ?? oneshotHarness("antigravity", { cwd }),
     claude:

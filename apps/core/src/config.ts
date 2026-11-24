@@ -124,6 +124,8 @@ export type CoreConfig = {
    * `id:port` pairs of LOCAL_APPS; a test core looks for none).
    */
   localModels: LocalApp[];
+  /** Waits before the model list is asked again after a passing failure (APX_STEP_PATIENCE_MS "5,15" in ms); unset = the default. */
+  stepPatienceMs?: number[] | undefined;
   providers: ProviderConfig[];
   secrets: SecretsBackend;
   /** Silence before the first byte of a model answer. */
@@ -288,6 +290,11 @@ export function loadConfig(processEnv: NodeJS.ProcessEnv = process.env, readCore
     // A scratch core (its own APX_HOME) does not download the voice on its own.
     voice: { auto: env.APX_VOICE_AUTO === "on" || (!env.APX_HOME && env.APX_VOICE_AUTO !== "off") },
     localModels: localApps(env.APX_LOCAL_MODELS),
+    stepPatienceMs: env.APX_STEP_PATIENCE_MS
+      ? list(env.APX_STEP_PATIENCE_MS)
+          .map(Number)
+          .filter((n) => n >= 0)
+      : undefined,
     providers: [...custom, ...DEFAULT_PROVIDERS],
     secrets: env.APX_SECRETS === "file" ? "file" : systemBackend(),
     llmTimeoutMs: Number(env.APX_LLM_TIMEOUT_MS ?? 45_000),

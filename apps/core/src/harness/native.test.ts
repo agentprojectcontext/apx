@@ -282,7 +282,7 @@ test("a provider that stays empty fails after bounded tries, the tool results so
   const { run, waits, ran, logged } = await flaky((call) => call >= 2);
   await assert.rejects(run, (err: Error) => {
     assert.match(err.message, /empty stream/);
-    assert.match(err.message, /asked again 3 times/);
+    assert.match(err.message, /asked again 3 times; the work so far is kept/);
     return true;
   });
   assert.deepEqual(waits, [10, 20, 40]);
