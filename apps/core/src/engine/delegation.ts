@@ -18,6 +18,7 @@ import type { Admit } from "./engine.ts";
 import { MAX_ACTIVE_DELEGATIONS, MAX_DEPTH } from "./limits.ts";
 import { MAX_AUTO_PARTS, stalled } from "./progress.ts";
 import { answerOf as answered, type Outcome, outcomeNote, outcomeOf } from "./run-outcome.ts";
+import { withFilesNote } from "./task-files.ts";
 import { runLineage } from "./task-handoff.ts";
 
 /** A teammate's newer words reaching the turn already working on what it asked before (DECISIONS.md#d-222). */
@@ -738,7 +739,7 @@ export function createDelegations(deps: {
       inline.delete(child.id);
       const resume = `(session "${name}": delegate with session="${name}" to continue it with ${who}, who keeps the context)`;
       if (quick && TERMINAL.has(quick.state))
-        return `${agentReply(who, answerOf(quick), endedAs(quick))}\n${endNote(quick, { session: name })}${outcomeNote(outcomeFor(quick))}${actionsNote(actionsOf(store, quick))}\n${REDIRECT_NOTE}\n${resume}${at}`;
+        return `${agentReply(who, withFilesNote(store, quick, answerOf(quick)), endedAs(quick))}\n${endNote(quick, { session: name })}${outcomeNote(outcomeFor(quick))}${actionsNote(actionsOf(store, quick))}\n${REDIRECT_NOTE}\n${resume}${at}`;
       return `${who} keeps working in session "${name}". You will get the result in a new turn: do not wait or ask for its status; tell the owner and go on.${at}`;
     },
 

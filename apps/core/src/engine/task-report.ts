@@ -8,6 +8,7 @@ import type { Store } from "../domain/store.ts";
 import { keepWhilePaused } from "./breaker.ts";
 import { frameInput } from "./context.ts";
 import type { AdmitFn } from "./engine.ts";
+import { filesNote } from "./task-files.ts";
 
 /** How much of the closer's report its creator reads. */
 const REPORT_CHARS = 4000;
@@ -43,10 +44,12 @@ function reportOf(store: Store, task: Task, closer: string, note: unknown, fresh
   const closing = typeof note === "string" && note.trim() ? `Closing note: ${note.trim()}` : "";
   const text = stale && said ? `Earlier comment (written before this close, not the closing verdict):\n${said}` : said;
   const pending = freshSince && (!said || stale) ? "Closing turn's final answer pending." : "";
-  return (
+  const report =
     (freshSince ? [closing, text, pending] : [text, closing]).filter(Boolean).join("\n\n").slice(0, REPORT_CHARS) ||
-    "(no comment)"
-  );
+    "(no comment)";
+  // The files go by id after the words, never cut with them: whoever reads the report shows them with send_file.
+  const files = comment && !stale ? filesNote(comment.parts) : "";
+  return files ? `${report}\n\n${files}` : report;
 }
 
 /** `watch`: the super-agent, told of a task it did not create so it tells the owner; `by` is who created it. */

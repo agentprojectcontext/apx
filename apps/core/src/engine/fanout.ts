@@ -10,6 +10,7 @@ import { actionsNote, delegationResult, endedAs, endNote, resultOf } from "./del
 import type { AdmitFn, RunTimers } from "./engine.ts";
 import { laterReplyTo } from "./home-channel.ts";
 import { outcomeNote } from "./run-outcome.ts";
+import { withFilesNote } from "./task-files.ts";
 
 /** A delegated run that ended, and why APX stopped going on with it (a limit cut it short), if it did. */
 export type Held = { child: RunRecord; stopped?: string | undefined };
@@ -29,7 +30,11 @@ export function deliverResults(store: Store, admit: AdmitFn, parent: RunRecord, 
   });
   const told = open.map(({ child, stopped }) => {
     const { answer, outcome } = resultOf(store, child);
-    return { child, answer, result: delegationResult(store, child, stopped, outcome) };
+    return {
+      child,
+      answer: withFilesNote(store, child, answer),
+      result: delegationResult(store, child, stopped, outcome),
+    };
   });
   // The pause is the chat's: all of them are kept, or none.
   const kept = told.map(({ child, answer, result }) =>

@@ -21,7 +21,7 @@ import type { AdmitFn } from "./engine.ts";
 import { mentioned, mentionsOwner, taskCommentAttention } from "./office.ts";
 import { outcomeOf } from "./run-outcome.ts";
 import { continueTask } from "./task-continue.ts";
-import { type ShareOnTask, showTurnFiles } from "./task-files.ts";
+import { type ShareOnTask, showTurnFiles, withFilesNote } from "./task-files.ts";
 import { checkSelfHandoff, markHandoff, runLineage } from "./task-handoff.ts";
 import { answersOwner, ownerTurnEnded } from "./task-inbox.ts";
 import { MAX_HANDOFF_DEPTH, MAX_REVIEW_ROUNDS } from "./task-limits.ts";
@@ -619,7 +619,7 @@ function answerAsker(
   const name = store.agents.get(run.agent_id)?.name ?? run.agent_id;
   const text =
     run.state === "completed" && answer
-      ? `${name} answered your question on task ${task.id}:\n${answer.slice(0, 4000)}\n\nGo on with the task.`
+      ? `${name} answered your question on task ${task.id}:\n${withFilesNote(store, run, answer.slice(0, 4000))}\n\nGo on with the task.`
       : `${name} could not answer your question on task ${task.id} (${run.error ?? run.state}). Go on without it.`;
   const asker: Asker = { kind: "agent", id: run.agent_id, name, thread_id: run.thread_id, run_id: run.id, depth: 1 };
   ask(store, admit, current, askerId, text, asker, { kind: "agent", id: run.agent_id }, thread, [

@@ -36,6 +36,23 @@ function shownIn(store: Store, threadId: string): Set<string> {
   return new Set(store.messages.list(threadId, 500).flatMap((m) => filesIn(m.parts).map((p) => p.media_id)));
 }
 
+/**
+ * A line naming the files an answer showed, by id, for the agent it goes back to (a delegation, a consult, a task's
+ * report): it opens them with file_read and shows them to the owner with send_file; its words alone carry no file.
+ */
+export function filesNote(parts: Part[]): string {
+  const files = filesIn(parts);
+  if (!files.length) return "";
+  const name = (p: FilePart) => (p.type === "file" ? p.name : p.alt || p.media_id);
+  return `Files it showed: ${files.map((p) => `${name(p)} (${p.media_id})`).join(", ")}.`;
+}
+
+/** `answer` with the files its run showed named under it. */
+export function withFilesNote(store: Store, run: RunRecord, answer: string): string {
+  const note = filesNote(store.messages.ofRun(run.thread_id, run.id).flatMap((m) => m.parts));
+  return note ? `${answer}\n\n${note}` : answer;
+}
+
 /** Keeps files on a task and returns the task's copy of each (rpc/task-assets.ts share). */
 export type ShareOnTask = (task: Task, sources: MediaRecord[], by: string) => MediaRecord[];
 
