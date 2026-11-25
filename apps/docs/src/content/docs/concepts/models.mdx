@@ -216,6 +216,29 @@ You can also ask your super-agent to change the default, the router or one chat'
 engine that is on and has its key or sign-in, and it never leaves the router with an empty chain; otherwise nothing
 changes.
 
+## The helper model
+
+Besides the model that answers each turn, APX keeps a **helper model** for small background jobs, so your agents don't
+spend their main model on them. Find it in **Settings › Helper model** (Memory links to it too). It:
+
+- titles chats and summarizes long ones;
+- saves what's worth remembering from each chat and tidies your agents' notes;
+- decides which emails are worth telling you about and which group messages are worth an answer;
+- describes the images and stickers people send you, when it can read images;
+- picks which agent answers in a group chat;
+- suggests reply drafts when the agent has no other model for it (an agent on Claude Code or Codex);
+- reviews activity to suggest improvements (**Activity review**);
+- stands in for an agent's model in short notices and when reading chats you import.
+
+It has three modes:
+
+- **Automatic**: the agent's own API model or, if it has none, the router's. It works, but spends your main model.
+- **Chosen**: an ordered list you pick. The first model goes first; if it doesn't answer, the next one is tried. Add up
+  to five, reorder them or remove them. A small, fast model fits best, for example a small ChatGPT model from your
+  plan with a local Ollama model as its backup.
+- **Off**: chats get no title, long ones aren't summarized, memory isn't saved on its own and emails and group messages
+  aren't checked.
+
 ## Usage
 
 Every turn records its model and tokens, and whether they were **included** in a subscription or **metered** (paid

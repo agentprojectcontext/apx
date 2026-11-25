@@ -1,11 +1,11 @@
 import type { Memory, MemorySettings } from "@apx/protocol";
-import { Button, EmptyState, Icons, Input, SegmentedControl, SettingRow, Switch } from "@apx/ui";
+import { Button, EmptyState, Icons, Input, SettingRow, Switch } from "@apx/ui";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
+import { go } from "../shell/nav.ts";
 import { MemoryAutomation } from "./MemoryAutomation.tsx";
-import { ModelRefPicker } from "./models/ModelRefPicker.tsx";
 import { SectionHead, SubHead } from "./SectionHead.tsx";
 import { ServicesSection } from "./ServicesSection.tsx";
 
@@ -23,8 +23,6 @@ export function MemorySection() {
   const saving = useRef<Promise<unknown>>(Promise.resolve());
   const revision = useRef(0);
   const [indexing, setIndexing] = useState(false);
-  // "Chosen" with no model yet: the picker shows before anything is saved.
-  const [picking, setPicking] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -73,7 +71,6 @@ export function MemorySection() {
   };
 
   if (!s) return <SectionHead title={t("config.memory")} lead={t("mem.lead")} />;
-  const aux = picking || (s.aux_model && s.aux_model !== "off") ? "pick" : s.aux_model === "off" ? "off" : "auto";
   return (
     <>
       <SectionHead title={t("config.memory")} lead={t("mem.lead")} />
@@ -139,32 +136,10 @@ export function MemorySection() {
           aria-label={t("mem.autoCompact")}
         />
       </SettingRow>
-      <SettingRow title={t("mem.aux")} description={t(`mem.auxHint.${aux}`)}>
-        <div className="tgtoken">
-          <SegmentedControl
-            size="sm"
-            label={t("mem.aux")}
-            value={aux}
-            onValueChange={(v) => {
-              setPicking(v === "pick");
-              if (v === "auto") void save({ aux_model: undefined });
-              else if (v === "off") void save({ aux_model: "off" });
-            }}
-            options={[
-              { value: "auto", label: t("mem.aux.auto") },
-              { value: "pick", label: t("mem.aux.pick") },
-              { value: "off", label: t("mem.aux.off") },
-            ]}
-          />
-          {aux === "pick" && (
-            <ModelRefPicker
-              label={t("mem.aux")}
-              value={s.aux_model && s.aux_model !== "off" ? s.aux_model : undefined}
-              placeholder={t("mem.aux.pickOne")}
-              onChange={(ref) => void save({ aux_model: ref })}
-            />
-          )}
-        </div>
+      <SettingRow title={t("config.helperModel")} description={t("mem.helperPointer")}>
+        <Button size="sm" variant="secondary" onClick={() => go.config("helper-model")}>
+          {t("mem.helperOpen")}
+        </Button>
       </SettingRow>
     </>
   );

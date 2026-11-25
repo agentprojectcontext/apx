@@ -66,12 +66,15 @@
   gap: 5px;
   color: var(--apx-warning);
   font-size: var(--apx-text-xs);
+  white-space: nowrap;
 }
 .router__warn {
   margin-right: auto;
 }
+/* On a narrow screen the model takes its own line and the row's actions follow it, instead of running off. */
 .chain__item {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   padding: 6px 6px 6px 10px;
@@ -300,6 +303,10 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
+}
+.chain__item > .refselect {
+  flex: 1 1 200px;
+  min-width: min(200px, 100%);
 }
 .refselect__model {
   flex: 1 1 auto;
