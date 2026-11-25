@@ -20,6 +20,8 @@ const dir = process.env.APX_REMOTE_DIR ?? "apx-ci";
 const cpus = process.env.APX_REMOTE_CPUS ?? "24";
 const memory = process.env.APX_REMOTE_MEMORY ?? "40g";
 const shards = process.env.APX_REMOTE_SHARDS ?? "8";
+// The box's cores are slower than CI's: its perf run gets looser time budgets, CI keeps the real gate.
+const perfScale = process.env.APX_REMOTE_PERF_SCALE ?? "1.5";
 
 /** A branch name as a Docker- and folder-safe name: `feat/inbox-tabs` → `feat-inbox-tabs`. */
 export function slotOf(branch: string): string {
@@ -96,7 +98,7 @@ function start(kind: "plan" | "run", args: string[]): number {
     `docker rm -f ${name} >/dev/null 2>&1 || true`,
     `[ -d ${work}/.git ] || git clone -q --no-checkout $HOME/${dir}/apx.git ${work}`,
     `cd ${work} && git fetch -q origin refs/runs/${slot} && git checkout -q --force FETCH_HEAD && git clean -qfdx -e node_modules`,
-    `docker run -d -t --init --name ${name} --label apx-remote=${slot} --user "$(id -u):$(id -g)" --cpus ${cpus} --memory ${memory} -e APX_TEST_SHARDS=${shards}` +
+    `docker run -d -t --init --name ${name} --label apx-remote=${slot} --user "$(id -u):$(id -g)" --cpus ${cpus} --memory ${memory} -e APX_TEST_SHARDS=${shards} -e APX_PERF_TIME_SCALE=${sh(perfScale)}` +
       " --security-opt apparmor=apx-remote --security-opt seccomp=unconfined" +
       ` --shm-size 4g -p 127.0.0.1::6080 -v ${work}:/work -v $HOME/${dir}/cache:/cache apx-remote:latest` +
       ` ${kind} ${args.map(sh).join(" ")} >/dev/null`,
