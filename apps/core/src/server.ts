@@ -112,6 +112,7 @@ import type { OwnersChrome } from "./rpc/browser.ts";
 import { useLocalEmbedder } from "./rpc/embeddings.ts";
 import { internalCaller } from "./rpc/internal.ts";
 import { createRouter, type Dispatch } from "./rpc/router.ts";
+import { taskAssets } from "./rpc/task-assets.ts";
 import { useLocalModel } from "./rpc/transcription.ts";
 import { createSecrets } from "./secrets.ts";
 import {
@@ -703,7 +704,9 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       channels.afterRun(run);
       scheduler.afterRun(run);
       scheduler.stalls.afterRun(run);
-      afterWorkTurn(store, engine.admit, run);
+      afterWorkTurn(store, engine.admit, run, (task, sources, by) =>
+        taskAssets(store, config.home).write((_, share) => share(task, sources, by)),
+      );
       continuePlan(store, engine.admit, run);
       groups.afterRun(run);
     },

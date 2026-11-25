@@ -30,6 +30,7 @@ import { agentTrip, trip } from "../engine/breaker.ts";
 import type { Engine } from "../engine/engine.ts";
 import { ownerMentionProblem } from "../engine/office.ts";
 import { assignmentProposalReason } from "../engine/task-assignment.ts";
+import { withFiles } from "../engine/task-files.ts";
 import { checkSelfHandoff, runLineage } from "../engine/task-handoff.ts";
 import { awaitAgent } from "../engine/task-inbox.ts";
 import { reportClose } from "../engine/task-report.ts";
@@ -551,7 +552,7 @@ export function taskHandlers(
       removeThreadFiles(home, files);
       return { deleted: t.id };
     },
-    "tasks.comment": ({ task, text }, ctx) => {
+    "tasks.comment": ({ task, text, attachments }, ctx) => {
       const t = visible(task, ctx);
       const why = ctx.agent ? ownerMentionProblem(store, text) : undefined;
       if (why)
@@ -559,9 +560,10 @@ export function taskHandlers(
           `not posted: ${why}. Mention @owner only with one specific question or decision and what they need to know; to stop waiting for them, use task_update awaits_owner:false.`,
         );
       const author: Author = ctx.agent ? { kind: "agent", id: ctx.agent.id } : { kind: "user" };
-      return store.tx(() => {
+      const sources = assets.prepare(attachments, ctx);
+      return assets.write((_, share) => {
         store.tasks.heard(t.id, ownerWords(ctx, t.thread_id));
-        const message = addComment(store, t, author, text, by(ctx));
+        const message = withFiles(store, addComment(store, t, author, text, by(ctx)), share(t, sources, by(ctx)));
         // An agent's @mentions are consults whose answers come back to it (DECISIONS.md#d-132).
         const current = store.tasks.get(t.id) ?? t;
         const runs = ctx.agent

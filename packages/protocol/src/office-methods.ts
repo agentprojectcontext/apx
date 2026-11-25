@@ -241,13 +241,17 @@ export const officeMethods = {
     effect: true,
     access: "human",
   }),
-  /** A comment in the task's conversation; an @mentioned agent answers there. */
+  /**
+   * A comment in the task's conversation; an @mentioned agent answers there. `attachments`: media shown with it, kept
+   * on the task too (a file the task already has is shown again, not copied twice).
+   */
   "tasks.comment": deferMethod({
     params: () =>
       z
         .object({
           task: Id,
           text: z.string().trim().min(1).max(20000),
+          attachments: z.array(Id).min(1).max(5).optional(),
         })
         .strict(),
     result: () =>

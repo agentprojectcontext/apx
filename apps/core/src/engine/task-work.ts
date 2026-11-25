@@ -21,6 +21,7 @@ import type { AdmitFn } from "./engine.ts";
 import { mentioned, mentionsOwner, taskCommentAttention } from "./office.ts";
 import { outcomeOf } from "./run-outcome.ts";
 import { continueTask } from "./task-continue.ts";
+import { type ShareOnTask, showTurnFiles } from "./task-files.ts";
 import { checkSelfHandoff, markHandoff, runLineage } from "./task-handoff.ts";
 import { answersOwner, ownerTurnEnded } from "./task-inbox.ts";
 import { MAX_HANDOFF_DEPTH, MAX_REVIEW_ROUNDS } from "./task-limits.ts";
@@ -750,7 +751,7 @@ export function addComment(store: Store, task: Task, author: Author, text: strin
  * a close reports to the creator), answers the owner, or asks the owner (@owner). Anything else stays in the chat:
  * agents comment on the task on purpose, with task_comment.
  */
-export function afterWorkTurn(store: Store, admit: AdmitFn, run: RunRecord): void {
+export function afterWorkTurn(store: Store, admit: AdmitFn, run: RunRecord, share?: ShareOnTask): void {
   const thread = store.threads.get(run.thread_id);
   const consulted = thread?.kind === "a2a" ? store.threads.context(thread.id).consult : undefined;
   if (consulted) {
@@ -764,7 +765,13 @@ export function afterWorkTurn(store: Store, admit: AdmitFn, run: RunRecord): voi
   const owners = ownerTurnEnded(store, task, run);
   const closed = closedIn(store, store.tasks.get(task.id) ?? task, run);
   if (text && (closed || owners || mentionsOwner(store, text)))
-    addComment(store, task, { kind: "agent", id: run.agent_id }, text, run.agent_id);
+    showTurnFiles(
+      store,
+      task,
+      run,
+      addComment(store, task, { kind: "agent", id: run.agent_id }, text, run.agent_id),
+      share,
+    );
   // Closed in this turn: whoever created the task hears now, with the answer just posted as its report.
   if (closed) reportClose(store, admit, task.id);
   else continueTask(store, admit, run);

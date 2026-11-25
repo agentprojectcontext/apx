@@ -213,8 +213,23 @@ test("live agents reuse readable media but cannot export contact, client or fore
           ).ok,
           false,
         );
+        const comment = await env.core.dispatch(
+          "tasks.comment",
+          { task: task.id, text: "@owner Is this the final version?", attachments: [m.id] },
+          caller,
+          `comment-deny-${thread.id}-${caller.agent.id}`,
+        );
+        assert.match(
+          comment.ok ? "" : comment.error.message,
+          /media unavailable/,
+          "a comment does not export it either",
+        );
       }
     }
+    assert.ok(
+      store.messages.list(task.thread_id).every((m) => !m.parts.some((p) => p.type === "file" || p.type === "image")),
+      "nothing refused reached the task's conversation",
+    );
     const foreignTask = await env.client.call("tasks.create", {
       title: "Foreign evidence",
       project: "northwind",

@@ -454,8 +454,12 @@ export function taskTools(store: Store, home: string): Tool[] {
       deadlineMs: 5_000,
       title: (a) => `Updated the task ${String(a.task ?? "")}`,
       async run({ task, why, ...c }, ctx) {
-        const t = await ctx.call("tasks.update", { task, ...c, attachments: await attachmentIds(c.attachments, ctx) });
-        if (c.awaits_owner && why) await ctx.call("tasks.comment", { task, text: why });
+        const attachments = await attachmentIds(c.attachments, ctx);
+        const t = await ctx.call("tasks.update", { task, ...c, attachments });
+        // What the owner must decide shows with the files it is about, not only in the task's attachments.
+        const files = attachments?.slice(0, 5);
+        if (c.awaits_owner && why)
+          await ctx.call("tasks.comment", { task, text: why, ...(files?.length ? { attachments: files } : {}) });
         if (c.assignee && t.proposed)
           return `proposed ${t.id} for ${t.assignee}: it starts when the owner accepts it. Tell them what you proposed and why, in one line.`;
         const pending = t.assignee && !t.description.trim() && t.chats === 0 ? ` ${UNSPECIFIED}` : "";
@@ -470,9 +474,14 @@ export function taskTools(store: Store, home: string): Tool[] {
     defineTool({
       name: "task_comment",
       description:
-        "Comment on a task when its plan is done or to ask: @owner asks the owner, until they reply; @agent a teammate, and you get the answer.",
-      args: z.object({ task: z.string().min(1).max(64), text: z.string().trim().min(1).max(1500) }),
+        "Comment on a task when its plan is done or to ask: @owner asks the owner, until they reply; @agent a teammate, and you get the answer. attachments: the files it is about (to review, the final version), shown with it.",
+      args: z.object({
+        task: z.string().min(1).max(64),
+        text: z.string().trim().min(1).max(1500),
+        attachments: z.array(z.string().min(1).max(1000)).max(5).optional().describe("med_ ids or readable file paths"),
+      }),
       effect: "local",
+      outside: outsideAssets,
       confirm: handsOff,
       check: (a, ctx) => void taskOf(a.task, ctx),
       deadlineMs: 5_000,
@@ -488,10 +497,17 @@ export function taskTools(store: Store, home: string): Tool[] {
           );
         const why = commentNoise(store, taskOf(a.task, ctx), a.text, ctx);
         if (why) throw badRequest(`not posted: ${why}`);
-        const r = await ctx.call("tasks.comment", a);
+        const attachments = await attachmentIds(a.attachments?.length ? a.attachments : undefined, ctx);
+        const r = await ctx.call("tasks.comment", {
+          task: a.task,
+          text: a.text,
+          ...(attachments ? { attachments } : {}),
+        });
+        const files = r.message.parts.filter((p) => p.type === "file" || p.type === "image").length;
+        const shown = files ? ` ${files} file(s) shown with it.` : "";
         return r.runs.length
-          ? `commented; ${r.runs.length} agent(s) will answer there, and the answer comes back to you: do not wait for it.`
-          : "commented.";
+          ? `commented;${shown} ${r.runs.length} agent(s) will answer there, and the answer comes back to you: do not wait for it.`
+          : `commented.${shown}`;
       },
     }),
     defineTool({
