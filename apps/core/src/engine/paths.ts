@@ -24,15 +24,27 @@ export const inGitFolder = (p: string): boolean => p.split(/[\\/]/).includes(".g
 export function guarded(base: string, p: string): boolean {
   const rel = path.relative(real(base), real(path.resolve(base, p)));
   const parts = rel.split(path.sep);
-  return parts[0] === ".git" || (parts[0] === ".apc" && !CHECKOUTS.has(parts[1] ?? "")) || rel === "AGENTS.md";
+  return (
+    parts[0] === ".git" ||
+    (parts[0] === ".apc" && !CHECKOUTS.has(parts[1] ?? "")) ||
+    rel === "AGENTS.md" ||
+    harnessSettings(parts)
+  );
 }
+
+/** Claude Code's own permission files: editing them would let a session widen what it may do unasked. */
+const harnessSettings = (parts: string[]): boolean =>
+  parts.at(-2) === ".claude" && /^settings(\.local)?\.json$/.test(parts.at(-1) ?? "");
 
 /** Folders under `.apc` where agents keep git worktrees: a checkout of the code, not the project's APC definitions. */
 const CHECKOUTS = new Set(["worktree", "worktrees"]);
 
-/** Whether a path as written names APC definitions (a `.apc` folder that is not a worktree's) or an AGENTS.md. */
+/**
+ * Whether a path as written names APC definitions (a `.apc` folder that is not a worktree's), an AGENTS.md or Claude
+ * Code's settings files.
+ */
 export function namesApc(p: string): boolean {
   const parts = path.normalize(p).split(/[\\/]/).filter(Boolean);
   const at = parts.indexOf(".apc");
-  return (at >= 0 && !CHECKOUTS.has(parts[at + 1] ?? "")) || parts.at(-1) === "AGENTS.md";
+  return (at >= 0 && !CHECKOUTS.has(parts[at + 1] ?? "")) || parts.at(-1) === "AGENTS.md" || harnessSettings(parts);
 }

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { createLog } from "../log.ts";
 
 test("terminal jobs keep their agent and chat visible after the turn ends", async () => {
   const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
@@ -254,6 +255,86 @@ test("usage.summary of a chat totals every run it kept, not the newest page an a
     assert.equal(totals.cached, 2 * 600, "the provider's cache reads are kept, inside input");
     assert.ok(totals.seconds >= 0);
     assert.equal((await env.client.call("usage.summary", {})).totals, undefined, "only a chat's summary has totals");
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});
+
+test("the owner's agents read and stop terminal jobs of any chat they may read; outsiders keep their own (D-271)", async () => {
+  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  try {
+    const store = env.core.store;
+    const { project: acme } = await env.client.call("projects.create", { name: "Acme" });
+    const { project: northwind } = await env.client.call("projects.create", { name: "Northwind" });
+    const { project: vault } = await env.client.call("projects.create", { name: "Vault" });
+    const builder = await env.client.call("agents.create", {
+      project_id: acme.id,
+      slug: "builder",
+      name: "Builder",
+      role: "Developer",
+    });
+    const chat = (title: string, project_id: string, agent = builder.id) =>
+      store.threads.create({ kind: "loose", title, agent_ids: [agent], project_id });
+    const own = chat("Acme work", acme.id);
+    // Chats it takes no part in: only D-271 lets it in.
+    const other = chat("Northwind build", northwind.id, "superagent");
+    const locked = chat("Vault build", vault.id, "superagent");
+    store.projectProtection.protect("move_jobs", vault.id);
+    const job = (thread: string) =>
+      store.jobs.create({ thread_id: thread, agent_id: builder.id, title: "build", cwd: ".", background: true }).id;
+    const ctx = (thread: string) => ({
+      role: "operator" as const,
+      actor: "agent" as const,
+      transport: "internal" as const,
+      session: undefined,
+      log: createLog("test", true),
+      agent: { id: builder.id, thread_id: thread, run_id: "run_test" },
+    });
+    const elsewhere = job(other.id);
+    const read = await env.core.dispatch("jobs.get", { job: elsewhere }, ctx(own.id));
+    assert.ok(read.ok, "an owner's agent reads another project's job");
+    const stop = await env.core.dispatch("jobs.cancel", { job: elsewhere }, ctx(own.id), "stop-elsewhere");
+    assert.ok(stop.ok, "and may stop it");
+    const lockedJob = job(locked.id);
+    assert.equal((await env.core.dispatch("jobs.get", { job: lockedJob }, ctx(own.id))).ok, false);
+    assert.equal((await env.core.dispatch("jobs.cancel", { job: lockedJob }, ctx(own.id), "stop-locked")).ok, false);
+    // A whole turn of another chat stays the owner's to stop.
+    const run = store.runs.create({
+      thread_id: other.id,
+      agent_id: builder.id,
+      trigger: "user",
+      state: "queued",
+      input: { text: "Build", origin: { kind: "user" } },
+      deadline_at: new Date(Date.now() + 60_000).toISOString(),
+    });
+    assert.equal((await env.core.dispatch("jobs.cancel", { job: run.id }, ctx(own.id), "stop-run")).ok, false);
+    // Calling from a chat that works for someone else: an outside app, a contact, a Flow bot.
+    const client = chat("Outside app", acme.id);
+    store.threads.mergeContext(client.id, { client: "external" });
+    const bot = chat("Flow bot", acme.id);
+    store.threads.mergeContext(bot.id, { flow_step: { delegate: false, bot: true } });
+    const person = store.persons.create({ name: "Alex Acme", role: "contact" });
+    const contact = store.threads.create({
+      kind: "loose",
+      title: "Alex",
+      agent_ids: [builder.id],
+      project_id: acme.id,
+      channel: { id: "ch_test", conversation: "alex", person_id: person.id },
+    });
+    for (const from of [client, bot, contact]) {
+      const refused = await env.core.dispatch("jobs.get", { job: elsewhere }, ctx(from.id));
+      assert.equal(refused.ok, false, `${from.title} reads another chat's job`);
+      assert.match(refused.ok ? "" : refused.error.message, /only read its own thread's jobs/);
+      assert.equal(
+        (await env.core.dispatch("jobs.cancel", { job: elsewhere }, ctx(from.id), `stop-${from.id}`)).ok,
+        false,
+      );
+    }
+    // Not even the owner's agents read a job of an outside app's chat.
+    const sealed = chat("Outside app elsewhere", northwind.id, "superagent");
+    store.threads.mergeContext(sealed.id, { client: "external" });
+    assert.equal((await env.core.dispatch("jobs.get", { job: job(sealed.id) }, ctx(own.id))).ok, false);
   } finally {
     await env.core.close();
     await env.cleanup();

@@ -287,6 +287,7 @@ export function createEngine(deps: {
     windowMs: (threadId) => runLimit(store, threadId, "a2a", deps).ms,
     deliver: (parent, child, stopped) => fanout.arrive(parent, child, stopped),
     steer: steerResult,
+    home: deps.home,
   });
 
   const fanout = createFanout({

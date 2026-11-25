@@ -128,12 +128,12 @@ and follow up until they close. When a decision needs the owner, ask once, clear
 | `icon` | The agent's blobo (`orbita`, `menta`, `cobalto`…). |
 | `emoji` | An optional emoji, kept with the agent (files written by other tools often have one). |
 | `parent` | The agent it reports to, by its slug (or its full id). Leave it out and the agent reports to Home. APX tells the agent who it answers to and its `area`, so its instructions never need to name people. |
-| `area` | The area it belongs to, for the org chart (`product`, `engineering`…). |
+| `area` | Where it usually works, for the org chart (`product`, `engineering`…). It guides who gets what; it never stops the agent from doing what you ask. |
 | `autonomy` | Its permission mode: `manual`, `auto` (the default), `accept_edits`, `plan` or `total`. See [Autonomy and safety](/concepts/autonomy/). |
 | `personality` | How it sounds, apart from what it does. Up to 1,000 characters. |
 | `orchestrator` | `true` marks an agent that leads the agents reporting to it. With no `parent`, it heads the whole team: it goes on top of the chart and gets the project's work first; with one, it leads only its own sub-team (a **Team lead** chip). `false` says it is not, whatever its role suggests; with no marked head, the head is guessed among agents with no parent by role (orchestrator, CEO, lead), or is the only one. |
 | `rules` | Its own rule per kind of action, over its autonomy: `read`, `write`, `outside` or `irreversible`, each `auto`, `ask` or `off` (`rules: write=auto, outside=ask`). A kind left out follows the autonomy. |
-| `tools` | Limits the agent to these tools or groups. Leave it out for every tool. |
+| `tools` | The tools or groups it uses first. The rest stay within reach when it needs them, under the same mode and rules. Leave it out and every tool is at hand. |
 | `skills` | Limits which skills it is offered. Leave it out for all of them. |
 | `aliases` | Old slugs. Rename the file, list the old slug here, and the agent keeps its chats. |
 | `model` | `engine:model`, as APX v1 wrote it. Read when the agent first appears; after that, set the model from the app or `apx agents model`. `inherit` means the install default. |
@@ -142,9 +142,10 @@ The body is the agent's own instructions. Write it like a note to a new colleagu
 what they should never do alone.
 
 **Tool groups** you can name in `tools:`: `browser`, `widgets`, `agents` (list agents, delegate, grant a tool),
-`shell`, `files`, `mcp`, `memory`, `images`, `tasks`. You can also name single tools. A few tools stay no matter
-what the list says, because they only read or ask you: reading output, asking you a question, loading a skill and
-recalling notes.
+`shell`, `files`, `mcp`, `memory`, `images`, `tasks`. You can also name single tools. The list is the agent's focus,
+not a fence: what it names comes with every turn, and the agent finds any other tool when the work needs it, which
+keeps its turns light. Its mode and its rules by case still decide what runs, asks or waits for you, and a rule you
+set to off still takes those tools away.
 
 Your super-agent can change this list for you (`agent_set` with `tools`) and let an agent run one of APX's tools
 without asking you each time (`grant_tool`, which also takes a grant back). Your super-agent's own settings tools stay
@@ -214,9 +215,10 @@ from your APX v1 vault, read-only). A loose `<slug>.md` is a single agent, like 
 folder with a `TEAM.md` is a team: the product team (an orchestrator, a PM, a developer, a designer, QA…) or the
 executive team, which also brings its weekly routines.
 
-Bundled templates use all tools permitted in their context by default; you can restrict them explicitly later.
-Reporting lines do not prevent direct requests: an executive answers you directly and carries out permitted work
-in its area, without requiring CEO approval. Review-only roles, project boundaries and confirmations still apply.
+Bundled templates use all tools permitted in their context by default. Reporting lines do not prevent direct
+requests: an executive answers you directly and does the work you ask, without requiring CEO approval. Its role says
+what it is good at, not what it refuses. QA still reports instead of fixing while it reviews, and confirmations
+still apply.
 Installing templates does not rewrite the prompts or restrictions of agents you already have.
 
 Installing copies the file into `.apc/agents/` as written. Only `parent` may change, to hang a team's lead under the
@@ -312,15 +314,31 @@ When a part makes no progress, or the parts run out, APX stops and the agent tha
 tells you, and the notice in the chat, the tray and your channel says which agent hit which limit and what it has done
 so far, with a button to continue. That agent can also stop a session it started while it still works.
 
-A delegated run works in the mode of whoever asked for it, keeping its own rules by case, and only gets the tools
-every agent up the chain may use.
+A delegated run works in the mode of whoever asked for it, keeping its own rules by case. The caller's `tools:` list
+does not narrow the helper's: each agent keeps its own focus, and a rule turned off anywhere up the chain stays off.
 
-A delegation can work in one folder of a project, such as a git worktree: the caller names the project by a path
-inside it, and the helper's relative paths and commands start there, never outside the project (a link out of it is
-refused). It can also say how far the helper may change that folder (`ask`, `auto` or `read-only`). The helper never
+A delegation can work in one folder, such as a git worktree: the caller names it by a path, and the helper's relative
+paths and commands start there. Working for you, that folder may be in any of your projects or their worktrees, and
+the result says which project it was; APX's own folder and a read-only folder are never one. It can also say how far the helper may change that folder (`ask`, `auto` or `read-only`). The helper never
 gets further than its caller: with no limit named it gets the most its caller may, never more than the caller's own
 mode (in a code thread, that thread's policy), the helper's mode or the project's; naming one only narrows it. Its
 result comes back to the caller like any other delegation's.
+
+## What your agents can reach
+
+An agent's role, area and tools say what it is good at and where it usually works. They never make it refuse work
+you asked for. Working for you, your agents:
+
+- Read any of your chats, tasks and project files, in every project, and read or stop a command or a session another
+  of your chats started.
+- Work where the work is: they create and update tasks, widgets and files in another of your projects when that is
+  where they belong, and say where they did it ("This task is in Acme Store"), so nothing lands somewhere without you
+  knowing.
+- Ask a teammate for a part of a task while they work on it; the task's history records who was asked for what.
+
+What stays closed: your contacts' chats and the rooms on your channels, work for outside apps, APX's own folder, a
+project you are moving, and whatever your mode or a rule leaves to you. An agent that answers a contact or a room
+keeps to that conversation and its project.
 
 ## One way to talk to an agent
 

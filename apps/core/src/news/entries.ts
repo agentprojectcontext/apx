@@ -10,6 +10,7 @@ import { AGENT_FALLBACKS_NEWS } from "./agent-fallbacks.ts";
 import { AGENT_MIGRATION_NEWS } from "./agent-migration.ts";
 import { AGENT_PROMPTS_NEWS } from "./agent-prompts.ts";
 import { AGENT_REVIEW_NEWS } from "./agent-review.ts";
+import { AGENTS_REACH_NEWS } from "./agents-reach.ts";
 import { APX_ACCOUNT_NEWS } from "./apx-account.ts";
 import { BROWSER_EDIT_NEWS } from "./browser-edit.ts";
 import { BROWSER_JAVASCRIPT_NEWS } from "./browser-javascript.ts";
@@ -208,6 +209,7 @@ export const NEWS: readonly NewsEntry[] = [
   SIMPLE_PANEL_NEWS,
   BROWSER_RECIPES_NEWS,
   SUPER_AGENT_SETUP_NEWS,
+  AGENTS_REACH_NEWS,
   {
     id: "storage-screen",
     since: "2.13.0",

@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { tempDir } from "../testkit/platform.ts";
 
-test("new and existing project agents discover and read quotas; explicit tool restrictions still apply", async () => {
+test("new and existing project agents discover and read quotas; a tools list only focuses, a rule set to off still keeps it out", async () => {
   const llm = scriptedLlm((req, { afterTool }) => {
     const last = String(req.messages.at(-1)?.content);
     if (!afterTool) {
@@ -50,8 +50,13 @@ test("new and existing project agents discover and read quotas; explicit tool re
       assert.deepEqual(result.engines, []);
       assert.match(result.note, /does not mean zero usage/);
       if (stage === "existing") {
+        // A list that leaves it out is the agent's focus: the quota reader is still found (DECISIONS.md#d-271).
         await env.client.call("agents.update", { agent: agent.id, tools: ["files", "start_session"] });
+        assert.match(await ask(), /<plan_usage /, "a tools list never walls the owner's agent off a tool");
+        // A rule the owner set to off is a wall, focus or not.
+        await env.client.call("agents.update", { agent: agent.id, rules: { read: "off" } });
         assert.equal(await ask(), "Quota tool restricted");
+        await env.client.call("agents.update", { agent: agent.id, rules: null });
       }
     }
     assert.equal(env.core.store.settings.read("engine_usage").claude, undefined);

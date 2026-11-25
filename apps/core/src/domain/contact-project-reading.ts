@@ -6,7 +6,7 @@ import path from "node:path";
 import type { Memory, Message, Thread } from "@apx/protocol";
 import { badRequest, conflict, notFound } from "../errors.ts";
 import { isInside, realpath } from "../paths.ts";
-import { canReadChat, canUseChatMemory, memoryEligibleChat } from "./chat-access.ts";
+import { canReadOwnScope, canUseChatMemory, memoryEligibleChat } from "./chat-access.ts";
 import { contactProjectRecords } from "./contact-project-records.ts";
 import { contactRights } from "./contact-rights.ts";
 import { readSource, type SourceUpdate, sourceHash } from "./contact-source-state.ts";
@@ -123,7 +123,7 @@ function ownerChat(store: Store, a: Access, t: Thread | undefined): t is Thread 
     t.project_id === a.project.id &&
     t.agent_ids.includes(a.agent.id) &&
     memoryEligibleChat(store, t) &&
-    canReadChat(store, a.agent, t)
+    canReadOwnScope(store, a.agent, t)
   );
 }
 

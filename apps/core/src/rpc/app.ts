@@ -12,6 +12,7 @@ import type { ApcSync } from "../apc/sync.ts";
 import { writeProjectMeta } from "../apc/write.ts";
 import { artifactDir } from "../domain/artifact-memory.ts";
 import { ownerIdentity, saveOwnerIdentity } from "../domain/owner.ts";
+import { ownerAgentOf } from "../domain/owner-work.ts";
 import { inheritsFrom, parentProblem, publicProject } from "../domain/projects.ts";
 import type { EngineIds } from "../domain/refs.ts";
 import type { Store } from "../domain/store.ts";
@@ -32,6 +33,7 @@ import { marksFor } from "../sign-in.ts";
 import { withKit } from "../surface-kit.ts";
 import { countUsage } from "../telemetry-counts.ts";
 import { checkReadOnly } from "../tools/folders.ts";
+import type { CallContext } from "./context.ts";
 import { projectHelperHandlers } from "./project-helper.ts";
 import type { Handlers } from "./router.ts";
 
@@ -49,6 +51,18 @@ export function appHandlers(deps: {
   imessage: boolean;
 }) {
   const { store, harnesses, secrets } = deps;
+  /**
+   * The project an owner's agent names for a widget other than its chat's: the widget goes to that project, outside
+   * its chat. Outsiders keep their chat's project; a project being moved keeps its widgets (DECISIONS.md#d-271).
+   */
+  const otherProjectOf = (p: { thread?: string | undefined; project?: string | undefined }, ctx: CallContext) => {
+    const own = ctx.agent && store.threads.get(ctx.agent.thread_id);
+    const here = own?.project_id ?? undefined;
+    if (p.thread || !p.project || !own || here === p.project || !ownerAgentOf(store, ctx)) return undefined;
+    if (store.projectProtection.list().some((x) => x.project === p.project || x.project === here))
+      throw conflict("a project being moved keeps its widgets to itself until the move ends");
+    return p.project;
+  };
   const engineUsage = usagePreferences(
     store.settings,
     (enabled) =>
@@ -301,12 +315,13 @@ export function appHandlers(deps: {
       return { state };
     },
     "surfaces.show": (p, ctx) => {
-      const threadId = p.thread ?? ctx.agent?.thread_id;
+      if (p.project && !store.projects.get(p.project)) throw notFound(`project ${p.project}`);
+      const elsewhere = otherProjectOf(p, ctx);
+      const threadId = p.thread ?? (elsewhere ? undefined : ctx.agent?.thread_id);
       const thread = threadId ? store.threads.get(threadId) : undefined;
       if (threadId && !thread) throw notFound(`thread ${threadId}`);
       if (p.project && thread && thread.project_id !== p.project)
         throw badRequest(`thread ${thread.id} is not in project ${p.project}`);
-      if (p.project && !store.projects.get(p.project)) throw notFound(`project ${p.project}`);
       const project_id = thread ? thread.project_id : p.project;
       // A published widget is public: an agent may not change what its link shows; it makes a new one instead.
       const current = store.surfaces.byName(project_id, p.name);

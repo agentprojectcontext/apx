@@ -85,7 +85,7 @@ test("a step newly done starts the count over; rewriting the same plan does not"
   assert.equal(stuckTrip(store, work), undefined);
 });
 
-test("an agent comments on a task once a turn; the rest goes in its answer", async () => {
+test("an agent comments on a task once a turn; more words that turn join that comment", async () => {
   const task = await env.client.call("tasks.create", { title: "Pick the palette", description: "Choose colors." });
   const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "vera" });
   await env.client.call("threads.send", { thread: chat.id, text: `comment twice on ${task.id}` });
@@ -95,7 +95,7 @@ test("an agent comments on a task once a turn; the rest goes in its answer", asy
     .map((m) => m.parts.map((p) => (p.type === "text" ? p.text : "")).join(""));
   assert.deepEqual(
     notes.filter((n) => n.startsWith("Note")),
-    ["Note 1"],
+    ["Note 1\n\nNote 2"],
   );
-  assert.match(JSON.stringify(messages.at(-1)?.parts), /already commented on this task in this turn/);
+  assert.match(JSON.stringify(messages.at(-1)?.parts), /added to your comment on the task from this turn/);
 });

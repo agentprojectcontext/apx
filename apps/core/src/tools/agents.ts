@@ -1,10 +1,12 @@
 // Finding and asking other agents. `delegate` is the only way an agent talks to another one.
 import path from "node:path";
-import { WritePolicy } from "@apx/protocol";
+import { type Thread, WritePolicy } from "@apx/protocol";
 import { planSteps } from "@apx/protocol/task-plan";
 import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
-import { APX_SERVER, strictApproval } from "../domain/approvals.ts";
+import { strictApproval } from "../domain/approvals.ts";
+import { canReadChat } from "../domain/chat-access.ts";
+import { placeName, worksForOwner } from "../domain/owner-work.ts";
 import { type ProjectRecord, worksIn } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import { ownerWordsOf } from "../domain/task-asked.ts";
@@ -12,7 +14,6 @@ import { budgetLeft } from "../engine/breaker.ts";
 import { sessionOf } from "../engine/delegation.ts";
 import { isInside } from "../paths.ts";
 import { SUPER_AGENT_TOOLS } from "./agent-set.ts";
-import { listAllows } from "./policy.ts";
 import { cap, fromTeam } from "./result.ts";
 import { defineTool, type Tool, ToolFailed } from "./types.ts";
 
@@ -22,7 +23,8 @@ const AT_WORK = new Set(["submitted", "working", "queued", "input-required"]);
 /**
  * Whoever works a task does it and asks for one review at the end: mid-plan, other agents are not asked (the owner
  * may still ask for them). Work for someone else becomes a subtask (DECISIONS.md#d-202). A worker of its own is its
- * help with this work (a search, a log, a first look at the diff), never another owner of it: always allowed.
+ * help with this work (a search, a log, a first look at the diff), never another owner of it: always allowed. Working
+ * for the owner, a teammate may be asked for a part too, recorded on the task (DECISIONS.md#d-271).
  */
 function midPlan(store: Store, taskId: string | undefined, agentId: string, runId: string): string | undefined {
   const task = taskId ? store.tasks.get(taskId) : undefined;
@@ -133,7 +135,6 @@ export function agentTools(store: Store): Tool[] {
         const done: string[] = [];
         const missing: string[] = [];
         const notMine: string[] = [];
-        const notListed: string[] = [];
         const superOnly: string[] = [];
         for (const n of names) {
           const target = ctx.approvalFor?.(n);
@@ -148,8 +149,6 @@ export function agentTools(store: Store): Tool[] {
           }
           // Nobody hands on more than they hold: a tool this agent must ask the owner for is not its to grant.
           else if (!ctx.usesFreely?.(n)) notMine.push(n);
-          // A grant for a tool the agent's own list keeps from it would do nothing: say how to give it the tool.
-          else if (target.server === APX_SERVER && !listAllows(found.agent, n, mine)) notListed.push(n);
           else {
             const held = store.approvals
               .list()
@@ -170,9 +169,6 @@ export function agentTools(store: Store): Tool[] {
             ? `${superOnly.join(", ")} stay yours: ${found.agent.name} asks you for those changes; it reads quotas with plan_usage`
             : "",
           notMine.length ? `Not granted, you ask the owner for them yourself: ${notMine.join(", ")}` : "",
-          notListed.length
-            ? `Not granted, ${found.agent.name}'s tool list leaves them out (agent_set tools adds them): ${notListed.join(", ")}`
-            : "",
         ].filter(Boolean);
         const tail = notes.length ? `. ${notes.join(". ")}` : "";
         if (!done.length) return `nothing ${a.revoke ? "taken back" : "granted"}${tail || `: ${a.tools.join(", ")}`}`;
@@ -217,20 +213,29 @@ export function agentTools(store: Store): Tool[] {
       title: (a) => `Asked ${String(a.worker?.name ?? a.agent ?? a.session)}`,
       async run(a, ctx) {
         const early = a.worker ? undefined : midPlan(store, ctx.thread.task_id, ctx.agent.id, ctx.run.id);
-        if (early) throw new ToolFailed(early);
+        const forOwner = worksForOwner(store, ctx.thread);
+        if (early && !forOwner) throw new ToolFailed(early);
         let agent: AgentRecord | undefined;
         if (a.agent) {
           const found = store.agents.resolve(a.agent, ctx.thread.project_id);
           if ("error" in found) return found.error;
           agent = found.agent;
         }
-        const project = a.project ? projectOf(store, a.project, ctx.agent) : undefined;
-        if (typeof project === "string") return project;
-        // A path inside the project finds it and is the folder the session works in; an id or a name is no path.
         const named = a.project?.trim() ?? "";
+        const found = a.project ? projectOf(store, a.project, ctx.agent) : undefined;
+        // Working for the owner, a path in none of its projects (a worktree beside one) is the folder itself: where it
+        // may work is the delegation's to decide (DECISIONS.md#d-271).
+        const beside = typeof found === "string" && path.isAbsolute(named) && forOwner;
+        if (typeof found === "string" && !beside) return found;
+        const project = typeof found === "string" ? undefined : found;
+        // A path inside the project finds it and is the folder the session works in; an id or a name is no path.
         const inner = project?.path && path.isAbsolute(named) ? path.relative(project.path, path.resolve(named)) : "";
-        const folder = inner && !inner.startsWith("..") && !path.isAbsolute(inner) ? inner : undefined;
-        return ctx.delegate(
+        const folder = beside
+          ? path.resolve(named)
+          : inner && !inner.startsWith("..") && !path.isAbsolute(inner)
+            ? inner
+            : undefined;
+        const answer = await ctx.delegate(
           {
             agent,
             session: a.session,
@@ -244,6 +249,13 @@ export function agentTools(store: Store): Tool[] {
           (a.wait_s ?? 60) * 1000,
           ctx.signal,
         );
+        // Help asked mid-plan shows on the task's history: who was asked for what.
+        if (early && ctx.thread.task_id && !answer.startsWith("refused:")) {
+          const who = agent?.name ?? a.session ?? "a teammate";
+          const what = a.task.replace(/\s+/g, " ").slice(0, 200);
+          store.tasks.change(ctx.thread.task_id, {}, ctx.agent.id, `asked ${who} for: ${what}`);
+        }
+        return answer;
       },
     }),
     defineTool({
@@ -271,15 +283,25 @@ export function agentTools(store: Store): Tool[] {
       when: (thread) => store.threads.sessions(thread.id).some((t) => AT_WORK.has(t.state)),
       title: (a) => `Stopped session ${String(a.session ?? "").slice(0, 60)}`,
       async run(a, ctx) {
-        const sub = sessionOf(store, ctx.thread.id, a.session);
+        const sub = sessionOf(store, ctx.thread.id, a.session) ?? readableSession(store, ctx, a.session);
         if (!sub) return `no session "${a.session}" in this thread (see list_sessions)`;
         const r = await ctx.call("threads.cancel", { thread: sub.id });
+        const parent = sub.parent_id !== ctx.thread.id && sub.parent_id ? store.threads.get(sub.parent_id) : undefined;
+        // Stopping another chat's session says where, so the owner can see it (DECISIONS.md#d-271).
+        const where = parent ? ` in chat ${parent.title} (${placeName(store, parent.project_id)})` : "";
         return r.canceled
-          ? `session "${sub.session ?? sub.id}" stopped`
-          : `session "${sub.session ?? sub.id}" was not working`;
+          ? `session "${sub.session ?? sub.id}" stopped${where}`
+          : `session "${sub.session ?? sub.id}" was not working${where}`;
       },
     }),
   ];
+}
+
+/** Working for the owner, a session of another of the owner's chats, by its id, when this agent may read it. */
+function readableSession(store: Store, ctx: { agent: AgentRecord; thread: Thread }, id: string): Thread | undefined {
+  const sub = store.threads.get(id);
+  if (!sub?.parent_id || sub.id === ctx.thread.id || !worksForOwner(store, ctx.thread)) return undefined;
+  return canReadChat(store, ctx.agent, sub) ? sub : undefined;
 }
 
 /**

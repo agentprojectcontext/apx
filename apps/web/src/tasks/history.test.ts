@@ -78,3 +78,29 @@ test("a commitment's history says kept, missed and each new date agreed", () => 
     ],
   );
 });
+
+test("an agent's notes and plan progress read as what it wrote, not as an edit", () => {
+  const lines = historyLines(
+    [
+      ev("update", "vera", { plan: "- [x] Found the cause\n- [~] Fix it" }),
+      ev("update", "vera", { plan: "- [x] Found the cause\n- [~] Fix it (Hinge tightened.)" }),
+      ev("update", "vera", { plan: "- [x] Found the cause\n- [x] Fix it (Hinge tightened.)" }),
+      ev("update", "vera", { note: "Step one done: half counted." }),
+      ev("update", "vera", { note: "asked Scout for: Which paint is best?" }),
+      ev("update", "vera", { note: "  " }),
+    ],
+    columns,
+    names,
+  );
+  assert.deepEqual(
+    lines.map((l) => [l.by, l.key, l.vars]),
+    [
+      ["vera", "plan", {}],
+      ["vera", "planStep", { step: "Fix it (Hinge tightened.)" }],
+      ["vera", "plan", {}],
+      ["vera", "note", { note: "Step one done: half counted." }],
+      ["vera", "asked", { agent: "Scout", what: "Which paint is best?" }],
+      ["vera", "edit", {}],
+    ],
+  );
+});

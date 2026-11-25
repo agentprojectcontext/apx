@@ -489,3 +489,19 @@ test("the prompt review is offered to an owner whose agents have instructions of
     done();
   }
 });
+
+test("agents working across projects is told to an owner with a teammate of the super-agent and a project", () => {
+  const { store, done } = setup();
+  try {
+    const reach = NEWS.find((item) => item.id === "agents-reach");
+    assert.ok(reach);
+    assert.equal(reach.applies(newsFacts(store)), false, "no project of the owner's to work across");
+    store.projects.upsert({ id: "acme", name: "Acme" });
+    assert.equal(reach.applies(newsFacts(store)), true);
+    for (const a of store.agents.list().filter((x) => x.kind !== "secretary")) store.agents.archive(a.id);
+    assert.equal(reach.applies(newsFacts(store)), false, "the super-agent alone has no teammate to tell about");
+    assert.match(reach.text, /change nothing until the owner says yes/);
+  } finally {
+    done();
+  }
+});

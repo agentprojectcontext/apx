@@ -71,7 +71,7 @@ test("continuing a session that does not exist is refused with how to start one"
   assert.match(lastToolResult(), /no session "ghost" in this thread; give an agent to start one/);
 });
 
-test("a delegated run gets only the tools every caller may use, and the strictest autonomy", () => {
+test("a delegated run keeps its own tools for the owner, a caller's list only when walled, and the strictest autonomy", () => {
   const tool = (name: string) =>
     defineTool({
       name,
@@ -86,9 +86,15 @@ test("a delegated run gets only the tools every caller may use, and the strictes
   const base = { role: "", kind: "agent", browser_profile: "shared", source: "local", prompt: "" } as const;
   const child: AgentRecord = { ...base, id: "c", name: "Child", autonomy: "total" };
   const caller: AgentRecord = { ...base, id: "p", name: "Caller", tools: ["browser"], autonomy: "manual" };
+  // A caller's tools: list is its focus, not its helper's fence (DECISIONS.md#d-271)…
   const r = inherit(child, [caller], tools);
   assert.deepEqual(
     r.tools.map((t) => t.name),
+    ["browser_open", "show_widget", "read_output"],
+  );
+  // …but a helper of an outsider's chat stays inside every caller's list.
+  assert.deepEqual(
+    inherit(child, [caller], tools, true).tools.map((t) => t.name),
     ["browser_open", "read_output"],
   );
   // It works in its caller's mode (DECISIONS.md#d-106).

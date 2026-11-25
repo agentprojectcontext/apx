@@ -1,10 +1,12 @@
-// Tasks. Scoped agents use their thread's project and global tasks; the global super-agent may choose any project.
+// Tasks. Scoped agents use their thread's project and global tasks; the owner's own agents may reach any project's
+// (DECISIONS.md#d-271), and the global super-agent may choose any project.
 // Giving a task to an agent starts its work in that agent's chat for the
 // task, and the owner's comment that @mentions its agent asks it there (its answer comes back as a comment) and anyone
 // else in a consult shown on the task as a card (task-work.ts). A task an agent creates from a chat about a task is its
-// subtask; an agent answering another one gives nobody work (DECISIONS.md#d-079).
+// subtask; an agent answering another one gives nobody work (DECISIONS.md#d-079), unless it works for the owner.
 import { type Author, SUPER_AGENT_ID, type Task, type TaskAsked } from "@apx/protocol";
 import { planSteps } from "@apx/protocol/task-plan";
+import { ownerAgentOf } from "../domain/owner-work.ts";
 import { worksIn } from "../domain/projects.ts";
 import { publicRun } from "../domain/runs.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
@@ -21,6 +23,7 @@ import {
   columnsOf,
   dueOf,
   personOf,
+  reaches,
   tagsOf,
   taskDepth,
   taskProject,
@@ -60,7 +63,7 @@ export function taskHandlers(
   beforeDelete?: (ids: string[]) => Promise<void>,
 ) {
   const assets = taskAssets(store, home);
-  const agentScope = (ctx: CallContext) => boardScope(store, ctx.agent);
+  const agentScope = (ctx: CallContext) => boardScope(store, ctx.agent, ctx);
   const by = (ctx: CallContext) => ctx.agent?.id ?? "owner";
   /** Who is asking for work: the owner, or an agent one hop further than the turn it calls from. */
   const askerOf = (ctx: CallContext): Asker =>
@@ -109,6 +112,8 @@ export function taskHandlers(
     return undefined;
   };
   const refuseHandOn = (ctx: CallContext) => {
+    // The owner's agent helping a teammate may still open the work it finds; its answer says so (DECISIONS.md#d-271).
+    if (ownerAgentOf(store, ctx)) return;
     const caller = answering(ctx);
     if (caller)
       throw badRequest(
@@ -208,7 +213,10 @@ export function taskHandlers(
     "tasks.list": ({ project, state, assignee, commitments, person, limit, exhaustive, after }, ctx) => {
       if (after && !exhaustive) throw badRequest("after requires exhaustive listing");
       const scope = agentScope(ctx);
-      const projects = scope ? [scope.project, undefined] : project ? [project] : undefined;
+      const named = scope?.owner && project !== undefined && project !== scope.project ? project : undefined;
+      if (named && !reaches(store, scope, named))
+        throw unauthorized("that project is being moved: its tasks are out of reach until the move ends");
+      const projects = named ? [named] : scope ? [scope.project, undefined] : project ? [project] : undefined;
       const found = store.tasks.list({
         projects,
         state: state ?? "open",
@@ -231,13 +239,11 @@ export function taskHandlers(
     "tasks.get": ({ task }, ctx) => {
       const scope = agentScope(ctx);
       const found = store.tasks.get(task);
-      if (!found || (scope && found.project_id && found.project_id !== scope.project))
-        throw notFound("task unavailable");
+      if (!found || !reaches(store, scope, found.project_id)) throw notFound("task unavailable");
       const t = found;
       const owner = ctx.actor === "human" && !ctx.agent && !ctx.client && !ctx.channel;
       const readable = (thread: { id: string; project_id?: string | undefined }) =>
-        (owner || !store.threads.context(thread.id).client) &&
-        (!scope || !thread.project_id || thread.project_id === scope.project);
+        (owner || !store.threads.context(thread.id).client) && reaches(store, scope, thread.project_id);
       const sessions = store.threads.byTask(t.id).filter(readable);
       const consults = store.threads
         .children(t.thread_id)
@@ -255,7 +261,7 @@ export function taskHandlers(
       }));
       const subtasks = store.tasks
         .list({ parent: t.id, limit: 200 })
-        .filter((child) => !scope || !child.project_id || child.project_id === scope.project)
+        .filter((child) => reaches(store, scope, child.project_id))
         .reverse();
       const comments = root.length ? store.messages.list(t.thread_id, 61) : [];
       let readsAssets = false;
@@ -279,8 +285,8 @@ export function taskHandlers(
     },
     "tasks.create": (p, ctx) => {
       checkColumn(store, p.status);
-      const project = taskProject(store, ctx.agent, p);
-      checkAssignee(store, p.assignee, project);
+      const project = taskProject(store, ctx.agent, p, ctx);
+      checkAssignee(store, p.assignee, project, Boolean(ctx.agent));
       // A proposal starts nothing, so even an agent answering another one may make it (for the owner to decide).
       if (p.assignee && !p.propose) refuseHandOn(ctx);
       if (project && !store.projects.get(project)) throw notFound(`project ${project}`);
@@ -351,8 +357,9 @@ export function taskHandlers(
         if (c.awaits_owner !== undefined) c.awaits_owner = manualTaskWait(store, cur, c.awaits_owner);
         const sources = assets.prepare(attachments, ctx);
         checkColumn(store, c.status);
-        // An agent keeps its tasks in its own project; the owner can move one anywhere (null = global).
-        if (project !== undefined && agentScope(ctx))
+        // The owner, and their own agents, move a task anywhere they reach (null = global); other agents keep it.
+        const scope = agentScope(ctx);
+        if (project !== undefined && scope && !(scope.owner && reaches(store, scope, project ?? undefined)))
           throw unauthorized("an agent cannot move a task to another project");
         if (project && !store.projects.get(project)) throw notFound(`project ${project}`);
         const moving = project !== undefined && (project ?? undefined) !== cur.project_id;
@@ -362,7 +369,7 @@ export function taskHandlers(
         // Hand-off depth counts parents, so an agent may regroup but never make a task shallower.
         if (ctx.agent && taskDepth(store, taskParent) < taskDepth(store, cur.parent_id))
           throw unauthorized("parent: an agent cannot move a task higher up; the owner can");
-        checkAssignee(store, c.assignee, target);
+        checkAssignee(store, c.assignee, target, Boolean(ctx.agent));
         const checker = reviewerOf(reviewer, target);
         if (c.proposed === false && agentScope(ctx)) throw unauthorized("only the owner accepts a proposed task");
         const accepting = Boolean(cur.proposed) && c.proposed === false;

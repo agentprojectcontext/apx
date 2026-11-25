@@ -39,10 +39,15 @@ publishing a widget, letting a contact in, clearing a task's comments, and anyth
 (your own addresses, the owner role).
 
 In Auto and Accept edits, your other registered projects and their git worktrees are written like the agent's own
-folder: you registered them. Writing in any other folder raises a card for that call: **Only this time** lets it write
-there once, and **Always let this agent change it** lets that agent write there for good (revoke it in its
-permissions). Files written before these modes existed keep working: `ask` reads as Manual and
-`standard` or `edits` as Auto.
+folder: you registered them. That holds in a code thread or a worktree session too, unless you made it read-only.
+Writing in any other folder raises a card for that call: **Only this time** lets it write there once, and **Always let
+this agent change it** lets that agent write there for good (revoke it in its permissions). Claude Code and Codex
+sessions get the same card, **Always** included. A program the agent runs in a folder that is none of your projects
+(a build in a new folder, say) raises that card too, instead of failing. Files written before these modes existed keep
+working: `ask` reads as Manual and `standard` or `edits` as Auto.
+
+Working for you, an agent also reads the files you dropped in your other chats (a screenshot, a document), without
+changing them. Not in Manual, and not from a project you are moving; your contacts' chats stay closed.
 
 ## What each tool asks
 
@@ -81,8 +86,8 @@ And this is how they meet. "Here" is a file write or a command in the folder the
 
 When one of your agents delegates to another, the helper works in its **caller's mode**, not its own: an agent on
 Total that asks a teammate for help does not see that teammate stop for what it would not. The helper keeps its own
-rules by case, a rule that turns something off anywhere up the chain stays off, and it only gets the tools every agent
-in the chain may use. Asking for a session that works in another folder opens a new session with the same agent
+rules by case and its own `tools:` focus (the caller's list does not narrow it), and a rule that turns something off
+anywhere up the chain stays off. Asking for a session that works in another folder opens a new session with the same agent
 there, with a note saying so.
 
 External Claude Code, Codex and ACP sessions use these same permission rules. Auto is not Total: a command

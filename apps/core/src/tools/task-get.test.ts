@@ -30,8 +30,10 @@ function recordUsage(thread_id: string, model: string) {
   runs.setState(run, "completed");
 }
 
-async function get(task: string, project_id?: string, agent_id = "superagent") {
+/** What task_get answers in a chat; `app`: a chat an outside app opened, which works for that app, not the owner. */
+async function get(task: string, project_id?: string, agent_id = "superagent", app = false) {
   const t = await env.client.call("threads.create", { kind: "loose", agent_id, project_id });
+  if (app) env.core.store.threads.mergeContext(t.id, { client: "external" });
   await env.client.call("threads.send", { thread: t.id, text: task });
   await env.settle(t.id);
   return String(llm.calls.at(-1)?.messages.at(-1)?.content);
@@ -100,24 +102,26 @@ test("task_get returns task fields, history, related work, usage and persisted c
   assert.match(result, /trust="untrusted"/);
 });
 
-test("task_get hides other projects with the same safe error as a missing id", async () => {
+test("task_get reads any project's task for the owner's agents, and hides it from an outside app's chat", async () => {
   const task = await env.client.call("tasks.create", {
     title: "Private Northwind work",
     description: "Private evidence",
     project: "project_b",
   });
-  const denied = await get(task.id, "project_a");
-  const missing = await get("task_absent", "project_a");
+  // The owner's own agents read the owner's tasks wherever they are (DECISIONS.md#d-271).
+  assert.match(await get(task.id, "project_a"), /Private Northwind work/);
+  assert.match(await get(task.id, undefined, "vera"), /Private Northwind work/);
+  const denied = await get(task.id, "project_a", "superagent", true);
+  const missing = await get("task_absent", "project_a", "superagent", true);
   assert.equal(denied, missing);
   assert.match(denied, /task unavailable/);
   assert.doesNotMatch(denied, /Northwind|Private evidence/);
   assert.match(await get(task.id), /Private Northwind work/);
-  assert.match(await get(task.id, undefined, "vera"), /task unavailable/);
   const global = await env.client.call("tasks.create", { title: "Global board item" });
-  assert.match(await get(global.id, "project_a"), /Global board item/);
+  assert.match(await get(global.id, "project_a", "superagent", true), /Global board item/);
 });
 
-test("task_get filters related records from other projects and bounds long conversations", async () => {
+test("task_get filters related records from other projects for an outside app's chat and bounds long conversations", async () => {
   const task = await env.client.call("tasks.create", { title: "Shared task" });
   const { store } = env.core;
   const hidden = store.threads.create({
@@ -156,7 +160,8 @@ test("task_get filters related records from other projects and bounds long conve
   assert.equal(detail.comments.length, 60);
   assert.equal(detail.comments_truncated, true);
   assert.equal(detail.comments[0]?.parts[0]?.type === "text" && detail.comments[0].parts[0].text, "Comment number 5");
-  const result = await get(task.id, "project_a");
+  assert.match(await get(task.id, "project_a"), /Hidden session/);
+  const result = await get(task.id, "project_a", "superagent", true);
   assert.doesNotMatch(result, /Hidden session|Hidden child|hidden-model/);
   assert.ok(!result.includes(hidden.id));
   assert.match(result, /older messages omitted/);

@@ -136,12 +136,12 @@ and follow up until they close. When a decision needs the owner, ask once, clear
 | `icon` | El blobo del agente (`orbita`, `menta`, `cobalto`…). |
 | `emoji` | Un emoji opcional que se guarda con el agente (los archivos de otras herramientas suelen traer uno). |
 | `parent` | El agente al que reporta, por su slug (o su id completo). Si no está, reporta a Home. APX le dice al agente a quién responde y su `area`, así sus instrucciones nunca necesitan nombrar personas. |
-| `area` | El área a la que pertenece, para el organigrama (`product`, `engineering`…). |
+| `area` | Dónde suele trabajar, para el organigrama (`product`, `engineering`…). Orienta quién hace qué; nunca le impide hacer lo que le pedís. |
 | `autonomy` | Su modo de permisos: `manual`, `auto` (por defecto), `accept_edits`, `plan` o `total`. Mirá [Autonomía y seguridad](/es/concepts/autonomy/). |
 | `personality` | Cómo suena, aparte de lo que hace. Hasta 1.000 caracteres. |
 | `orchestrator` | `true` marca a un agente que lidera a los que le reportan. Sin `parent`, encabeza todo el equipo: va arriba del organigrama y recibe primero el trabajo del proyecto; con `parent`, lidera sólo su subequipo (con la etiqueta **Líder de equipo**). `false` dice que no lo es, sugiera lo que sugiera su rol; si nadie sin parent está marcado, se adivina entre los que no tienen parent por el rol (orquestador, CEO, lead), o es el único. |
 | `rules` | Su propia regla por tipo de acción, por encima de su autonomía: `read`, `write`, `outside` o `irreversible`, cada una `auto`, `ask` u `off` (`rules: write=auto, outside=ask`). Un tipo que no aparece sigue a la autonomía. |
-| `tools` | Limita al agente a esas herramientas o grupos. Sin este campo, tiene todas. |
+| `tools` | Las herramientas o grupos que usa primero. Las demás siguen a su alcance cuando las necesita, con el mismo modo y las mismas reglas. Sin este campo, tiene todas a mano. |
 | `skills` | Limita qué skills se le ofrecen. Sin este campo, todas. |
 | `aliases` | Slugs viejos. Renombrás el archivo, ponés acá el slug anterior y el agente conserva sus chats. |
 | `model` | `engine:model`, como lo escribía APX v1. Se lee cuando el agente aparece por primera vez; después, el modelo se cambia desde la app o con `apx agents model`. `inherit` es el modelo por defecto de la instalación. |
@@ -151,8 +151,9 @@ toca, cómo trabaja, qué no tiene que hacer nunca solo.
 
 **Grupos de herramientas** que podés nombrar en `tools:`: `browser`, `widgets`, `agents` (listar agentes, delegar,
 dar una herramienta), `shell`, `files`, `mcp`, `memory`, `images`, `tasks`. También podés nombrar herramientas
-sueltas. Algunas quedan siempre, diga lo que diga la lista, porque sólo leen o te preguntan: leer una salida,
-hacerte una pregunta, cargar una skill y buscar en las notas.
+sueltas. La lista es el foco del agente, no un cerco: lo que nombra viaja en cada turno, y el agente encuentra
+cualquier otra herramienta cuando el trabajo la pide, así sus turnos quedan livianos. Su modo y sus reglas por caso
+siguen decidiendo qué corre, qué pregunta y qué te espera, y una regla que apagaste sigue quitándole esas herramientas.
 
 Tu super-agente puede cambiar esta lista por vos (`agent_set` con `tools`) y dejar que un agente use una herramienta
 de APX sin preguntarte cada vez (`grant_tool`, que también la quita). Las herramientas de ajustes propias de tu
@@ -222,10 +223,10 @@ Elegí su modelo (mirá [Modelos y motores](/es/concepts/models/)):
 Finder. Una carpeta con `TEAM.md` es un equipo: el de producto (un orquestador, un PM, un desarrollador, un diseñador,
 QA…) o el ejecutivo, que además trae sus rutinas semanales.
 
-Las plantillas incluidas usan por defecto todas las herramientas permitidas en su contexto; después podés poner
-restricciones explícitas. La jerarquía no impide pedidos directos: un ejecutivo te responde y ejecuta el trabajo
-permitido de su área sin aprobación obligatoria del CEO. Siguen vigentes los roles de revisión, el alcance del
-proyecto y las confirmaciones. Instalar plantillas no reescribe prompts ni restricciones de agentes existentes.
+Las plantillas incluidas usan por defecto todas las herramientas permitidas en su contexto. La jerarquía no impide
+pedidos directos: un ejecutivo te responde y hace el trabajo que le pedís, sin aprobación obligatoria del CEO. Su rol
+dice en qué es bueno, no qué rechaza. QA sigue informando en vez de arreglar mientras revisa, y las confirmaciones
+siguen vigentes. Instalar plantillas no reescribe prompts ni restricciones de agentes existentes.
 
 Instalar copia el archivo tal cual en `.apc/agents/`. Sólo puede cambiar `parent`, para colgar al líder del equipo
 debajo del orquestador que el proyecto ya tiene. Un slug que el proyecto ya usa se saltea, nunca se pisa.
@@ -322,16 +323,35 @@ recibe el informe y el motivo: te avisa, y el aviso en el chat, la bandeja y tu 
 y qué hizo hasta ahora, con un botón para continuar. Ese agente también puede detener una sesión que arrancó mientras
 sigue trabajando.
 
-Una delegación trabaja en el modo de quien la pidió, con sus propias reglas por caso, y sólo recibe las herramientas
-que todos los agentes de la cadena pueden usar.
+Una delegación trabaja en el modo de quien la pidió, con sus propias reglas por caso. La lista `tools:` de quien la
+pide no achica la del ayudante: cada agente conserva su propio foco, y una regla apagada en cualquier punto de la
+cadena sigue apagada.
 
-Una delegación puede trabajar en una carpeta de un proyecto, como un worktree de git: quien la pide nombra el proyecto
-con una ruta dentro de él, y las rutas relativas y los comandos del ayudante arrancan ahí, nunca fuera del proyecto (un
-enlace que sale de él se rechaza). También puede decir cuánto puede cambiar esa carpeta el ayudante (`ask`, `auto` o
+Una delegación puede trabajar en una carpeta, como un worktree de git: quien la pide la nombra con una ruta, y las rutas
+relativas y los comandos del ayudante arrancan ahí. Trabajando para vos, esa carpeta puede estar en cualquiera de tus
+proyectos o sus worktrees, y el resultado dice en qué proyecto; la carpeta propia de APX y una carpeta de sólo lectura
+nunca lo son. También puede decir cuánto puede cambiar esa carpeta el ayudante (`ask`, `auto` o
 `read-only`). El ayudante nunca llega más lejos que quien lo llamó: si no se nombra un límite recibe lo máximo que
 puede quien lo llamó, nunca más que el modo de quien lo llamó (en un hilo de código, la política de ese hilo), el modo
 del ayudante o el del proyecto; nombrar uno sólo lo achica. Su resultado vuelve a quien lo pidió como el de cualquier
 delegación.
+
+## Hasta dónde llegan tus agentes
+
+El rol, el área y las herramientas de un agente dicen en qué es bueno y dónde suele trabajar. Nunca lo hacen rechazar
+algo que le pediste. Trabajando para vos, tus agentes:
+
+- Leen cualquiera de tus chats, tareas y archivos de proyecto, en todos los proyectos, y leen o detienen un comando o
+  una sesión que arrancó otro de tus chats.
+- Trabajan donde está el trabajo: crean y actualizan tareas, widgets y archivos en otro de tus proyectos cuando
+  corresponden ahí, y dicen dónde lo hicieron ("Esta tarea está en Acme Store"), así nada aparece en algún lado sin
+  que lo sepas.
+- Le piden a un compañero una parte de una tarea mientras la trabajan; el historial de la tarea registra a quién le
+  pidieron qué.
+
+Lo que sigue cerrado: los chats de tus contactos y las salas de tus canales, el trabajo para apps de afuera, la carpeta
+propia de APX, un proyecto que estás moviendo y lo que tu modo o una regla te dejan a vos. Un agente que le responde a
+un contacto o a una sala se queda en esa conversación y su proyecto.
 
 ## Una sola forma de hablarle a un agente
 

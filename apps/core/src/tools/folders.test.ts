@@ -5,8 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
-import { realpath } from "../paths.ts";
-import { removeDir } from "../testkit/platform.ts";
+import { removeDir, tempDir } from "../testkit/platform.ts";
 import {
   artifactSources,
   folderAccess,
@@ -38,8 +37,8 @@ let repo: string;
 let sibling: string;
 before(async () => {
   env = await startCore({ llm });
-  repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-folders-")));
-  sibling = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-sibling-")));
+  repo = tempDir("apx-folders-").path;
+  sibling = tempDir("apx-sibling-").path;
 });
 after(async () => {
   await env.core.close();
@@ -206,8 +205,8 @@ test("a project's read-only folders are read by file_read and shell, never chang
     ...(await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", project_id: project })),
     reach: "card" as const,
   };
-  const ref = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-ref-")));
-  const away = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-away-")));
+  const ref = tempDir("apx-ref-").path;
+  const away = tempDir("apx-away-").path;
   fs.writeFileSync(path.join(ref, "v1.txt"), "old\n");
   fs.writeFileSync(path.join(away, "x.txt"), "away\n");
   fs.symlinkSync(away, path.join(ref, "out"));
@@ -279,7 +278,7 @@ test("a read-only folder must be an absolute folder on disk, apart from APX's ho
   await refused(path.join(repo, "docs"), /already in the project's folder/);
   assert.equal(env.core.store.projects.get(project)?.read_only_folders, undefined, "nothing kept from a refusal");
   // Nor a folder holding the project's: listed as read-only, it reads as if the agent's own folder could not change.
-  const outer = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-outer-")));
+  const outer = tempDir("apx-outer-").path;
   try {
     const nested = (await env.client.call("projects.create", { path: path.join(outer, "app") })).project.id;
     await assert.rejects(
@@ -293,7 +292,7 @@ test("a read-only folder must be an absolute folder on disk, apart from APX's ho
 
 test("in a project with a read-only folder, commands read it freely and only writes into it are refused", async () => {
   const project = (await env.client.call("projects.register", { path: repo, init: true })).project.id;
-  const ref = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-ro-")));
+  const ref = tempDir("apx-ro-").path;
   fs.mkdirSync(path.join(ref, "sub"));
   fs.writeFileSync(path.join(ref, "f"), "old\n");
   fs.writeFileSync(path.join(ref, "script.mjs"), "console.log(1)\n");
@@ -392,12 +391,12 @@ test("in a project with a read-only folder, commands read it freely and only wri
   for (const c of ["echo hi > $OUT", "touch {a,b}", "cd $X && touch y"]) assert.ok(!("refused" in verdict(c)), c);
 });
 
-test("system temp folders are scratch space, except APX's own chats' temp folders", () => {
+test("system temp folders are scratch space, except APX's own chats' temp folders", async () => {
   // A home on no temp folder, like the owner's (never created: only compared against).
   const home = path.join(path.parse(os.tmpdir()).root, "apx-home-nowhere");
   const areas = tempAreas(home);
   assert.ok(areas.length > 0);
-  const own = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-own-")));
+  const own = tempDir("apx-own-").path;
   const roots = [
     { dir: own, write: true, scratch: false },
     { dir: scratchRoot(home), write: false, scratch: true, off: true },
@@ -415,7 +414,7 @@ test("system temp folders are scratch space, except APX's own chats' temp folder
     // A temp folder that holds APX's home (a throwaway core's) is not shared scratch.
     assert.equal(tempAreas(path.join(os.tmpdir(), "apx-x")).includes(os.tmpdir()), false);
   } finally {
-    fs.rmSync(own, { recursive: true, force: true });
+    await removeDir(own);
   }
 });
 
@@ -434,9 +433,9 @@ test("a refusal outside every folder names a next step that exists", async () =>
   assert.deepEqual(judge(roots, apx, repo, { home: env.home, project: true }), { refused: refusal.apx(apx) });
 });
 
-test("a linked git worktree of the project beside its folder is the project's, unless the thread keeps to one", async (t) => {
+test("a linked git worktree of the project beside its folder is the project's, also from a code thread unless it is kept to its folder", async (t) => {
   const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, stdio: "ignore" });
-  const base = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-wt-")));
+  const base = tempDir("apx-wt-").path;
   t.after(() => removeDir(base));
   const main = path.join(base, "northwind");
   const beside = path.join(base, "northwind-issue-7");
@@ -449,13 +448,118 @@ test("a linked git worktree of the project beside its folder is the project's, u
   const roots = rootsOf(env.core.store, env.home, { id: "t_wt", project_id: project, reach: "card" as const });
   const r = judge(roots, file, main, { write: true, home: env.home, project: true });
   assert.ok(!("refused" in r) && r.write, JSON.stringify(r));
-  const kept = rootsOf(env.core.store, env.home, {
-    id: "t_wt2",
-    project_id: project,
-    cwd: main,
-    reach: "card" as const,
+  // A code thread in the worktree changes the main checkout and other worktrees as other chats do (DECISIONS.md#d-271).
+  const code = (more: object) =>
+    rootsOf(env.core.store, env.home, {
+      id: "t_wt2",
+      project_id: project,
+      cwd: beside,
+      reach: "card" as const,
+      ...more,
+    });
+  const write = (roots: ReturnType<typeof rootsOf>, at: string) =>
+    judge(roots, at, beside, { write: true, home: env.home, project: true });
+  const inMain = path.join(main, "b.txt");
+  for (const at of [inMain, file]) assert.ok(!("refused" in write(code({}), at)), at);
+  assert.ok(!("refused" in write(code({ write: "auto" }), inMain)));
+  // One the owner made read-only, a fenced agent's and a consult's keep to their folder exactly as before.
+  for (const more of [{ write: "read-only" }, { reach: "fenced" }, { confined: true }]) {
+    const r = write(code(more), inMain);
+    assert.ok("refused" in r, JSON.stringify(more));
+  }
+});
+
+test("a code thread reaches the owner's other projects in Auto, never one the owner made read-only", async (t) => {
+  const base = tempDir("apx-code-").path;
+  t.after(() => removeDir(base));
+  const [own, other] = [path.join(base, "own"), path.join(base, "other")];
+  for (const d of [own, other]) fs.mkdirSync(d);
+  const project = (await env.client.call("projects.register", { path: own, init: true })).project.id;
+  await env.client.call("projects.register", { path: other, init: true });
+  const at = path.join(other, "notes.md");
+  const verdict = (write?: "auto" | "read-only") => {
+    const roots = rootsOf(env.core.store, env.home, {
+      id: "t_code",
+      project_id: project,
+      cwd: own,
+      reach: "read" as const,
+      ...(write ? { write } : {}),
+    });
+    return judge(roots, at, own, { write: true, home: env.home, project: true });
+  };
+  assert.ok(!("refused" in verdict()), "no card for another registered project");
+  assert.ok(!("refused" in verdict("auto")));
+  assert.ok("refused" in verdict("read-only"));
+});
+
+test("the owner's agents read the owner's other chats' temp folders, never change them; contacts', rooms' and apps' stay closed", async () => {
+  const store = env.core.store;
+  const chat = () => store.threads.create({ kind: "loose", title: "Chat", agent_ids: ["superagent"] });
+  const here = chat();
+  const owners = chat();
+  const app = chat();
+  store.threads.mergeContext(app.id, { client: "external" });
+  const room = chat();
+  store.threads.mergeContext(room.id, { room: { name: "Room" } });
+  const person = store.persons.create({ name: "Alex Acme", role: "contact" });
+  const contact = store.threads.create({
+    kind: "loose",
+    title: "Contact Alex",
+    agent_ids: ["superagent"],
+    channel: { id: "ch_test", conversation: "alex", person_id: person.id },
   });
-  assert.ok("refused" in judge(kept, file, main, { write: true, home: env.home, project: true }));
+  const drop = (t: { id: string }) => {
+    const dir = scratchDir(store, env.home, t);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "photo.txt"), "dropped");
+    return path.join(dir, "photo.txt");
+  };
+  const files = { owners: drop(owners), app: drop(app), room: drop(room), contact: drop(contact) };
+  const access = (t: { id: string }, file: string, o: { write?: boolean; reach?: "read" | "card" | "fenced" } = {}) =>
+    folderAccess(store, env.home, { id: t.id, reach: o.reach ?? "read" }, file, { write: o.write ?? false });
+  try {
+    const read = access(here, files.owners);
+    assert.ok(!("refused" in read) && !read.write, JSON.stringify(read));
+    assert.ok("refused" in access(here, files.owners, { write: true }), "never changed");
+    assert.ok(
+      !(
+        "refused" in
+        commandFolder(store, env.home, { id: here.id, reach: "read" }, { command: `cat ${sh(files.owners)}` })
+      ),
+    );
+    for (const [what, file] of [
+      ["an app's", files.app],
+      ["a room's", files.room],
+      ["a contact's", files.contact],
+    ] as const)
+      assert.ok("refused" in access(here, file), what);
+    // Working for a contact, fenced, or asking before reading outside (Manual), the owner's chats stay closed.
+    for (const [who, o] of [
+      [contact, {}],
+      [app, {}],
+      [here, { reach: "fenced" as const }],
+      [here, { reach: "card" as const }],
+    ] as const)
+      assert.ok("refused" in access(who, files.owners, o), JSON.stringify(o));
+    const consult = folderAccess(store, env.home, { id: here.id, reach: "fenced", confined: true }, files.owners);
+    assert.ok("refused" in consult);
+    // A chat of a project restricted to its team keeps its temp folder to that team.
+    const teamDir = tempDir("apx-team-").path;
+    const team = (await env.client.call("projects.register", { path: teamDir, init: true })).project.id;
+    const closed = store.threads.create({ kind: "loose", title: "Team", agent_ids: ["superagent"], project_id: team });
+    const teamFile = drop(closed);
+    assert.ok(!("refused" in access(here, teamFile)), "open while the project is not restricted");
+    store.projectProtection.protect("temp_test", team);
+    try {
+      assert.ok("refused" in access(here, teamFile), "restricted to its team");
+    } finally {
+      store.projectProtection.restore("temp_test");
+      await removeDir(scratchDir(store, env.home, closed));
+      await removeDir(teamDir);
+    }
+  } finally {
+    for (const t of [owners, app, room, contact]) await removeDir(scratchDir(store, env.home, t));
+  }
 });
 
 test("an agent builds in its project's artifact sources, never in an artifact's memory or another project's sources", () => {
@@ -475,8 +579,8 @@ test("an agent builds in its project's artifact sources, never in an artifact's 
   assert.equal(namesApxHome(`ls ${sh(artifactSources(env.home, "p_other"))}`, sh(env.home), "p_acme"), true);
 });
 
-test("APX's home counts however a command spells it: through a link, in another case on Windows, as .apx\\v2", () => {
-  const base = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-home-names-")));
+test("APX's home counts however a command spells it: through a link, in another case on Windows, as .apx\\v2", async () => {
+  const base = tempDir("apx-home-names-").path;
   const home = path.join(base, "home");
   fs.mkdirSync(path.join(home, "artifact-sources", "p_acme"), { recursive: true });
   const alias = path.join(base, "alias");
@@ -491,6 +595,6 @@ test("APX's home counts however a command spells it: through a link, in another 
     if (process.platform === "win32")
       assert.equal(namesApxHome(`type ${home.toUpperCase()}\\apx.db`, home, "p_acme"), true);
   } finally {
-    fs.rmSync(base, { recursive: true, force: true });
+    await removeDir(base);
   }
 });

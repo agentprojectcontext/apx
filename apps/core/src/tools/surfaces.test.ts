@@ -59,6 +59,15 @@ const calls: Record<string, object | [string, object]> = {
   "remember for it": ["edit_widget", { name: "habits", state: { streak: 4, draft: null } }],
   "a pinned page": { name: "landing", title: "Landing", html: "<h1>Hi</h1>", page: true, pin: true },
   "pin the page": ["edit_widget", { name: "landing", pin: true }],
+  "tailspin widget": { name: "tt-stock", title: "Stock", html: "<p>stock</p>" },
+  "list tailspin": ["read_widget", { project: "tailspin toys" }],
+  "read tailspin": ["read_widget", { name: "tt-stock", project: "Tailspin Toys" }],
+  "edit tailspin": [
+    "edit_widget",
+    { name: "tt-stock", project: "Tailspin Toys", edits: [{ old: "stock", new: "low" }] },
+  ],
+  "show in tailspin": { name: "tt-stock", title: "Stock", html: "<p>refilled</p>", project: "Tailspin Toys" },
+  "read nowhere": ["read_widget", { name: "tt-stock", project: "Nowhere" }],
 };
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content)}`);
@@ -343,7 +352,7 @@ test("read_widget names what an artifact keeps in its store and database, never 
 });
 
 test("a page pushed from the terminal lands in the project it names, never one its thread is not in", async () => {
-  const { project } = await env.client.call("projects.create", { name: "Northwind" });
+  const { project } = await env.client.call("projects.create", { name: "Fabrikam Labs" });
   const pushed = await env.client.call("surfaces.show", {
     name: "expenses",
     title: "Expenses",
@@ -399,4 +408,81 @@ test("a web page is never a board tile: pinning it is refused or left out, and t
   assert.equal(page.pinned, false);
   assert.match(await said(thread, "pin the page"), /cannot be pinned/);
   await assert.rejects(env.client.call("surfaces.update", { surface: page.id, pinned: true }), /not a board tile/);
+});
+
+test("the owner's agent reads, edits and replaces a widget of another of their projects and says where (DECISIONS.md#d-271)", async () => {
+  const { project } = await env.client.call("projects.create", { name: "Tailspin Toys" });
+  const there = await env.client.call("threads.create", {
+    kind: "loose",
+    agent_id: "superagent",
+    title: "tailspin",
+    project_id: project.id,
+  });
+  await said(there.id, "tailspin widget");
+  const here = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "home" });
+  assert.match(await said(here.id, "list tailspin"), /Widgets in project Tailspin Toys:\n- tt-stock: Stock/);
+  assert.match(await said(here.id, "read tailspin"), /widget "tt-stock" in project Tailspin Toys · Stock/);
+  assert.match(await said(here.id, "edit tailspin"), /widget "tt-stock" in project Tailspin Toys is now v2/);
+  assert.match(await said(here.id, "show in tailspin"), /widget "tt-stock" v3 shown in project Tailspin Toys/);
+  // It changed where it lives, in its own chat: no copy appeared where the agent was asked.
+  const all = (await env.client.call("surfaces.list", {})).surfaces.filter((s) => s.name === "tt-stock");
+  assert.deepEqual(
+    all.map((s) => [s.project_id, s.version]),
+    [[project.id, 3]],
+  );
+  const stock = await env.client.call("surfaces.get", { surface: all[0]?.id ?? "" });
+  assert.equal(stock.thread_id, there.id);
+  assert.match(await said(here.id, "read nowhere"), /no project "Nowhere"\. Projects: .*Tailspin Toys/);
+});
+
+test("a chat that does not work for the owner reaches only its own project's widgets", async () => {
+  const { project } = await env.client.call("projects.create", { name: "Contoso" });
+  const there = await env.client.call("threads.create", {
+    kind: "loose",
+    agent_id: "superagent",
+    title: "contoso",
+    project_id: project.id,
+  });
+  await env.client.call("surfaces.show", {
+    name: "ct-plan",
+    title: "Plan",
+    html: "<p>plan</p>",
+    thread: there.id,
+  });
+  const loose = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "contact" });
+  const calls: string[] = [];
+  // A contact's chat on a channel: the person is not the owner.
+  const ctx = {
+    agent: { id: "superagent", kind: "secretary" },
+    thread: { ...loose, channel: { id: "whatsapp", person_id: "per_contact" } },
+    signal: new AbortController().signal,
+    call: async (m: string) => {
+      calls.push(m);
+      throw new Error("nothing may be called");
+    },
+    upsertPart: () => {},
+  } as unknown as ToolContext;
+  const tools = surfaceTools(env.core.store, env.home);
+  const run = (name: string, args: object) =>
+    (tools.find((x) => x.name === name) as unknown as { run(a: object, c: ToolContext): Promise<string> }).run(
+      args,
+      ctx,
+    );
+  const refused = /this chat reaches only its own project's widgets/;
+  assert.match(await run("read_widget", { name: "ct-plan", project: "Contoso" }), refused);
+  assert.match(await run("read_widget", { project: project.id }), refused);
+  assert.match(await run("edit_widget", { name: "ct-plan", project: "Contoso", app: true }), refused);
+  assert.match(
+    await run("show_widget", { name: "ct-plan", title: "x", html: "<p>x</p>", project: "Contoso" }),
+    refused,
+  );
+  // A name it does not know learns it none of the owner's projects.
+  const unknown = await run("read_widget", { name: "ct-plan", project: "Nowhere" });
+  assert.match(unknown, refused);
+  assert.doesNotMatch(unknown, /Contoso|Projects:/);
+  // An outside app's chat is walled the same way.
+  env.core.store.threads.mergeContext(loose.id, { client: "app_northwind" });
+  Object.assign(ctx, { thread: loose });
+  assert.match(await run("read_widget", { name: "ct-plan", project: "Contoso" }), refused);
+  assert.deepEqual(calls, []);
 });

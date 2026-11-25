@@ -869,6 +869,17 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
       );
       return r?.output == null ? undefined : r.output;
     },
+    /** A step's full output with the chat it was made in, for a reader that checks that chat itself. */
+    outputIn(stepId: string): { output: string; thread_id: string } | undefined {
+      const r = one(
+        qb
+          .selectFrom("steps as s")
+          .innerJoin("runs as r", "r.id", "s.run_id")
+          .select(["s.output", "r.thread_id"])
+          .where("s.id", "=", stepId),
+      );
+      return r?.output == null ? undefined : { output: r.output, thread_id: r.thread_id };
+    },
     /**
      * Tool calls in these threads whose tool or arguments hold every word, newest first. Results are outside text.
      * `excludeRuns` (already in a model's view) are dropped before the limit.

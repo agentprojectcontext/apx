@@ -134,8 +134,9 @@ hace falta que la vigiles.
   afuera (una página web, otro agente, un mensaje). En Manual cada inicio te pide el OK; en Plan el agente no puede
   abrir una ([Reglas por caso](/es/concepts/autonomy/#reglas-por-caso)).
 - La sesión nunca tiene más que el agente que la pidió: ninguna política de escritura más libre que la de su chat,
-  nada más allá de lo que permite la autonomía del proyecto, y sólo dentro de la carpeta del agente. Un agente atado
-  a un proyecto no puede abrir una sesión en otro.
+  nada más allá de lo que permite la autonomía del proyecto, y sólo dentro de la carpeta del agente. Trabajando para
+  vos, un agente puede abrir una en cualquiera de tus proyectos (no en uno que se está mudando), y su respuesta dice en
+  cuál.
 - Cuenta para los límites de gasto del agente que la pidió: cuando se alcanzan, la sesión no arranca y no toma
   mensajes nuevos.
 - Un agente que le está respondiendo a otro no puede abrir sesiones; y una sesión no es un compañero ni una terminal:
@@ -150,6 +151,9 @@ hace falta que la vigiles.
   Manual o Plan corre en sólo lectura (y explica por qué), salvo que sus reglas lo dejen escribir solo. Una sesión que
   otro agente delegó con **Pregunta antes de cambiar** queda en sólo lectura para Codex aun en Total, porque no puede
   preguntar.
+- Codex nunca lee la carpeta propia de APX. Fuera de un chat de código escribe en tus proyectos según lo permita el
+  modo del agente, y no toca `AGENTS.md`, `.apc` ni los archivos de configuración de Claude Code salvo que el agente
+  esté en Total. Editar `.claude/settings.json` te pregunta antes, lo haga el agente que lo haga.
 - La lista de pasos del motor es el plan de APX, debajo de su respuesta (en el chat de una tarea, el plan de la tarea).
   Claude Code no tiene su propia lista de tareas, subagentes ni preguntas: usa el plan, las delegaciones y las preguntas
   de APX, con sus aprobaciones.

@@ -458,14 +458,22 @@ test("an automatic outside session in a project worktree runs its own scripts wi
     assert.deepEqual(card.approval_scopes, ["once", "session"]);
     await env.client.call("runs.respond", { input: card.id, decision: "approve", scope: "session" });
     assert.deepEqual(texts((await env.settle(thread.id)).messages.slice(-1)), ["[true]"]);
-    // That OK covers the next deletion in its folder only: the main checkout and what a shell is fed still ask.
-    const next = [`rm -rf ${w}/work/en/words`, "git stash drop", `rm -rf ${r}/work/src`, "bash <<'EOF'\nsudo ls\nEOF"];
+    // That OK covers the next deletion in its folder only: a folder of none of the owner's projects and what a shell
+    // is fed still ask.
+    await using away = tempDir("apx-away-");
+    fs.mkdirSync(path.join(away.path, "src"));
+    const next = [
+      `rm -rf ${w}/work/en/words`,
+      "git stash drop",
+      `rm -rf ${sh(away.path)}/src`,
+      "bash <<'EOF'\nsudo ls\nEOF",
+    ];
     await env.client.call("threads.send", {
       thread: thread.id,
       text: `probe ${JSON.stringify(next.map((command) => ({ kind: "execute", command })))}`,
     });
     for (const [command, shown] of [
-      [next[2], path.join(repo, "work", "src")],
+      [next[2], path.join(away.path, "src")],
       [next[3], "sudo ls"],
     ] as const) {
       const asked = await waitFor(

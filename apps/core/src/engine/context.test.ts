@@ -364,8 +364,13 @@ test("an agent's place in its team comes from the team itself, not from its prom
   const roby = { name: "Roby", id: "superagent" };
   const pia = { name: "Pia", id: "p1-orchestrator" };
   const place = teamPlace({ kind: "agent", parent: "orchestrator", area: "engineering" }, pia, roby);
-  assert.match(place, /you answer to Pia \(p1-orchestrator\); your area is engineering/);
-  assert.match(place, /Work outside your area goes to that area's agent, or to Roby \(superagent\) when none fits/);
+  assert.match(place, /you answer to Pia \(p1-orchestrator\); you usually work in engineering/);
+  // The area guides; it never makes the agent refuse what its tools reach (DECISIONS.md#d-271).
+  assert.match(
+    place,
+    /Do what the owner or a teammate asks that your tools reach; hand on only what needs another agent's project, session or knowledge \(its area's agent, else Roby \(superagent\)\)/,
+  );
+  assert.doesNotMatch(place, /outside your area/);
   assert.equal(teamPlace({ kind: "secretary", parent: "x", area: "y" }, pia, roby), "", "the super-agent has none");
   assert.equal(teamPlace({ kind: "agent" }, undefined, roby), "", "nothing to say without a boss or an area");
   const agent = { id: "p1-developer", name: "Fausto", role: "Senior Developer", kind: "agent" as const, prompt: "" };
@@ -418,4 +423,27 @@ test("the owner's name and how they want to be called: said only when it differs
   assert.doesNotMatch(said({ name: "Ana Acme", about: "", call_me: "Ana Acme" }), /call them/);
   assert.doesNotMatch(said({ name: "Ana Acme", about: "" }), /call them/);
   assert.match(said({ name: "", about: "", call_me: "Ani" }), /Call your owner Ani; you know them/);
+});
+
+test("every agent is told its reach for the owner, and a role picks a delegate, never a refusal (DECISIONS.md#d-271)", () => {
+  const boss = { id: "superagent", name: "Roby", role: "", kind: "secretary", prompt: "" } as Parameters<
+    typeof systemPrompt
+  >[0];
+  const worker = { ...boss, id: "designer", name: "Dana", role: "Designer", kind: "agent" } as Parameters<
+    typeof systemPrompt
+  >[0];
+  for (const agent of [boss, worker]) {
+    const p = systemPrompt(agent, { kind: "loose" }, "en");
+    assert.match(
+      p,
+      /You work for the owner in all their projects and chats: read any, act where the work is, say where; contacts' chats and APX's folder stay closed\./,
+    );
+    assert.match(p, /widgets \(show_widget via tool_search\)/, "where the widget tools are");
+    assert.match(p, /Pick by role, not title; a role never makes you refuse\./);
+    assert.doesNotMatch(p, /read its limits first|Name the agent responsible for other work/);
+  }
+  assert.match(
+    systemPrompt(worker, { kind: "loose" }, "en"),
+    /You are a specialist agent: take the work you are given to its end/,
+  );
 });

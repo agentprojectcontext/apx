@@ -153,7 +153,7 @@ test("missing or oversized sources leave no partial task or attachment metadata"
   }
 });
 
-test("live agents reuse readable media but cannot export contact, client or foreign-project assets", async () => {
+test("live agents reuse readable media but cannot export contact, client or a moving project's assets", async () => {
   const env = await startCore({ llm: scriptedLlm(() => say("Done")) });
   const { store } = env.core;
   const runs: ReturnType<typeof store.runs.create>[] = [];
@@ -209,6 +209,8 @@ test("live agents reuse readable media but cannot export contact, client or fore
       (await env.core.dispatch("tasks.attach", { task: task.id, media_ids: [media.id] }, ctx, "task-readable")).ok,
       true,
     );
+    // Another of the owner's projects is readable to the owner's agents unless it is being moved (DECISIONS.md#d-271).
+    store.projectProtection.protect("move_northwind", "northwind");
     const foreign = store.threads.create({
       kind: "loose",
       title: "Evidence chat",
@@ -226,8 +228,10 @@ test("live agents reuse readable media but cannot export contact, client or fore
     store.threads.mergeContext(client.id, { client: "outside" });
     const robyChat = store.threads.create({ kind: "loose", title: "Evidence chat", agent_ids: ["superagent"] });
     const superCtx = context("superagent", robyChat.id);
+    let foreignMedia = "";
     for (const thread of [foreign, sealed, client]) {
       const m = (await env.client.call("media.upload", { ...upload(), thread: thread.id })).media;
+      if (thread === foreign) foreignMedia = m.id;
       for (const caller of thread === foreign ? [ctx] : [ctx, superCtx]) {
         assert.equal((await env.core.dispatch("media.get", { id: m.id }, caller)).ok, false);
         assert.equal(
@@ -272,6 +276,12 @@ test("live agents reuse readable media but cannot export contact, client or fore
     assert.equal(
       (await env.core.dispatch("media.attach", { path: foreignAsset.media_id }, ctx, "foreign-task")).ok,
       false,
+    );
+    store.projectProtection.restore("move_northwind");
+    assert.equal((await env.core.dispatch("media.get", { id: foreignMedia }, ctx)).ok, true);
+    assert.equal(
+      (await env.core.dispatch("media.attach", { path: foreignAsset.media_id }, ctx, "foreign-task-moved")).ok,
+      true,
     );
     assert.equal((await env.core.dispatch("media.attach", { path: media.id }, superCtx, "super-readable")).ok, true);
     const ended = store.runs.get(ctx.agent.run_id);

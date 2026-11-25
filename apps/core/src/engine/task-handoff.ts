@@ -1,4 +1,5 @@
-import type { Task } from "@apx/protocol";
+import type { Task, Thread } from "@apx/protocol";
+import { placeName, worksForOwner } from "../domain/owner-work.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { conflict } from "../errors.ts";
@@ -38,7 +39,8 @@ export function checkSelfHandoff(store: Store, asker: Asker, project: string | u
     throw conflict("the source run belongs to another executor");
   const transferred = handedOff(store, run);
   if (transferred) throw conflict(transferred);
-  if (source.project_id !== project) throw conflict("a self-handoff must stay in the current project");
+  if (source.project_id !== project && !crossesFreely(store, source, project))
+    throw conflict("a self-handoff must stay in the current project");
   if (run.harness === "codex")
     throw conflict(
       "this harness cannot pause its native tools safely: continue the current work here instead of transferring execution",
@@ -67,6 +69,13 @@ export function checkSelfHandoff(store: Store, asker: Asker, project: string | u
   return true;
 }
 
+/** The owner's own work may carry on in another project, unless either one is being moved (DECISIONS.md#d-271). */
+function crossesFreely(store: Store, source: Thread, project: string | undefined): boolean {
+  const moving = new Set(store.projectProtection.list().map((p) => p.project));
+  const fenced = (id: string | undefined) => Boolean(id && moving.has(id));
+  return worksForOwner(store, source) && !fenced(source.project_id) && !fenced(project);
+}
+
 export function markHandoff(store: Store, task: Task, asker: Asker, work: RunRecord): void {
   if (asker.kind !== "agent" || task.assignee !== asker.id) return;
   const source = store.runs.get(asker.run_id);
@@ -83,11 +92,13 @@ export function handoffBrief(store: Store, thread: string): string {
   const source = store.threads.get(from.thread);
   const target = store.threads.get(thread);
   const run = store.runs.get(from.run);
-  if (!source || !target || !run || source.project_id !== target.project_id || run.thread_id !== source.id) return "";
+  if (!source || !target || !run || run.thread_id !== source.id) return "";
+  if (source.project_id !== target.project_id && !crossesFreely(store, source, target.project_id)) return "";
+  const elsewhere = source.project_id !== target.project_id ? ` (in ${placeName(store, source.project_id)})` : "";
   const steps = store.runs.steps(run.id).filter((s) => s.state === "ok" || s.state === "error");
   return cap(
     [
-      `Existing work transferred from chat ${source.id}, run ${run.id}. Continue it here; the originating turn cannot execute more tools. Read the existing findings before doing research or launching helpers again.`,
+      `Existing work transferred from chat ${source.id}${elsewhere}, run ${run.id}. Continue it here; the originating turn cannot execute more tools. Read the existing findings before doing research or launching helpers again.`,
       untrusted(
         "handoff_findings",
         {},

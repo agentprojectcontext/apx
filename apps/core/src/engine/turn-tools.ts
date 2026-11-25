@@ -1,14 +1,15 @@
-// The tools a turn may use: the agent's, narrowed by its callers, its chat (a contact's, the computer, a phone chat)
-// and what is turned on; MCP's join behind the bridge on first use, and never in a contact's turn.
+// The tools a turn may use: the agent's, narrowed by its callers' modes and rules, its chat (a contact's, the computer,
+// a phone chat) and what is turned on; MCP's join behind the bridge on first use, and never in a contact's turn.
 import { BROWSER_CAP, CHROME_CAP } from "@apx/protocol";
 import { isConsult } from "../domain/contact-consult.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
+import { worksForOwner } from "../domain/owner-work.ts";
 import { answersChecked, chromeReach, type Origin, reachIn, taskOrigin } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { CONTACT_TOOLS, contactHolder, contactToolNames } from "../tools/contact.ts";
 import { STICKER_TOOL, stickersFor } from "../tools/directory.ts";
 import { IMESSAGE_TOOLS } from "../tools/imessage.ts";
-import { appOf, foundLater, mcpBridge, OWN_FOUND, TOOL_RUN, TOOL_SEARCH } from "../tools/mcp-bridge.ts";
+import { appOf, foundLater, mcpBridge, TOOL_RUN, TOOL_SEARCH } from "../tools/mcp-bridge.ts";
 import { inherit } from "../tools/policy.ts";
 import type { Tool } from "../tools/types.ts";
 import { COMPUTER_TOOL } from "../tools/vm.ts";
@@ -124,7 +125,7 @@ const VM_HOST_TOOLS = new Set([
   "web_read",
 ]);
 
-/** The tools this turn may use: the agent's, narrowed by whoever asked for it up the chain; a contact's, by their flags. */
+/** The tools this turn may use: the agent's, under its callers' rules up the chain; a contact's, by their flags. */
 export async function turnTools(deps: TurnDeps, turn: Turn) {
   const inVm = deps.vm?.hasThread(turn.thread.id);
   // Browser tools are offered with no other browser in a turn from APX's panel in Chrome, and in the owner's own work
@@ -178,14 +179,17 @@ export async function turnTools(deps: TurnDeps, turn: Turn) {
     turn.audience.kind === "contact"
       ? new Set([...contactToolNames(contactHolder(turn.audience)), ...(turn.web ? WEB_TOOLS : []), STICKER_TOOL])
       : new Set<string>();
+  // Working for the owner, its `tools:` list is focus; for anyone else it stays a wall (DECISIONS.md#d-271).
+  const walled = sealed || consult || Boolean(step?.bot) || !worksForOwner(deps.store, turn.thread);
   const narrowed = inherit(
     turn.agent,
     callers,
     sealed
       ? offered.filter((t) => forContact.has(t.name))
       : [...offered.filter((t) => !CONTACT_TOOLS.has(t.name)), ...bridge],
+    walled,
   );
-  // The mode it acts in comes from the one place every permission question asks; its callers narrow its tools.
+  // The mode it acts in comes from the one place every permission question asks; its callers' rules narrow its tools.
   const policy = { ...narrowed, agent: deps.permissions.agentIn(turn.agent, turn.thread.id) };
   // A worker asks no one, and keeps to the tools its caller named for it (when it named any).
   const named = turn.worker?.tools?.length ? new Set(turn.worker.tools) : undefined;
@@ -205,16 +209,19 @@ export async function turnTools(deps: TurnDeps, turn: Turn) {
   );
   if (consult) return { policy, tools: consultTools(deps.store, turn.thread.id, kept), mcpLate };
   const tools = kept;
-  // A connected app's tools and APX's rarely used ones are found and run through the bridge, unless the turn's tools
-  // were named one by one. A turn with no bridge (on the computer, a contact's, a Flow's bot) keeps APX's own direct.
+  // A connected app's tools, APX's rarely used ones and those outside the agent's focus are found and run through the
+  // bridge, unless the turn's tools were named one by one. A turn with no bridge (on the computer, a contact's, a
+  // Flow's bot) keeps APX's own direct.
   const bridgeable = !inVm && !sealed && !step?.bot;
-  const apps = only ? [] : tools.filter((t) => (bridgeable ? foundLater(t.name) : appOf(t.name)));
+  const apps = only
+    ? []
+    : tools.filter((t) => (bridgeable ? foundLater(t.name) || !policy.focus(t.name) : appOf(t.name)));
   if (!apps.length) return { policy, tools, mcpLate };
   const late = async () => [...apps, ...(await mcpLate())];
   const found = new Set(apps);
   const direct = tools.filter((t) => !found.has(t) && t.name !== TOOL_SEARCH && t.name !== TOOL_RUN);
   const appNames = [...new Set(apps.flatMap((t) => appOf(t.name) ?? []))];
-  const own = apps.filter((t) => OWN_FOUND.has(t.name)).map((t) => t.name);
+  const own = apps.filter((t) => !appOf(t.name)).map((t) => t.name);
   const mcp = tools.some((t) => t.name === TOOL_SEARCH) ? servers : [];
   return { policy, tools: [...direct, ...mcpBridge(mcp, late, appNames, own)], mcpLate: late };
 }
