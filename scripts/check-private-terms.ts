@@ -8,6 +8,7 @@
 //       term | re:<regex> | allow:<literal> | # comment
 //  2. Public SHAPES that run everywhere: real-looking WhatsApp numbers and absolute /Users|/Volumes paths.
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -128,12 +129,43 @@ function scanLines(file: string, lines: string[], matchers: Matcher[], allow: st
   });
 }
 
+const digest = (value: string) => createHash("sha256").update(value).digest("hex");
+
+// Owner-approved public blog attribution; any content change or new denylist term requires review. See D-271.
+const PUBLIC_AUTHOR = {
+  file: "apps/docs/src/data/blog-author.mjs",
+  content: "04ffc732673f2c28d896084423b812e414e30c12a3ce521fe0e83a3576d88915",
+  terms: new Set([
+    "dbde6e431edd7f4672f039680c58d4a0b59bff2dacfa25d63a228ba2ce392bd1",
+    "cca457407f24b80c72d89dd061837112cb99a0aa050c155514b320b7aaffe95c",
+    "f96cf6a1d9a1b55845e066252db1801f019ac57d3270001ac046a492216b154c",
+    "4406c6ab4c19d441083f0b8f9661dd46db714c940dce069521482c76d5a75813",
+  ]),
+};
+
+type PublicException = { file: string; content: string; terms: Set<string> };
+export function approvedPublicHit(file: string, content: string, term: string, approval: PublicException): boolean {
+  return file === approval.file && digest(content) === approval.content && approval.terms.has(digest(term));
+}
+
+export function scanText(
+  file: string,
+  text: string,
+  matchers: Matcher[],
+  allow: string[],
+  approval: PublicException,
+): Hit[] {
+  const found: Hit[] = [];
+  scanLines(file, text.split("\n"), matchers, allow, found);
+  return found.filter((hit) => !approvedPublicHit(file, text, hit.term, approval));
+}
+
 export function scan(files: string[], matchers: Matcher[], allow: string[]): Hit[] {
   const hits: Hit[] = [];
   for (const rel of files) {
     if (rel.endsWith("check-private-terms.ts")) continue;
     const lines = readLines(rel);
-    if (lines) scanLines(rel, lines, matchers, allow, hits);
+    if (lines) hits.push(...scanText(rel, lines.join("\n"), matchers, allow, PUBLIC_AUTHOR));
   }
   return hits;
 }

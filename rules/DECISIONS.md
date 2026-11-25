@@ -6202,3 +6202,9 @@ Not changed here: whether an outside engine session started with `start_session`
 cross-project task @mention reaching another project's agent (privacy boundary; the super-agent reaches it).
 
 Docs impact: updated office/tasks in English and Spanish and rules/PROMPT_SIZE.md.
+
+<a id="d-271"></a>
+## D-271 — 2026-11-25 — Owner-approved public blog attribution
+The owner asked for a public author identity on every blog post and approved keeping it when the private-data gate flagged it. Rule 17 otherwise remains in force: the gate exempts only four approved literal matches in the exact reviewed author-data file bytes. A content edit or a new denylist match fails again; public path and phone shapes and commit scans remain active. Updating the exemption requires renewed review, not a blanket allowlist. The published attribution and repository history are public; this exception is not a general privacy audit.
+
+Docs impact: updated GUARDRAILS_PROFILE.md to describe the scoped gate exception.
