@@ -7,3 +7,11 @@ export function useEngineLabel(engine: string | undefined): string | undefined {
   const catalogLabel = useModels((s) => (engine ? s.catalog.find((e) => e.id === engine)?.label : undefined));
   return engine ? (label ?? catalogLabel ?? engine) : undefined;
 }
+
+/** The same for many engines at once (a list): a function from an engine id to its name. */
+export function useEngineLabels(): (engine: string) => string {
+  const engines = useData((s) => s.engines);
+  const catalog = useModels((s) => s.catalog);
+  return (engine) =>
+    engines.find((e) => e.id === engine)?.label ?? catalog.find((e) => e.id === engine)?.label ?? engine;
+}

@@ -814,14 +814,15 @@ function enginePick(deps: TurnDeps, turn: Turn, start: RunRecord, history: ChatI
   // The chat's own model (picked in its composer) first, then the agent's, then the install default. The agent's own
   // fallbacks back whichever model the chat runs on (DECISIONS.md#d-195).
   const chatChoice = deps.store.threads.context(turn.thread.id).model_choice;
+  const own = turn.thread.engine;
+  // The session is the engine, not the agent that opened it: never the agent's model (DECISIONS.md#d-272-engine-sessions).
+  if (own) {
+    const ref = chatChoice?.model && engineOf(chatChoice.model) === own ? chatChoice.model : own;
+    return { harness: harnessOf(ref), refs: [ref] };
+  }
   const fallbacks = chatChoice?.fallbacks ?? turn.agent.model_choice?.fallbacks;
   const picked = chatChoice ?? turn.agent.model_choice;
   const chosen = picked && fallbacks ? { ...picked, fallbacks } : picked;
-  const own = turn.thread.engine;
-  if (own) {
-    const ref = chosen?.model && engineOf(chosen.model) === own ? chosen.model : own;
-    return { harness: harnessOf(ref), refs: [ref] };
-  }
   const settings = modelSettings(deps.store);
   const refs = candidates(chosen ?? settings.defaultChoice(), settings.router(), {
     text: turn.input.text,

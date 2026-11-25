@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { FlatList, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
 import { elapsed } from "../format";
-import { workingNow, workSubject } from "../hooks/chatSelectors";
+import { engineName, workingNow, workSubject } from "../hooks/chatSelectors";
 import { type InboxNode, inboxTree, nodeThreads, searchInbox } from "../hooks/inboxTree";
 import { byAttention } from "../hooks/rowState";
 import type { Agent, Job, Thread, Workspace } from "../hooks/useWorkspace";
@@ -271,7 +271,10 @@ function WorkChip({ thread, job, data, onPress }: { thread: Thread; job?: Job; d
   const type = useType();
   const theme = useTheme();
   const s = useStyles();
-  const who = agentOf(job?.agent_id ?? thread.agent_ids[0], agents)?.name ?? thread.title;
+  // An engine session is the engine at work, not the agent that opened it.
+  const who = thread.engine
+    ? engineName(thread.engine)
+    : (agentOf(job?.agent_id ?? thread.agent_ids[0], agents)?.name ?? thread.title);
   const waiting = thread.state === "input-required";
   return (
     <Pressable

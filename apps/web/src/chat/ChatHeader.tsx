@@ -5,6 +5,7 @@ import { roomWord } from "../channels/kinds.ts";
 import { useAgentHint } from "../common/AgentFace.tsx";
 import { ChatProcesses } from "../common/ChatProcesses.tsx";
 import { namedTitle } from "../common/mentionNames.ts";
+import { StartedBy } from "../common/StartedBy.tsx";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
 import { compactThread } from "../data/actions.ts";
 import { useChannels } from "../data/channels.ts";
@@ -81,11 +82,14 @@ export function ChatHeader({
   // An engine session is the engine itself: its name and icon, not the agent that owns the run.
   const engine = useEngineLabel(thread.engine);
   const agents = useData((s) => s.agents);
+  // One an agent opened is still the engine's: the agent shows only as who started it (DECISIONS.md#d-272-engine-sessions).
   const name = thread.channel
     ? thread.title
-    : sub
-      ? namedTitle(thread.title, agents, thread.agent_ids[0])
-      : (engine ?? agent?.name ?? thread.title);
+    : engine
+      ? chatTitle(thread, t)
+      : sub
+        ? namedTitle(thread.title, agents, thread.agent_ids[0])
+        : (agent?.name ?? thread.title);
   const catalog = useModels((s) => s.catalog);
   // A group's or room's chat (a channel chat with nobody behind it) opens its card from here.
   const room = Boolean(thread.channel && !thread.channel.person_id);
@@ -157,7 +161,8 @@ export function ChatHeader({
             </Tooltip>
           )}
           {engine && <span>{t("chat.headerEngine", { engine })}</span>}
-          {sub && <Tag>{t(fromCall ? "call.from" : "thread.a2a")}</Tag>}
+          {engine && agent && thread.parent_id && <StartedBy agent={agent} from={thread.parent_id} />}
+          {sub && !engine && <Tag>{t(fromCall ? "call.from" : "thread.a2a")}</Tag>}
           {thread.flow && (
             <Tooltip content={t("flows.fromFlowHint")}>
               <button type="button" className="chat__task" onClick={() => go.flows(thread.project_id, thread.flow?.id)}>

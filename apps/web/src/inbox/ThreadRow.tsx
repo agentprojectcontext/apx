@@ -195,12 +195,14 @@ export function PinMark() {
 }
 
 /**
- * Where the chat happens, after who speaks in it: the channel's app for a contact's chat, "External session" for an
- * engine's, nothing for a group (its line names its members), "Personal" for a call, and otherwise the agent's role (or
+ * Where the chat happens, after who speaks in it: the channel's app for a contact's chat, "External session" (or who
+ * started it) for an engine's, nothing for a group (its line names its members), "Personal" for a call, and otherwise the agent's role (or
  * what kind of chat it is).
  */
 function contextOf(thread: Thread, agent: Agent | undefined, t: T): string {
-  if (thread.engine) return t("nav.externalSession");
+  // An engine session an agent opened says who started it; the engine is the one speaking (DECISIONS.md#d-272-engine-sessions).
+  if (thread.engine)
+    return thread.parent_id && agent ? t("engine.startedBy", { name: agent.name }) : t("nav.externalSession");
   if (thread.kind === "group") return "";
   if (thread.kind === "a2a") return t("thread.a2a");
   if (thread.kind === "call") return t("call.personal");

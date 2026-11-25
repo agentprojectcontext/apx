@@ -29,6 +29,8 @@ export type InboxItem = {
   /** Words shown apart, quoted (a question's options, what a confirmation would do). */
   quote?: string;
   agentId?: string;
+  /** An outside engine's session: its face instead of the agent that opened it. */
+  engine?: string | undefined;
   icon?: IconName;
   primary: { label: Key; action: InboxAction };
   secondary: { label: Key; action: InboxAction };
@@ -90,6 +92,7 @@ export function inboxItems(data: Data): InboxItem[] {
         reviewOnComputer,
         quote: input.options?.length ? input.options.join(" · ") : undefined,
         agentId: input.agent_id,
+        engine: thread?.engine,
         primary: reviewInChat
           ? { label: "view", action: { kind: "open", thread: input.thread_id } }
           : confirm
@@ -121,6 +124,7 @@ function noticeItem(
     title: notice.title,
     body: notice.body || undefined,
     agentId: thread?.agent_ids[0],
+    engine: thread?.engine,
     notice,
   };
   if (notice.kind === "routine") {
