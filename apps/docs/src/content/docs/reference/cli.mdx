@@ -125,6 +125,7 @@ settings ~/.apx/v2/core.env (none yet)`}</Terminal>
 | `apx threads get <thread>` | A thread's last 20 messages. |
 | `apx threads search <words…>` | Messages with every word, best match first. |
 | `apx threads cancel <thread>` | Stop what is running in it. |
+| `apx threads folder <thread> <folder>` | Change an idle code session's working folder within its registered project, preserving its history and engine session. Use this if its worktree was removed; it does not recreate folders or change write permission. |
 | `apx runs get <run>` | One run, as JSON. |
 | `apx runs wait <run>` | Wait for it to end (`--timeout 60`, in seconds). |
 | `apx runs pending [thread]` | What agents are waiting on from you: confirmations and questions. |

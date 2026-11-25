@@ -74,6 +74,13 @@ export async function threads(
       console.log(`  ${authorOf(m.author).padEnd(10)} ${messageText(m).slice(0, 200)}`);
     return;
   }
+  if (sub === "folder") {
+    const cwd = rest[0];
+    if (!cwd || rest.length !== 1) throw new Error("usage: apx threads folder <thread> <folder>");
+    const thread = await client.call("threads.update", { thread: id, cwd: path.resolve(cwd) });
+    console.log(`Working folder: ${thread.cwd}`);
+    return;
+  }
   if (sub === "cancel") {
     const r = await client.call("threads.cancel", { thread: id });
     console.log(`canceled ${r.canceled}`);
