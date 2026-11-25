@@ -48,8 +48,16 @@ export function filesNote(parts: Part[]): string {
 }
 
 /** `answer` with the files its run showed named under it. */
-export function withFilesNote(store: Store, run: RunRecord, answer: string): string {
-  const note = filesNote(store.messages.ofRun(run.thread_id, run.id).flatMap((m) => m.parts));
+export function withFilesNote(
+  store: Store,
+  run: RunRecord,
+  answer: string,
+  share?: (sources: MediaRecord[]) => MediaRecord[],
+): string {
+  const parts = store.messages.ofRun(run.thread_id, run.id).flatMap((m) => m.parts);
+  const note = filesNote(
+    share ? share(filesIn(parts).flatMap((p) => store.media.get(p.media_id) ?? [])).map(partOf) : parts,
+  );
   return note ? `${answer}\n\n${note}` : answer;
 }
 

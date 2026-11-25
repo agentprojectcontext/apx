@@ -577,6 +577,7 @@ function afterConsult(
     review?: boolean;
     asker?: { agent: string; thread: string };
   },
+  share?: ShareOnTask,
 ): void {
   const task = store.tasks.get(consulted.task);
   const answer = textOf(store, run);
@@ -593,7 +594,7 @@ function afterConsult(
   }
   if (!task) return;
   store.tasks.touched(task.id, run.agent_id, "update");
-  if (consulted.asker) answerAsker(store, admit, task, run, answer, consulted.asker);
+  if (consulted.asker) answerAsker(store, admit, task, run, answer, consulted.asker, share);
   if (run.state !== "completed" || !answer) return;
   // A consult answers and stops: whoever it @mentions is not asked (DECISIONS.md#d-074).
   taskCommentAttention(store, task, answer, run.agent_id);
@@ -608,6 +609,7 @@ function answerAsker(
   run: RunRecord,
   answer: string,
   from: { agent: string; thread: string },
+  share?: ShareOnTask,
 ): void {
   const askerId = from.agent;
   const current = store.tasks.get(task.id) ?? task;
@@ -617,9 +619,17 @@ function answerAsker(
   const thread = asked && !asked.archived && !ownerLine(asked) ? asked : sessionFor(store, current, askerId);
   if (trip(store, thread.id) || agentTrip(store, thread.id, askerId)) return;
   const name = store.agents.get(run.agent_id)?.name ?? run.agent_id;
+  let delivered = answer.slice(0, 4000);
+  if (run.state === "completed" && answer) {
+    try {
+      delivered = withFilesNote(store, run, delivered, share && ((sources) => share(task, sources, run.agent_id)));
+    } catch {
+      delivered += "\n\nThe files could not be kept on the task; their delivery is incomplete.";
+    }
+  }
   const text =
     run.state === "completed" && answer
-      ? `${name} answered your question on task ${task.id}:\n${withFilesNote(store, run, answer.slice(0, 4000))}\n\nGo on with the task.`
+      ? `${name} answered your question on task ${task.id}:\n${delivered}\n\nGo on with the task.`
       : `${name} could not answer your question on task ${task.id} (${run.error ?? run.state}). Go on without it.`;
   const asker: Asker = { kind: "agent", id: run.agent_id, name, thread_id: run.thread_id, run_id: run.id, depth: 1 };
   ask(store, admit, current, askerId, text, asker, { kind: "agent", id: run.agent_id }, thread, [
@@ -755,7 +765,7 @@ export function afterWorkTurn(store: Store, admit: AdmitFn, run: RunRecord, shar
   const thread = store.threads.get(run.thread_id);
   const consulted = thread?.kind === "a2a" ? store.threads.context(thread.id).consult : undefined;
   if (consulted) {
-    afterConsult(store, admit, run, consulted);
+    afterConsult(store, admit, run, consulted, share);
     return;
   }
   const task = thread?.task_id ? store.tasks.get(thread.task_id) : undefined;

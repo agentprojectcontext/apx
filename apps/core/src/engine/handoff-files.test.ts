@@ -16,6 +16,8 @@ const llm = scriptedLlm((req, { system, said, afterTool }) => {
     return say("Sources attached.");
   }
   if (system.startsWith("You are Vera")) {
+    const source = /Files it showed: sources\.txt \((med_[0-9a-f]{16})\)\./.exec(said)?.[1];
+    if (source && !afterTool) return callTool("v-show-sources", "send_file", { path: source });
     if (JSON.stringify(req.messages).includes("Collect the sources")) {
       if (done === 0) {
         const task = /Task (task_\w+):/.exec(JSON.stringify(req.messages))?.[1] ?? "";
@@ -99,7 +101,7 @@ test("a closed task's report names its files, and its creator shows them where i
 });
 
 test("a teammate consulted on a task answers with its file named, for the agent that asked", async () => {
-  await env.client.call("tasks.create", {
+  const task = await env.client.call("tasks.create", {
     title: "Sources",
     description: "Collect the sources.",
     assignee: "vera",
@@ -111,5 +113,19 @@ test("a teammate consulted on a task answers with its file named, for the agent 
       ),
     "Vera hearing Scout's file",
     { ms: 10_000 },
+  );
+  const chat = await waitFor(() => env.core.store.threads.byTask(task.id)[0], "the asker's task chat");
+  await waitFor(
+    async () => (await shownFiles(chat.id)).length === 1,
+    "the asker attaching the consulted teammate's file",
+    { ms: 10_000 },
+  );
+  await env.settle(chat.id, 10_000);
+  assert.deepEqual(await shownFiles(chat.id), [{ name: "sources.txt", bytes: "Source list" }]);
+  const kept = (await env.client.call("tasks.get", { task: task.id })).attachments;
+  assert.equal(kept.length, 1, "only the delivered file is copied onto the task");
+  assert.ok(
+    heard(new RegExp(`Files it showed: sources\\.txt \\(${kept[0]?.media_id}\\)`)),
+    "the answer names the task's readable snapshot",
   );
 });
