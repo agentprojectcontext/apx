@@ -26,10 +26,10 @@ before(async () => {
   // The turn stops waiting almost at once, so what happens after the wait is what these tests see.
   env = await startCore({ llm, inputWaits: { turn: 150, external: 150 } });
   root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-inputs-open-"));
-  fs.mkdirSync(path.join(root, ".agent", "agents"), { recursive: true });
-  fs.writeFileSync(path.join(root, ".agent", "project.json"), JSON.stringify({ name: "Northwind" }));
+  fs.mkdirSync(path.join(root, ".apx", "agents"), { recursive: true });
+  fs.writeFileSync(path.join(root, ".apx", "project.json"), JSON.stringify({ name: "Northwind" }));
   fs.writeFileSync(
-    path.join(root, ".agent", "agents", "careful.md"),
+    path.join(root, ".apx", "agents", "careful.md"),
     "---\nname: Careful\nrole: tester\nautonomy: ask\n---\n\nYou check things.\n",
   );
   await env.client.call("projects.register", { path: root });

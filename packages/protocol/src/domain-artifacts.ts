@@ -24,7 +24,7 @@ export const OutboxItem = z.object(
 );
 export type OutboxItem = z.infer<typeof OutboxItem>;
 
-/** An MCP server an agent may use: the owner's own, or one a project's `.agent/mcps.json` names. */
+/** An MCP server an agent may use: the owner's own, or one a project's `.apx/mcps.json` names. */
 export const McpServerStatus = z.object(
   schemaFields({
     name: () => z.string(),

@@ -1,4 +1,4 @@
-// Which MCP servers an agent may use: the owner's global ones (settings) and a project's own (`.agent/mcps.json`).
+// Which MCP servers an agent may use: the owner's global ones (settings) and a project's own (`.apx/mcps.json`).
 // A project file can name any command, so its servers start only once the owner approved that exact definition.
 
 import { createHash } from "node:crypto";
@@ -241,7 +241,7 @@ export function mcpConfig(store: Store) {
       }
       store.settings.write("mcp_off", all);
     },
-    /** Adds, replaces or (null) removes a server in a project's .agent/mcps.json, keeping the rest of the file. */
+    /** Adds, replaces or (null) removes a server in a project's .apx/mcps.json, keeping the rest of the file. */
     setProject(projectId: string, name: string, server: Record<string, unknown> | null): void {
       const p = store.projects.get(projectId);
       if (!p?.path) throw new Error(`project ${projectId} has no folder`);

@@ -9,7 +9,7 @@ type Agent = { id: string; name: string; kind: string; project_id?: string };
 
 function repoWith(...agents: Array<[string, string]>): string {
   const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-e2e-import-")));
-  const dir = path.join(repo, ".agent", "agents");
+  const dir = path.join(repo, ".apx", "agents");
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Acme\n");
   for (const [slug, name] of agents)

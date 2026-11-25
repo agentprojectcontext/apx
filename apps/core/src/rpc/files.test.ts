@@ -29,7 +29,7 @@ before(async () => {
   env = await startCore({ llm: scriptedLlm(() => say("ok")), desktop });
   repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-files-repo-")));
   outside = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-files-out-")));
-  fs.mkdirSync(path.join(repo, ".agent"), { recursive: true });
+  fs.mkdirSync(path.join(repo, ".apx"), { recursive: true });
   fs.mkdirSync(path.join(repo, "docs"));
   fs.mkdirSync(path.join(repo, ".git"));
   fs.writeFileSync(path.join(repo, ".git", "config"), "[core]");
@@ -55,7 +55,7 @@ test("a folder lists its folders first; .git and links that leave the folder are
   assert.equal(truncated, false);
   assert.deepEqual(
     entries.map((e) => `${e.kind}:${e.path}`),
-    ["dir:.agent", "dir:docs", "dir:docs-link", "file:AGENTS.md", "file:logo.png"],
+    ["dir:.apx", "dir:docs", "dir:docs-link", "file:AGENTS.md", "file:logo.png"],
   );
   const docs = await env.client.call("files.tree", { project, dir: "docs" });
   assert.deepEqual(docs.entries, [{ name: "plan.md", path: "docs/plan.md", kind: "file", bytes: 16 }]);

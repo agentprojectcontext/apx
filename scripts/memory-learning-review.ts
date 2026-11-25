@@ -605,7 +605,7 @@ async function episode(scenario: LearningScenario, repetition: number): Promise<
       env = await launch();
     }
     for (const entry of fs.readdirSync(work))
-      if (entry !== ".agent" && entry !== "AGENTS.md")
+      if (entry !== ".apx" && entry !== "AGENTS.md")
         fs.rmSync(path.join(work, entry), { recursive: true, force: true });
     if (values["memory-off"]) {
       await env.client.call("memory.set_settings", {

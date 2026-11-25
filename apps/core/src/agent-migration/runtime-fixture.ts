@@ -1,21 +1,21 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { AGENT_DIR } from "../apc/folder.ts";
+import { APX_DIR } from "../apc/folder.ts";
 import type { startCore } from "../engine/testkit.ts";
 
 export async function migrationRuntimeFixture(env: Awaited<ReturnType<typeof startCore>>, folder: string) {
   for (const name of ["acme", "northwind"]) {
     const root = path.join(folder, name);
-    fs.mkdirSync(path.join(root, AGENT_DIR, "agents"), { recursive: true });
-    fs.writeFileSync(path.join(root, AGENT_DIR, "project.json"), JSON.stringify({ name }));
+    fs.mkdirSync(path.join(root, APX_DIR, "agents"), { recursive: true });
+    fs.writeFileSync(path.join(root, APX_DIR, "project.json"), JSON.stringify({ name }));
     fs.writeFileSync(path.join(root, "AGENTS.md"), `# ${name}\n${name}-context-marker\n`);
   }
   const sourceRoot = path.join(folder, "acme");
   const targetRoot = path.join(folder, "northwind");
   for (const name of ["researcher", "editor"])
     fs.writeFileSync(
-      path.join(sourceRoot, AGENT_DIR, "agents", `${name}.md`),
+      path.join(sourceRoot, APX_DIR, "agents", `${name}.md`),
       `---\nname: ${name}\nrole: Research\n---\n\nCheck evidence.\n`,
     );
   const source = (await env.client.call("projects.register", { path: sourceRoot })).project;

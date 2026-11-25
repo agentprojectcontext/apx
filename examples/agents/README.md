@@ -3,7 +3,7 @@
 What the Team screen's "Import" dialog offers, beside the owner's v1 vault (`~/.apx/agents`, read-only).
 
 - A folder with `TEAM.md` is a team: its frontmatter gives the `name` and `description`, and every `<slug>.md` beside
-  it is a member, written in the same format as `.agent/agents/<slug>.md`. A member without a `parent` inside the team
+  it is a member, written in the same format as `.apx/agents/<slug>.md`. A member without a `parent` inside the team
   is its lead.
 - A loose `<slug>.md` here is a single agent. Every team member is also offered on its own.
 - `area:` groups agents in the Team view.
@@ -18,7 +18,7 @@ the owner's modes, rules and confirmations stay in force. A `tools:` list the ow
 those tools are sent first, the rest are found when needed. Installing again skips existing agents: it does not
 replace customized prompts or restrictions.
 
-Installing copies the file into the project's `.agent/agents/` as written, with two changes: `parent` (to hang the team
+Installing copies the file into the project's `.apx/agents/` as written, with two changes: `parent` (to hang the team
 under the project's orchestrator when the owner asks), and the name. A template's `name` is a job ("Senior
 Developer"): the installed agent gets a person's name nobody else uses and that job as its `role`. Agents from the v1
 vault keep their own names.

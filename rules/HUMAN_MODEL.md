@@ -253,7 +253,7 @@ per path), or the current Git folder. Owner-only `files.diff` reads a saved patc
 after source deletion. Older records without patches show labeled current content only when their recorded
 folder still matches the chat's work folder; escapes, Git metadata, binaries and special files are refused.
 Files live in three places ([D-054](DECISIONS.md#d-054), [D-055](DECISIONS.md#d-055)): the project's own folder (the
-repository and its `.agent/`, where the native agent works); APX's side of each project in its home, `projects/<id>` (or
+repository and its `.apx/`, where the native agent works); APX's side of each project in its home, `projects/<id>` (or
 the project's folder itself when APX made it, `projects/<name>`), where outside agents work outside code threads and
 the native agent falls back while the folder is off this machine; and each chat's temp folder (`apx-scratch-…` in the
 system's temp folder), for downloads and tries, kept with `files.keep`. `work/` is the folder of chats outside a
@@ -294,7 +294,7 @@ notice when there is no text. Tools that touch core state call protocol methods 
   maker's own site or registry, never redrawn) plus its id in `engineBrand`, or the panel shows the neutral bot; and
   the engines page in `apps/docs` (English and Spanish).
 - **Memory and long threads** (D-013): notes live in `memories` (FTS5) and reach a turn in its `[memory]` block
-  (`engine/recall.ts`); `.agent/memory.md` joins `AGENTS.md` in the system prompt. After each run `engine/upkeep.ts`
+  (`engine/recall.ts`); `.apx/memory.md` joins `AGENTS.md` in the system prompt. After each run `engine/upkeep.ts`
   titles new chats and, when the history gets long, summarizes older turns into a new epoch that
   `projectHistory` puts before the newest turns. `engine/chat-recall.ts` retrieves literal owner messages from the
   agent's own eligible chats in the same project, including old current-chat turns outside the projected context.

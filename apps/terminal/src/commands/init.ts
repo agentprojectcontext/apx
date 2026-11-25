@@ -4,12 +4,12 @@ import path from "node:path";
 import type { ApxClient } from "@apx/protocol/client";
 
 const INIT_USAGE = `apx init [folder] [--json]   Make a folder (default: this one) a project and register it with APX
-                             Writes only what is missing (AGENTS.md naming the project, an empty .agent/); never
+                             Writes only what is missing (AGENTS.md naming the project, an empty .apx/); never
                              changes an existing file. Again on a registered folder: reads its files again`;
 
 /** What a folder lacks to be a project, as the core would fill it in. */
 const missingIn = (dir: string) =>
-  ["AGENTS.md", ".agent"].filter((f) => fs.existsSync(dir) && !fs.existsSync(path.join(dir, f)));
+  ["AGENTS.md", ".apx"].filter((f) => fs.existsSync(dir) && !fs.existsSync(path.join(dir, f)));
 
 export async function init(
   client: ApxClient,
@@ -33,14 +33,14 @@ export async function init(
   const what = `${r.project.name} (${r.project.id}) · ${r.agents} ${r.agents === 1 ? "agent" : "agents"}`;
   console.log(known ? `Already a project in APX: ${what}` : `Registered ${what}`);
   console.log(`  ${dir}`);
-  for (const f of created) console.log(`  Created ${f === ".agent" ? ".agent/" : f}`);
+  for (const f of created) console.log(`  Created ${f === ".apx" ? ".apx/" : f}`);
   if (!created.length)
     console.log(
-      r.project.legacy_folder ? "  Nothing written" : "  Nothing written: its AGENTS.md and .agent/ were already there",
+      r.project.legacy_folder ? "  Nothing written" : "  Nothing written: its AGENTS.md and .apx/ were already there",
     );
   if (r.project.legacy_folder)
     console.log(
-      "\nAPX could not move its agents and settings from .apc/ to .agent/, so it keeps using .apc/. Try again: apx doctor --fix",
+      "\nAPX could not move its agents and settings from .apc/ to .apx/, so it keeps using .apc/. Try again: apx doctor --fix",
     );
   else if (!r.agents) console.log(`\nNext: apx agents new <slug> "<Name>" --project ${r.project.id} --role "<role>"`);
 }

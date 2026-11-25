@@ -554,8 +554,13 @@ test("review: a database link, even one that points nowhere yet, and APX's own f
     fs.symlinkSync(path.join(outside.path, "made-there.db"), path.join(folder, "data", "new.db"));
     assert.ok((await write("data/new.db")).issues.some((i) => i.code === "database_unavailable"));
     assert.ok(!fs.existsSync(path.join(outside.path, "made-there.db")));
-    // A project whose folder holds APX's own: APX's database is not one of its databases.
-    const apx = (await env.client.call("projects.create", { name: "Home", path: env.home })).project.id;
+    // A project whose folder holds APX's own is refused now; one indexed before still never reaches APX's database.
+    await assert.rejects(
+      env.client.call("projects.create", { name: "Home", path: env.home }),
+      /holds the folder where APX keeps its own data/,
+    );
+    const apx = "p_homeheld001";
+    env.core.store.projects.upsert({ id: apx, name: "Home", path: env.home, present: true });
     await env.client.call("flows.set", {
       id: "home-db",
       projectId: apx,

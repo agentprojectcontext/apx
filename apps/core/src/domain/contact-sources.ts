@@ -1,5 +1,5 @@
 import path from "node:path";
-import { AGENT_DIR, LEGACY_DIR } from "../apc/folder.ts";
+import { APX_DIR, LEGACY_DIR } from "../apc/folder.ts";
 import { badRequest, notFound } from "../errors.ts";
 import { realpath, samePath } from "../paths.ts";
 import { contactRights } from "./contact-rights.ts";
@@ -84,7 +84,7 @@ export function contactSources(store: Store) {
       const clean = input.path.split(/[\\/]/);
       if (
         path.isAbsolute(input.path) ||
-        clean.some((s) => ["..", ".git", AGENT_DIR, LEGACY_DIR].includes(s.toLowerCase())) ||
+        clean.some((s) => ["..", ".git", APX_DIR, LEGACY_DIR].includes(s.toLowerCase())) ||
         !/\.(md|markdown|txt|csv)$/i.test(input.path) ||
         /^agents\.md$/i.test(path.basename(input.path))
       )

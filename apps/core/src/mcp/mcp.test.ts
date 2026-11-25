@@ -25,7 +25,7 @@ let root = "";
 let project = "";
 const writeServers = (extra: Record<string, unknown> = {}) =>
   fs.writeFileSync(
-    path.join(root, ".agent", "mcps.json"),
+    path.join(root, ".apx", "mcps.json"),
     JSON.stringify({
       mcpServers: {
         notes: { command: process.execPath, args: [SERVER], ...extra },
@@ -39,7 +39,7 @@ before(async () => {
   process.env.OTHER_API_KEY = "must-not-leak";
   env = await startCore({ llm });
   root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-mcp-"));
-  fs.mkdirSync(path.join(root, ".agent"));
+  fs.mkdirSync(path.join(root, ".apx"));
   fs.writeFileSync(path.join(root, "AGENTS.md"), "# Northwind\n");
   writeServers();
   project = (await env.client.call("projects.register", { path: root })).project.id;
@@ -265,7 +265,7 @@ test("the owner edits a project's server: its file is written, approved as writt
   const notes = r.servers.find((x) => x.name === "notes" && x.scope === "project");
   assert.deepEqual(notes?.definition?.env, { MODE: "fast" });
   assert.equal(notes?.trusted, true);
-  const file = JSON.parse(fs.readFileSync(path.join(root, ".agent", "mcps.json"), "utf8"));
+  const file = JSON.parse(fs.readFileSync(path.join(root, ".apx", "mcps.json"), "utf8"));
   assert.deepEqual(file.mcpServers.notes.env, { MODE: "fast" });
   assert.ok(file.mcpServers.sneaky, "the rest of the file stays");
 });
@@ -345,7 +345,7 @@ test("a contact's turn never reaches an MCP tool, even one it names that is neve
 });
 
 test("a project's mcps.json saved with a BOM is read, and editing it keeps the file's other servers", async () => {
-  const file = path.join(root, ".agent", "mcps.json");
+  const file = path.join(root, ".apx", "mcps.json");
   fs.writeFileSync(file, `\uFEFF${fs.readFileSync(file, "utf8")}`);
   const { servers } = await env.client.call("mcp.list", { project });
   assert.ok(servers.some((x) => x.name === "notes" && x.scope === "project"));

@@ -1,6 +1,6 @@
 // Paths an external agent's tool call touches, and whether they stay inside the folder it works in.
 import path from "node:path";
-import { AGENT_DIR, CHECKOUTS, LEGACY_DIR } from "../apc/folder.ts";
+import { APX_DIR, CHECKOUTS, LEGACY_DIR } from "../apc/folder.ts";
 import { real } from "../paths.ts";
 
 /** Every path a tool input names, under the keys agents use (Claude, OpenCode, Gemini/Qwen, ACP locations). */
@@ -18,8 +18,8 @@ export function pathsOf(input: unknown): string[] {
 /** A path inside a `.git` folder: no agent's file tool touches it, whoever runs the loop; git runs through commands. */
 export const inGitFolder = (p: string): boolean => p.split(/[\\/]/).includes(".git");
 
-/** A project's APX files: `.agent/`, and `.apc/` while it is still there to move, both except their worktrees. */
-const DEFINITIONS: ReadonlySet<string> = new Set([AGENT_DIR, LEGACY_DIR]);
+/** A project's APX files: `.apx/`, and `.apc/` while it is still there to move, both except their worktrees. */
+const DEFINITIONS: ReadonlySet<string> = new Set([APX_DIR, LEGACY_DIR]);
 
 /**
  * Files no automatic edit may touch: git's own config (it can run commands), the project's agent files and Claude
@@ -41,7 +41,7 @@ const harnessSettings = (parts: string[]): boolean =>
   parts.at(-2) === ".claude" && /^settings(\.local)?\.json$/.test(parts.at(-1) ?? "");
 
 /**
- * Whether a path as written names a project's agent files (an `.agent` folder that is not a worktree's), an AGENTS.md
+ * Whether a path as written names a project's agent files (an `.apx` folder that is not a worktree's), an AGENTS.md
  * or Claude Code's settings files.
  */
 export function namesAgentFiles(p: string): boolean {

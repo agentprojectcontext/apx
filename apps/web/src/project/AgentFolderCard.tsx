@@ -6,7 +6,7 @@ import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
 import { OverviewCard } from "./OverviewCards.tsx";
 
-/** Shown while a project's `.apc/` could not be moved to `.agent/` by itself: one press tries again. */
+/** Shown while a project's `.apc/` could not be moved to `.apx/` by itself: one press tries again. */
 export function AgentFolderCard({ project }: { project: ProjectEntry }) {
   const t = useT();
   const [busy, setBusy] = useState(false);

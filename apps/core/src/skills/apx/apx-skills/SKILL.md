@@ -13,7 +13,7 @@ when a task matches, so a skill costs almost nothing until it is used.
 |---|---|---|
 | APX's own (`apx-*`) | Come with APX | Every agent; always on, read-only |
 | The owner's | APX's home, `skills/` | Every agent, unless turned off in a project |
-| A project's | `<project>/.agent/skills/<name>/` | That project's agents; committed with the repo |
+| A project's | `<project>/.apx/skills/<name>/` | That project's agents; committed with the repo |
 | An extension's | Inside the extension | While the extension is on |
 | Another agent app's | `~/.claude/skills`, `~/.codex/skills`, `~/.cursor/skills`, `~/.agents/skills` (and `.claude/skills`… in a project) | Every agent (that project's), read where the app keeps it |
 
@@ -50,7 +50,7 @@ Use the `apx skills save` command (through `shell`): it writes the file where AP
 # For every agent (the owner's skills)
 apx skills save weekly-report < "$TMP/weekly-report/SKILL.md"
 
-# Only for one project (written to its .agent/skills/)
+# Only for one project (written to its .apx/skills/)
 apx skills save weekly-report --project <project-id> < "$TMP/weekly-report/SKILL.md"
 ```
 
@@ -68,7 +68,7 @@ is left out (links, oversized files).
 apx skills import https://github.com/acme/skills            # list what is there
 apx skills import https://github.com/acme/skills --only pdf --yes
 apx skills import ~/.claude/skills/pdf --yes                # copy another app's skill into APX
-apx skills import ./pack.zip --project <project-id> --yes   # into that project's .agent/skills/
+apx skills import ./pack.zip --project <project-id> --yes   # into that project's .apx/skills/
 ```
 
 A name already taken is kept unless `--replace`. Show the owner the list (and any scripts) before `--yes` when the

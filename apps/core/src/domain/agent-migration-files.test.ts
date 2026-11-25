@@ -41,7 +41,7 @@ test("work file inventory refuses traversal, credentials, linked folders and nes
   fs.mkdirSync(path.join(source, "nested"));
   fs.symlinkSync(destination, path.join(source, "linked"), "junction");
   try {
-    for (const selection of ["../northwind", "..\\northwind", ".", ".env", ".agent", "linked"])
+    for (const selection of ["../northwind", "..\\northwind", ".", ".env", ".apx", "linked"])
       assert.throws(() => inventoryMigrationFiles(source, destination, [selection]));
     assert.throws(() => inventoryMigrationFiles(source, source, []), /separate/);
     assert.throws(() => inventoryMigrationFiles(source, path.join(source, "nested"), []), /separate/);

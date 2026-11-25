@@ -3,7 +3,7 @@ import type { Selectable } from "kysely";
 import type { ProjectsTable } from "../db/schema.ts";
 import { now, opt, qb, type Sql } from "./sql.ts";
 
-/** `context` is AGENTS.md and `memory` the owner's .agent/memory.md: both go to the agents, never to clients. */
+/** `context` is AGENTS.md and `memory` the owner's .apx/memory.md: both go to the agents, never to clients. */
 export type ProjectRecord = Project & { path?: string; context?: string; memory?: string };
 type ProjectWrite = Omit<ProjectRecord, "present" | "agents_md_chars" | "unreadable" | "legacy_folder"> & {
   present?: boolean;
@@ -178,7 +178,7 @@ export function projectsRepo({ one, all, run }: Sql, changed: () => void) {
       else unreadable.delete(id);
       changed();
     },
-    /** Its files are still only in .agent/ (the move to .agent/ is offered), while this core runs. */
+    /** Its files are still only in .apx/ (the move to .apx/ is offered), while this core runs. */
     setLegacyFolder(id: string, pending: boolean): void {
       if (legacy.has(id) === pending) return;
       if (pending) legacy.add(id);

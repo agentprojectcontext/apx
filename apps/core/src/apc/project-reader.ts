@@ -9,7 +9,7 @@ import { type ApcAgent, type ApcProject, isApcProject, readAgents, readProject }
 
 /**
  * What a project folder holds: its files, nothing to read there, or a folder the system refused to open. `moved` says
- * what moving its `.apc/` to `.agent/` did, when it had one (DECISIONS.md#d-275).
+ * what moving its `.apc/` to `.apx/` did, when it had one (DECISIONS.md#d-275).
  */
 export type ProjectFiles =
   | { state: "read"; project: ApcProject; agents: ApcAgent[]; moved?: FolderOutcome }
@@ -22,7 +22,7 @@ const REFUSED = new Set(["EPERM", "EACCES"]);
 
 /**
  * Reads a project folder, synchronously: on the main thread only where access was already proven. A folder still
- * holding `.apc/` has it moved to `.agent/` first, here, off the main thread at start.
+ * holding `.apc/` has it moved to `.apx/` first, here, off the main thread at start.
  */
 export function readProjectFiles(root: string): ProjectFiles {
   const abs = path.resolve(root);

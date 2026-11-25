@@ -92,12 +92,12 @@ export const MIGRATIONS: readonly string[] = [
   ) WHERE harness IS NOT NULL;
   `,
   `
-  -- Projects are folders registered by path; their AGENTS.md and .agent/ are the source of truth for definitions.
+  -- Projects are folders registered by path; their AGENTS.md and .apx/ are the source of truth for definitions.
   ALTER TABLE projects ADD COLUMN description TEXT;
   ALTER TABLE projects ADD COLUMN kind TEXT;
   ALTER TABLE projects ADD COLUMN context TEXT;
   ALTER TABLE projects ADD COLUMN present INTEGER NOT NULL DEFAULT 1;
-  -- Agents mirrored from .agent/agents/<slug>.md carry source 'apc'; one whose file is gone is archived, not deleted
+  -- Agents mirrored from .apx/agents/<slug>.md carry source 'apc'; one whose file is gone is archived, not deleted
   -- (threads and runs still point at it).
   ALTER TABLE agents ADD COLUMN slug TEXT;
   ALTER TABLE agents ADD COLUMN source TEXT NOT NULL DEFAULT 'local';
@@ -208,7 +208,7 @@ export const MIGRATIONS: readonly string[] = [
     INSERT INTO memories_fts(memories_fts, rowid, text) VALUES ('delete', old.n, old.text);
     INSERT INTO memories_fts(rowid, text) VALUES (new.n, new.text);
   END;
-  -- A project's .agent/memory.md, written by the owner: project context like AGENTS.md.
+  -- A project's .apx/memory.md, written by the owner: project context like AGENTS.md.
   ALTER TABLE projects ADD COLUMN memory_md TEXT;
   `,
   `

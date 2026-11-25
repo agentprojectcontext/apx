@@ -53,7 +53,7 @@ export function buildMigrationPlan(
       },
     );
   }
-  const definition = `.agent/agents/${agent.slug}.md`;
+  const definition = `.apx/agents/${agent.slug}.md`;
   const sourceFile = migrationFilePath(work.source, definition);
   const targetFile = migrationFilePath(work.destination, definition);
   if (fs.existsSync(targetFile))
@@ -82,7 +82,7 @@ export function buildMigrationPlan(
     .filter((a) => a.project_id === inventory.source && (a.parent === agent.id || a.parent === agent.slug));
   for (const child of children) {
     if (!child.slug) throw badRequest("A subordinate has no project definition");
-    const relative = `.agent/agents/${child.slug}.md`;
+    const relative = `.apx/agents/${child.slug}.md`;
     const before = readMigrationFile(migrationFilePath(work.source, relative), 1024 * 1024).toString("utf8");
     changes?.push({ root: "source", relative, after: Buffer.from(withoutAgentParent(before)) });
   }

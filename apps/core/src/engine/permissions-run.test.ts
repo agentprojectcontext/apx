@@ -42,7 +42,7 @@ const PLANS: Record<string, Plan[]> = {
   "raise myself": [
     () => ({
       name: "file_write",
-      args: { path: ".agent/agents/steady.md", content: "---\nname: Steady\nautonomy: total\n---\n" },
+      args: { path: ".apx/agents/steady.md", content: "---\nname: Steady\nautonomy: total\n---\n" },
     }),
   ],
   "raise through a link": [
@@ -112,8 +112,8 @@ before(async () => {
     inputWaits: { turn: 2_000, external: 2_000 },
   });
   root = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-perms-")));
-  fs.mkdirSync(path.join(root, ".agent", "agents"), { recursive: true });
-  fs.writeFileSync(path.join(root, ".agent", "project.json"), JSON.stringify({ name: "Northwind" }));
+  fs.mkdirSync(path.join(root, ".apx", "agents"), { recursive: true });
+  fs.writeFileSync(path.join(root, ".apx", "project.json"), JSON.stringify({ name: "Northwind" }));
   for (const [name, autonomy] of [
     ["Steady", "standard"],
     ["Free", "total"],
@@ -122,7 +122,7 @@ before(async () => {
     ["Careful", "ask"],
   ] as const)
     fs.writeFileSync(
-      path.join(root, ".agent", "agents", `${name.toLowerCase()}.md`),
+      path.join(root, ".apx", "agents", `${name.toLowerCase()}.md`),
       `---\nname: ${name}\nrole: tester\n${autonomy ? `autonomy: ${autonomy}\n` : ""}---\n\nYou help.\n`,
     );
   fs.writeFileSync(path.join(root, "report.md"), "# Report\n\nAll good.\n");
@@ -203,7 +203,7 @@ test("total: nothing waits for the owner, not even a destructive command with a 
 });
 
 test("standard: an agent cannot rewrite its own APC file without the owner, even in a clean turn", async () => {
-  const file = path.join(root, ".agent", "agents", "steady.md");
+  const file = path.join(root, ".apx", "agents", "steady.md");
   const before = fs.readFileSync(file, "utf8");
   const t = await chat("Steady");
   await env.client.call("threads.send", { thread: t.id, text: "raise myself" });
@@ -213,8 +213,8 @@ test("standard: an agent cannot rewrite its own APC file without the owner, even
   await env.settle(t.id);
   assert.equal(fs.readFileSync(file, "utf8"), before);
 
-  // A link that leads into .agent does not dodge the question: the write is refused.
-  fs.symlinkSync(path.join(root, ".agent"), path.join(root, "cfg"));
+  // A link that leads into .apx does not dodge the question: the write is refused.
+  fs.symlinkSync(path.join(root, ".apx"), path.join(root, "cfg"));
   const l = await chat("Steady");
   const sent = await env.client.call("threads.send", { thread: l.id, text: "raise through a link" });
   // An earlier test's tainted note may make this turn untrusted: even with the owner's yes, the write is refused.
@@ -235,7 +235,7 @@ test("auto on the project: an agent with none of its own writes and builds with 
   fs.mkdirSync(path.join(root, "scratch"), { recursive: true });
   const set = await env.client.call("projects.update", { project, autonomy: "auto" });
   assert.equal(set.project.autonomy, "auto");
-  assert.doesNotMatch(fs.readFileSync(path.join(root, ".agent", "project.json"), "utf8"), /autonomy/, "kept by APX");
+  assert.doesNotMatch(fs.readFileSync(path.join(root, ".apx", "project.json"), "utf8"), /autonomy/, "kept by APX");
   const t = await chat("Builder");
   const sent = await env.client.call("threads.send", { thread: t.id, text: "build it" });
   const input: { id: string; tool?: string | undefined } | undefined = await inputOrEnd(env.client, t.id);
@@ -247,7 +247,7 @@ test("auto on the project: an agent with none of its own writes and builds with 
   assert.ok(fs.existsSync(path.join(root, "scratch")));
 
   // An agent's own autonomy comes first, and null gives it back to the project.
-  const file = path.join(root, ".agent", "agents", "builder.md");
+  const file = path.join(root, ".apx", "agents", "builder.md");
   const own = await env.client.call("agents.update", { agent: agents.Builder ?? "", autonomy: "manual" });
   assert.equal(own.autonomy, "manual");
   assert.match(fs.readFileSync(file, "utf8"), /^autonomy: manual$/m);

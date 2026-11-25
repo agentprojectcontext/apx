@@ -127,7 +127,7 @@ async function turn(text: string) {
 const recipeFiles = () =>
   fs
     .readdirSync(env.home, { recursive: true, encoding: "utf8" })
-    .filter((f) => f.endsWith(path.join(".agent", "browser-recipes", "schedule-post.json")));
+    .filter((f) => f.endsWith(path.join(".apx", "browser-recipes", "schedule-post.json")));
 
 test("steps run in one call, as the agent, and a sequence that worked is saved with a note to find it", async () => {
   const { tool } = await turn("learn to schedule");

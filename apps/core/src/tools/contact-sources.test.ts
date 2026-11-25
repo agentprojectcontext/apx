@@ -30,7 +30,7 @@ test("document grants select one contact, agent, project and reviewed version, n
       [h.source.id],
     );
     assert.throws(() => h.repo.consult(h.thread.id, h.agent.id, "", foreign.id), /authorized source/);
-    for (const invalid of ["../outside.txt", ".git/config.txt", ".agent/memory.md", "AGENTS.md", "raw.pdf", h.file]) {
+    for (const invalid of ["../outside.txt", ".git/config.txt", ".apx/memory.md", "AGENTS.md", "raw.pdf", h.file]) {
       await assert.rejects(
         h.env.client.call("contacts.sources.set", { ...h.params, path: invalid }),
         /specific text document/,

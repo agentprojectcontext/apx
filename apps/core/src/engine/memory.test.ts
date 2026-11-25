@@ -43,8 +43,8 @@ before(async () => {
   env = await startCore({ llm });
   repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-mem-")));
   fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Northwind\n");
-  fs.mkdirSync(path.join(repo, ".agent"));
-  fs.writeFileSync(path.join(repo, ".agent", "memory.md"), "## Notes\n- The staging server is called kestrel.\n");
+  fs.mkdirSync(path.join(repo, ".apx"));
+  fs.writeFileSync(path.join(repo, ".apx", "memory.md"), "## Notes\n- The staging server is called kestrel.\n");
   project = (await env.client.call("projects.register", { path: repo })).project.id;
 });
 after(async () => {
@@ -83,7 +83,7 @@ test("an agent's first turn gets the owner's standing notes; later turns only ne
   assert.match(first, /\[memory: notes saved earlier\][\s\S]*short answers/);
   assert.doesNotMatch(first, /Notion/, "another agent's notebook stays private");
   const system = String(llm.calls.at(-1)?.messages[0]?.content);
-  assert.match(system, /\.agent\/memory\.md\)\n\n## Notes\n- The staging server is called kestrel\./);
+  assert.match(system, /\.apx\/memory\.md\)\n\n## Notes\n- The staging server is called kestrel\./);
 
   await env.client.call("threads.send", { thread: t.id, text: "how do kestrel deploys work?" });
   await env.settle(t.id);

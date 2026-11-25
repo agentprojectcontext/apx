@@ -37,7 +37,7 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "org.goalHint": "Una línea: para qué está esta área.",
   "team.new": "Agente",
   "team.new.global": "Un agente global: trabaja en cualquier proyecto.",
-  "team.new.project": "Se suma a {project}: APX lo escribe en .agent/agents/ del proyecto.",
+  "team.new.project": "Se suma a {project}: APX lo escribe en .apx/agents/ del proyecto.",
   "team.new.create": "Crear agente",
   "team.new.randomName": "Otro nombre",
   "team.new.promptHint": "Cómo piensa y trabaja. Lo podés cambiar después.",
@@ -51,7 +51,7 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "team.delete.body":
     "Sale del equipo y de todas las listas; sus chats quedan y quienes le reportaban pasan a su jefe. Lo podés recuperar o borrar para siempre en Config › Agentes.",
   "team.delete.bodyFile":
-    "Sale del equipo y de todas las listas; su archivo {file} queda guardado en .agent/agents/.archived/ y sus chats quedan. Lo podés recuperar o borrar para siempre en Config › Agentes.",
+    "Sale del equipo y de todas las listas; su archivo {file} queda guardado en .apx/agents/.archived/ y sus chats quedan. Lo podés recuperar o borrar para siempre en Config › Agentes.",
   "archived.title": "Archivados",
   "archived.note": "Agentes que sacaste del equipo. Restaurá uno para que vuelva, o borralo para siempre.",
   "archived.restore": "Restaurar",
@@ -99,7 +99,7 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "team.file": "Archivo",
   "team.import.title": "Importar agentes",
   "team.import.lead":
-    "Equipos y agentes sueltos de APX y de tu bóveda de v1 (solo lectura). Se escriben en .agent/agents/ de este proyecto.",
+    "Equipos y agentes sueltos de APX y de tu bóveda de v1 (solo lectura). Se escriben en .apx/agents/ de este proyecto.",
   "team.import.teams": "Equipos",
   "team.import.singles": "Agentes sueltos",
   "team.import.fromV1": "Bóveda v1",
@@ -124,7 +124,7 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "team.import.fromTemplates": "Plantillas",
   "team.import.fromProjects": "Otro proyecto",
   "team.clone.lead":
-    "Copias de los agentes de tus otros proyectos, con todo su rol y prompt. Se escriben en .agent/agents/ de este proyecto.",
+    "Copias de los agentes de tus otros proyectos, con todo su rol y prompt. Se escriben en .apx/agents/ de este proyecto.",
   "team.clone.global": "Agentes globales",
   "team.clone.empty": "No hay agentes en otros proyectos para copiar.",
   "team.clone.rename": "Ponerles nombres nuevos",

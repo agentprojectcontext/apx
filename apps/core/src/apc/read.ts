@@ -1,11 +1,11 @@
-// Reading a project from disk: AGENTS.md + .agent/ (project.json, agents/<slug>.md). The files are the source of
+// Reading a project from disk: AGENTS.md + .apx/ (project.json, agents/<slug>.md). The files are the source of
 // truth for definitions; the core keeps an index in its database. Read-only: nothing here writes the repo.
 
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { AGENTS_MD_LIMIT } from "@apx/protocol";
-import { AGENT_DIR, hasLegacyFolder, LEGACY_DIR, needsFolderMove, projectDir } from "./folder.ts";
+import { APX_DIR, hasLegacyFolder, LEGACY_DIR, needsFolderMove, projectDir } from "./folder.ts";
 import { type Fields, listField, parseFrontmatter, textField } from "./frontmatter.ts";
 
 export const SLUG_RE = /^[a-z][a-z0-9_-]*$/;
@@ -23,13 +23,13 @@ export type ApcProject = {
   context?: string | undefined;
   /** AGENTS.md's full length when it is past the safety limit, so its agents do not get all of it. */
   contextChars?: number | undefined;
-  /** .agent/memory.md (written by the owner), capped. */
+  /** .apx/memory.md (written by the owner), capped. */
   memory?: string | undefined;
-  /** Why .agent/project.json is there but unreadable: its name, kind and apx_id are then unknown, not absent. */
+  /** Why .apx/project.json is there but unreadable: its name, kind and apx_id are then unknown, not absent. */
   metaError?: string | undefined;
   /**
    * `.apc/` is still there after a move that could not finish: `move`, its files are only there (read from there);
-   * `leftover`, .agent/ is read and `.apc/` still holds files that differ.
+   * `leftover`, .apx/ is read and `.apc/` still holds files that differ.
    */
   legacy?: "move" | "leftover" | undefined;
 };
@@ -109,9 +109,9 @@ function contextOf(text: string | undefined, file: string, max = AGENTS_MD_LIMIT
   return body.length > max ? cap(body, file, max) : body.trim();
 }
 
-/** Whether a folder is a project: it has .agent/ or AGENTS.md, or .apc/ to move. */
+/** Whether a folder is a project: it has .apx/ or AGENTS.md, or .apc/ to move. */
 export function isApcProject(root: string): boolean {
-  return [AGENT_DIR, "AGENTS.md", LEGACY_DIR].some((f) => fs.existsSync(path.join(root, f)));
+  return [APX_DIR, "AGENTS.md", LEGACY_DIR].some((f) => fs.existsSync(path.join(root, f)));
 }
 
 export function readProject(root: string): ApcProject {

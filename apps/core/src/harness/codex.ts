@@ -4,7 +4,7 @@
 import path from "node:path";
 import type { PlanStep } from "@apx/protocol/task-plan";
 import { Codex, type ModelReasoningEffort, type TodoListItem } from "@openai/codex-sdk";
-import { AGENT_DIR, CHECKOUTS as CHECKOUT_DIRS, LEGACY_DIR } from "../apc/folder.ts";
+import { APX_DIR, CHECKOUTS as CHECKOUT_DIRS, LEGACY_DIR } from "../apc/folder.ts";
 import { worksInFolder } from "../domain/threads.ts";
 import { isInside, real, samePath } from "../paths.ts";
 import { codexImageDir, imagesIn } from "../services/codex-images.ts";
@@ -45,13 +45,13 @@ export function codexWrites(
 /** Files only the owner changes, but in Total: as `guarded` and `namesAgentFiles` keep them for every agent. */
 const GUARDED = [
   "AGENTS.md",
-  AGENT_DIR,
+  APX_DIR,
   LEGACY_DIR,
   path.join(".claude", "settings.json"),
   path.join(".claude", "settings.local.json"),
 ];
-/** Where agents keep git worktrees under `.agent` (or `.apc`, until it is moved): code, not agent files. */
-const CHECKOUTS = [AGENT_DIR, LEGACY_DIR].flatMap((d) => [...CHECKOUT_DIRS].map((c) => path.join(d, c)));
+/** Where agents keep git worktrees under `.apx` (or `.apc`, until it is moved): code, not agent files. */
+const CHECKOUTS = [APX_DIR, LEGACY_DIR].flatMap((d) => [...CHECKOUT_DIRS].map((c) => path.join(d, c)));
 const PROFILE = "apx_turn";
 type Access = "none" | "read" | "write";
 const RANK: Record<Access, number> = { none: 0, read: 1, write: 2 };

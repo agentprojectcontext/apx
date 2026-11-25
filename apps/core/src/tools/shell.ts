@@ -130,7 +130,7 @@ function riskBesides(command: string, apxPort?: number): Confirm {
   if (readsOnly(c)) return "never";
   // Anything else APX's own CLI does, which finds the port by itself, could act as the owner too.
   if (runsApxCli(code)) return "always";
-  // Agent files (.agent/) and AGENTS.md set agents' modes: changed by a command as by file_write, the owner says yes first.
+  // Agent files (.apx/) and AGENTS.md set agents' modes: changed by a command as by file_write, the owner says yes first.
   return mayChange(c, namesAgentFiles) ? "always" : "ask";
 }
 

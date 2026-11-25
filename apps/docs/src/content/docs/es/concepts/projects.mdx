@@ -1,6 +1,6 @@
 ---
 title: Proyectos
-description: Un proyecto es una carpeta con AGENTS.md y .agent/; APX la lee, la vigila y guarda lo suyo aparte.
+description: Un proyecto es una carpeta con AGENTS.md y .apx/; APX la lee, la vigila y guarda lo suyo aparte.
 sidebar:
   order: 2
 ---
@@ -11,7 +11,7 @@ import Terminal from "../../../../components/Terminal.astro";
 
 Un proyecto es un lugar donde pasa el trabajo: un repo, una empresa, los trámites de tu vida. En APX es una carpeta
 con un `AGENTS.md` en la raíz, el archivo de instrucciones que leen la mayoría de los agentes de código, y una carpeta
-`.agent/` al lado. Tus agentes, sus instrucciones, las skills y los servidores MCP del proyecto viven en esos
+`.apx/` al lado. Tus agentes, sus instrucciones, las skills y los servidores MCP del proyecto viven en esos
 archivos, así que viajan con la carpeta, aparecen en `git diff` y cualquier herramienta los puede leer.
 
 ## Qué hay en un proyecto
@@ -19,7 +19,7 @@ archivos, así que viajan con la carpeta, aparecen en `git diff` y cualquier her
 <FileTree>
 - acme-store/
   - AGENTS.md qué es el proyecto y cómo se trabaja en él
-  - .agent/
+  - .apx/
     - project.json nombre, descripción y tipo
     - memory.md tus notas fijas para los agentes del proyecto
     - organization.json áreas y roles (empresas)
@@ -39,33 +39,33 @@ archivos, así que viajan con la carpeta, aparecen en `git diff` y cualquier her
 | Archivo | Qué hace APX con él |
 |---|---|
 | `AGENTS.md` | Contexto del proyecto que leen todos sus agentes, entero: cuánto mide lo decidís vos. Solo un archivo de más de 200.000 caracteres (un límite de seguridad) se recorta al principio y el final; los agentes saben qué líneas quedaron afuera y las leen cuando las necesitan, y la configuración del proyecto en el panel (y `apx projects list`) lo avisa. |
-| `.agent/project.json` | `name`, `description` y `kind`. Un `apx_id` commiteado mantiene estable el id del proyecto; un clon o worktree al lado del original recibe uno propio. |
-| `.agent/agents/<slug>.md` | Un agente cada uno. Mirá [Agentes](/es/concepts/agents/). |
-| `.agent/memory.md` | Notas que escribís a mano; los agentes las leen y nunca las escriben. Reciben el archivo entero hasta el mismo límite de seguridad de 200.000 caracteres; por encima, reciben el principio, el final y un marcador de omisión. El aviso de recorte del panel y la CLI cubre solo `AGENTS.md`, no estas notas. |
-| `.agent/skills/<name>/SKILL.md` | Skills que sólo reciben los agentes de este proyecto. Mirá [Skills](/es/extend/skills/). |
-| `.agent/mcps.json` | `{"mcpServers": …}` del proyecto, sin secretos adentro. Cada servidor tiene que estar aprobado antes de correr. Mirá [Servidores MCP](/es/extend/mcp/). |
-| `.agent/organization.json` | Áreas y roles de una empresa (hasta 40 áreas y 200 roles). |
+| `.apx/project.json` | `name`, `description` y `kind`. Un `apx_id` commiteado mantiene estable el id del proyecto; un clon o worktree al lado del original recibe uno propio. |
+| `.apx/agents/<slug>.md` | Un agente cada uno. Mirá [Agentes](/es/concepts/agents/). |
+| `.apx/memory.md` | Notas que escribís a mano; los agentes las leen y nunca las escriben. Reciben el archivo entero hasta el mismo límite de seguridad de 200.000 caracteres; por encima, reciben el principio, el final y un marcador de omisión. El aviso de recorte del panel y la CLI cubre solo `AGENTS.md`, no estas notas. |
+| `.apx/skills/<name>/SKILL.md` | Skills que sólo reciben los agentes de este proyecto. Las que otra herramienta guarda en `.agents/skills/` del proyecto también aparecen, de solo lectura. Mirá [Skills](/es/extend/skills/). |
+| `.apx/mcps.json` | `{"mcpServers": …}` del proyecto, sin secretos adentro. Cada servidor tiene que estar aprobado antes de correr. Mirá [Servidores MCP](/es/extend/mcp/). |
+| `.apx/organization.json` | Áreas y roles de una empresa (hasta 40 áreas y 200 roles). |
 
-APX vigila `.agent/` y `AGENTS.md`. Editás un archivo en tu editor, lo guardás, y la app lo toma un momento después.
+APX vigila `.apx/` y `AGENTS.md`. Editás un archivo en tu editor, lo guardás, y la app lo toma un momento después.
 
 <Aside type="caution">
-  APX rechaza los symlinks dentro de `.agent/`, tanto al leer como al escribir. Un repo no puede meter otro archivo de
+  APX rechaza los symlinks dentro de `.apx/`, tanto al leer como al escribir. Un repo no puede meter otro archivo de
   tu máquina en el prompt de un agente, ni desviar lo que APX escribe a otro lado.
 </Aside>
 
 ## Proyectos de versiones anteriores (`.apc/`)
 
 Las versiones anteriores de APX, y APX v1, guardaban los mismos archivos en una carpeta llamada `.apc/`. APX la mueve
-a `.agent/` solo, al arrancar y cuando sumás un proyecto: copia cada archivo, comprueba que cada copia sea idéntica y
+a `.apx/` solo, al arrancar y cuando sumás un proyecto: copia cada archivo, comprueba que cada copia sea idéntica y
 recién ahí borra `.apc/`. Te llega un aviso por proyecto en la bandeja. APX nunca hace commits: si la carpeta está en
 git, el movimiento aparece como diff para que lo commitees. `AGENTS.md` no se mueve, y los worktrees de git dentro de
 `.apc/worktrees/` quedan donde están (movelos con `git worktree move`, o soltalos cuando su rama se mergee).
 
-Si un proyecto no se puede mover (por ejemplo, `.agent/` ya tiene otra versión de un archivo), no se borra nada: ese
+Si un proyecto no se puede mover (por ejemplo, `.apx/` ya tiene otra versión de un archivo), no se borra nada: ese
 proyecto sigue funcionando desde `.apc/`, su resumen muestra **Agentes todavía en .apc/** con **Probar de nuevo**, el
 aviso dice por qué y APX vuelve a probar en el próximo inicio. Para reintentar todos esos proyectos juntos:
 
-<Terminal title="reintentar mover proyectos a .agent/">
+<Terminal title="reintentar mover proyectos a .apx/">
 
 ```bash
 apx doctor --fix
@@ -102,10 +102,11 @@ Sólo una **Empresa** tiene áreas y roles. Importar el equipo ejecutivo convier
 
 </Steps>
 
-Si la carpeta no tiene `AGENTS.md`, APX escribe uno de una línea y crea `.agent/`. No toca nada más de tu carpeta.
+Si la carpeta no tiene `AGENTS.md`, APX escribe uno de una línea y crea `.apx/`. No toca nada más de tu carpeta.
   </TabItem>
   <TabItem label="Terminal">
-Registrá una carpeta que ya tenga `AGENTS.md` o `.agent/`:
+Registrá una carpeta que ya tenga `AGENTS.md` o `.apx/`. Tu carpeta personal en sí no puede ser un proyecto: su carpeta
+`.apx` es donde APX guarda sus propios datos. Elegí una carpeta adentro.
 
 <Terminal command="apx projects register ~/work/acme-store">{`Acme Store (p_3f9a1c0d7e21): 4 agents`}</Terminal>
 
@@ -162,7 +163,7 @@ Cada cambio se guarda en el momento.
 
 Una carpeta de solo lectura tiene que existir y ser una carpeta. No puede ser la carpeta de APX, una carpeta adentro de
 ella ni una que la contenga, y no puede estar adentro de la carpeta del proyecto (ahí los agentes ya leen y escriben).
-APX guarda la lista en su base de datos, no en `.agent/`, así que un repo no puede ampliar lo que leen sus agentes.
+APX guarda la lista en su base de datos, no en `.apx/`, así que un repo no puede ampliar lo que leen sus agentes.
 
 Hasta dónde llega un agente fuera de sus carpetas depende de su [modo](/es/concepts/autonomy/). En Auto lee cualquier
 carpeta de la computadora salvo la de APX y puede cambiar tus otros proyectos; cambiar cualquier otra carpeta muestra
@@ -189,14 +190,14 @@ Un proyecto puede tener **subproyectos**, de un solo nivel: un subproyecto no ti
 base también puede tenerlos, así diez clientes, sitios o tiendas comparten el equipo que ya tenés en vez de sumar
 agentes nuevos para cada uno.
 
-Un subproyecto es un proyecto como cualquier otro: su carpeta con `AGENTS.md` y `.agent/`, sus chats, tareas, rutinas,
+Un subproyecto es un proyecto como cualquier otro: su carpeta con `AGENTS.md` y `.apx/`, sus chats, tareas, rutinas,
 apps, archivos y su memoria. Lo que lo hace subproyecto es que además toma de su proyecto padre:
 
 | Del padre | Cómo |
 |---|---|
 | Agentes | Los agentes del padre trabajan en él: chatean, toman sus tareas y rutinas y se les delega ahí. Si se lo piden en el subproyecto, trabajan en la carpeta del subproyecto, con su `AGENTS.md` y su memoria. Un subproyecto también puede tener agentes propios. |
 | Variables | Un `secret://NAME` que el subproyecto no tiene usa el valor propio del padre y, si no, el global. |
-| Skills y servidores MCP | Los `.agent/skills/` y `.agent/mcps.json` del padre cuentan también en el subproyecto. |
+| Skills y servidores MCP | Los `.apx/skills/` y `.apx/mcps.json` del padre cuentan también en el subproyecto. |
 | Apps | Las apps del padre aparecen junto a las del subproyecto. |
 
 Si los dos tienen algo con el mismo nombre, gana el del subproyecto. **La memoria nunca se hereda**: las notas del
@@ -248,7 +249,7 @@ agentes. **Directorio** es la carpeta del proyecto y, si tiene una propia, su **
 <Shot name="project" alt="La pestaña Overview de Acme Store: un Board con un widget de ventas y un checklist de lanzamiento, el equipo y los chats recientes" caption="Acme Store › Resumen" />
 
 <CardGrid>
-  <LinkCard title="Agentes" description="El equipo en .agent/agents/." href="/es/concepts/agents/" />
+  <LinkCard title="Agentes" description="El equipo en .apx/agents/." href="/es/concepts/agents/" />
   <LinkCard title="Tareas" description="El trabajo del proyecto, asignado a agentes." href="/es/office/tasks/" />
   <LinkCard title="Rutinas" description="Trabajo programado del proyecto." href="/es/office/routines/" />
   <LinkCard title="Board y widgets" description="Widgets vivos fijados en el Resumen." href="/es/office/board/" />

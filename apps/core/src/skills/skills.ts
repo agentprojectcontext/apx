@@ -1,5 +1,5 @@
 // Skills: folders with a SKILL.md (frontmatter `name`, `description`; the body is the know-how). APX's own come with the
-// core (`skills/apx/`), the owner's live in APX's home (`skills/`), a project's in `.agent/skills/`; the other agent
+// core (`skills/apx/`), the owner's live in APX's home (`skills/`), a project's in `.apx/skills/`; the other agent
 // apps' (Claude Code, Codex, Cursor, ~/.agents) are read where those apps keep them. Agents see a short catalog; the
 // body loads on demand.
 
@@ -154,7 +154,7 @@ export function skillsFor(store: Store, roots: SkillRoots, projectId: string | u
  */
 export function allSkills(store: Store, roots: SkillRoots, projectId: string | undefined): Skill[] {
   const apx = scan(APX_SKILLS_DIR, false, { scope: "global", source: "apx", own: false });
-  // `top` is the repo's `.agent` (undefined: the folder it uses now, ownDir) or `.<app>`: a link there would read a folder outside the project.
+  // `top` is the repo's `.apx` (undefined: the folder it uses now, ownDir) or `.<app>`: a link there would read a folder outside the project.
   const inRepo = (project: ProjectRecord | undefined) => (top: string | undefined, source: Skill["source"]) => {
     const repo = project?.path && project.present ? project.path : undefined;
     if (repo) top ??= ownDir(repo);

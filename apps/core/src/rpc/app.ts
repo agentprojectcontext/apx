@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { BASE_PROJECT_ID, type Organization, type ProjectKind, siteOrigin } from "@apx/protocol";
 import { declaresApp } from "../../../../packages/surfaces/src/kit.ts";
-import { AGENT_DIR, moveLegacyFolder, needsFolderMove } from "../apc/folder.ts";
+import { APX_DIR, holdsApxHome, holdsApxHomeMessage, moveLegacyFolder, needsFolderMove } from "../apc/folder.ts";
 import { tellFolderMove } from "../apc/folder-notice.ts";
 import { readOrganization, writeOrganization } from "../apc/org.ts";
 import type { ApcSync } from "../apc/sync.ts";
@@ -233,6 +233,7 @@ export function appHandlers(deps: {
     },
     "projects.register": ({ path: dir, init }) => {
       let r: ReturnType<typeof deps.apc.register>;
+      if (holdsApxHome(path.resolve(dir), deps.home)) throw badRequest(holdsApxHomeMessage(path.resolve(dir)));
       try {
         if (init) initProject(dir);
         r = deps.apc.register(dir);
@@ -455,6 +456,7 @@ export function createProject(
   const root = typed
     ? path.resolve(typed)
     : freeFolder(under?.dir ?? path.join(home, "projects"), slugOf(p.name ?? ""));
+  if (holdsApxHome(root, home)) throw badRequest(holdsApxHomeMessage(root));
   try {
     fs.mkdirSync(root, { recursive: true });
     initProject(root, p.name);
@@ -466,15 +468,15 @@ export function createProject(
 }
 
 /**
- * Makes a plain folder a project, writing only what is missing: AGENTS.md (named after it) and .agent/. A folder whose
- * files are still in .apc/ gets no empty .agent/: registering it moves them there.
+ * Makes a plain folder a project, writing only what is missing: AGENTS.md (named after it) and .apx/. A folder whose
+ * files are still in .apc/ gets no empty .apx/: registering it moves them there.
  */
 function initProject(dir: string, name?: string): void {
   const abs = path.resolve(dir);
   if (!fs.existsSync(abs) || !fs.statSync(abs).isDirectory()) return;
   const agents = path.join(abs, "AGENTS.md");
   if (!fs.existsSync(agents)) fs.writeFileSync(agents, `# ${name ?? path.basename(abs)}\n`);
-  if (!needsFolderMove(abs)) fs.mkdirSync(path.join(abs, AGENT_DIR), { recursive: true });
+  if (!needsFolderMove(abs)) fs.mkdirSync(path.join(abs, APX_DIR), { recursive: true });
 }
 
 /** A folder name from a project's name: "Ventas Q4 · Acme" → "ventas-q4-acme". */

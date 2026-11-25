@@ -58,10 +58,10 @@ no es un `git push`.
 
 | Nivel | Ejemplos |
 |---|---|
-| `never` | Leer archivos, buscar en la web, buscar en las notas, listar tareas, guardar una nota, mirar tu pantalla, comandos de shell que sólo leen en esta máquina (`ls`, `find . | grep`, `git log`, `git branch -a`, `apx status`, `apx tasks`, `apx mcps list`, `apx usage 7`, cualquier `apx … --help`): corren aunque haya contenido de afuera en el turno. Leer `AGENTS.md` o `.agent/` también es leer. |
+| `never` | Leer archivos, buscar en la web, buscar en las notas, listar tareas, guardar una nota, mirar tu pantalla, comandos de shell que sólo leen en esta máquina (`ls`, `find . | grep`, `git log`, `git branch -a`, `apx status`, `apx tasks`, `apx mcps list`, `apx usage 7`, cualquier `apx … --help`): corren aunque haya contenido de afuera en el turno. Leer `AGENTS.md` o `.apx/` también es leer. |
 | `untrusted` | Escribir archivos del proyecto, escribirle a un contacto, publicar en un canal, tipear en el navegador, olvidar una nota, darle una herramienta a otro agente, la ubicación del teléfono, abrir una URL con query string, asignarle una tarea a un agente. |
 | `ask` | Cualquier comando de shell que no sea claramente de sólo lectura, incluido un `git push` común de una rama, abrir apps en tu pantalla. |
-| `always` | Comandos de shell destructivos (`rm -rf`, `sudo`, `git reset --hard`, `git branch -D`…), un push que saca una versión o reescribe la historia (un tag, `--force`, `gh release`, `npm publish`), cambiar `AGENTS.md` o algo dentro de `.agent/` (con una herramienta de archivos o un comando), comandos que llegan a la API de APX, o a su CLI para algo que no sea leer (`apx chat`, `apx runs respond`, `apx routines add`, o cualquier `apx` con una variable puesta antes), no una carpeta o una palabra que se llame apx, mandar un iMessage, responderle a un contacto, usar tu sesión del navegador, hacer clic, tipear o apretar teclas en tu pantalla. |
+| `always` | Comandos de shell destructivos (`rm -rf`, `sudo`, `git reset --hard`, `git branch -D`…), un push que saca una versión o reescribe la historia (un tag, `--force`, `gh release`, `npm publish`), cambiar `AGENTS.md` o algo dentro de `.apx/` (con una herramienta de archivos o un comando), comandos que llegan a la API de APX, o a su CLI para algo que no sea leer (`apx chat`, `apx runs respond`, `apx routines add`, o cualquier `apx` con una variable puesta antes), no una carpeta o una palabra que se llame apx, mandar un iMessage, responderle a un contacto, usar tu sesión del navegador, hacer clic, tipear o apretar teclas en tu pantalla. |
 
 Un agente que puede cambiar archivos hace commit, pull, merge o push solo cuando vos o su tarea lo pidieron, o una regla
 o nota del proyecto dice cómo (la web directo a `main`, por ejemplo); si no, te pregunta una vez. Publicar el trabajo
@@ -182,7 +182,7 @@ APX sabe si un turno tiene contenido de afuera, y cuando lo tiene, las acciones 
   puntuales que prendés por persona. Mirá [Canales](/es/channels/overview/).
 
 <Aside type="tip">
-  Escribir `AGENTS.md` o algo dentro de `.agent/` siempre pregunta (salvo en `total`): esos archivos deciden qué son
+  Escribir `AGENTS.md` o algo dentro de `.apx/` siempre pregunta (salvo en `total`): esos archivos deciden qué son
   los agentes y qué tan libres son, así un agente no puede subirse la autonomía a escondidas.
 </Aside>
 

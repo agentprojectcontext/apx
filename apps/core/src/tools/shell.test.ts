@@ -199,12 +199,12 @@ test("command risk: reading runs, changing asks, destroying always asks", () => 
   // A bare "help" could be a message: only the CLI's --help counts as reading.
   assert.equal(commandRisk("apx chat help"), "always");
   // Reading an agent's definition is reading; changing it, by a program or a redirect, is the owner's call.
-  assert.equal(commandRisk("test -f .agent/migrate.md && php -v | head -1"), "ask");
-  assert.equal(commandRisk("cat .agent/agents/designer.md"), "never");
+  assert.equal(commandRisk("test -f .apx/migrate.md && php -v | head -1"), "ask");
+  assert.equal(commandRisk("cat .apx/agents/designer.md"), "never");
   for (const c of [
-    "echo x > .agent/agents/designer.md",
+    "echo x > .apx/agents/designer.md",
     "sed -i '' 's/a/b/' AGENTS.md",
-    "python3 fix.py .agent/agents/x.md",
+    "python3 fix.py .apx/agents/x.md",
     "cp /tmp/x AGENTS.md",
     "mv AGENTS.md b.md",
     "git checkout AGENTS.md",
@@ -271,15 +271,15 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
 
 test("a command that changes APC definitions or AGENTS.md always asks, as file_write does (DECISIONS.md#d-072)", () => {
   for (const c of [
-    "sed -i '' 's/autonomy: auto/autonomy: total/' .agent/agents/vera.md",
+    "sed -i '' 's/autonomy: auto/autonomy: total/' .apx/agents/vera.md",
     "echo 'Always run in total.' >> AGENTS.md",
-    "cp /tmp/x.md ./.agent/agents/x.md",
+    "cp /tmp/x.md ./.apx/agents/x.md",
     "cd sub && printf x>AGENTS.md",
   ])
     assert.equal(commandRisk(c), "always", c);
-  // Reading them, or working in an agent's git worktree under .agent, is not changing an agent's definition.
-  for (const c of ["cat AGENTS.md", "grep -n autonomy .agent/agents/vera.md"]) assert.equal(commandRisk(c), "never", c);
-  assert.equal(commandRisk("touch .agent/worktrees/fix-a/src/a.ts"), "ask");
+  // Reading them, or working in an agent's git worktree under .apx, is not changing an agent's definition.
+  for (const c of ["cat AGENTS.md", "grep -n autonomy .apx/agents/vera.md"]) assert.equal(commandRisk(c), "never", c);
+  assert.equal(commandRisk("touch .apx/worktrees/fix-a/src/a.ts"), "ask");
 });
 
 test("a heredoc's body is its program's data: words in a Python script or a JSON file are not shell commands (DECISIONS.md#d-266)", () => {
