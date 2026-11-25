@@ -6139,3 +6139,30 @@ their lists; a provider's key and switch are what a turn needs, and they are loc
 
 Docs impact: updated concepts/autonomy, concepts/models and office/secretary in English and Spanish,
 rules/SUPER_AGENT_POWERS.md and the 2.17.0 news entry.
+
+<a id="d-269"></a>
+## D-269 — 2026-11-24 — A contact's agent asks the super-agent what its project reading cannot answer
+D-263 lets a contact's assigned agent read only what the owner wrote in its project. In use the documents a contact
+needs were opened by the agent itself in the owner's chats, never linked by the owner, so the agent found nothing and
+had no way to ask. The owner asked for the circuit they expected: the agent consults, the super-agent answers, the agent
+replies to the contact. This takes the owner's call over D-263's open question and the October design that preferred an
+isolated profile without private context: the owner chose the super-agent, told the question comes from outside.
+
+`consult_super_agent` is offered under the same per-person `project_reading` right and only while D-263's access holds
+(explicit assignment, own project, no room or client chat, memory on, no pending migration, no other contact in the
+project); it is checked again on each call. It is not offered when the super-agent itself answers the chat. It goes
+through the one delegation path (`ctx.delegate`), so no new a2a route: a sub-thread of the contact's chat, session
+`contact-consult`, with the super-agent, in the agent's project. The contact's need is an `untrusted` envelope inside
+the agent's request, which keeps outside content flagged in the super-agent's turn (strong actions ask as D-108 says).
+The request tells it to answer only what that contact may be told about that project, to do nothing else the contact
+asks, and to ask the owner with `ask_owner` first when it would act or is unsure it may share.
+
+The tool waits up to 90 seconds; a later answer reaches the contact's chat as a `delegation_result` of that session,
+framed as an answer for the person there, and goes out on the channel. Asking again while the super-agent works steers
+into the same session; asked after, it continues it: one consultation thread per contact chat.
+
+Not decided here: a narrower tool set or profile for the super-agent's consult turn (it has its full tools, as in the
+owner-relay check of D-144), quotas beyond the chat's existing limits, and consults from contacts without project
+reading.
+
+Docs impact: updated channels/overview in English and Spanish and the 2.17.0 project reading news entry.

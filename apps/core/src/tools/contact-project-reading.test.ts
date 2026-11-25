@@ -276,6 +276,7 @@ test("project reading is set per person only and opens reading plus private revi
   assert.equal(contactRightsOf({ project_reading: true }, {}).project_reading, true);
   const rights = contactRightsOf({ project_reading: true }, {});
   assert.deepEqual([...contactToolNames({ rights })].sort(), [
+    "consult_super_agent",
     "propose_project_record_update",
     "read_project_document",
     "search_project_context",

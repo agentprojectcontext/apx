@@ -9,6 +9,7 @@ import { memorySettings } from "../domain/memory-settings.ts";
 import type { Store } from "../domain/store.ts";
 import { BOOK_TOOL, CANCEL_BOOKING_TOOL } from "./contact-booking.ts";
 import {
+  CONSULT_SUPER_AGENT,
   PROPOSE_PROJECT_RECORD_UPDATE,
   READ_PROJECT_DOCUMENT,
   SEARCH_PROJECT_CONTEXT,
@@ -51,6 +52,7 @@ export const CONTACT_TOOLS: ReadonlySet<string> = new Set([
   SEARCH_PROJECT_CONTEXT,
   READ_PROJECT_DOCUMENT,
   PROPOSE_PROJECT_RECORD_UPDATE,
+  CONSULT_SUPER_AGENT,
   BOOK_TOOL,
   CANCEL_BOOKING_TOOL,
 ]);
@@ -82,6 +84,7 @@ export function contactToolNames(who: Holder | undefined): Set<string> {
     names.add(SEARCH_PROJECT_CONTEXT);
     names.add(READ_PROJECT_DOCUMENT);
     names.add(PROPOSE_PROJECT_RECORD_UPDATE);
+    names.add(CONSULT_SUPER_AGENT);
   }
   // Each is offered only while it can run (its `when`: the calendar connected, the account's hours set, a booking to cancel).
   if (who?.rights.appointments === "book") names.add(BOOK_TOOL);

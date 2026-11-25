@@ -7,7 +7,7 @@ import type { LogEntry } from "../domain/model-log.ts";
 import { createHash } from "node:crypto";
 import type { Autonomy, Organization, PromptPart, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
-import { answersChecked, type DelegationResult, type Origin, outsideAgent } from "../domain/runs.ts";
+import { answersChecked, CONTACT_CONSULT, type DelegationResult, type Origin, outsideAgent } from "../domain/runs.ts";
 import type { ReleaseContext } from "../domain/threads.ts";
 import { HOME_COMPUTER } from "../environments/briefing.ts";
 import { clearOlderOutput, outputStub } from "../harness/output-trim.ts";
@@ -535,6 +535,9 @@ export function frameInput(origin: Origin, text: string): string {
         ? `${fromTeam("task_result", { task: origin.task_id, title: origin.title, from: origin.name, state: origin.state }, text)}\n${inlineName(origin.name)} closed a task ${inlineName(origin.by)} gave (${origin.state}); this is their report. ${DELIVERY_CHECK}`
         : `${fromTeam("task_result", { task: origin.task_id, title: origin.title, from: origin.name, state: origin.state }, text)}\nA task you created and gave to ${inlineName(origin.name)} is closed (${origin.state}); this is their report. ${DELIVERY_CHECK}`;
     case "delegation_result":
+      // See DECISIONS.md#d-269
+      if (origin.session === CONTACT_CONSULT)
+        return `${delegationBlock(origin, text)}This is ${inlineName(origin.name)}'s answer to what you asked for the person in this chat. Answer them now with what it says they may be told; do not ask the same again.`;
       return `${delegationBlock(origin, text)}This is the result of a task you delegated earlier. Finish the owner's request with it (what is left is yours), then tell them what matters; do not delegate the same task again. ${REDIRECT_NOTE}`;
     case "delegation_results":
       return `${origin.results.map((r) => delegationBlock(r, r.answer)).join("\n")}These are the results of the ${origin.results.length} tasks you delegated together, all that came in. Finish the owner's request with them (what is left is yours), then tell them what matters in one answer; do not delegate the same tasks again. ${REDIRECT_NOTE}`;
