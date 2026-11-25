@@ -2,9 +2,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
-import { ApxError } from "@apx/protocol/client";
+import type { ApxClient } from "@apx/protocol/client";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
-import { manualTimers, tempDir } from "../testkit/platform.ts";
+import { manualTimers, tempDir, waitFor } from "../testkit/platform.ts";
+import { readProjectFiles } from "./project-reader.ts";
 
 const write = (file: string, text: string) => {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -18,67 +19,103 @@ function project(root: string, dir: string) {
   write(path.join(root, dir, "agents", "ceo.md"), "---\nname: Ceo\nrole: Chief Executive\n---\n\nDecide.\n");
 }
 
-test("a project whose files are still in .apc/ keeps its agents until the owner moves them to .agent/", async () => {
+const agentsOf = async (client: ApxClient, project: string) =>
+  (await client.call("agents.list", {})).agents
+    .filter((a) => a.project_id === project)
+    .map((a) => a.slug)
+    .sort();
+
+/** The tray's notices about moving that project's folder. */
+const notices = async (client: ApxClient, project: string) =>
+  (await client.call("notifications.list", {})).notifications.filter((n) => n.ref === `agent-folder:${project}`);
+
+test("registering a project that still has .apc/ moves it to .agent/ and tells the owner once", async () => {
   const env = await startCore({ llm: scriptedLlm(() => say("ok")), projectWatchTimers: manualTimers() });
   await using dir = tempDir("apx-move-");
   const root = dir.path;
-  const agents = async () =>
-    (await env.client.call("agents.list", {})).agents
-      .filter((a) => a.project_id === "p_abc123def456")
-      .map((a) => a.slug)
-      .sort();
-  const listed = async () =>
-    (await env.client.call("projects.list", {})).projects.find((p) => p.id === "p_abc123def456");
   try {
     project(root, ".agent");
     await env.client.call("projects.register", { path: root });
-    assert.deepEqual(await agents(), ["arch", "ceo"]);
+    assert.deepEqual(await agentsOf(env.client, "p_abc123def456"), ["arch", "ceo"]);
+    assert.deepEqual(await notices(env.client, "p_abc123def456"), [], "nothing moved, nothing told");
 
-    // An install that still has .apc/ (as before this version): nothing is archived, the move is offered.
+    // The same folder as an earlier version left it.
     fs.renameSync(path.join(root, ".agent"), path.join(root, ".apc"));
-    await env.client.call("projects.sync", { project: "p_abc123def456" });
-    assert.deepEqual(await agents(), ["arch", "ceo"]);
-    assert.equal((await listed())?.legacy_folder, true);
-
-    // Writing the project's files would start .agent/ beside them and hide them: refused until they move.
-    await assert.rejects(
-      env.client.call("projects.update", { project: "p_abc123def456", name: "Northwind Labs" }),
-      (err: unknown) => err instanceof ApxError && /still in \.apc\//.test(err.message),
-    );
-    assert.ok(!fs.existsSync(path.join(root, ".agent")));
-
-    const moved = await env.client.call("projects.move_folder", { project: "p_abc123def456" });
-    assert.deepEqual([moved.files, moved.done, moved.agents, moved.conflicts], [3, true, 2, []]);
-    assert.equal(moved.project.legacy_folder, undefined);
+    const r = await env.client.call("projects.register", { path: root });
+    assert.equal(r.project.legacy_folder, undefined);
     assert.ok(!fs.existsSync(path.join(root, ".apc")));
     assert.ok(fs.existsSync(path.join(root, ".agent", "agents", "arch.md")));
-    assert.deepEqual(await agents(), ["arch", "ceo"]);
+    assert.deepEqual(await agentsOf(env.client, "p_abc123def456"), ["arch", "ceo"], "the same agents, none archived");
+    const told = await notices(env.client, "p_abc123def456");
+    assert.equal(told.length, 1);
+    assert.equal(told[0]?.level, "info");
+    assert.match(told[0]?.title ?? "", /\.agent\//);
 
-    // Again: nothing to do, nothing changes.
-    const again = await env.client.call("projects.move_folder", { project: "p_abc123def456" });
-    assert.deepEqual([again.files, again.done, again.agents], [0, true, 2]);
-    await env.client.call("projects.update", { project: "p_abc123def456", name: "Northwind Labs" });
-    assert.equal(JSON.parse(fs.readFileSync(path.join(root, ".agent", "project.json"), "utf8")).name, "Northwind Labs");
+    await env.client.call("projects.register", { path: root });
+    assert.equal((await notices(env.client, "p_abc123def456")).length, 1, "a second register has nothing to tell");
   } finally {
     await env.core.close();
   }
 });
 
-test("a folder registered with its files only in .apc/ is added, offered the move, and read once moved", async () => {
+test("at start, every project that still has .apc/ is moved and told", async () => {
+  await using dir = tempDir("apx-move-start-");
+  const root = dir.path;
+  project(root, ".agent");
+  const first = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  try {
+    await first.client.call("projects.register", { path: root });
+  } finally {
+    await first.core.close();
+  }
+  fs.renameSync(path.join(root, ".agent"), path.join(root, ".apc"));
+  const env = await startCore({
+    llm: scriptedLlm(() => say("ok")),
+    home: first.home,
+    projectRead: async (folder) => readProjectFiles(folder),
+  });
+  try {
+    await waitFor(
+      async () => (await notices(env.client, "p_abc123def456")).length === 1,
+      "the move at start to be told",
+    );
+    assert.ok(!fs.existsSync(path.join(root, ".apc")));
+    assert.deepEqual(await agentsOf(env.client, "p_abc123def456"), ["arch", "ceo"]);
+  } finally {
+    await env.core.close();
+    await first.cleanup();
+  }
+});
+
+test("a project whose .apc/ cannot be moved keeps working from it, says why, and moves on a retry", async () => {
   const env = await startCore({ llm: scriptedLlm(() => say("ok")), projectWatchTimers: manualTimers() });
-  await using dir = tempDir("apx-move-new-");
+  await using dir = tempDir("apx-move-fail-");
   const root = dir.path;
   try {
     project(root, ".apc");
-    const r = await env.client.call("projects.register", { path: root, init: true });
+    write(path.join(root, ".agent"), "a file, not a folder");
+    const r = await env.client.call("projects.register", { path: root });
     assert.equal(r.project.legacy_folder, true);
-    assert.equal(r.agents, 0);
-    assert.ok(!fs.existsSync(path.join(root, ".agent")), "init does not start an empty .agent/ beside .apc/");
+    assert.equal(r.project.name, "Northwind", "read from .apc/");
+    assert.deepEqual(await agentsOf(env.client, r.project.id), ["arch", "ceo"]);
+    const [failed] = await notices(env.client, r.project.id);
+    assert.equal(failed?.level, "warn");
+    assert.match(failed?.body ?? "", /a file named \.agent is in the way/);
 
+    // Its settings still save, where its files are.
+    await env.client.call("projects.update", { project: r.project.id, name: "Northwind Labs" });
+    assert.equal(JSON.parse(fs.readFileSync(path.join(root, ".apc", "project.json"), "utf8")).name, "Northwind Labs");
+
+    fs.rmSync(path.join(root, ".agent"));
     const moved = await env.client.call("projects.move_folder", { project: r.project.id });
-    assert.equal(moved.agents, 2);
-    assert.equal(moved.project.name, "Northwind");
+    assert.deepEqual([moved.files, moved.done, moved.agents], [3, true, 2]);
     assert.equal(moved.project.legacy_folder, undefined);
+    const told = await notices(env.client, r.project.id);
+    assert.deepEqual(
+      told.map((n) => n.level),
+      ["info"],
+      "the warning is replaced by the move",
+    );
   } finally {
     await env.core.close();
   }

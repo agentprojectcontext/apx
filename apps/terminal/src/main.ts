@@ -51,8 +51,8 @@ Usage:
   apx desktop             The desktop app (downloads and opens its installer when it is not here)
   apx upgrade [--check] [--json]   Check or apply the core's updater (a server install updates itself even when its core is down)
   apx doctor [--json]     Why the core does not answer on this machine, and what to run next
-  apx doctor --fix        Repair recognized migrations offline; with a running core, move projects from .apc/ to
-                          .agent/ and reclaim old history and disk space
+  apx doctor --fix        Repair recognized migrations offline; with a running core, retry moving projects from
+                          .apc/ to .agent/ and reclaim old history and disk space
   apx doctor fix          Alias for doctor --fix
   apx doctor --schema     Read-only local schema report as JSON, including all structural differences; works offline
   apx devices [list|pair|revoke <id>] [--json]

@@ -122,8 +122,9 @@ export const Project = z.object(
      */
     unreadable: () => z.enum(["waiting", "denied"]).optional(),
     /**
-     * `.apc/`, the folder earlier versions used, still holds its agents or settings: projects.move_folder moves them to
-     * `.agent/`. While `.agent/` does not exist they are not read. Known only to the running core.
+     * `.apc/`, the folder earlier versions used, still holds its agents or settings because the core could not move them
+     * to `.agent/` (projects.move_folder retries). While `.agent/` does not exist the project works from `.apc/`. Known
+     * only to the running core.
      */
     legacy_folder: () => z.literal(true).optional(),
     /** Blob name from the design system catalog, used as the project's avatar. */

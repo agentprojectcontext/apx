@@ -135,8 +135,9 @@ export const appWorkspaceMethods = {
     access: "human",
   }),
   /**
-   * Moves a project's agents and settings from `.apc/`, the folder earlier versions used, to `.agent/`: copies them,
-   * checks every file arrived equal, removes them from `.apc/` and reads the project again. Safe to run again: a file
+   * Retries moving a project's agents and settings from `.apc/`, the folder earlier versions used, to `.agent/` (the core
+   * does it by itself at start and on register): copies them, checks every file arrived equal, removes them from `.apc/`
+   * and reads the project again. Safe to run again: a file
    * `.agent/` already has with other content stops it before anything is removed. Git worktrees in `.apc/` stay.
    */
   "projects.move_folder": deferMethod({

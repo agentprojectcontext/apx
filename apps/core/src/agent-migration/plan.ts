@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { AGENT_DIR } from "../apc/folder.ts";
+import { ownDir } from "../apc/folder.ts";
 import { withoutAgentParent } from "../apc/move-agent-text.ts";
 import { readAgents } from "../apc/read.ts";
 import {
@@ -107,7 +107,7 @@ export function buildMigrationPlan(
     }
     groups.push(group);
   }
-  const sourceSkills = path.join(work.source, AGENT_DIR, "skills");
+  const sourceSkills = path.join(work.source, ownDir(work.source), "skills");
   for (const name of agent.skills ?? []) {
     if (fs.existsSync(migrationFilePath(sourceSkills, name))) blockers.push("project_skill_requires_selection");
   }

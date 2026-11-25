@@ -1,31 +1,32 @@
 import type { NewsEntry } from "./entries.ts";
 
-// Told while a project still keeps its agents in .apc/, the folder earlier versions used. See DECISIONS.md#d-273
+// Told to an owner whose projects APX moved from .apc/ to .agent/. See DECISIONS.md#d-273
 export const AGENT_FOLDER_NEWS: NewsEntry = {
   id: "agent-folder",
   since: "2.17.0",
-  title: { en: "Move your projects' agents to .agent/", es: "Mové los agentes de tus proyectos a .agent/" },
+  title: { en: "Your projects' agents are now in .agent/", es: "Los agentes de tus proyectos ahora están en .agent/" },
   about: {
     en:
-      "Projects now keep their agents and settings in a folder named .agent/, next to AGENTS.md. Some of yours still " +
-      "use the old .apc/ folder: move them once from the project's page or with apx doctor --fix.",
+      "Projects keep their agents and settings in a folder named .agent/, next to AGENTS.md. APX moved yours from the " +
+      "old .apc/ folder by itself; if a project is in git, the change shows as a diff for you to commit.",
     es:
-      "Los proyectos ahora guardan sus agentes y su configuración en una carpeta .agent/, al lado de AGENTS.md. " +
-      "Algunos tuyos todavía usan la carpeta vieja .apc/: movelos una vez desde la página del proyecto o con apx doctor --fix.",
+      "Los proyectos guardan sus agentes y su configuración en una carpeta .agent/, al lado de AGENTS.md. APX movió " +
+      "los tuyos desde la carpeta vieja .apc/ solo; si un proyecto está en git, el cambio aparece como diff para commitear.",
   },
-  applies: (f) => (f.legacyFolders ?? 0) > 0,
+  applies: (f) => f.agentFolder === true,
   text:
     "A project's own APX files (agents/<slug>.md, project.json, memory.md, skills, mcps.json, browser recipes) now " +
-    "live in .agent/ at the project's root; AGENTS.md stays where it is. Some of this owner's projects still have " +
-    "them in .apc/, the old name: APX keeps those projects' agents as they were last read, but reads no change " +
-    "there and refuses new writes until they move. Moving copies every file to .agent/, checks it arrived equal, " +
-    "then removes it from .apc/; git worktrees inside .apc/ stay. Only the owner moves them: Move on the project's " +
-    "page, or apx doctor --fix in a terminal for all of them. Tell the owner which projects (the projects list marks them " +
-    "\"agents still in .apc/\") and where to press; an APX v1 still running reads .apc/ and stops seeing those agents.",
+    "live in .agent/ at the project's root; AGENTS.md stays where it is. At start and when a project is registered, " +
+    "APX moves a project's old .apc/ folder to .agent/ by itself: it copies every file, checks it arrived equal, " +
+    "then removes .apc/ (git worktrees inside it stay), and the owner gets one notice per project in the tray. It " +
+    "never commits: in a git repository the move is a diff the owner commits. A project it could not move keeps " +
+    'working from .apc/, shows as "agents still in .apc/" in the projects list and on its page (with Try again), ' +
+    "and is tried again at each start; apx doctor --fix retries all of them. Only the owner retries it. An APX v1 " +
+    "still running reads .apc/ and no longer sees those agents.",
   actions: [
     {
-      label: { en: "Which projects?", es: "¿Qué proyectos?" },
-      prompt: "Which of my projects still keep their agents in .apc/, and how do I move them to .agent/?",
+      label: { en: "What changed?", es: "¿Qué cambió?" },
+      prompt: "Which of my projects were moved from .apc/ to .agent/, and is any still left in .apc/?",
     },
   ],
 };

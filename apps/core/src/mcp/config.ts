@@ -4,7 +4,7 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { AGENT_DIR, agentDirFor } from "../apc/folder.ts";
+import { projectDir } from "../apc/folder.ts";
 import { withoutBom } from "../apc/read.ts";
 import type { Store } from "../domain/store.ts";
 import { extensionMonitorDir } from "../extensions/data.ts";
@@ -102,10 +102,9 @@ function toDef(name: string, r: Raw, base: Pick<McpDef, "scope" | "project_id" |
 
 /** A project file, read without following a symlink out of the repo. */
 function readProjectFile(root: string): string | undefined {
-  const file = path.join(root, AGENT_DIR, "mcps.json");
+  const file = path.join(projectDir(root), "mcps.json");
   try {
-    if (fs.lstatSync(file).isSymbolicLink() || fs.lstatSync(path.join(root, AGENT_DIR)).isSymbolicLink())
-      return undefined;
+    if (fs.lstatSync(file).isSymbolicLink() || fs.lstatSync(projectDir(root)).isSymbolicLink()) return undefined;
     return withoutBom(fs.readFileSync(file, "utf8"));
   } catch {
     return undefined;
@@ -246,9 +245,10 @@ export function mcpConfig(store: Store) {
     setProject(projectId: string, name: string, server: Record<string, unknown> | null): void {
       const p = store.projects.get(projectId);
       if (!p?.path) throw new Error(`project ${projectId} has no folder`);
-      const dir = agentDirFor(p.path);
+      const dir = projectDir(p.path);
       const file = path.join(dir, "mcps.json");
-      if (fs.existsSync(dir) && fs.lstatSync(dir).isSymbolicLink()) throw new Error(".agent is a link: not written");
+      if (fs.existsSync(dir) && fs.lstatSync(dir).isSymbolicLink())
+        throw new Error(`${path.basename(dir)} is a link: not written`);
       if (fs.existsSync(file) && fs.lstatSync(file).isSymbolicLink())
         throw new Error("mcps.json is a link: not written");
       let doc: Record<string, unknown> = {};

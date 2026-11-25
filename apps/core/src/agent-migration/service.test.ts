@@ -199,7 +199,10 @@ for (const stage of ["before-staging", "partial-first-group", "between-groups"] 
         assert.deepEqual(restarted.recover(preview.id), { id: preview.id, restored: true });
         assert.equal(readMoveRecord(env.home, preview.id).state, "restored");
         assert.equal(store.agents.get(env.agent.id)?.project_id, env.sourceId);
-        assert.equal(fs.readFileSync(path.join(env.source, ".agent", "agents", "researcher.md"), "utf8"), env.definition);
+        assert.equal(
+          fs.readFileSync(path.join(env.source, ".agent", "agents", "researcher.md"), "utf8"),
+          env.definition,
+        );
         assert.deepEqual(new Uint8Array(fs.readFileSync(path.join(env.source, "reports", "report.bin"))), env.bytes);
         assert.equal(fs.existsSync(path.join(env.destination, "reports", "report.bin")), false);
         assert.equal(store.agentMigrationPending.list().length, 0);

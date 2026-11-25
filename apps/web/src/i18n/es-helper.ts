@@ -36,10 +36,10 @@ export const esHelper = {
   "helper.prepare": "Proponer instrucciones",
   "helper.agentOffer":
     "A este borrador le falta contexto, un rol o instrucciones. ¿Lo revisamos sin frenar la creación?",
-  "folder.title": "Agentes en la carpeta vieja",
+  "folder.title": "Agentes todavía en .apc/",
   "folder.body":
-    "Los agentes y la configuración de este proyecto siguen en .apc/, la carpeta de versiones anteriores. Movelos a .agent/ para que APX vuelva a leer sus cambios.",
-  "folder.move": "Mover a .agent/",
+    "APX no pudo mover los agentes y la configuración de este proyecto a .agent/, así que sigue usando .apc/. El aviso en tu bandeja dice por qué.",
+  "folder.move": "Probar de nuevo",
   "folder.moved": "Movido a .agent/.",
   "folder.kept": "Movido a .agent/. Los worktrees de git quedan en .apc/.",
   "folder.conflicts":

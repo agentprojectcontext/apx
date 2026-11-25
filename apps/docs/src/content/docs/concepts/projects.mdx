@@ -55,13 +55,17 @@ APX watches `.agent/` and `AGENTS.md`. Edit a file in your editor, save it, and 
 
 ## Projects from earlier versions (`.apc/`)
 
-Earlier versions of APX, and APX v1, kept the same files in a folder named `.apc/`. APX no longer reads it: a project
-that still has its files there shows an **Agents in the old folder** card on its overview, and its agents keep
-working as APX last read them, but changes you make in `.apc/` are not picked up and APX writes nothing new there.
+Earlier versions of APX, and APX v1, kept the same files in a folder named `.apc/`. APX moves it to `.agent/` by
+itself, when it starts and when you add a project: it copies every file, checks each copy is identical, and only then
+removes `.apc/`. You get one notice per project in the tray. APX never commits: if the folder is in git, the move shows
+as a diff for you to commit. `AGENTS.md` does not move, and git worktrees inside `.apc/worktrees/` stay where they are
+(move one with `git worktree move`, or let it go when its branch is merged).
 
-Move them once, from that card's **Move to .agent/** button, or for every project at once:
+If a project cannot be moved (say `.agent/` already has a different version of a file), nothing is removed: that
+project keeps working from `.apc/`, its overview shows **Agents still in .apc/** with **Try again**, the notice says
+why, and APX tries again at the next start. To retry every such project at once:
 
-<Terminal title="move every project to .agent/">
+<Terminal title="retry moving projects to .agent/">
 
 ```bash
 apx doctor --fix
@@ -69,11 +73,7 @@ apx doctor --fix
 
 </Terminal>
 
-The move copies each file to `.agent/`, checks every copy is identical, and only then removes it from `.apc/`. It is
-safe to run again. If `.agent/` already has a different version of a file, nothing is removed: keep the version you
-want in both places and run it again. Git worktrees inside `.apc/worktrees/` stay where they are (move one with
-`git worktree move`, or let it go when its branch is merged). `AGENTS.md` does not move. An APX v1 still installed
-keeps reading `.apc/`, so after the move it no longer sees that project's agents.
+An APX v1 still installed reads `.apc/`, so after the move it no longer sees that project's agents.
 
 ## Project types
 

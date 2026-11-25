@@ -2,7 +2,7 @@
 // servers are in rpc/mcp.ts.
 
 import path from "node:path";
-import { agentDirFor } from "../apc/folder.ts";
+import { projectDir } from "../apc/folder.ts";
 import { lineage } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, conflict, errorMessage, notFound } from "../errors.ts";
@@ -68,11 +68,7 @@ export function resourceHandlers(deps: {
     if (target === "global") return { dir: path.join(home, "skills") };
     const repo = rootOf(project);
     if (!repo) throw badRequest("a project skill needs a project whose folder is on disk");
-    try {
-      return { dir: path.join(agentDirFor(repo), "skills"), repo };
-    } catch (err) {
-      throw badRequest(errorMessage(err));
-    }
+    return { dir: path.join(projectDir(repo), "skills"), repo };
   };
   /** A failure reading the source (a bad zip, a clone that failed, no SKILL.md) is the caller's to fix. */
   const fromSource = async <T>(work: () => Promise<T>): Promise<T> => {

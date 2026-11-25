@@ -5,12 +5,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { OrgArea, type Organization, OrgRole } from "@apx/protocol";
 import { writeAtomic } from "../paths.ts";
-import { AGENT_DIR, agentDirFor } from "./folder.ts";
+import { projectDir } from "./folder.ts";
 import { withoutBom } from "./read.ts";
 
 const EMPTY_ORG: Organization = { areas: [], roles: [] };
 
-const orgFile = (root: string) => path.join(root, AGENT_DIR, "organization.json");
+const orgFile = (root: string) => path.join(projectDir(root), "organization.json");
 const isLink = (p: string) => {
   try {
     return fs.lstatSync(p).isSymbolicLink();
@@ -39,7 +39,7 @@ export function readOrganization(root: string): Organization {
 }
 
 export function writeOrganization(root: string, org: Organization): void {
-  const dir = agentDirFor(root);
+  const dir = projectDir(root);
   for (const p of [dir, orgFile(root)])
     if (isLink(p)) throw new Error(`refusing to write through a symlink: ${path.relative(root, p)}`);
   fs.mkdirSync(dir, { recursive: true });

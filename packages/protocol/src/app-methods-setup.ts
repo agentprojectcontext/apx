@@ -118,7 +118,7 @@ export const appSetupMethods = {
   ...filesMethods,
   ...gitMethods,
   /**
-   * Read-only import from a local APX v1: registers the project folders it knows (each one's .apc/ is copied to .agent/ and left as v1 has it)
+   * Read-only import from a local APX v1: registers the project folders it knows (each one's .apc/ is moved to .agent/, as registering any project does)
    * and, when asked, copies once into v2's own home: its model API keys (`keys`), its skills (`skills`), and its image
    * engines and voices (`services`).
    */

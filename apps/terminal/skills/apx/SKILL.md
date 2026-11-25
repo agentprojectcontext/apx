@@ -17,8 +17,8 @@ and the `apx` terminal — talks to it through one protocol. You (Claude Code, C
 
 - The user asks about APX itself: "is APX running", "what are my APX tasks", "add a routine", "remember this in APX".
 - The user asks you to reach an APX agent ("ask the research agent…", "tell the office…").
-- You work inside a project with `AGENTS.md` / `.agent/` and need what APX knows about it. The files are the source
-  of truth (read them with your own tools); APX keeps an index.
+- You work inside a project with `AGENTS.md` / `.agent/` and need what APX knows about it. For reading the
+  files themselves use [[apc-context]]; the files are the source of truth, APX keeps an index.
 
 If you can do the task with your own tools, do that. Use `apx` only for things APX owns.
 

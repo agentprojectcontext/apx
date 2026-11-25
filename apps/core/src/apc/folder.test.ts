@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { removeDir, tempDir } from "../testkit/platform.ts";
-import { agentDirFor, hasLegacyFolder, moveLegacyFolder, needsFolderMove } from "./folder.ts";
+import { hasLegacyFolder, moveIfLegacy, moveLegacyFolder, needsFolderMove, ownDir, projectDir } from "./folder.ts";
 
 const write = (file: string, text: string) => {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -104,20 +104,6 @@ test("a file .agent/ already has with other content stops the move before anythi
   }
 });
 
-test("keep copies to .agent/ and leaves .apc/ as it was, for a v1 that still reads it", async () => {
-  const root = legacyProject();
-  try {
-    const before = tree(path.join(root, ".apc"));
-    const r = moveLegacyFolder(root, { keep: true });
-    assert.equal(r.files, 5);
-    assert.equal(r.done, false);
-    assert.deepEqual(tree(path.join(root, ".apc")), before);
-    assert.ok(!needsFolderMove(root));
-  } finally {
-    await removeDir(root);
-  }
-});
-
 test("a linked .apc/ or .agent/ is never moved through; a link inside is copied as a link", async () => {
   const root = legacyProject();
   const outside = tempDir("apx-folder-out-").path;
@@ -141,12 +127,21 @@ test("a linked .apc/ or .agent/ is never moved through; a link inside is copied 
   }
 });
 
-test("nothing starts .agent/ beside files still only in .apc/", async () => {
+test("a project works from .apc/ until its move succeeds; a file named .agent in the way fails it", async () => {
   const root = legacyProject();
   try {
-    assert.throws(() => agentDirFor(root), /still in \.apc\/: move them to \.agent\/ first/);
-    moveLegacyFolder(root);
-    assert.equal(agentDirFor(root), path.join(root, ".agent"));
+    assert.equal(ownDir(root), ".apc");
+    write(path.join(root, ".agent"), "not a folder");
+    assert.equal(ownDir(root), ".apc", "a stray file is not the project's folder");
+    const failed = moveIfLegacy(root);
+    assert.equal(failed?.state, "failed");
+    assert.match(failed?.state === "failed" ? failed.error : "", /a file named \.agent is in the way/);
+    assert.ok(fs.existsSync(path.join(root, ".apc", "agents", "arch.md")), ".apc/ is untouched");
+
+    fs.rmSync(path.join(root, ".agent"));
+    assert.deepEqual(moveIfLegacy(root), { state: "moved", files: 5, kept: ["worktrees"] });
+    assert.equal(projectDir(root), path.join(root, ".agent"));
+    assert.equal(moveIfLegacy(root), undefined, "nothing left to move, nothing to tell");
   } finally {
     await removeDir(root);
   }

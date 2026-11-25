@@ -40,7 +40,7 @@ export async function init(
     );
   if (r.project.legacy_folder)
     console.log(
-      "\nIts agents and settings are still in .apc/, the folder older APX versions used. Move them to .agent/: apx doctor --fix",
+      "\nAPX could not move its agents and settings from .apc/ to .agent/, so it keeps using .apc/. Try again: apx doctor --fix",
     );
   else if (!r.agents) console.log(`\nNext: apx agents new <slug> "<Name>" --project ${r.project.id} --role "<role>"`);
 }

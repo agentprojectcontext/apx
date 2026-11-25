@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { SkillInfo } from "@apx/protocol";
-import { AGENT_DIR, agentDirFor } from "../apc/folder.ts";
+import { ownDir } from "../apc/folder.ts";
 import type { Store } from "../domain/store.ts";
 import { realpath, writeAtomic } from "../paths.ts";
 import { NO_GLOBALS, type Skill, skillOn, skillPath, skillsOff } from "./skills.ts";
@@ -57,8 +57,7 @@ export function writeSkill(o: {
 }): string {
   if (o.target === "project") {
     if (!o.projectRoot) throw new Error("a project skill needs a project whose folder is on disk");
-    agentDirFor(o.projectRoot);
-    const parts = [AGENT_DIR, "skills", o.folder, "SKILL.md"];
+    const parts = [ownDir(o.projectRoot), "skills", o.folder, "SKILL.md"];
     for (let i = 1; i <= parts.length; i++) {
       const p = path.join(o.projectRoot, ...parts.slice(0, i));
       if (isLink(p)) throw new Error(`refusing to write through a symlink: ${parts.slice(0, i).join("/")}`);

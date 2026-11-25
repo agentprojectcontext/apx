@@ -6,7 +6,7 @@ import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
 import { OverviewCard } from "./OverviewCards.tsx";
 
-/** Offered while a project's agents and settings are still in `.apc/`: one press moves them to `.agent/`. */
+/** Shown while a project's `.apc/` could not be moved to `.agent/` by itself: one press tries again. */
 export function AgentFolderCard({ project }: { project: ProjectEntry }) {
   const t = useT();
   const [busy, setBusy] = useState(false);
@@ -30,7 +30,7 @@ export function AgentFolderCard({ project }: { project: ProjectEntry }) {
         <Button
           size="sm"
           variant="secondary"
-          leadingIcon={<Icons.FolderOpen size={14} />}
+          leadingIcon={<Icons.RefreshCw size={14} />}
           loading={busy}
           onClick={() => void move()}
         >

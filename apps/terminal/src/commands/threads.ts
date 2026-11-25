@@ -220,7 +220,7 @@ export async function projects(client: ApxClient, [sub, arg, ...more]: string[],
     console.log(`${r.project.name} (${r.project.id}): ${r.agents} agents`);
     if (r.project.legacy_folder)
       console.log(
-        "Its agents and settings are still in .apc/, the folder older APX versions used. Move them to .agent/: apx doctor --fix",
+        "APX could not move its agents and settings from .apc/ to .agent/, so it keeps using .apc/. Try again: apx doctor --fix",
       );
     return;
   }

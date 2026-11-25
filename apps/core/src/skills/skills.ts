@@ -5,7 +5,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { AGENT_DIR } from "../apc/folder.ts";
+import { ownDir } from "../apc/folder.ts";
 import { parseFrontmatter, textField } from "../apc/frontmatter.ts";
 import type { AgentRecord } from "../domain/agents.ts";
 import { lineage, type ProjectRecord } from "../domain/projects.ts";
@@ -154,10 +154,11 @@ export function skillsFor(store: Store, roots: SkillRoots, projectId: string | u
  */
 export function allSkills(store: Store, roots: SkillRoots, projectId: string | undefined): Skill[] {
   const apx = scan(APX_SKILLS_DIR, false, { scope: "global", source: "apx", own: false });
-  // `top` is the repo's `.agent` or `.<app>`: a link there would read a folder outside the project.
-  const inRepo = (project: ProjectRecord | undefined) => (top: string, source: Skill["source"]) => {
+  // `top` is the repo's `.agent` (undefined: the folder it uses now, ownDir) or `.<app>`: a link there would read a folder outside the project.
+  const inRepo = (project: ProjectRecord | undefined) => (top: string | undefined, source: Skill["source"]) => {
     const repo = project?.path && project.present ? project.path : undefined;
-    return repo && project && !isLink(path.join(repo, top))
+    if (repo) top ??= ownDir(repo);
+    return repo && project && top && !isLink(path.join(repo, top))
       ? scan(path.join(repo, top, "skills"), false, {
           scope: "project",
           project_id: project.id,
@@ -185,7 +186,7 @@ export function allSkills(store: Store, roots: SkillRoots, projectId: string | u
     );
   return firstPerName([
     ...apx,
-    ...repos.flatMap((inIt) => [...inIt(AGENT_DIR, "project"), ...APPS.flatMap((app) => inIt(`.${app}`, app))]),
+    ...repos.flatMap((inIt) => [...inIt(undefined, "project"), ...APPS.flatMap((app) => inIt(`.${app}`, app))]),
     ...scan(path.join(roots.home, "skills"), true, { scope: "global", source: "owner", own: true }),
     ...apps,
     ...extensions,

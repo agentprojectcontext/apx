@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { writeAtomic } from "../paths.ts";
-import { AGENT_DIR, agentDirFor } from "./folder.ts";
+import { projectDir } from "./folder.ts";
 import { listField, parseFrontmatter } from "./frontmatter.ts";
 import { SLUG_RE, withoutBom } from "./read.ts";
 
@@ -27,7 +27,7 @@ export type AgentFileFields = {
   aliases?: string[] | undefined;
 };
 
-const agentsDir = (root: string) => path.join(root, AGENT_DIR, "agents");
+const agentsDir = (root: string) => path.join(projectDir(root), "agents");
 const agentFile = (root: string, slug: string) => path.join(agentsDir(root), `${slug}.md`);
 
 const isLink = (p: string) => {
@@ -40,8 +40,7 @@ const isLink = (p: string) => {
 
 /** Refuses to write through a symlink: a repo must not be able to redirect APX's writes outside .agent/agents. */
 function guard(root: string, ...files: string[]): void {
-  agentDirFor(root);
-  for (const p of [path.join(root, AGENT_DIR), agentsDir(root), ...files])
+  for (const p of [projectDir(root), agentsDir(root), ...files])
     if (isLink(p)) throw new Error(`refusing to write through a symlink: ${path.relative(root, p)}`);
 }
 
@@ -219,7 +218,7 @@ export type ProjectMeta = { name?: string | undefined; description?: string | nu
  * keep there) stays. Refuses a symlinked .agent or file, like the agent files.
  */
 export function writeProjectMeta(root: string, meta: ProjectMeta): void {
-  const dir = agentDirFor(root);
+  const dir = projectDir(root);
   const file = path.join(dir, "project.json");
   for (const p of [dir, file])
     if (isLink(p)) throw new Error(`refusing to write through a symlink: ${path.relative(root, p)}`);

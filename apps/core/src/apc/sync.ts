@@ -6,7 +6,8 @@ import path from "node:path";
 import type { ModelChoice } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
 import type { Log } from "../log.ts";
-import { AGENT_DIR } from "./folder.ts";
+import { AGENT_DIR, type FolderOutcome, moveIfLegacy, ownDir } from "./folder.ts";
+import { tellFolderMove } from "./folder-notice.ts";
 import { listField, textField } from "./frontmatter.ts";
 import type { ProjectFiles, ReadProjectFiles } from "./project-reader.ts";
 import { type ApcAgent, type ApcProject, isApcProject, readAgents, readProject } from "./read.ts";
@@ -67,7 +68,8 @@ export function createApcSync(deps: {
 }) {
   const { store, log } = deps;
   const watchers = new Map<string, fs.FSWatcher[]>();
-  const watchingDir = new Set<string>();
+  // The folder (.agent or .apc) each project is watched in.
+  const watchingDir = new Map<string, string>();
   // Each folder's queued reindex, as its cancel.
   const queued = new Map<string, () => void>();
   // A folder still being read is not read a second time: one held read holds one thread.
@@ -76,6 +78,13 @@ export function createApcSync(deps: {
   // Each start-up read still inside its deadline; closing ends them.
   const waits = new Set<() => void>();
   let closed = false;
+
+  /** The owner hears what moving a project's .apc/ did, once per move. */
+  function told(projectId: string, outcome: FolderOutcome): void {
+    const project = store.projects.get(projectId);
+    if (project) tellFolderMove(store, project, outcome);
+    log.info({ project: projectId, outcome: outcome.state }, "project folder .apc/ → .agent/");
+  }
 
   /** An id for a new file's agent: the natural one unless another agent (e.g. a renamed one) already holds it. */
   function freshId(base: string, slug: string, used: string[]): string {
@@ -89,7 +98,7 @@ export function createApcSync(deps: {
     return apply(abs, readProject(abs), readAgents(abs));
   }
 
-  function apply(abs: string, p: ApcProject, read: ApcAgent[]): SyncResult {
+  function apply(abs: string, p: ApcProject, agents: ApcAgent[]): SyncResult {
     // One folder is one project: the record registered here keeps its id, chats and tasks even when project.json's
     // apx_id changed (another tool rewrote it) or cannot be read. One removed from APX does not outrank the apx_id.
     const records = store.projects.atPath(abs);
@@ -103,13 +112,8 @@ export function createApcSync(deps: {
     const projectId = indexed?.id ?? projectIdOf(apcId);
     if (store.agentMigrationPending.list().some((move) => move.source === projectId || move.destination === projectId))
       return { project: projectId, agents: 0, archived: 0 };
+    // A project whose .apc/ could not be moved (yet) is marked; it is read from wherever its files are.
     store.projects.setLegacyFolder(projectId, p.legacy !== undefined);
-    // Files still only in .apc/: the index keeps what it had (agents keep working) until the owner moves them.
-    if (p.legacy === "move" && indexed) {
-      store.projects.setPresent(projectId, true);
-      return { project: projectId, agents: 0, archived: 0 };
-    }
-    const agents = p.legacy === "move" ? [] : read;
     // An unreadable project.json says nothing about the name or kind: keep what the index knew.
     const meta = p.metaError && indexed ? indexed : p;
     if (p.metaError) log.warn({ root: abs, err: p.metaError }, "could not read .agent/project.json");
@@ -174,6 +178,7 @@ export function createApcSync(deps: {
   function settle(id: string, root: string, files: ProjectFiles): SyncResult | undefined {
     if (files.state === "read") {
       const r = apply(root, files.project, files.agents);
+      if (files.moved) told(r.project, files.moved);
       watch(root);
       return r;
     }
@@ -226,8 +231,10 @@ export function createApcSync(deps: {
 
   /** Watches .agent/ (recursively) and the project folder itself for AGENTS.md and .agent; changes reindex, debounced. */
   function watch(root: string): void {
-    // A folder first watched without .agent/ is watched again once it has one (moved in, or made by hand).
-    if (watchers.has(root) && (watchingDir.has(root) || !fs.existsSync(path.join(root, AGENT_DIR)))) return;
+    // Watched again when the folder its files are in changes (.apc/ moved to .agent/, or made by hand).
+    const dir = ownDir(root);
+    const has = fs.existsSync(path.join(root, dir));
+    if (watchers.has(root) && (watchingDir.get(root) === dir || !has)) return;
     for (const w of watchers.get(root) ?? []) w.close();
     watchingDir.delete(root);
     const changed = () => {
@@ -248,9 +255,9 @@ export function createApcSync(deps: {
     };
     const list: fs.FSWatcher[] = [];
     try {
-      if (fs.existsSync(path.join(root, AGENT_DIR))) {
-        list.push(fs.watch(path.join(root, AGENT_DIR), { recursive: true }, changed));
-        watchingDir.add(root);
+      if (has) {
+        list.push(fs.watch(path.join(root, dir), { recursive: true }, changed));
+        watchingDir.set(root, dir);
       }
       list.push(fs.watch(root, (_e, file) => (file === "AGENTS.md" || file === AGENT_DIR) && changed()));
     } catch {}
@@ -276,7 +283,9 @@ export function createApcSync(deps: {
       const abs = path.resolve(root);
       if (!fs.existsSync(abs) || !fs.statSync(abs).isDirectory()) throw new Error(`not a folder: ${abs}`);
       if (!isApcProject(abs)) throw new Error(`not a project (no .agent/ or AGENTS.md): ${abs}`);
+      const moved = moveIfLegacy(abs);
       const r = syncRoot(abs);
+      if (moved) told(r.project, moved);
       watch(abs);
       return r;
     },

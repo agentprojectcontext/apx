@@ -8,6 +8,7 @@ import path from "node:path";
 import { BASE_PROJECT_ID, type Organization, type ProjectKind, siteOrigin } from "@apx/protocol";
 import { declaresApp } from "../../../../packages/surfaces/src/kit.ts";
 import { AGENT_DIR, moveLegacyFolder, needsFolderMove } from "../apc/folder.ts";
+import { tellFolderMove } from "../apc/folder-notice.ts";
 import { readOrganization, writeOrganization } from "../apc/org.ts";
 import type { ApcSync } from "../apc/sync.ts";
 import { writeProjectMeta } from "../apc/write.ts";
@@ -254,6 +255,9 @@ export function appHandlers(deps: {
       const r = deps.apc.sync(id);
       const now = store.projects.get(id);
       if (!now) throw notFound(`project ${id}`);
+      // Replaces the tray's notice about a move that had failed.
+      if (moved.done && moved.files)
+        tellFolderMove(store, now, { state: "moved", files: moved.files, kept: moved.kept });
       return { project: publicProject(now), agents: r.agents, ...moved };
     },
     "projects.create": ({ name, kind, description, path: dir, parent }) => {
@@ -463,7 +467,7 @@ export function createProject(
 
 /**
  * Makes a plain folder a project, writing only what is missing: AGENTS.md (named after it) and .agent/. A folder whose
- * files are still in .apc/ gets no empty .agent/: that would hide them instead of moving them.
+ * files are still in .apc/ gets no empty .agent/: registering it moves them there.
  */
 function initProject(dir: string, name?: string): void {
   const abs = path.resolve(dir);

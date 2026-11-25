@@ -55,14 +55,17 @@ APX vigila `.agent/` y `AGENTS.md`. Editás un archivo en tu editor, lo guardás
 
 ## Proyectos de versiones anteriores (`.apc/`)
 
-Las versiones anteriores de APX, y APX v1, guardaban los mismos archivos en una carpeta llamada `.apc/`. APX ya no la
-lee: un proyecto que todavía tiene ahí sus archivos muestra la tarjeta **Agentes en la carpeta vieja** en su resumen, y
-sus agentes siguen funcionando como APX los leyó la última vez, pero los cambios que hagas en `.apc/` no se toman y APX
-no escribe nada nuevo ahí.
+Las versiones anteriores de APX, y APX v1, guardaban los mismos archivos en una carpeta llamada `.apc/`. APX la mueve
+a `.agent/` solo, al arrancar y cuando sumás un proyecto: copia cada archivo, comprueba que cada copia sea idéntica y
+recién ahí borra `.apc/`. Te llega un aviso por proyecto en la bandeja. APX nunca hace commits: si la carpeta está en
+git, el movimiento aparece como diff para que lo commitees. `AGENTS.md` no se mueve, y los worktrees de git dentro de
+`.apc/worktrees/` quedan donde están (movelos con `git worktree move`, o soltalos cuando su rama se mergee).
 
-Movelos una vez, con el botón **Mover a .agent/** de esa tarjeta, o todos los proyectos juntos:
+Si un proyecto no se puede mover (por ejemplo, `.agent/` ya tiene otra versión de un archivo), no se borra nada: ese
+proyecto sigue funcionando desde `.apc/`, su resumen muestra **Agentes todavía en .apc/** con **Probar de nuevo**, el
+aviso dice por qué y APX vuelve a probar en el próximo inicio. Para reintentar todos esos proyectos juntos:
 
-<Terminal title="mover todos los proyectos a .agent/">
+<Terminal title="reintentar mover proyectos a .agent/">
 
 ```bash
 apx doctor --fix
@@ -70,11 +73,7 @@ apx doctor --fix
 
 </Terminal>
 
-El movimiento copia cada archivo a `.agent/`, comprueba que cada copia sea idéntica y recién ahí lo borra de `.apc/`.
-Se puede correr de nuevo sin riesgo. Si `.agent/` ya tiene otra versión de un archivo, no se borra nada: dejá la
-versión que quieras en los dos lugares y corrélo otra vez. Los worktrees de git dentro de `.apc/worktrees/` quedan
-donde están (movelos con `git worktree move`, o soltalos cuando su rama se mergee). `AGENTS.md` no se mueve. Un APX v1
-que siga instalado lee `.apc/`, así que después del movimiento deja de ver los agentes de ese proyecto.
+Un APX v1 que siga instalado lee `.apc/`, así que después del movimiento deja de ver los agentes de ese proyecto.
 
 ## Tipos de proyecto
 

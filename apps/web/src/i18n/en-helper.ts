@@ -36,10 +36,10 @@ export const enHelper = {
   "helper.prepare": "Propose instructions",
   "helper.agentOffer": "This draft is missing context, a role or instructions. Review it without blocking creation?",
   "helper.agentReview": "Review draft in project context",
-  "folder.title": "Agents in the old folder",
+  "folder.title": "Agents still in .apc/",
   "folder.body":
-    "This project's agents and settings are still in .apc/, the folder older versions used. Move them to .agent/ so APX reads their changes again.",
-  "folder.move": "Move to .agent/",
+    "APX could not move this project's agents and settings to .agent/, so it keeps using .apc/. The notice in your tray says why.",
+  "folder.move": "Try again",
   "folder.moved": "Moved to .agent/.",
   "folder.kept": "Moved to .agent/. Git worktrees stay in .apc/.",
   "folder.conflicts": "Not moved: .agent/ already has other versions of {files}. Keep the one you want and try again.",

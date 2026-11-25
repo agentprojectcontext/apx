@@ -1,5 +1,7 @@
 // Release news worth acting on: what a release lets the super-agent do for this owner. Each entry is told once, and
 // only to an owner it applies to. See rules/DECISIONS.md#d-117
+
+import { FOLDER_MOVED } from "../apc/folder-notice.ts";
 import type { StoreSize } from "../db/db.ts";
 import type { Store } from "../domain/store.ts";
 import { NOISY_COMMENTS } from "../domain/tasks.ts";
@@ -104,8 +106,8 @@ export type NewsFacts = {
   promptedAgents?: number;
   /** The chats' database is over 500 MB and keeps its free space until it is rewritten once (compacted). */
   bigStore?: boolean;
-  /** Projects that still keep their agents or settings in .apc/ (the move to .agent/ is offered). */
-  legacyFolders?: number;
+  /** APX moved (or tried to move) a project's files from .apc/ to .agent/. */
+  agentFolder?: boolean;
   /** Projects the owner registered (the base project not counted). */
   projects?: number;
   /** A channel reads at least one room (a Discord channel, a group). */
@@ -763,7 +765,7 @@ export const newsFacts = (store: Store, o: { hermes?: boolean; storeSize?: Store
   localModels: store.settings.read("local_models_seen").length > 0,
   ownModels: store.agents.list().filter((a) => a.model_choice?.model).length,
   projects: store.projects.list().length,
-  legacyFolders: store.projects.list().filter((p) => p.legacy_folder).length,
+  agentFolder: Boolean(store.settings.get(FOLDER_MOVED)),
   routines: store.routines.list().filter((r) => r.action === "agent" || r.action === "watch").length,
   promptedAgents: store.agents.list().filter((a) => a.kind !== "secretary" && a.prompt.trim()).length,
   agents: store.agents.list().filter((a) => a.kind !== "secretary").length,

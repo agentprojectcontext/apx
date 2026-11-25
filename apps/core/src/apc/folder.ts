@@ -1,5 +1,5 @@
-// The folder a project keeps APX's files in (`.agent/`), and the one-time move from `.apc/`, the name earlier
-// versions used. `.apc/` is never read for definitions: it is only found, to offer the move. See DECISIONS.md#d-273
+// The folder a project keeps APX's files in (`.agent/`), and the move from `.apc/`, the name earlier versions used: run
+// by itself at start and on register; a project it could not move keeps working from `.apc/`. See DECISIONS.md#d-273
 import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -41,12 +41,9 @@ function legacyEntries(root: string): string[] {
   }
 }
 
-/**
- * The project's files are only in `.apc/`: its index stays as it was and the move is offered. Once `.agent/` exists,
- * `.apc/` is not read at all; what is left there goes with `apx doctor --fix`.
- */
+/** The project's files are only in `.apc/` (a move has not run or failed): it works from there until one succeeds. */
 export const needsFolderMove = (root: string): boolean =>
-  !fs.existsSync(path.join(root, AGENT_DIR)) && legacyEntries(root).length > 0;
+  !isDir(path.join(root, AGENT_DIR)) && !isLink(path.join(root, AGENT_DIR)) && legacyEntries(root).length > 0;
 
 /** Something in `.apc/` is still there to move or clear. */
 export const hasLegacyFolder = (root: string): boolean => legacyEntries(root).length > 0;
@@ -95,11 +92,11 @@ function copyEntry(from: string, to: string): void {
 
 /**
  * Moves a project's files from `.apc/` to `.agent/`: copies, checks that every file arrived equal, and only then
- * removes them from `.apc/` (`keep` leaves them, for a v1 that still reads them). With no `.agent/` yet the copy is
- * made aside and renamed in at once, so a reindex never sees half of it. Safe to run again: equal files count as
+ * removes them from `.apc/`. With no `.agent/` yet the copy is made aside and renamed in at once, so a reindex never
+ * sees half of it. Safe to run again: equal files count as
  * moved, and a file `.agent/` has with other content stops before anything is removed. Worktrees stay where they are.
  */
-export function moveLegacyFolder(root: string, o: { keep?: boolean } = {}): FolderMove {
+export function moveLegacyFolder(root: string): FolderMove {
   const abs = path.resolve(root);
   const from = path.join(abs, LEGACY_DIR);
   const to = path.join(abs, AGENT_DIR);
@@ -108,10 +105,11 @@ export function moveLegacyFolder(root: string, o: { keep?: boolean } = {}): Fold
     [to, AGENT_DIR],
   ] as const)
     if (isLink(p)) throw new Error(`${name} is a link: nothing moved`);
+  if (fs.existsSync(to) && !isDir(to)) throw new Error(`a file named ${AGENT_DIR} is in the way: nothing moved`);
   const entries = legacyEntries(abs);
   const checkouts = () => (isDir(from) ? fs.readdirSync(from).filter((e) => CHECKOUTS.has(e)) : []);
   if (!entries.length) {
-    if (!o.keep) clearEmpty(from);
+    clearEmpty(from);
     return { files: 0, done: true, kept: checkouts(), conflicts: [] };
   }
   const files = entries.flatMap((e) => (isDir(path.join(from, e)) ? walk(from, e) : [e]));
@@ -136,7 +134,6 @@ export function moveLegacyFolder(root: string, o: { keep?: boolean } = {}): Fold
   const differ = files.filter((f) => !same(path.join(from, f), path.join(to, f)));
   if (differ.length)
     throw new Error(`nothing removed from ${LEGACY_DIR}: these did not arrive equal: ${differ.join(", ")}`);
-  if (o.keep) return { files: files.length, done: false, kept: checkouts(), conflicts: [] };
   for (const e of entries) fs.rmSync(path.join(from, e), { recursive: true, force: true });
   clearEmpty(from);
   return { files: files.length, done: true, kept: checkouts(), conflicts: [] };
@@ -152,13 +149,28 @@ function clearEmpty(dir: string): void {
 }
 
 /**
- * `.agent/` of a project, for a write. Refused while the project's files are only in `.apc/`: starting `.agent/` there
- * would leave them unread instead of moving them.
+ * The folder name a project's files are in now: `.agent`, or `.apc` while they could not be moved yet (that project keeps
+ * working from there, reads and writes, until a move succeeds).
  */
-export function agentDirFor(root: string): string {
-  if (needsFolderMove(root))
-    throw new Error(
-      `this project's agents and settings are still in ${LEGACY_DIR}/: move them to ${AGENT_DIR}/ first (Move on the project's page, or apx doctor --fix)`,
-    );
-  return path.join(root, AGENT_DIR);
+export const ownDir = (root: string): string => (needsFolderMove(root) ? LEGACY_DIR : AGENT_DIR);
+
+/** The folder a project's files are in now (see ownDir). */
+export const projectDir = (root: string): string => path.join(root, ownDir(root));
+
+/** What moving one project's folder did, as the owner is told it; nothing when there was nothing to move. */
+export type FolderOutcome =
+  | { state: "moved"; files: number; kept: string[] }
+  | { state: "conflict"; conflicts: string[] }
+  | { state: "failed"; error: string };
+
+/** The move for one project, never throwing: what start and register run on every folder that still has `.apc/`. */
+export function moveIfLegacy(root: string): FolderOutcome | undefined {
+  if (!hasLegacyFolder(root)) return undefined;
+  try {
+    const r = moveLegacyFolder(root);
+    if (r.conflicts.length) return { state: "conflict", conflicts: r.conflicts };
+    return { state: "moved", files: r.files, kept: r.kept };
+  } catch (err) {
+    return { state: "failed", error: err instanceof Error ? err.message : String(err) };
+  }
 }

@@ -26,7 +26,10 @@ before(async () => {
   env = await startCore({ llm: scriptedLlm(() => say("ok")), home });
   repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-team-repo-")));
   fs.mkdirSync(path.join(repo, ".agent", "agents"), { recursive: true });
-  fs.writeFileSync(path.join(repo, ".agent", "agents", "boss.md"), "---\nname: Boss\nrole: Orchestrator\n---\n\nLead.\n");
+  fs.writeFileSync(
+    path.join(repo, ".agent", "agents", "boss.md"),
+    "---\nname: Boss\nrole: Orchestrator\n---\n\nLead.\n",
+  );
   project = (await env.client.call("projects.register", { path: repo })).project.id;
 });
 after(async () => {

@@ -71,7 +71,7 @@ export const WORK: Readonly<Record<string, Setting>> = {
             p.kind ?? "",
             p.path ? `folder ${p.path}` : "kept by APX",
             p.present ? "" : "folder away",
-            p.legacy_folder ? "agents still in .apc/, to move" : "",
+            p.legacy_folder ? "agents still in .apc/: its move failed, the owner retries it" : "",
             p.parent ? `subproject of ${p.parent === BASE_PROJECT_ID ? "the base project" : p.parent}` : "",
           ];
           return `- ${inlineName(p.name)} [${p.id}] (${bits.filter(Boolean).join(", ")})${p.description ? `: ${p.description.slice(0, 160)}` : ""}`;

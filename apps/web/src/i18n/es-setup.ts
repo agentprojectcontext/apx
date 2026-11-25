@@ -86,14 +86,15 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
   "setup.import.kicker": "IMPORTAR APX V1",
   "setup.import.title": "Traemos tu crew.",
   "setup.import.titleMuted": "Nada se pierde.",
-  "setup.import.body": "Leemos {home} y los .apc/ de cada proyecto. La v1 queda intacta: podés volver cuando quieras.",
+  "setup.import.body":
+    "Leemos {home} y movemos el .apc/ de cada proyecto a .agent/. La carpeta propia de v1 queda intacta.",
   "setup.import.scanning": "Leyendo la v1…",
   "setup.import.importing": "Importando…",
   "setup.import.result": "Importado: {list}",
   "setup.v1.projects": "Proyectos",
   "setup.v1.projectsCount": "{n} · {agents} agentes",
   "setup.v1.projectsBody":
-    "Sus carpetas y agentes vienen como están (copiados a .agent/, el .apc/ de v1 queda); los agentes de Default de v1 quedan como agentes globales, con su memoria",
+    "Sus carpetas y agentes vienen como están (movidos de .apc/ a .agent/, así que v1 deja de verlos); los agentes de Default de v1 quedan como agentes globales, con su memoria",
   "setup.v1.skills": "Skills",
   "setup.v1.skillsBody": "Tus skills globales, copiadas a v2",
   "setup.v1.keys": "Motores",

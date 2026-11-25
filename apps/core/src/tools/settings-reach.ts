@@ -100,7 +100,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "telemetry.set": POWER,
   "storage.clear": "the owner frees space from Settings › Storage, having seen what it removes (DECISIONS.md#d-185)",
   "projects.move_folder":
-    "it moves and deletes files in the owner's project folder once; the owner presses Move on the project or runs apx doctor --fix (DECISIONS.md#d-273)",
+    "a retry of the move APX runs by itself at start; it deletes files in the owner's folder, so the owner presses Try again on the project or runs apx doctor --fix (DECISIONS.md#d-273)",
   "storage.compact":
     "it blocks the core while it rewrites the database; the owner runs it from Settings › Storage › Compact or apx doctor --fix (DECISIONS.md#d-200)",
   "storage.computers.delete":
