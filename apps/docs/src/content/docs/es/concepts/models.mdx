@@ -116,6 +116,15 @@ modelos.
 En un servidor sin panel, tres variables de entorno suman un proveedor OpenAI-compatible: `APX_LLM_BASE_URL`,
 `APX_LLM_KEY_REF` (el nombre de un secreto) y `APX_LLM_MODELS`. Mirá [Configuración](/es/reference/configuration/).
 
+### Falta un modelo en la lista
+
+Ejecutá `apx models --refresh` para volver a consultar sin esperar la actualización diaria. Esto no cambia los
+modelos guardados de tus agentes ni del router. La app de ChatGPT y Codex pueden ofrecer listas distintas: ver
+un modelo en la app no demuestra que tu plan conectado lo ofrezca a través de Codex. APX usa la lista del propio
+plan, no identificadores agregados a mano. Para sesiones externas de Codex, actualizá su CLI en la computadora
+del core antes de refrescar; una CLI vieja puede recibir un catálogo más chico. Que un modelo aparezca en la
+lista no demuestra por sí solo que pueda completar un turno.
+
 ### Tu plan de ChatGPT
 
 Tu plan de ChatGPT también puede ser un proveedor, que aparece como **Codex**. Sus modelos corren entonces en el loop
