@@ -81,6 +81,19 @@ async function windowAt(app: ElectronApplication, test: (url: string) => boolean
   return matching() as Page;
 }
 
+async function changeConnection(app: ElectronApplication): Promise<void> {
+  await expect
+    .poll(() =>
+      app.evaluate(({ Menu }) => Boolean(Menu.getApplicationMenu()?.getMenuItemById("change-connection")?.enabled)),
+    )
+    .toBe(true);
+  await app.evaluate(({ Menu }) => {
+    const item = Menu.getApplicationMenu()?.getMenuItemById("change-connection");
+    if (!item) throw new Error("Change connection menu item is unavailable");
+    item.click();
+  });
+}
+
 test.beforeAll(async () => {
   coreHome = (await world.info()).home;
   sandbox = tempDir("apx-e2e-connect-");
@@ -230,7 +243,7 @@ test("changing connection revokes the old desktop node before choosing a new ser
       return health.result.subsystems.browser.detail;
     };
     await expect.poll(browserNode).toBe("apx-desktop");
-    await app.evaluate(({ Menu }) => Menu.getApplicationMenu()?.getMenuItemById("change-connection")?.click());
+    await changeConnection(app);
     let chooser = await question(await windowAt(app, (u) => u.startsWith("apx-app://")));
     await expect.poll(browserNode).not.toBe("apx-desktop");
     expect(fs.existsSync(path.join(home, "desktop", "connection.json"))).toBe(false);
@@ -242,7 +255,7 @@ test("changing connection revokes the old desktop node before choosing a new ser
     expect((await windowAt(app, (u) => u.startsWith(core))) === panel).toBe(true);
     await expect(panel.locator(".shell")).toBeVisible();
     expect(await browserNode()).not.toBe("apx-desktop");
-    await app.evaluate(({ Menu }) => Menu.getApplicationMenu()?.getMenuItemById("change-connection")?.click());
+    await changeConnection(app);
     chooser = await question(await windowAt(app, (u) => u.startsWith("apx-app://")));
     await chooser.locator("#pick-server").click();
     await chooser.locator("#server-go").click();
@@ -537,7 +550,7 @@ test("Change connection back to the same SSH server shows its panel", async () =
     const app = await client.launch();
     const panel = await windowAt(app, (u) => u.startsWith(client.panelUrl));
     await expect(panel.locator("#root > *").first()).toBeVisible();
-    await app.evaluate(({ Menu }) => Menu.getApplicationMenu()?.getMenuItemById("change-connection")?.click());
+    await changeConnection(app);
     const chooser = await question(await windowAt(app, (u) => u.startsWith("apx-app://")));
     await chooser.locator("#pick-client").click();
     await chooser.getByRole("radio", { name: "SSH" }).click();
