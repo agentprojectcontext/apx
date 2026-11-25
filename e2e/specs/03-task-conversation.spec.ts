@@ -193,6 +193,15 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
     await expect.poll(async () => (await env.client.call("tasks.get", { task: task.id })).task.state).toBe("done");
     await drawer.getByRole("button", { name: "Reabrir", exact: true }).click();
     await expect.poll(async () => (await env.client.call("tasks.get", { task: task.id })).task.state).toBe("open");
+    const workChat = (await env.client.call("tasks.get", { task: task.id })).sessions.find((s) =>
+      s.agent_ids.includes(builder.id),
+    );
+    if (!workChat) throw new Error("The assigned agent's task chat is missing");
+    const starts = async () =>
+      (await env.client.call("threads.get", { thread: workChat.id })).messages.filter((m) =>
+        m.parts.some((p) => p.type === "text" && p.text === "On it."),
+      ).length;
+    expect(await starts()).toBe(1);
     await env.client.call("tasks.update", { task: task.id, awaits_owner: true });
     await drawer.getByRole("combobox", { name: "Columna", exact: true }).click();
     await page.getByRole("option", { name: "En curso", exact: true }).click();
@@ -205,7 +214,11 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
     await drawer.getByRole("button", { name: /^Sesiones · / }).click();
     await page.locator(".taskwork__chat", { hasText: "Builder" }).click();
     await expect(page.locator(".chat__header")).toContainText("Builder");
-    await expect(page.getByRole("main").getByText("On it.", { exact: true })).toBeVisible();
+    // Releasing the explicit hold restarts its assigned work once, preserving its first answer.
+    await expect.poll(starts).toBe(2);
+    const started = page.getByRole("main").getByText("On it.", { exact: true });
+    await expect(started).toHaveCount(2);
+    await expect(started.last()).toBeVisible();
     await page.locator(".chat__taskbtn").click();
     await expect(page.getByRole("complementary", { name: task.title })).toBeVisible();
     // A consult's card opens its chat from the task too, where no chat is open beside it.
