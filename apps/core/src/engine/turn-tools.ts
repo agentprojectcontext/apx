@@ -1,6 +1,7 @@
 // The tools a turn may use: the agent's, narrowed by its callers, its chat (a contact's, the computer, a phone chat)
 // and what is turned on; MCP's join behind the bridge on first use, and never in a contact's turn.
 import { BROWSER_CAP, CHROME_CAP } from "@apx/protocol";
+import { isConsult } from "../domain/contact-consult.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
 import { answersChecked, chromeReach, type Origin, reachIn, taskOrigin } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
@@ -13,6 +14,7 @@ import type { Tool } from "../tools/types.ts";
 import { COMPUTER_TOOL } from "../tools/vm.ts";
 import { WEB_TOOLS } from "../tools/web.ts";
 import { callersOf } from "./ancestry.ts";
+import { consultTools } from "./contact-consult.ts";
 import { MAX_DEPTH } from "./limits.ts";
 import type { Turn, TurnDeps } from "./turn.ts";
 
@@ -136,14 +138,16 @@ export async function turnTools(deps: TurnDeps, turn: Turn) {
   // Offered only to an agent the owner allowed: one without it never asks to use it (DECISIONS.md#d-154).
   const computerOn = Boolean(deps.vm?.serves(turn.thread.id) && deps.vm.permitted(turn.agent.id, turn.thread.id));
   const sealed = turn.audience.kind === "contact";
+  // The super-agent answering a contact's agent reads that project and asks the owner, nothing more (DECISIONS.md#d-269).
+  const consult = isConsult(turn.thread);
   const callers = callersOf(deps.store, turn.thread.id);
   const step = deps.store.threads.context(turn.thread.id).flow_step;
   // MCP tools are reached through tool_search and tool_run; their servers start only when one is first used.
-  const servers = !sealed && !inVm && deps.mcpTools ? (deps.mcpServers?.(turn.thread) ?? []) : [];
+  const servers = !sealed && !consult && !inVm && deps.mcpTools ? (deps.mcpServers?.(turn.thread) ?? []) : [];
   let loading: Promise<Tool[]> | undefined;
   // A contact's turn reaches no MCP tool, not even one it names without being offered it.
   const mcpLate = () => {
-    if (inVm || sealed || step?.bot) return Promise.resolve([]);
+    if (inVm || sealed || consult || step?.bot) return Promise.resolve([]);
     loading ??= (deps.mcpTools?.(turn.thread) ?? Promise.resolve([]))
       .catch(() => [])
       .then((all) => all.filter((t) => policy.allows(t.name) && (!only || only.has(t.name) || only.has(TOOL_RUN))));
@@ -192,13 +196,15 @@ export async function turnTools(deps: TurnDeps, turn: Turn) {
   const handoff = ownerOnChannel && HANDOFF_ONLY.has(channelKindOf(deps.store, o, replyChannel) ?? "");
   const only = handoff ? new Set([...HANDOFF_TOOLS].filter((n) => !named || named.has(n))) : named;
   const out = step && !step.delegate ? TEAM_TOOLS : undefined;
-  const tools = policy.tools.filter(
+  const kept = policy.tools.filter(
     (t) =>
       (!step?.bot || BOT_KEEPS.has(t.name)) &&
       !out?.has(t.name) &&
       ((callers.length < MAX_DEPTH && !turn.worker) || !SESSION_TOOLS.has(t.name)) &&
       (!only || only.has(t.name) || (t.name === TOOL_SEARCH && only.has(TOOL_RUN))),
   );
+  if (consult) return { policy, tools: consultTools(deps.store, turn.thread.id, kept), mcpLate };
+  const tools = kept;
   // A connected app's tools and APX's rarely used ones are found and run through the bridge, unless the turn's tools
   // were named one by one. A turn with no bridge (on the computer, a contact's, a Flow's bot) keeps APX's own direct.
   const bridgeable = !inVm && !sealed && !step?.bot;

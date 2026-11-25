@@ -1,5 +1,6 @@
 // Teammates asked in one turn answer the caller together: each answer is held until the others are in or the hold
 // runs out, kept on the caller's chat so a restart keeps it. A single delegation is not held. See DECISIONS.md#d-194
+import { consultOpen, isConsult } from "../domain/contact-consult.ts";
 import { type RunRecord, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { FanoutGroup } from "../domain/threads.ts";
@@ -21,7 +22,12 @@ const ANSWER_CHARS = 6000;
  * envelope. Paused, each is kept for its next turn instead, and the owner sees why.
  */
 export function deliverResults(store: Store, admit: AdmitFn, parent: RunRecord, results: readonly Held[]): void {
-  const told = results.map(({ child, stopped }) => {
+  // A consult for a contact whose chat may no longer be answered that way reaches no one (DECISIONS.md#d-269).
+  const open = results.filter(({ child }) => {
+    const sub = store.threads.get(child.thread_id);
+    return !sub || !isConsult(sub) || consultOpen(store, sub.id);
+  });
+  const told = open.map(({ child, stopped }) => {
     const { answer, outcome } = resultOf(store, child);
     return { child, answer, result: delegationResult(store, child, stopped, outcome) };
   });

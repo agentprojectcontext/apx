@@ -327,6 +327,28 @@ test("a delegated turn gets its project's and its own notes, and global ones onl
   assert.doesNotMatch(text, /sip-call-ai|monkey cave|cobalt/, "no unrelated global note, none from another project");
 });
 
+test("a consult for a contact gets only that project's notes, never the owner's or the agent's own", async () => {
+  const store = env.core.store;
+  const byWords = async (o: { query: string; limit: number }) => store.memories.list(o);
+  store.memories.add({
+    scope: "project",
+    text: "Quokka deliveries leave from the east gate.",
+    source: "owner",
+    project_id: project,
+  });
+  store.memories.add({ scope: "global", text: "The owner's quokka deliveries salary is private.", source: "owner" });
+  store.memories.add({
+    scope: "agent",
+    agent_id: "superagent",
+    text: "Quokka deliveries notebook entry.",
+    source: "owner",
+  });
+  const ask = "When do the quokka deliveries leave?";
+  const consult = await recallFor(store, byWords, "superagent", { project_id: project }, ask, {}, 0, "project");
+  assert.match(consult.text ?? "", /east gate/);
+  assert.doesNotMatch(consult.text ?? "", /salary|notebook entry/);
+});
+
 test("a delegated turn ignores global notes that only share the owner's generic words with the task", async () => {
   const store = env.core.store;
   const byWords = async (o: { query: string; limit: number }) => store.memories.list(o);

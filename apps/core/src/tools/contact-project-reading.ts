@@ -75,12 +75,15 @@ export function projectReadingTools(store: Store, google: Google | undefined): T
       async run(a, ctx) {
         const boss = superAgent();
         if (!boss || !reading.available(ctx.thread.id, ctx.agent.id)) throw new Error("not allowed in this chat");
-        return ctx.delegate(
+        const answer = await ctx.delegate(
           { agent: boss, session: CONTACT_CONSULT, project: ctx.thread.project_id ?? undefined },
           consultTask(store, ctx, a.question),
           CONSULT_WAIT_MS,
           ctx.signal,
         );
+        // The owner may have withdrawn the right while the super-agent worked.
+        if (!reading.available(ctx.thread.id, ctx.agent.id)) throw new Error("not allowed in this chat");
+        return answer;
       },
     }),
     defineTool({

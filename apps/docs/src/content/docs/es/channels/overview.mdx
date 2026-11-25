@@ -266,9 +266,11 @@ explícitamente como editables siguen siendo un circuito separado.
 
 Cuando lo que puede leer no le alcanza para responder (un documento que nunca enlazaste en ese chat, algo que sólo
 sabe tu lado), el agente le pregunta a tu superagente. La pregunta va a un subhilo del chat del contacto, marcada como
-palabras de un contacto; ahí el superagente la busca en ese proyecto con tu acceso y responde sólo lo que esa persona
-puede saber. Si haría algo por ella (enviar, pagar, borrar, compartir archivos, cambiar ajustes) o duda de si se puede
-compartir, primero te pregunta en la app. Su respuesta vuelve al agente, en el mismo turno o un momento después, y el
+palabras de un contacto; ahí el superagente la busca en ese proyecto y responde sólo lo que esa persona puede saber.
+Ahí sólo puede leer: los chats de ese proyecto con vos, su carpeta, sus notas y los archivos de Drive que esos chats ya
+usaron; no puede enviar, escribir, ejecutar comandos ni abrir tus otros proyectos y chats. Si duda de si algo se puede
+compartir, primero te pregunta en la app. Si mientras tanto le quitás la lectura del proyecto a esa persona, la
+respuesta nunca le llega. Su respuesta vuelve al agente, en el mismo turno o un momento después, y el
 agente le escribe a la persona. Volver a preguntar mientras trabaja sigue la misma consulta.
 
 Para los agentes, se prende con `apx_settings` `contacts.set` y `perms: { project_reading: true }` para esa persona;

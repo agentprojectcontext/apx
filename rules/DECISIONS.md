@@ -6161,8 +6161,16 @@ The tool waits up to 90 seconds; a later answer reaches the contact's chat as a 
 framed as an answer for the person there, and goes out on the channel. Asking again while the super-agent works steers
 into the same session; asked after, it continues it: one consultation thread per contact chat.
 
-Not decided here: a narrower tool set or profile for the super-agent's consult turn (it has its full tools, as in the
-owner-relay check of D-144), quotas beyond the chat's existing limits, and consults from contacts without project
-reading.
+The consult turn is contained in code, not only by its request (`engine/contact-consult.ts`,
+`domain/contact-consult.ts`): it is offered only `ask_owner` and reads (`read_chat`, `search_chats`, `file_read`,
+`drive_read`, `sheets_read`, `sheets_tabs`, `read_output`, `load_skill`), no MCP or app bridge; its chat tools see only
+the owner's own chats of that project and their sub-threads (no contact chat, room or client); its files are fenced to
+the project's folders; a Drive file opens only when that project's chats already used its id; its recalled notes are
+that project's only. Every call checks again that the contact's project reading holds, and an answer that comes after
+the owner withdrew it is dropped, inline or late. Drive search is left out: a file the project never used is the
+owner's to link.
+
+Not decided here: quotas beyond the chat's existing limits, and consults from contacts without project reading. The
+super-agent's system prompt (who the owner is, its team) is unchanged in the consult turn.
 
 Docs impact: updated channels/overview in English and Spanish and the 2.17.0 project reading news entry.

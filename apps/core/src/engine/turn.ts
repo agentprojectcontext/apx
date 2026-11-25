@@ -15,6 +15,7 @@ import {
 } from "@apx/protocol";
 import { readOrganization } from "../apc/org.ts";
 import type { AgentRecord } from "../domain/agents.ts";
+import { isConsult } from "../domain/contact-consult.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
 import { ownerIdentity, ownerTimeZone } from "../domain/owner.ts";
 import { panelMode } from "../domain/panel-mode.ts";
@@ -540,7 +541,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
         ctxState,
         from,
         // A chat working a task is about that task, like a helper's turn: no standing global notes.
-        turn.input.origin.kind === "agent" || Boolean(thread.task_id),
+        isConsult(thread) ? "project" : turn.input.origin.kind === "agent" || Boolean(thread.task_id),
       )
     : {};
   const chats = remembers

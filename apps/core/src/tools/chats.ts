@@ -4,7 +4,8 @@
 import type { Message, Thread } from "@apx/protocol";
 import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
-import { canReadChat as canRead } from "../domain/chat-access.ts";
+import { canReadChat } from "../domain/chat-access.ts";
+import { consultReadsChat, isConsult } from "../domain/contact-consult.ts";
 import { messageQuery } from "../domain/messages.ts";
 import { worksIn } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
@@ -15,15 +16,19 @@ const MESSAGE_CHARS = 1500;
 /** A found tool call shows the head of its arguments and of its result: enough to recognise it. */
 const CALL_CHARS = 300;
 
-const readableChats = (store: Store, agent: AgentRecord) =>
+/** A consult for a contact reads only its project's own chats, whatever its agent may read elsewhere (DECISIONS.md#d-269). */
+const canRead = (store: Store, agent: AgentRecord, current: Thread, t: Thread) =>
+  canReadChat(store, agent, t) && (!isConsult(current) || consultReadsChat(store, current, t));
+
+const readableChats = (store: Store, agent: AgentRecord, current: Thread) =>
   store.threads
     .list({ include_subthreads: true, include_archived: true, limit: null })
-    .filter((t) => canRead(store, agent, t));
+    .filter((t) => canRead(store, agent, current, t));
 
 const wordsOf = (text: string): string[] => messageQuery(text)?.match(/[\p{L}\p{N}]+/gu) ?? [];
 
 /** Agent names identify participants, rather than words that must occur in the message body. */
-function searchScope(store: Store, agent: AgentRecord, query: string) {
+function searchScope(store: Store, agent: AgentRecord, current: Thread, query: string) {
   const words = wordsOf(query);
   const used = new Set<number>();
   const named = store.agents
@@ -41,7 +46,7 @@ function searchScope(store: Store, agent: AgentRecord, query: string) {
     .map((a) => a.agent);
   const names = new Set(named.flatMap((a) => wordsOf(a.name)));
   const text = words.filter((w) => !names.has(w)).join(" ");
-  const chats = readableChats(store, agent).filter((t) => named.every((a) => t.agent_ids.includes(a.id)));
+  const chats = readableChats(store, agent, current).filter((t) => named.every((a) => t.agent_ids.includes(a.id)));
   return { text, chats };
 }
 
@@ -70,9 +75,9 @@ function findChat(
   name: string,
 ): Thread | { ambiguous: Thread[] } | undefined {
   const byId = store.threads.get(name);
-  if (byId) return canRead(store, agent, byId) ? byId : undefined;
+  if (byId) return canRead(store, agent, current, byId) ? byId : undefined;
   const q = name.trim().toLowerCase();
-  const all = readableChats(store, agent);
+  const all = readableChats(store, agent, current);
   const exact = all.find((t) => t.title.toLowerCase() === q);
   if (exact) return exact;
   const sessions = all.filter((t) => t.session?.toLowerCase() === q);
@@ -101,7 +106,7 @@ export function chatTools(store: Store): Tool[] {
       deadlineMs: 5_000,
       title: (a) => `Searched chats for “${a.query}”`,
       async run(a, ctx) {
-        const scope = searchScope(store, ctx.agent, a.query);
+        const scope = searchScope(store, ctx.agent, ctx.thread, a.query);
         // This chat counts only when the turn says what of it the model already sees; that part is not searched.
         const inView = [...(ctx.inView?.() ?? [])];
         const others = scope.chats.filter((t) => t.id !== ctx.thread.id);
@@ -172,7 +177,7 @@ export function chatTools(store: Store): Tool[] {
             `Ambiguous session name; read_chat with one chat id:\n${t.ambiguous.map((x) => `- ${x.title} (chat ${x.id})`).join("\n")}`,
           );
         if (!t) {
-          const known = readableChats(store, ctx.agent)
+          const known = readableChats(store, ctx.agent, ctx.thread)
             .slice(0, 15)
             .map((x) => `- ${x.title} (chat ${x.id})`);
           return `no chat named "${a.chat}" that you can read. Use list_agents and delegate to ask the named agent for context. Recent chats:\n${known.join("\n")}`;

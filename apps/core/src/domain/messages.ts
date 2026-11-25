@@ -130,6 +130,21 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
         .limit(limit);
       return all(qb.selectFrom(newest.as("m")).selectAll().orderBy("seq")).map(toMessage);
     },
+    /** Whether any message of these chats holds `text` as is (a file id in a link or an attachment). */
+    mentions(text: string, threadIds: string[]): boolean {
+      if (!text || !threadIds.length) return false;
+      const like = `%${text.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+      return Boolean(
+        one(
+          qb
+            .selectFrom("messages")
+            .select("id")
+            .where(sql<boolean>`thread_id in (select value from json_each(${JSON.stringify(threadIds)}))`)
+            .where(sql<boolean>`parts like ${like} escape '\\'`)
+            .limit(1),
+        ),
+      );
+    },
     /** A run's messages in the thread, oldest first: more than one when the owner wrote while it worked. */
     ofRun(threadId: string, runId: string): Message[] {
       return all(
