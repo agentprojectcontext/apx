@@ -172,7 +172,7 @@ Every Playwright run (coverage or not) picks free loopback ports and a run id in
 Local browser coverage runs the same six Playwright shards as CI sequentially, replaying setup for each shard
 and merging their counters into the same report. An explicit `--part=web --shard=i/6` still runs only that part.
 `node scripts/coverage-parallel.ts` runs CI's eight parts (unit, panel in six, desktop) side by side on one machine
-instead, five at a time (`APX_COVERAGE_JOBS`; all eight at once start six cores and Chromiums in the same second and the
+instead, four at a time (`APX_COVERAGE_JOBS`; all eight at once start six cores and Chromiums in the same second and the
 setup each panel part replays misses its budget). It makes the coverage builds once (panel, Worker, desktop), starts
 each part with `--together` (no part rebuilds a
 `dist/` another is reading, and each keeps Playwright's results in `coverage/all/parts/<part>/test-results`), writes
@@ -244,7 +244,7 @@ pnpm verify:mac                    # on the Mac: what Linux cannot prove (native
 Each branch has one run at a time; several branches run side by side, each capped at `APX_REMOTE_CPUS` (24) and
 `APX_REMOTE_MEMORY` (40g). In the box the unit tests run in `APX_REMOTE_SHARDS` (8) parts at once
 (`APX_TEST_SHARDS`, `node scripts/test-shard.ts all/8`), since the core's own run goes one file at a time, and
-verify runs coverage's eight parts five at a time (`node scripts/coverage-parallel.ts`) instead of one after another. The screen is a desktop on `:99` inside the box: Electron and anything headed shows there;
+verify runs coverage's eight parts four at a time (`node scripts/coverage-parallel.ts`) instead of one after another. The screen is a desktop on `:99` inside the box: Electron and anything headed shows there;
 its VNC port only listens on the machine's loopback, reached through the tunnel. `APX_SECRETS=file`, `APX_TELEMETRY=off` and `DO_NOT_TRACK=1` are set in the box, so no core started there counts as an
 install in telemetry; `DO_NOT_TRACK` also reaches a core the desktop app starts, which passes it no `APX_*` variable.
 A scratch core started by hand sets the same three (`APX_SECRETS=file APX_TELEMETRY=off DO_NOT_TRACK=1`).

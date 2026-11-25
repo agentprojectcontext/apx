@@ -32,10 +32,10 @@ export const BUILDS: string[][] = [
 
 /**
  * Parts running at once. All eight together start six sandbox cores, six Chromiums and the unit run in the same second,
- * and the setup each panel part replays first then misses its 30 s budget; five (unit, capped to a few files at once,
- * and four panel parts) keep each part near its speed alone. `APX_COVERAGE_JOBS` changes it.
+ * and the setup each panel part replays first then misses its 30 s budget; four (unit, capped to a few files at once,
+ * and three panel parts) keep each part near its speed alone. `APX_COVERAGE_JOBS` changes it.
  */
-export const JOBS = 5;
+export const JOBS = 4;
 
 /** A part that has not ended by then is stopped and counts as failed; each suite inside has a shorter limit of its own. */
 const PART_MS = 45 * 60_000;
