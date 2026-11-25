@@ -1,10 +1,11 @@
 import "../styles/panel-parts.css";
 import type { Thread } from "@apx/protocol";
-import { AgentAvatar, Button, EmptyState, IconButton, Icons, Skeleton, Spinner } from "@apx/ui";
+import { AgentAvatar, Button, EmptyState, EngineIcon, IconButton, Icons, Skeleton, Spinner } from "@apx/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Transcript } from "../chat/Transcript.tsx";
 import { shortWhen } from "../common/format.ts";
 import { ASKED, namedTitle } from "../common/mentionNames.ts";
+import { useEngineLabels } from "../common/useEngineLabel.ts";
 import { usePageVisible } from "../common/useInView.ts";
 import { useNow } from "../common/useNow.ts";
 import { loadThread, markRead } from "../data/actions.ts";
@@ -42,6 +43,7 @@ const statusOf = (t: T, state: Thread["state"]) =>
  */
 export function AgentsPanel() {
   const t = useT();
+  const engineLabel = useEngineLabels();
   const root = useNav((s) => s.threadId);
   const selected = useNav((s) => (s.panelParent === root ? s.panelThread : undefined));
   const thread = useData((s) => (selected ? s.threads[selected] : undefined));
@@ -109,14 +111,18 @@ export function AgentsPanel() {
       ? [{ id, label: titleOf(th) || t("thread.a2a"), dot: going(th.state) ? ("busy" as const) : ("idle" as const) }]
       : [];
   });
-  /** "Roby → Fausto: task": who asked, who works on it and what (delegated chats are titled so already). */
+  /**
+   * "Roby → Fausto: task": who asked, who works on it and what (delegated chats are titled so already). In an engine's
+   * session the engine works on it, not the agent that opened it.
+   */
   function titleOf(th: Thread) {
     const callee = threadAgent(th, agents);
     const title = namedTitle(th.title, agents, callee?.id);
     if (ASKED.test(th.title)) return title;
     const parent = th.parent_id ? threads[th.parent_id] : undefined;
     const caller = parent && threadAgent(parent, agents);
-    const pair = caller && callee && caller.id !== callee.id ? `${caller.name} → ${callee.name}` : callee?.name;
+    const worker = th.engine ? engineLabel(th.engine) : callee?.name;
+    const pair = caller && worker && (th.engine || caller.id !== callee?.id) ? `${caller.name} → ${worker}` : worker;
     return pair ? `${pair}: ${title}` : title;
   }
   const row = (th: Thread) => {
@@ -126,7 +132,11 @@ export function AgentsPanel() {
         key={th.id}
         className="agents__row"
         leading={
-          <AgentAvatar name={agent?.name ?? th.title} blob={blobOf(agent)} size={20} animated={isWorking(th.state)} />
+          th.engine ? (
+            <EngineIcon engine={th.engine} tile size={20} />
+          ) : (
+            <AgentAvatar name={agent?.name ?? th.title} blob={blobOf(agent)} size={20} animated={isWorking(th.state)} />
+          )
         }
         title={titleOf(th)}
         description={
@@ -178,7 +188,16 @@ export function AgentsPanel() {
         ) : thread && loadState === "ready" ? (
           <>
             <Transcript key={selected} thread={thread} />
-            <div className="chat__readonly">{t("chat.readOnly")}</div>
+            {/* An engine's session is the owner's to talk to: its own chat, not a read-only exchange. */}
+            {thread.engine ? (
+              <div className="chat__readonly">
+                <Button size="sm" variant="secondary" onClick={() => go.thread(thread.id)}>
+                  {t("subthread.open", { name: engineLabel(thread.engine) })}
+                </Button>
+              </div>
+            ) : (
+              <div className="chat__readonly">{t("chat.readOnly")}</div>
+            )}
           </>
         ) : (
           <Skeleton className="term__loading" />

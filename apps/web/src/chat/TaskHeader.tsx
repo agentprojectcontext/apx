@@ -4,6 +4,7 @@ import { Button, Icons, Menu } from "@apx/ui";
 import { useEffect, useMemo } from "react";
 import { shortWhen } from "../common/format.ts";
 import { taskRowState } from "../common/taskStatus.ts";
+import { useEngineLabels } from "../common/useEngineLabel.ts";
 import { isWorking } from "../data/identity.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { ensureTask, useTasks } from "../data/tasks.ts";
@@ -58,7 +59,8 @@ export function TaskCrumb({ thread, taskId }: { thread: Thread; taskId: string }
   const t = useT();
   const agents = useShownAgents();
   const chats = useTaskChats(taskId);
-  const name = (th: Thread) => agents[th.agent_ids[0] ?? ""]?.name ?? th.title;
+  const engineLabel = useEngineLabels();
+  const name = (th: Thread) => (th.engine ? engineLabel(th.engine) : (agents[th.agent_ids[0] ?? ""]?.name ?? th.title));
   const who = [...new Set(chats.map(name))];
   return (
     <>

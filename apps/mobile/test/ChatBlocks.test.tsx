@@ -231,3 +231,45 @@ test("a reply a fallback model gave says so next to the model", async () => {
   );
   expect(ui.getByText(new RegExp(t("modelFallback")))).toBeTruthy();
 });
+
+test("an engine session an agent opened reads as the engine: in its chat and in the agent's card", async () => {
+  const answer = { ...turn, run_id: "run_1", parts: [{ type: "text", text: "Reviewed." }] } as unknown as Message;
+  const inSession = await render(
+    <ChatMessage
+      message={answer}
+      agents={[{ id: "superagent", name: "Roby" }]}
+      thread={{ kind: "code", agent_ids: ["superagent"], engine: "claude" }}
+      respond={async () => {}}
+    />,
+  );
+  expect(inSession.getAllByText(/Claude Code/).length).toBeGreaterThan(0);
+  expect(inSession.queryByText(/Roby/)).toBeNull();
+  // The task the agent sent is its own words, not the engine's.
+  const task = { ...turn, parts: [{ type: "text", text: "Review the login change" }] } as unknown as Message;
+  const asked = await render(
+    <ChatMessage
+      message={task}
+      agents={[{ id: "superagent", name: "Roby" }]}
+      thread={{ kind: "code", agent_ids: ["superagent"], engine: "claude" }}
+      respond={async () => {}}
+    />,
+  );
+  expect(asked.queryByText(/Claude Code/)).toBeNull();
+  const card = {
+    ...turn,
+    parts: [
+      {
+        type: "subthread",
+        thread_id: "th_3",
+        agent_id: "superagent",
+        engine: "claude",
+        title: "Review the login change",
+        state: "working",
+      },
+    ],
+  } as unknown as Message;
+  const inCaller = await render(
+    <ChatMessage message={card} agents={[{ id: "superagent", name: "Roby" }]} respond={async () => {}} />,
+  );
+  expect(inCaller.getByText("Roby → Claude Code")).toBeTruthy();
+});

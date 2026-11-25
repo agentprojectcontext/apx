@@ -6311,3 +6311,28 @@ Rejected: running an agent-written script (JavaScript) in the core, as the codin
 surface for little more than items × stages give); building it on Flows (publishing and triggers are the wrong
 lifetime, and Flow steps may not delegate); raising the chat's delegation cap for everyone instead (D-202's reason,
 three agents on one task, still holds for model-decided hand-offs).
+
+<a id="d-274"></a>
+## D-274 — 2026-11-25 — An engine session an agent opens is the engine's: its name and face, the agent only as who started it
+When an agent opened a Claude Code or Codex session (`start_session`), the core already ran it as the engine itself (no
+persona, notes, roster or skills: `DIRECT_NOTE`), but the screens did not say so. The session kept the agent in
+`agent_ids` and a `parent_id`, so its header read as the agent's delegated chat ("Agent ↔ agent"), the card in the
+agent's chat showed the agent's face, notices were titled with the agent's name and the phone named its answers after
+the agent. The owner read it as "Roby talking through Claude".
+
+Such a session now reads as the engine everywhere: lists, chat header, answers, the thinking and waiting lines, task
+views, notices (core titles them with the engine, `harness/labels.ts`), the side panel of the agent's chat ("Roby →
+Claude Code") and the phone. The `subthread` part carries `engine`. The agent shows only as a **Started by** chip that
+opens the chat that asked, and the task it sent stays the agent's words (a message with no run). The session is named
+after the task's first line; a session the owner opens is "Claude Code · folder", never the raw engine id.
+
+Kept: `agent_ids`, `parent_id` and the run's caller, because the caller's budget, permissions, write ceiling and where
+the answer goes ride on them (D-106, D-266); the session stays read-only for the owner like any delegated chat.
+
+Leaks checked: memory never reaches an engine session either way (`memoryEligibleChat`, `canRecallOwnChat`); voice
+replies are channel-only; the agent's model could still pick the engine's model when the chat had none (an older
+APX could save a CLI as an agent's model), so an engine session now runs only on its chat's model or the engine's
+default.
+
+Rejected: a separate "bot" agent per engine (a fake teammate with no memory or rules of its own, and one more place
+the caller's limits would have to follow); dropping the agent from the thread (loses budgets and the answer's way back).

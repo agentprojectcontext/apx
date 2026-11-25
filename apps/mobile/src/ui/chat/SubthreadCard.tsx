@@ -1,5 +1,6 @@
 import { Pressable, Text, View } from "react-native";
 import { parseMarkdown, plainText } from "../../chat/markdown";
+import { engineName } from "../../hooks/chatSelectors";
 import type { Agent } from "../../hooks/useWorkspace";
 import { t } from "../../i18n";
 import type { Message } from "../../protocol";
@@ -25,7 +26,10 @@ export function SubthreadCard({
 }) {
   const theme = useTheme();
   const s = useStyles();
-  const name = part.worker ?? agents.find((agent) => agent.id === part.agent_id)?.name ?? t("agent");
+  // A session the caller opened on an outside engine is the engine's; the caller is only who asked.
+  const name = part.engine
+    ? engineName(part.engine)
+    : (part.worker ?? agents.find((agent) => agent.id === part.agent_id)?.name ?? t("agent"));
   const askedBy =
     part.asked_by === "owner"
       ? t("you")

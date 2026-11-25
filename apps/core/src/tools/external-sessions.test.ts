@@ -97,6 +97,22 @@ test("the tool starts a visible external session on its engine default, linked t
   assert.deepEqual(env.core.store.threads.context(started.thread).model_choice, { model: "claude", router: false });
 });
 
+test("the session reads as its engine: named after the task, its card says the engine (DECISIONS.md#d-274)", async () => {
+  const { caller, done, result } = await start({ task: "Review the login change\nmore detail for the engine" });
+  const started = JSON.parse(result) as { thread: string };
+  await env.settle(started.thread);
+  const thread = (await env.client.call("threads.get", { thread: started.thread })).thread;
+  assert.equal(thread.title, "Review the login change");
+  assert.equal(
+    thread.parent_id,
+    caller.id,
+    "the caller stays linked: its budget, permissions and the answer's way back",
+  );
+  const card = done.messages.flatMap((m) => m.parts).find((p) => p.type === "subthread");
+  assert.equal(card?.type === "subthread" && card.engine, "claude");
+  assert.equal(card?.type === "subthread" && card.agent_id, "superagent");
+});
+
 test("an explicit model and reasoning effort reach the harness unchanged; another engine works too", async () => {
   for (const engine of ["claude", "codex"]) {
     const model = `${engine}/review-model#medium`;

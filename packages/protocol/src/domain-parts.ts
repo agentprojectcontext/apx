@@ -132,6 +132,8 @@ const KnownPart = z.discriminatedUnion("type", [
       summary: () => z.string().optional(),
       /** A worker's name: a throwaway helper the caller started for this task (agent_id is then the caller's own). */
       worker: () => z.string().optional(),
+      /** An outside engine's own session the caller started: the engine answers in it, agent_id is the caller's own. */
+      engine: () => z.string().max(80).optional(),
       /** How long it worked, once it ended. */
       ms: () => z.number().int().nonnegative().optional(),
       /** Why it ended, once it did (a completed run that ran out of steps is not a finished one). */

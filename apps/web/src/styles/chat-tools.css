@@ -74,8 +74,14 @@ textarea.inputcard__detail {
   align-items: center;
   gap: 6px;
   min-width: 0;
+  overflow: hidden;
   margin-left: 6px;
   color: var(--apx-fg-muted);
+}
+/* Who started an engine's session: kept whole, the folder beside it gives way. */
+.startedby {
+  display: inline-flex;
+  flex-shrink: 0;
 }
 .chat__cwd {
   max-width: 280px;

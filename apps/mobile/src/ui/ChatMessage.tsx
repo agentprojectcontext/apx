@@ -5,6 +5,7 @@ import { type MediaItem, mediaRows } from "../chat/media";
 import { isSkipAnswer } from "../chat/signals";
 import { viaOf } from "../chat/via";
 import { clock } from "../format";
+import { engineName } from "../hooks/chatSelectors";
 import type { Agent } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import { type ApxClient, type Message, receivedMail } from "../protocol";
@@ -48,6 +49,8 @@ export type ChatOf = {
   agent_ids: string[];
   project_id?: string | undefined;
   channel?: { id: string } | undefined;
+  /** An outside engine's own session: the engine speaks in it, not the agent that opened it. */
+  engine?: string | undefined;
 };
 
 export function ChatMessage({
@@ -106,7 +109,10 @@ export function ChatMessage({
   const agent = author.kind === "agent" ? agents.find((one) => one.id === author.id) : undefined;
   const name =
     author.kind === "agent"
-      ? (agent?.name ?? t("agent"))
+      ? // Only the engine's answers are its own: the task its caller sent is the caller's words.
+        thread?.engine && message.run_id
+        ? engineName(thread.engine)
+        : (agent?.name ?? t("agent"))
       : "name" in author
         ? author.name
         : author.kind === "surface"

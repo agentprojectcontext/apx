@@ -20,6 +20,7 @@ import { answersOwner } from "../engine/task-inbox.ts";
 import { addComment, assignedTaskOf, consultMentioned, sessionFor, startHeld } from "../engine/task-work.ts";
 import type { Upkeep } from "../engine/upkeep.ts";
 import { badRequest, conflict, notFound, unauthorized } from "../errors.ts";
+import { engineLabel } from "../harness/labels.ts";
 import { insideReal } from "../paths.ts";
 import { folderInProject } from "../tools/folders.ts";
 import type { CallContext } from "./context.ts";
@@ -82,7 +83,9 @@ function createThread(
   return store.tx(() => {
     const t = store.threads.create({
       kind,
-      title: title ?? (folder ? `${engine ?? agent.name} · ${path.basename(folder)}` : agent.name),
+      title:
+        title ??
+        (folder ? `${engine ? engineLabel(store, engine) : agent.name} · ${path.basename(folder)}` : agent.name),
       agent_ids: [agent.id],
       project_id: pid,
       ...(folder ? { cwd: folder, write: write ?? "ask" } : {}),

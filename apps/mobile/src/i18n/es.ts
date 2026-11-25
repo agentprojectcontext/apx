@@ -221,6 +221,7 @@ export const es: Record<Key, string> = {
   engineMissing: "No instalado",
   newSession: "Sesión",
   newSessionIn: "Nueva sesión de {engine} en",
+  startedBy: "Iniciada por {name}",
   noLocalProjects: "Todavía no hay proyectos con carpeta en tu computadora.",
   noSessions: "Todavía no hay sesiones.",
   connectEngine: "Conectar una CLI",

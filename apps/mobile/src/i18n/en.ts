@@ -217,6 +217,7 @@ export const en = {
   engineMissing: "Not installed",
   newSession: "Session",
   newSessionIn: "New {engine} session in",
+  startedBy: "Started by {name}",
   noLocalProjects: "No project with a folder on your computer yet.",
   noSessions: "No sessions yet.",
   connectEngine: "Connect a CLI",
