@@ -33,7 +33,7 @@ export function consultReadsChat(store: Store, consult: Pick<Thread, "project_id
 }
 
 /** The owner's chats a consult may read. */
-export const consultChats = (store: Store, consult: Pick<Thread, "project_id">): Thread[] =>
+const consultChats = (store: Store, consult: Pick<Thread, "project_id">): Thread[] =>
   consult.project_id
     ? store.threads
         .list({ project_id: consult.project_id, include_subthreads: true, include_archived: true, limit: null })
