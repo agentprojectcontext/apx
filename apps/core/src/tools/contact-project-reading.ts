@@ -76,7 +76,7 @@ export function projectReadingTools(store: Store, google: Google | undefined): T
         const boss = superAgent();
         if (!boss || !reading.available(ctx.thread.id, ctx.agent.id)) throw new Error("not allowed in this chat");
         const answer = await ctx.delegate(
-          { agent: boss, session: CONTACT_CONSULT, project: ctx.thread.project_id ?? undefined },
+          { agent: boss, session: CONTACT_CONSULT, project: ctx.thread.project_id ?? undefined, question: a.question },
           consultTask(store, ctx, a.question),
           CONSULT_WAIT_MS,
           ctx.signal,

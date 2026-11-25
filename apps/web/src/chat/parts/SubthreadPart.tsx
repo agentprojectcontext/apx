@@ -1,8 +1,10 @@
 import type { Agent, Part } from "@apx/protocol";
-import { AgentAvatar, Icons, MarkdownView, SubthreadCard, Tooltip } from "@apx/ui";
+import { AgentAvatar, Button, Icons, MarkdownView, SubthreadCard, Tooltip } from "@apx/ui";
+import { useEffect, useState } from "react";
 import { duration } from "../../common/format.ts";
 import { namedMentions } from "../../common/mentionNames.ts";
 import { useMarkdownLabels } from "../../common/useMarkdownLabels.ts";
+import { refreshDelegation } from "../../data/delegation.ts";
 import { blobOf } from "../../data/identity.ts";
 import { useOwnerName } from "../../data/owner.ts";
 import { useData } from "../../data/state.ts";
@@ -15,8 +17,32 @@ import { useUnfolded } from "../unfolded.ts";
  * Another agent's (or a worker's) part in this answer, delegated or asked on a task: one row with what it was asked,
  * its state and time, that unfolds its answer and the way into its conversation.
  */
-export function SubthreadPart({ part, from }: { part: Extract<Part, { type: "subthread" }>; from?: Agent }) {
+export function SubthreadPart({
+  part,
+  from,
+  compact = false,
+}: {
+  part: Extract<Part, { type: "subthread" }>;
+  from?: Agent;
+  compact?: boolean;
+}) {
   const t = useT();
+  const [available, setAvailable] = useState<string>();
+  useEffect(() => {
+    if (!compact || !part.question) return;
+    let active = true;
+    void refreshDelegation(part.thread_id).then(
+      () => {
+        if (active) setAvailable(part.thread_id);
+      },
+      () => {
+        if (active) setAvailable(undefined);
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [compact, part.question, part.thread_id]);
   const mdLabels = useMarkdownLabels();
   const target = useData((s) => s.agents[part.agent_id] ?? s.former[part.agent_id]);
   const asker = useData((s) => (part.asked_by ? (s.agents[part.asked_by] ?? s.former[part.asked_by]) : undefined));
@@ -30,6 +56,31 @@ export function SubthreadPart({ part, from }: { part: Extract<Part, { type: "sub
   // A consult on a task names who asked; a delegation's asker is the message's author.
   const askedBy =
     part.asked_by === "owner" ? ownerName || t("account.you") : (asker?.name ?? from?.name ?? t("common.agent"));
+  if (compact) {
+    const label = (
+      <>
+        <span className="chan__consult-pair">
+          {askedBy} → {target?.name ?? t("common.agent")}
+        </span>
+        {part.question && <span className="chan__consult-question">{part.question}</span>}
+      </>
+    );
+    if (!part.question || !target || available !== part.thread_id)
+      return <p className="chan__note chan__consult-fallback">{label}</p>;
+    return (
+      <Tooltip content={t("subthread.open", { name })}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="chan__consult-link"
+          leadingIcon={<Icons.MessageCircle size={12} />}
+          onClick={() => go.subthread(part.thread_id)}
+        >
+          {label}
+        </Button>
+      </Tooltip>
+    );
+  }
   return (
     <SubthreadCard
       avatar={

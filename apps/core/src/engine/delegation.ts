@@ -35,6 +35,8 @@ export type Caller = { run: RunRecord; agent: AgentRecord; display: Display };
 export type DelegateTo = {
   agent?: AgentRecord | undefined;
   session?: string | undefined;
+  /** Display text only; the complete task remains the child's input. */
+  question?: string | undefined;
   worker?: Worker | undefined;
   /** The project the task is about: the session works in its folder. */
   project?: string | undefined;
@@ -647,8 +649,21 @@ export function createDelegations(deps: {
           store.messages.add({
             thread_id: existing.id,
             author: { kind: "agent", id: from.agent.id },
-            parts: [{ type: "text", text: task }],
+            parts: [{ type: "text", text: req.question ?? task }],
           });
+          if (req.question) {
+            store.threads.patch(existing.id, {
+              title: `${from.agent.name} → ${worker?.name ?? to.name}: ${req.question.slice(0, 60)}`,
+            });
+            from.display.upsert((p) => p.type === "subthread" && p.thread_id === existing.id, {
+              type: "subthread",
+              thread_id: existing.id,
+              agent_id: to.id,
+              title: req.question.slice(0, 2000),
+              question: req.question.slice(0, 2000),
+              state: atWork.state,
+            });
+          }
           const name = existing.session ?? existing.id;
           return `sent: ${worker?.name ?? to.name} was still working in session "${name}" and takes this at its next step, inside that turn. Its answer comes back like the earlier one: do not delegate it again or wait for it; tell the owner and go on.`;
         }
@@ -662,7 +677,7 @@ export function createDelegations(deps: {
       if (!sub) {
         sub = store.threads.create({
           kind: "a2a",
-          title: `${from.agent.name} → ${who}: ${task.slice(0, 60)}`,
+          title: `${from.agent.name} → ${who}: ${(req.question ?? task).slice(0, 60)}`,
           agent_ids: worker ? [to.id] : [to.id, from.agent.id],
           project_id: projectId,
           parent_id: parentThread.id,
@@ -672,19 +687,20 @@ export function createDelegations(deps: {
         if (worker) store.threads.mergeContext(sub.id, { worker });
       } else {
         // A session asked again reads as its latest request in the lists, not the first one it was opened for.
-        store.threads.patch(sub.id, { title: `${from.agent.name} → ${who}: ${task.slice(0, 60)}` });
+        store.threads.patch(sub.id, { title: `${from.agent.name} → ${who}: ${(req.question ?? task).slice(0, 60)}` });
       }
       store.messages.add({
         thread_id: sub.id,
         author: { kind: "agent", id: from.agent.id },
-        parts: [{ type: "text", text: task }],
+        parts: [{ type: "text", text: req.question ?? task }],
       });
       const subId = sub.id;
       from.display.upsert((p) => p.type === "subthread" && p.thread_id === subId, {
         type: "subthread",
         thread_id: sub.id,
         agent_id: to.id,
-        title: task.slice(0, 120),
+        title: req.question?.slice(0, 2000) ?? task.slice(0, 120),
+        ...(req.question ? { question: req.question.slice(0, 2000) } : {}),
         state: queued ? "queued" : "working",
         ...(worker ? { worker: worker.name } : {}),
       });

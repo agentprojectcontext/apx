@@ -21,8 +21,8 @@ import { loadThread, markRead, send } from "../data/actions.ts";
 import { openContactChat, type PresenceState, recoverFiles, sendDirect } from "../data/channels.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
-import { EmailCard, MediaGroup, ReceivedMail } from "../lazy.ts";
-import { go } from "../shell/nav.ts";
+import { EmailCard, MediaGroup, ReceivedMail, SubthreadPart } from "../lazy.ts";
+import { go, nav } from "../shell/nav.ts";
 import { chatAgentId } from "./answerers.ts";
 import { addressText, ContactFace } from "./ContactRow.tsx";
 import { ContactFlags, useContactFlags } from "./flags.tsx";
@@ -69,6 +69,9 @@ export function ChannelConversation(props: {
   const agentName = agent?.name ?? agentId;
   const channelLabel = t("chat.viaChannel", { channel: t(CHANNEL_KINDS[channel.type].name) });
 
+  useEffect(() => {
+    nav.set({ threadId: threadId || undefined, panelThread: undefined, panelParent: undefined });
+  }, [threadId]);
   useEffect(() => {
     if (threadId && load == null) void loadThread(threadId);
   }, [load, threadId]);
@@ -255,7 +258,13 @@ function Bubble({ m, agentName, mail }: { m: Message; agentName: string; mail: b
   const files = bubbleFiles(m.parts).filter((p) => p !== formatted);
   // A kept mail nobody answers (spam, automatic…) says why at its foot.
   const marks = m.parts.flatMap((p) => (p.type === "notice" && p.code.startsWith("mail.") ? [p.code] : []));
-  const actions = m.parts.flatMap((p) => (p.type === "tool" && p.status !== "error" ? [p.title] : []));
+  const consultations = m.parts.filter((p) => p.type === "subthread");
+  const agents = useData((s) => s.agents);
+  const actions = m.parts.flatMap((p) =>
+    p.type === "tool" && p.status !== "error" && !(p.tool === "consult_super_agent" && consultations.length)
+      ? [p.title]
+      : [],
+  );
   const out = m.author.kind === "agent" || m.author.kind === "user";
   // The owner's words to the agent (what to answer) read apart from what was sent to the contact.
   const instruction = m.author.kind === "user" && !m.author.direct;
@@ -273,6 +282,13 @@ function Bubble({ m, agentName, mail }: { m: Message; agentName: string; mail: b
         <p key={a} className="chan__note">
           <Icons.Bot size={12} /> {t("ch.agentDid", { agent: agentName, what: a })}
         </p>
+      ))}
+      {consultations.map((part) => (
+        <div key={part.thread_id} className="chan__consult">
+          <Suspense fallback={<Skeleton height={32} />}>
+            <SubthreadPart compact part={part} from={m.author.kind === "agent" ? agents[m.author.id] : undefined} />
+          </Suspense>
+        </div>
       ))}
       {(words || media.length > 0 || files.length > 0) && (
         <div className={`chan__bubble${out ? " is-out" : ""}${instruction ? " is-instruction" : ""}`}>

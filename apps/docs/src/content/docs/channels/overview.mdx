@@ -265,6 +265,11 @@ folders. It answers without your super-agent's profile and instructions or what 
 first. If you turn off project reading for that person meanwhile, the answer never reaches them. Its answer comes back to the agent, in the same turn or a moment later, and the
 agent writes to the person. Asking again while it works continues the same question.
 
+In the contact's chat in the panel, a compact reference shows who asked whom and a preview of the question.
+Select it to read the actual consultation in the side panel, without leaving the contact's chat. These supervision
+references are only shown to you in the app; they are not messages sent to the contact. Older activity without a
+linked conversation remains a plain note.
+
 For agents, the owner turns it on with `apx_settings` `contacts.set` and `perms: { project_reading: true }` for that
 person; it always asks in the app.
 

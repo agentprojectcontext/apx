@@ -74,6 +74,8 @@ export type ToolContext = {
     to: {
       agent?: AgentRecord | undefined;
       session?: string | undefined;
+      /** The owner's card label, separate from the delegated instructions. */
+      question?: string | undefined;
       worker?: Worker | undefined;
       project?: string | undefined;
       folder?: string | undefined;

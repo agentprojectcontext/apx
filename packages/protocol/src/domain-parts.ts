@@ -81,6 +81,8 @@ const KnownPart = z.discriminatedUnion("type", [
       agent_id: () => Id,
       title: () => z.string(),
       state: () => RunState,
+      /** The actual question, separate from the private instructions passed to the callee. */
+      question: () => z.string().max(2000).optional(),
       /** What it answered (the whole report, up to a few thousand characters). */
       summary: () => z.string().optional(),
       /** A worker's name: a throwaway helper the caller started for this task (agent_id is then the caller's own). */
