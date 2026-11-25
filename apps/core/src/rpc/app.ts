@@ -7,6 +7,8 @@ import os from "node:os";
 import path from "node:path";
 import { BASE_PROJECT_ID, type Organization, type ProjectKind, siteOrigin } from "@apx/protocol";
 import { declaresApp } from "../../../../packages/surfaces/src/kit.ts";
+import { AGENT_DIR, moveLegacyFolder, needsFolderMove } from "../apc/folder.ts";
+import { tellFolderMove } from "../apc/folder-notice.ts";
 import { readOrganization, writeOrganization } from "../apc/org.ts";
 import type { ApcSync } from "../apc/sync.ts";
 import { writeProjectMeta } from "../apc/write.ts";
@@ -241,6 +243,23 @@ export function appHandlers(deps: {
       if (!project) throw notFound(`project ${r.project}`);
       return { project: publicProject(project), agents: r.agents };
     },
+    "projects.move_folder": ({ project: id }) => {
+      const project = store.projects.get(id);
+      if (!project?.path) throw notFound(`project ${id}`);
+      let moved: ReturnType<typeof moveLegacyFolder>;
+      try {
+        moved = moveLegacyFolder(project.path);
+      } catch (err) {
+        throw badRequest(errorMessage(err));
+      }
+      const r = deps.apc.sync(id);
+      const now = store.projects.get(id);
+      if (!now) throw notFound(`project ${id}`);
+      // Replaces the tray's notice about a move that had failed.
+      if (moved.done && moved.files)
+        tellFolderMove(store, now, { state: "moved", files: moved.files, kept: moved.kept });
+      return { project: publicProject(now), agents: r.agents, ...moved };
+    },
     "projects.create": ({ name, kind, description, path: dir, parent }) => {
       const under = parent ? parentOf(parent) : undefined;
       const r = createProject(deps.apc, deps.home, { name, kind, description, path: dir }, under);
@@ -446,13 +465,16 @@ export function createProject(
   }
 }
 
-/** Makes a plain folder an APC project, writing only what is missing: AGENTS.md (named after it) and .apc/. */
+/**
+ * Makes a plain folder a project, writing only what is missing: AGENTS.md (named after it) and .agent/. A folder whose
+ * files are still in .apc/ gets no empty .agent/: registering it moves them there.
+ */
 function initProject(dir: string, name?: string): void {
   const abs = path.resolve(dir);
   if (!fs.existsSync(abs) || !fs.statSync(abs).isDirectory()) return;
   const agents = path.join(abs, "AGENTS.md");
   if (!fs.existsSync(agents)) fs.writeFileSync(agents, `# ${name ?? path.basename(abs)}\n`);
-  fs.mkdirSync(path.join(abs, ".apc"), { recursive: true });
+  if (!needsFolderMove(abs)) fs.mkdirSync(path.join(abs, AGENT_DIR), { recursive: true });
 }
 
 /** A folder name from a project's name: "Ventas Q4 · Acme" → "ventas-q4-acme". */

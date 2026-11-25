@@ -1,9 +1,10 @@
-// Which MCP servers an agent may use: the owner's global ones (settings) and a project's own (`.apc/mcps.json`).
+// Which MCP servers an agent may use: the owner's global ones (settings) and a project's own (`.agent/mcps.json`).
 // A project file can name any command, so its servers start only once the owner approved that exact definition.
 
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { projectDir } from "../apc/folder.ts";
 import { withoutBom } from "../apc/read.ts";
 import type { Store } from "../domain/store.ts";
 import { extensionMonitorDir } from "../extensions/data.ts";
@@ -101,9 +102,9 @@ function toDef(name: string, r: Raw, base: Pick<McpDef, "scope" | "project_id" |
 
 /** A project file, read without following a symlink out of the repo. */
 function readProjectFile(root: string): string | undefined {
-  const file = path.join(root, ".apc", "mcps.json");
+  const file = path.join(projectDir(root), "mcps.json");
   try {
-    if (fs.lstatSync(file).isSymbolicLink() || fs.lstatSync(path.join(root, ".apc")).isSymbolicLink()) return undefined;
+    if (fs.lstatSync(file).isSymbolicLink() || fs.lstatSync(projectDir(root)).isSymbolicLink()) return undefined;
     return withoutBom(fs.readFileSync(file, "utf8"));
   } catch {
     return undefined;
@@ -240,13 +241,14 @@ export function mcpConfig(store: Store) {
       }
       store.settings.write("mcp_off", all);
     },
-    /** Adds, replaces or (null) removes a server in a project's .apc/mcps.json, keeping the rest of the file. */
+    /** Adds, replaces or (null) removes a server in a project's .agent/mcps.json, keeping the rest of the file. */
     setProject(projectId: string, name: string, server: Record<string, unknown> | null): void {
       const p = store.projects.get(projectId);
       if (!p?.path) throw new Error(`project ${projectId} has no folder`);
-      const dir = path.join(p.path, ".apc");
+      const dir = projectDir(p.path);
       const file = path.join(dir, "mcps.json");
-      if (fs.existsSync(dir) && fs.lstatSync(dir).isSymbolicLink()) throw new Error(".apc is a link: not written");
+      if (fs.existsSync(dir) && fs.lstatSync(dir).isSymbolicLink())
+        throw new Error(`${path.basename(dir)} is a link: not written`);
       if (fs.existsSync(file) && fs.lstatSync(file).isSymbolicLink())
         throw new Error("mcps.json is a link: not written");
       let doc: Record<string, unknown> = {};

@@ -6336,3 +6336,36 @@ default.
 
 Rejected: a separate "bot" agent per engine (a fake teammate with no memory or rules of its own, and one more place
 the caller's limits would have to follow); dropping the agent from the thread (loses budgets and the answer's way back).
+
+<a id="d-275"></a>
+## D-275 — 2026-11-25 — A project's APX files live in `.agent/`; `.apc/` is moved there by itself
+The owner no longer follows APC (the Agent Project Context standard APX v1 started) under that folder name and wants
+a project's APX files under a name that says what they are. `AGENTS.md` stays at the root: it is the cross-tool
+standard other agents read. Everything that was in `.apc/` (agents, `project.json`, `memory.md`, `skills/`,
+`mcps.json`, `organization.json`, browser recipes) now lives in `.agent/`, named once in
+`apps/core/src/apc/folder.ts` (`AGENT_DIR`). The APC repository calls this layout Agent Project Context v2.
+
+The owner chose the most comfortable path over a prompt: it ships to everyone in 2.17.0 and runs by itself.
+- At start (in the project reader's thread, so a folder held by a privacy prompt holds nothing else) and when a
+  project is registered, a project that still has `.apc/` is moved: copied aside, every file checked byte-equal,
+  renamed to `.agent/` at once (a reindex never sees half of it), then removed from `.apc/`. Safe to run again: equal
+  files count as moved; a file `.agent/` holds with other content stops it before anything is removed. Git worktrees
+  in `.apc/worktree(s)` are checkouts: never copied, left in place, and `.apc/` goes once they are gone. APX never
+  commits; in a repository the move is a diff for the owner.
+- The owner is told once per project in the tray (`agent-folder:<project>`): moved, or why not. A first move also
+  makes the `agent-folder` news apply, so the super-agent can explain it.
+- A project that could not be moved keeps working from `.apc/` (reads and writes, `ownDir`) until a move succeeds, is
+  marked `legacy_folder`, shows a Try again card, and is retried at each start; `projects.move_folder` (owner only)
+  and `apx doctor --fix` retry it. This is the one place both names are read; it goes with `LEGACY_DIR` once no
+  supported install has one (rule 14).
+- v1's import registers its projects like any other, so their `.apc/` moves too: v1, deprecated, stops seeing those
+  agents; v1's own home is untouched.
+
+Edits to `.apc/` (outside its worktrees) stay guarded like `.agent/`'s while it exists. The `apc-context` skill APX
+copies into Claude Code, Codex, Cursor and `~/.agents` is rewritten for `.agent/` under the same name (without its
+"always activate" and "delete .apc/migrate.md" instructions); the copy at each core start overwrites the old one.
+
+Not decided here: renaming the code's own `apc` names (`apps/core/src/apc`, the agent source `apc`).
+
+Docs impact: updated concepts/projects (a section on the move), concepts/agents, start/from-v1, reference/cli,
+extend/skills and every page naming the folder, in English and Spanish; news entry `agent-folder` (2.17.0).

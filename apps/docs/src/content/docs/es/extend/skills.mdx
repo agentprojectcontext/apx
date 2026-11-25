@@ -38,14 +38,14 @@ usarla, no solo qué es. Los nombres usan letras, números, puntos, `-` y `_`.
 - ~/.apx/v2/skills/ globales: las heredan todos los proyectos
   - weekly-report/
     - SKILL.md
-- ~/work/acme-store/.apc/skills/ solo de este proyecto
+- ~/work/acme-store/.agent/skills/ solo de este proyecto
   - release-notes/
     - SKILL.md
 </FileTree>
 
 - Las **globales** viven en la carpeta de APX (`~/.apx/v2/skills/`). Las heredan todos los proyectos; un proyecto
   puede apagar una para sí mismo, o dejar de usar las globales del todo.
-- Las **de proyecto** viven en `.apc/skills/` del proyecto, viajan con el repositorio y solo las ven sus agentes.
+- Las **de proyecto** viven en `.agent/skills/` del proyecto, viajan con el repositorio y solo las ven sus agentes.
 - También pueden venir de una [extensión](/es/extend/extensions/).
 - **Las skills de otras apps de agentes** también están, leídas donde esas apps las guardan: `~/.claude/skills`,
   `~/.codex/skills`, `~/.cursor/skills` y `~/.agents/skills` (globales), y `.claude/skills`, `.codex/skills`… dentro de
@@ -66,7 +66,7 @@ por motor (APX, Claude, Codex, Cursor, Agents; varios a la vez).
 una carpeta trae solo esa carpeta). APX primero lo lee y no ejecuta nada: ves cada skill que encontró, sus archivos,
 los scripts que trae, la configuración que solo lee otra app (como `allowed-tools`) y lo que quedó afuera (links,
 archivos demasiado grandes). Marcás las que querés copiar; un nombre que ya existe se mantiene salvo que elijas
-reemplazarlo. Dentro de un proyecto van a su `.apc/skills/`.
+reemplazarlo. Dentro de un proyecto van a su `.agent/skills/`.
 
 <Shot name="resources-skills" alt="Recursos, pestaña Skills: una lista de skills globales y de proyecto, con una abierta que muestra su descripción y dónde está prendida" caption="Recursos › Skills" />
 
@@ -97,7 +97,7 @@ daily-brief                      global   Writes a short morning brief from the 
 ```bash
 apx skills import https://github.com/acme/skills                 # lista lo que hay; no copia nada
 apx skills import https://github.com/acme/skills --only pdf --yes
-apx skills import ./pack.zip --project <proyecto> --yes          # a .apc/skills/ de ese proyecto
+apx skills import ./pack.zip --project <proyecto> --yes          # a .agent/skills/ de ese proyecto
 apx skills import ~/.claude/skills/pdf --yes                     # copia a APX una skill de otra app
 ```
 

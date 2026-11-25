@@ -18,18 +18,18 @@ function fixture() {
   const source = path.join(dir.path, "acme");
   const destination = path.join(dir.path, "northwind");
   for (const root of [source, destination]) {
-    fs.mkdirSync(path.join(root, ".apc", "agents"), { recursive: true });
-    fs.writeFileSync(path.join(root, ".apc", "project.json"), JSON.stringify({ name: path.basename(root) }));
+    fs.mkdirSync(path.join(root, ".agent", "agents"), { recursive: true });
+    fs.writeFileSync(path.join(root, ".agent", "project.json"), JSON.stringify({ name: path.basename(root) }));
     fs.writeFileSync(path.join(root, "AGENTS.md"), "# Sample project\n");
   }
   const definition = "---\nname: Researcher\nrole: Research\nparent: lead\n---\n\nKeep the exact instructions.\n";
-  fs.writeFileSync(path.join(source, ".apc", "agents", "researcher.md"), definition);
+  fs.writeFileSync(path.join(source, ".agent", "agents", "researcher.md"), definition);
   fs.writeFileSync(
-    path.join(source, ".apc", "agents", "lead.md"),
+    path.join(source, ".agent", "agents", "lead.md"),
     "---\nname: Lead\nrole: Editor\n---\n\nCheck reports.\n",
   );
   fs.writeFileSync(
-    path.join(source, ".apc", "agents", "assistant.md"),
+    path.join(source, ".agent", "agents", "assistant.md"),
     "---\nname: Assistant\nrole: Assistant\nparent: researcher\n---\n\nCheck links.\n",
   );
   fs.mkdirSync(path.join(source, "reports"));
@@ -121,7 +121,7 @@ test("a move preserves identity, exact instructions, shared completed work and b
     assert.equal(store.tasks.get(task.id)?.state, "done");
     assert.equal(store.tasks.get(task.id)?.project_id, env.destinationId);
     assert.equal(store.memories.get(note.id)?.project_id, env.destinationId);
-    assert.equal(fs.existsSync(path.join(env.source, ".apc", "agents", "researcher.md")), false);
+    assert.equal(fs.existsSync(path.join(env.source, ".agent", "agents", "researcher.md")), false);
     assert.deepEqual(new Uint8Array(fs.readFileSync(path.join(env.destination, "reports", "report.bin"))), env.bytes);
     assert.equal(fs.existsSync(path.join(env.source, "reports", "report.bin")), false);
     assert.equal(store.agents.list().filter((a) => a.slug === "researcher").length, 1);
@@ -139,7 +139,7 @@ test("a move preserves identity, exact instructions, shared completed work and b
     assert.deepEqual(service.recover(preview.id), { id: preview.id, restored: true });
     assert.equal(store.agents.get(agent.id)?.project_id, env.sourceId);
     assert.equal(store.tasks.get(task.id)?.assignee, lead.id);
-    assert.equal(fs.readFileSync(path.join(env.source, ".apc", "agents", "researcher.md"), "utf8"), env.definition);
+    assert.equal(fs.readFileSync(path.join(env.source, ".agent", "agents", "researcher.md"), "utf8"), env.definition);
     assert.deepEqual(new Uint8Array(fs.readFileSync(path.join(env.source, "reports", "report.bin"))), env.bytes);
     assert.equal(fs.existsSync(path.join(env.destination, "reports", "report.bin")), false);
     assert.equal(store.agentMigrationPending.list().length, 0);
@@ -199,7 +199,10 @@ for (const stage of ["before-staging", "partial-first-group", "between-groups"] 
         assert.deepEqual(restarted.recover(preview.id), { id: preview.id, restored: true });
         assert.equal(readMoveRecord(env.home, preview.id).state, "restored");
         assert.equal(store.agents.get(env.agent.id)?.project_id, env.sourceId);
-        assert.equal(fs.readFileSync(path.join(env.source, ".apc", "agents", "researcher.md"), "utf8"), env.definition);
+        assert.equal(
+          fs.readFileSync(path.join(env.source, ".agent", "agents", "researcher.md"), "utf8"),
+          env.definition,
+        );
         assert.deepEqual(new Uint8Array(fs.readFileSync(path.join(env.source, "reports", "report.bin"))), env.bytes);
         assert.equal(fs.existsSync(path.join(env.destination, "reports", "report.bin")), false);
         assert.equal(store.agentMigrationPending.list().length, 0);
@@ -259,7 +262,7 @@ test("reindex failure rolls back the database and files; an interrupted rollback
       assert.equal(store.agentMigrationPending.list().length, 0);
       assert.equal(store.agents.list().filter((a) => a.slug === "researcher").length, 1);
       assert.equal(store.agents.get(env.agent.id)?.project_id, env.sourceId);
-      assert.equal(fs.readFileSync(path.join(env.source, ".apc", "agents", "researcher.md"), "utf8"), env.definition);
+      assert.equal(fs.readFileSync(path.join(env.source, ".agent", "agents", "researcher.md"), "utf8"), env.definition);
       assert.deepEqual(restarted.recoverInterrupted(), []);
     } finally {
       apc.close();

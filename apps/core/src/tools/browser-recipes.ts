@@ -1,8 +1,10 @@
-// Browser recipes: a browser_do sequence saved under a name in the project (`.apc/browser-recipes/<name>.json`), so
+// Browser recipes: a browser_do sequence saved under a name in the project (`.agent/browser-recipes/<name>.json`), so
 // repeating it costs one short call. Plain data, never code: it runs only through browser_do (DECISIONS.md#d-265).
+
 import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
+import { projectDir } from "../apc/folder.ts";
 import { BrowserStep, variablesOf } from "./browser-steps.ts";
 
 export const RECIPE_NAME = /^[a-z0-9][a-z0-9-]{1,59}$/;
@@ -20,7 +22,7 @@ export const BrowserRecipe = z
   .strict();
 export type BrowserRecipe = z.infer<typeof BrowserRecipe>;
 
-const folderOf = (projectDir: string) => path.join(projectDir, ".apc", "browser-recipes");
+const folderOf = (root: string) => path.join(projectDir(root), "browser-recipes");
 
 /** The recipes saved in a project folder, by name (a file that does not parse is left out). */
 export function listRecipes(projectDir: string): BrowserRecipe[] {

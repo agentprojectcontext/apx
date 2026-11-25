@@ -24,7 +24,7 @@ import type { Display } from "./display.ts";
 import { folderBinding, type Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
 import { confirmPrompt, deletePrompt, deletionDetail, folderPrompt, ownerCardPrompt } from "./owner-words.ts";
-import { guarded, inGitFolder, namesApc, pathsOf } from "./paths.ts";
+import { guarded, inGitFolder, namesAgentFiles, pathsOf } from "./paths.ts";
 import type { Permissions } from "./permissions.ts";
 import { handedOff } from "./task-handoff.ts";
 import { toolTitle } from "./tool-titles.ts";
@@ -638,8 +638,8 @@ export function createExecutor(o: {
     // Fetching sends something out; in a code thread it could carry the code with it.
     if (kind === "fetch") return worksInFolder(thread) ? "ask" : "untrusted";
     if (kind === "execute" && typeof command === "string") return commandRisk(command, o.apxPort());
-    // APC files and AGENTS.md define agents and their modes: changing them is high impact, as file_write's.
-    if (paths.some((p) => namesApc(p) || guarded(o.workDir, p))) return "always";
+    // Agent files and AGENTS.md define agents and their modes: changing them is high impact, as file_write's.
+    if (paths.some((p) => namesAgentFiles(p) || guarded(o.workDir, p))) return "always";
     return "ask";
   }
 
@@ -673,7 +673,7 @@ export function createExecutor(o: {
     // Outside the folders it may use, the owner says yes unless its mode lets it on its own.
     const level = inside || own === "always" ? own : "ask";
     // A read-only code thread lets only reading run. Otherwise the agent's mode decides, as for our own tools: an edit
-    // where it may write is a local change like file_edit, never to git's config, APC files or AGENTS.md.
+    // where it may write is a local change like file_edit, never to git's config, agent files or AGENTS.md.
     if (worksInFolder(thread) && thread.write === "read-only" && level !== "never") return false;
     const workspace = inside && (req.kind === "edit" || req.kind === "execute") && !paths.some((p) => guarded(base, p));
     // A command that only reads here is risk read, as the shell tool's (DECISIONS.md#d-098).

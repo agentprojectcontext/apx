@@ -20,15 +20,15 @@ for (const width of [1280, 390]) {
     const sourceRoot = path.join(root, "acme");
     const targetRoot = path.join(root, "northwind");
     for (const folder of [sourceRoot, targetRoot]) {
-      fs.mkdirSync(path.join(folder, ".apc", "agents"), { recursive: true });
+      fs.mkdirSync(path.join(folder, ".agent", "agents"), { recursive: true });
       fs.writeFileSync(path.join(folder, "AGENTS.md"), "# Example project\n");
       fs.writeFileSync(
-        path.join(folder, ".apc", "project.json"),
+        path.join(folder, ".agent", "project.json"),
         JSON.stringify({ name: `${path.basename(folder)} ${width}` }),
       );
     }
     const definition = "---\nname: Researcher\nrole: Research\n---\n\nKeep the evidence.\n";
-    fs.writeFileSync(path.join(sourceRoot, ".apc", "agents", "researcher.md"), definition);
+    fs.writeFileSync(path.join(sourceRoot, ".agent", "agents", "researcher.md"), definition);
     fs.mkdirSync(path.join(sourceRoot, "reports"));
     fs.writeFileSync(path.join(sourceRoot, "reports", "result.txt"), "Example findings");
     const { project: source } = await rpc<{ project: { id: string } }>("projects.register", { path: sourceRoot });
@@ -63,7 +63,7 @@ for (const width of [1280, 390]) {
     await dialog.getByRole("button", { name: "Mover agente y trabajo" }).click();
     expect((await stale).status()).toBe(409);
     await expect(dialog.getByRole("alert")).toBeVisible();
-    expect(fs.existsSync(path.join(sourceRoot, ".apc", "agents", "researcher.md"))).toBe(true);
+    expect(fs.existsSync(path.join(sourceRoot, ".agent", "agents", "researcher.md"))).toBe(true);
     expect(fs.existsSync(path.join(targetRoot, "reports", "result.txt"))).toBe(false);
     await dialog.getByRole("button", { name: "Revisar traslado" }).click();
     await expect(dialog.getByRole("heading", { name: `acme ${width} → northwind ${width}` })).toBeVisible();
@@ -74,9 +74,9 @@ for (const width of [1280, 390]) {
     await dialog.getByRole("button", { name: "Mover agente y trabajo" }).click();
     await expect(page).toHaveURL(new RegExp(`project=${target.id}&tab=team`));
     await expect(page.getByRole("button", { name: "Ver: Researcher", exact: true })).toBeVisible();
-    expect(fs.readFileSync(path.join(targetRoot, ".apc", "agents", "researcher.md"), "utf8")).toBe(definition);
+    expect(fs.readFileSync(path.join(targetRoot, ".agent", "agents", "researcher.md"), "utf8")).toBe(definition);
     expect(fs.readFileSync(path.join(targetRoot, "reports", "result.txt"), "utf8")).toBe("Updated example findings");
-    expect(fs.existsSync(path.join(sourceRoot, ".apc", "agents", "researcher.md"))).toBe(false);
+    expect(fs.existsSync(path.join(sourceRoot, ".agent", "agents", "researcher.md"))).toBe(false);
     expect(fs.existsSync(path.join(sourceRoot, "reports", "result.txt"))).toBe(false);
     const moved = await rpc<{ agents: Array<{ id: string; project_id?: string }> }>("agents.list", {});
     expect(moved.agents.filter((a) => a.id === agent?.id)).toEqual([

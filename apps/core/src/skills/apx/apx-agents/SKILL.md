@@ -149,5 +149,5 @@ Leave alone what is craft: how to build, what to test, the design bar, the tone.
 3. Only for the ones the owner approves, `agent_set {agent, prompt, if_revision}` with the whole new prompt and the
    revision read before proposing it (it replaces the old one; keep everything else word for word). Each change
    follows the owner's permission mode; approval of an import is not approval of a later rewrite.
-4. Say what changed, agent by agent. If an agent's file lives in a project (`.apc/agents/`), the change is written
+4. Say what changed, agent by agent. If an agent's file lives in a project (`.agent/agents/`), the change is written
    there.

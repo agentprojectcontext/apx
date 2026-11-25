@@ -10,10 +10,10 @@ import { createProjectReader, type ProjectFiles, readProjectFiles } from "./proj
 import { PROJECT_READ_MS } from "./sync.ts";
 
 function makeProject(root: string, name: string) {
-  fs.mkdirSync(path.join(root, ".apc", "agents"), { recursive: true });
-  fs.writeFileSync(path.join(root, ".apc", "project.json"), JSON.stringify({ name }));
+  fs.mkdirSync(path.join(root, ".agent", "agents"), { recursive: true });
+  fs.writeFileSync(path.join(root, ".agent", "project.json"), JSON.stringify({ name }));
   fs.writeFileSync(
-    path.join(root, ".apc", "agents", "ceo.md"),
+    path.join(root, ".agent", "agents", "ceo.md"),
     "---\nname: Ceo\nrole: Chief Executive\n---\n\nDecide.\n",
   );
 }

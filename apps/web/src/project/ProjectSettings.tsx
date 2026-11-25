@@ -17,7 +17,7 @@ import { ReadOnlyFolders } from "./ReadOnlyFolders.tsx";
 /** The mode agents with none of their own work in here, in the owner's order (DECISIONS.md#d-106). */
 const AUTONOMY: readonly Autonomy[] = Autonomy.options;
 
-/** A project's name, description and kind (kept in its .apc/project.json), and where its folder is. */
+/** A project's name, description and kind (kept in its .agent/project.json), and where its folder is. */
 export function ProjectSettings({
   project,
   open,

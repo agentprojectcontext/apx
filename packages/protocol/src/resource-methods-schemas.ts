@@ -57,7 +57,7 @@ export const SkillName = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/);
 
 /**
  * Where a skill's files live. apx: comes with APX (how to change APX itself; always on, read-only); owner: APX home
- * `skills/`; project: `.apc/skills/`; extension; claude, codex, cursor, agents: that app's own skills folder (in the
+ * `skills/`; project: `.agent/skills/`; extension; claude, codex, cursor, agents: that app's own skills folder (in the
  * home or the project), read where it is, or linked into APX's.
  */
 export const SkillSource = z.enum(["apx", "owner", "project", "extension", "claude", "codex", "cursor", "agents"]);
@@ -141,7 +141,7 @@ export const SkillCandidate = z.object(
     id: () => z.string(),
     name: () => z.string(),
     description: () => z.string(),
-    /** The folder it lands in, in APX's skills or the project's `.apc/skills/`. */
+    /** The folder it lands in, in APX's skills or the project's `.agent/skills/`. */
     folder: () => z.string(),
     files: () =>
       z.array(
@@ -172,7 +172,7 @@ export const SkillCandidate = z.object(
 export type SkillCandidate = z.infer<typeof SkillCandidate>;
 
 export const ImportTarget = {
-  /** `global`: APX's skills; `project`: that project's `.apc/skills/`. */
+  /** `global`: APX's skills; `project`: that project's `.agent/skills/`. */
   target: z.enum(["global", "project"]),
   project: Id.optional(),
 };

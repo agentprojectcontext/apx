@@ -60,9 +60,9 @@ test("existing context is reused silently; preparing a brief preserves project a
       first_result: "A working checkout demo",
     });
     const before = await env.client.call("agents.get", { agent: agent.id });
-    const files = fs.readdirSync(path.join(project.path ?? "", ".apc", "agents"));
+    const files = fs.readdirSync(path.join(project.path ?? "", ".agent", "agents"));
     const contents = files.map((file) =>
-      fs.readFileSync(path.join(project.path ?? "", ".apc", "agents", file), "utf8"),
+      fs.readFileSync(path.join(project.path ?? "", ".agent", "agents", file), "utf8"),
     );
     const review = await env.client.call("projects.helper_review", { project: project.id, manual: true });
     assert.equal(review.offer, false);
@@ -73,7 +73,7 @@ test("existing context is reused silently; preparing a brief preserves project a
     assert.match(review.brief, /no additional permissions/);
     assert.deepEqual(await env.client.call("agents.get", { agent: agent.id }), before);
     assert.deepEqual(
-      files.map((file) => fs.readFileSync(path.join(project.path ?? "", ".apc", "agents", file), "utf8")),
+      files.map((file) => fs.readFileSync(path.join(project.path ?? "", ".agent", "agents", file), "utf8")),
       contents,
     );
     const thread = await env.client.call("threads.create", {

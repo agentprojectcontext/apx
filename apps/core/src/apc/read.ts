@@ -1,9 +1,11 @@
-// Reading an APC project from disk: AGENTS.md + .apc/ (project.json, agents/<slug>.md). The files are the source of
+// Reading a project from disk: AGENTS.md + .agent/ (project.json, agents/<slug>.md). The files are the source of
 // truth for definitions; the core keeps an index in its database. Read-only: nothing here writes the repo.
+
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { AGENTS_MD_LIMIT } from "@apx/protocol";
+import { AGENT_DIR, hasLegacyFolder, LEGACY_DIR, needsFolderMove, projectDir } from "./folder.ts";
 import { type Fields, listField, parseFrontmatter, textField } from "./frontmatter.ts";
 
 export const SLUG_RE = /^[a-z][a-z0-9_-]*$/;
@@ -21,10 +23,15 @@ export type ApcProject = {
   context?: string | undefined;
   /** AGENTS.md's full length when it is past the safety limit, so its agents do not get all of it. */
   contextChars?: number | undefined;
-  /** .apc/memory.md (written by the owner), capped. */
+  /** .agent/memory.md (written by the owner), capped. */
   memory?: string | undefined;
-  /** Why .apc/project.json is there but unreadable: its name, kind and apx_id are then unknown, not absent. */
+  /** Why .agent/project.json is there but unreadable: its name, kind and apx_id are then unknown, not absent. */
   metaError?: string | undefined;
+  /**
+   * `.apc/` is still there after a move that could not finish: `move`, its files are only there (read from there);
+   * `leftover`, .agent/ is read and `.apc/` still holds files that differ.
+   */
+  legacy?: "move" | "leftover" | undefined;
 };
 
 export type ApcAgent = {
@@ -102,16 +109,16 @@ function contextOf(text: string | undefined, file: string, max = AGENTS_MD_LIMIT
   return body.length > max ? cap(body, file, max) : body.trim();
 }
 
-/** Whether a folder is an APC project (has .apc/ or AGENTS.md). */
+/** Whether a folder is a project: it has .agent/ or AGENTS.md, or .apc/ to move. */
 export function isApcProject(root: string): boolean {
-  return fs.existsSync(path.join(root, ".apc")) || fs.existsSync(path.join(root, "AGENTS.md"));
+  return [AGENT_DIR, "AGENTS.md", LEGACY_DIR].some((f) => fs.existsSync(path.join(root, f)));
 }
 
 export function readProject(root: string): ApcProject {
   const abs = path.resolve(root);
   let meta: { name?: string; description?: string; apx_id?: string; kind?: string } = {};
   let metaError: string | undefined;
-  const metaText = readText(path.join(abs, ".apc", "project.json"));
+  const metaText = readText(path.join(projectDir(abs), "project.json"));
   if (metaText !== undefined) {
     try {
       const raw = JSON.parse(metaText) as unknown;
@@ -124,7 +131,7 @@ export function readProject(root: string): ApcProject {
   const pathId = createHash("sha256").update(abs).digest("hex").slice(0, 12);
   const id = meta.apx_id && /^[a-z0-9]{6,32}$/.test(meta.apx_id) ? meta.apx_id : pathId;
   const agentsMd = readText(path.join(abs, "AGENTS.md"));
-  const apc = path.join(abs, ".apc");
+  const apc = projectDir(abs);
   const memoryMd = isLink(apc) ? undefined : readText(path.join(apc, "memory.md"));
   return {
     id,
@@ -137,11 +144,12 @@ export function readProject(root: string): ApcProject {
     contextChars: agentsMd && agentsMd.trimEnd().length > AGENTS_MD_LIMIT ? agentsMd.trimEnd().length : undefined,
     memory: contextOf(memoryMd, path.join(apc, "memory.md")),
     metaError,
+    ...(hasLegacyFolder(abs) ? { legacy: needsFolderMove(abs) ? ("move" as const) : ("leftover" as const) } : {}),
   };
 }
 
 export function readAgents(root: string): ApcAgent[] {
-  return readAgentDir(path.join(path.resolve(root), ".apc", "agents"));
+  return readAgentDir(path.join(projectDir(path.resolve(root)), "agents"));
 }
 
 /** Every `<slug>.md` agent file directly inside a folder (no symlinks). Also reads template folders. */

@@ -68,7 +68,7 @@ export function MigrationFiles({
               .filter(
                 (e) =>
                   (e.kind === "dir" || e.kind === "file") &&
-                  ![".apc", ".git", "node_modules", "AGENTS.md", ".env"].includes(e.name),
+                  ![".agent", ".git", "node_modules", "AGENTS.md", ".env"].includes(e.name),
               )
               .map((e) => (
                 <li key={e.path}>

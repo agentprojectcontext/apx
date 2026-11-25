@@ -5,10 +5,10 @@ description: Create a project or a subproject in APX, rename one or change its k
 
 # Projects in APX
 
-A project is a folder with an `AGENTS.md` and a `.apc/` folder: its agents, skills, memory, tasks and routines live
+A project is a folder with an `AGENTS.md` and a `.agent/` folder: its agents, skills, memory, tasks and routines live
 there. APX knows a project only once it is registered, which the `apx projects` command does (run it with `shell`;
 the owner approves each call). **Never make one by writing files yourself**: a folder you make by hand is not in APX
-until it is registered, and `.apc/project.json` is APX's to write.
+until it is registered, and `.agent/project.json` is APX's to write.
 
 ## Commands
 
@@ -17,7 +17,7 @@ apx projects                                   # id, name and kind of each proje
 apx projects create "Northwind"                # a new folder of its own in APX's home
 apx projects create "Northwind" --kind company --desc "Wholesale client: orders and invoices"
 apx projects create "Acme site" --path ~/work/acme-site --kind software   # in that folder (made if missing)
-apx projects register ~/work/existing-repo     # a folder that already has AGENTS.md or .apc/
+apx projects register ~/work/existing-repo     # a folder that already has AGENTS.md or .agent/
 apx projects set <project-id> --name "Northwind Ltd" --desc "…"           # only what you give changes
 apx projects set <project-id> --desc ""        # an empty value removes the description
 apx projects set <project-id> --autonomy manual # how far its agents go without asking (only when the owner asks)
@@ -34,8 +34,8 @@ apx projects folders add <project-id> ~/work/other-repo   # a folder its agents 
   software is a code repository.
 - `--path` is for a folder the owner names (an existing repo, a client's folder). Without it the project gets a
   folder of its own; do not invent a path.
-- `register` takes a folder that already is a project (it has `AGENTS.md` or `.apc/`). For a plain folder use
-  `create --path`, which writes a short `AGENTS.md` and an empty `.apc/` there and touches nothing else. Run
+- `register` takes a folder that already is a project (it has `AGENTS.md` or `.agent/`). For a plain folder use
+  `create --path`, which writes a short `AGENTS.md` and an empty `.agent/` there and touches nothing else. Run
   `apx projects` first and never create again a project already in the list.
 - The default project (no folder) cannot be renamed here; the owner does it in the app.
 

@@ -6,7 +6,7 @@ import type { FileChange } from "@apx/protocol";
 import { z } from "zod";
 import type { Store } from "../domain/store.ts";
 import { textDiff } from "../engine/changes.ts";
-import { guarded, inGitFolder, namesApc } from "../engine/paths.ts";
+import { guarded, inGitFolder, namesAgentFiles } from "../engine/paths.ts";
 import { insideReal, real, writeAtomic } from "../paths.ts";
 import { chatMedia } from "../services/media-temp.ts";
 import { artifactOfFile, publishArtifactFile } from "./artifact-files.ts";
@@ -151,13 +151,13 @@ export function fileTools(store: Store, home: string): Tool[] {
     const r = folderAccess(store, home, thread, a.path, { cwd: a.cwd, write });
     if ("refused" in r) return r;
     if (inGitFolder(r.at)) return { refused: "the .git folder is off limits: use git through shell" };
-    // The owner was asked by the path as written: one that only lands on APC files through a link is refused.
-    if (write && !r.scratch && guarded(r.base, r.at) && !namesApc(named(a)))
-      return { refused: "APC files and AGENTS.md are written only by their path from the folder's root" };
+    // The owner was asked by the path as written: one that only lands on agent files through a link is refused.
+    if (write && !r.scratch && guarded(r.base, r.at) && !namesAgentFiles(named(a)))
+      return { refused: "Agent files and AGENTS.md are written only by their path from the folder's root" };
     return r;
   };
   /**
-   * Writing in the chat's temp folder changes nothing of the owner's: it never waits for them. APC files and
+   * Writing in the chat's temp folder changes nothing of the owner's: it never waits for them. Agent files and
    * AGENTS.md define agents and their modes: unless the agent works in total mode, the owner says yes first.
    */
   const confirm = (a: { path?: unknown; cwd?: unknown }) => {
@@ -165,7 +165,7 @@ export function fileTools(store: Store, home: string): Tool[] {
     const p = named({ path: a.path, cwd: a.cwd });
     return path.isAbsolute(p) && insideReal(scratchRoot(home), p)
       ? ("never" as const)
-      : namesApc(p)
+      : namesAgentFiles(p)
         ? ("always" as const)
         : ("untrusted" as const);
   };

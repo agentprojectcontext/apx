@@ -185,7 +185,7 @@ test("Codex's projects are listed by their own name, without sub-agents' threads
 test("importing makes the folder a project and each session a chat with its whole history", async () => {
   const r = await env.client.call("sessions.import", { engine: "codex", cwd: acme });
   assert.equal(r.project.name, "Acme company");
-  assert.ok(fs.existsSync(path.join(acme, ".apc", "project.json")));
+  assert.ok(fs.existsSync(path.join(acme, ".agent", "project.json")));
   assert.deepEqual(r.pages, [path.join("reel", "index.html")]);
   const chat = r.chats[0];
   assert.equal(chat?.created, true);

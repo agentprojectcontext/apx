@@ -104,7 +104,7 @@ export const appWorkspaceMethods = {
     result: () => Organization,
     effect: false,
   }),
-  /** Replaces a project's areas and roles: written to its .apc/organization.json (the base project's: in APX). */
+  /** Replaces a project's areas and roles: written to its .agent/organization.json (the base project's: in APX). */
   "org.set": deferMethod({
     params: () =>
       z
@@ -117,13 +117,13 @@ export const appWorkspaceMethods = {
     effect: true,
     access: "human",
   }),
-  /** Registers a folder as a project and reads its AGENTS.md and .apc/ (never writes them). */
+  /** Registers a folder as a project and reads its AGENTS.md and .agent/ (never writes them). */
   "projects.register": deferMethod({
     params: () =>
       z
         .object({
           path: z.string().min(1).max(1024),
-          /** A plain folder becomes a project: an AGENTS.md naming it and an empty .apc/ are written there. */
+          /** A plain folder becomes a project: an AGENTS.md naming it and an empty .agent/ are written there. */
           init: z.boolean().default(false),
         })
         .strict(),
@@ -136,8 +136,31 @@ export const appWorkspaceMethods = {
     access: "human",
   }),
   /**
-   * A new project: in a folder (made if missing; a plain one gets an AGENTS.md and .apc/), or, without one, in a folder
-   * of its own inside APX's home (`projects/<name>`). Name, kind and description go to its .apc/project.json; a project
+   * Retries moving a project's agents and settings from `.apc/`, the folder earlier versions used, to `.agent/` (the core
+   * does it by itself at start and on register): copies them, checks every file arrived equal, removes them from `.apc/`
+   * and reads the project again. Safe to run again: a file
+   * `.agent/` already has with other content stops it before anything is removed. Git worktrees in `.apc/` stay.
+   */
+  "projects.move_folder": deferMethod({
+    params: () => z.object({ project: Id }).strict(),
+    result: () =>
+      z.object({
+        project: Project,
+        agents: z.number().int(),
+        /** Files now in `.agent/` that came from `.apc/`. */
+        files: z.number().int(),
+        /** `.apc/` is gone, or holds only the worktrees in `kept`. */
+        done: z.boolean(),
+        kept: z.array(z.string()),
+        /** Files `.agent/` already has with other content: nothing was removed until the owner settles them. */
+        conflicts: z.array(z.string()),
+      }),
+    effect: true,
+    access: "human",
+  }),
+  /**
+   * A new project: in a folder (made if missing; a plain one gets an AGENTS.md and .agent/), or, without one, in a folder
+   * of its own inside APX's home (`projects/<name>`). Name, kind and description go to its .agent/project.json; a project
    * in a folder with no name given keeps the folder's. With `parent` it is a subproject of that project
    * (BASE_PROJECT_ID: of the base project); without a path its folder goes inside the parent's (the base project's:
    * in APX's home, as above).
@@ -163,7 +186,7 @@ export const appWorkspaceMethods = {
     access: "human",
   }),
   /**
-   * Renames a project, or changes its description or kind, in its .apc/project.json (every other key there stays).
+   * Renames a project, or changes its description or kind, in its .agent/project.json (every other key there stays).
    * An empty string or null removes the field. The base project has no folder and cannot be changed.
    */
   "projects.update": deferMethod({

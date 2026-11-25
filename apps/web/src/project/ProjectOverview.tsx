@@ -5,6 +5,7 @@ import { usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { standsAlone } from "../inbox/groupThreads.ts";
+import { AgentFolderCard } from "./AgentFolderCard.tsx";
 import { AgentsCard, RecentChatsCard, WaitingCard } from "./OverviewCards.tsx";
 import { OverviewStats, useWaiting } from "./OverviewStats.tsx";
 import { ProjectBoard } from "./ProjectBoard.tsx";
@@ -42,6 +43,7 @@ export function ProjectOverview({ project }: { project: ProjectEntry }) {
         <ProjectBoard projectId={pid} />
       </div>
       <aside className="overview__side" aria-label={t("overview.summary")}>
+        <AgentFolderCard project={project} />
         {!project.isDefault && <ProjectHelper key={pid} project={pid} />}
         <WaitingCard waiting={waiting} pid={pid} />
         <RecentChatsCard chats={chats} pid={pid} />

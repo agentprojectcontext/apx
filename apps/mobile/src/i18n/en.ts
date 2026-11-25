@@ -417,7 +417,7 @@ export const en = {
   actionsWaitingOne: "Waiting · 1 action",
   about: "About",
   aboutBody:
-    "An agent is a markdown file. Role, face, memory, skills: everything lives in .apc/, next to your code. No database, no lock-in. Read it, diff it, commit it.",
+    "An agent is a markdown file. Role, face, memory, skills: everything lives in .agent/, next to your code. No database, no lock-in. Read it, diff it, commit it.",
   aboutApc: "Built on APC, the Agent Project Context standard.",
   thisApp: "This app",
   appVersion: "Version",

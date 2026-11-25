@@ -166,7 +166,7 @@ export const MODELS: Readonly<Record<string, Setting>> = {
         : `Make agents ask before each tool of the MCP server ${str(p.server)}`,
   },
   "mcp.trust": {
-    does: "approve a project's MCP server from its .apc/mcps.json so it runs (project, server, trusted), or stop it (trusted false)",
+    does: "approve a project's MCP server from its .agent/mcps.json so it runs (project, server, trusted), or stop it (trusted false)",
     named: ["project", "server", "trusted"],
     says: (p) =>
       p.trusted

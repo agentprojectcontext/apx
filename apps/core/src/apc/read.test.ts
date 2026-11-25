@@ -34,7 +34,7 @@ test("project Markdown respects safety boundaries, BOMs, and removal without imp
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-context-read-"));
   const outside = fs.mkdtempSync(path.join(os.tmpdir(), "apx-context-outside-"));
   const rules = path.join(root, "AGENTS.md");
-  const memory = path.join(root, ".apc", "memory.md");
+  const memory = path.join(root, ".agent", "memory.md");
   try {
     fs.mkdirSync(path.dirname(memory));
     const exact = "x".repeat(AGENTS_MD_LIMIT);

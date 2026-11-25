@@ -13,7 +13,7 @@ it names. It installs **off**; turning it on approves exactly those files.
 
 | The owner wants | Make |
 |---|---|
-| Know-how for this one project's agents | A skill in the project: `.apc/skills/<name>/SKILL.md` — no extension |
+| Know-how for this one project's agents | A skill in the project: `.agent/skills/<name>/SKILL.md` — no extension |
 | One more MCP server for their own agents | `apx mcps add <name> <command…|url>` — no extension |
 | An agent (or a team) with its own routines | An agent template: `<slug>.md` + `<slug>.routines.json` |
 | Skills, servers and routines that travel together, shared or reused | **An extension** |

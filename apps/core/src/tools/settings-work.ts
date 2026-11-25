@@ -71,6 +71,7 @@ export const WORK: Readonly<Record<string, Setting>> = {
             p.kind ?? "",
             p.path ? `folder ${p.path}` : "kept by APX",
             p.present ? "" : "folder away",
+            p.legacy_folder ? "agents still in .apc/: its move failed, the owner retries it" : "",
             p.parent ? `subproject of ${p.parent === BASE_PROJECT_ID ? "the base project" : p.parent}` : "",
           ];
           return `- ${inlineName(p.name)} [${p.id}] (${bits.filter(Boolean).join(", ")})${p.description ? `: ${p.description.slice(0, 160)}` : ""}`;
@@ -83,7 +84,7 @@ export const WORK: Readonly<Record<string, Setting>> = {
     says: (p) => `Create the project ${inlineName(str(p.name) || str(p.path))}${p.path ? ` in ${str(p.path)}` : ""}`,
   },
   "projects.register": {
-    does: "add a folder already on disk as a project (path; init: give a plain folder AGENTS.md and .apc/)",
+    does: "add a folder already on disk as a project (path; init: give a plain folder AGENTS.md and .agent/)",
     named: ["path"],
     says: (p) => `Add the folder ${str(p.path)} as a project`,
   },

@@ -257,9 +257,42 @@ export async function doctor(o: {
     );
     return;
   }
+  const folders = await moveFolders(o.fix);
+  if (folders.length && !o.json) console.log(card("APX doctor --fix", folders.map(folderLine)));
   if (!o.json) console.log("Compacting the database (a big one takes a few minutes; chats wait meanwhile)…");
   const r = await o.fix.call("storage.compact", {});
-  console.log(o.json ? JSON.stringify(r, null, 2) : card("APX doctor --fix", compactionLines(r)));
+  console.log(
+    o.json
+      ? JSON.stringify(folders.length ? { ...r, folders } : r, null, 2)
+      : card("APX doctor --fix", compactionLines(r)),
+  );
+}
+
+type FolderMoved = { project: string; name: string } & (
+  | { files: number; done: boolean; kept: string[]; conflicts: string[] }
+  | { error: string }
+);
+
+/** Moves the files of every project still keeping them in .apc/ (earlier versions' folder) to .agent/. */
+async function moveFolders(client: Pick<ApxClient, "call">): Promise<FolderMoved[]> {
+  const { projects } = await client.call("projects.list", {});
+  const out: FolderMoved[] = [];
+  for (const p of projects.filter((p) => p.legacy_folder && p.present !== false))
+    try {
+      const r = await client.call("projects.move_folder", { project: p.id });
+      out.push({ project: p.id, name: p.name, files: r.files, done: r.done, kept: r.kept, conflicts: r.conflicts });
+    } catch (err) {
+      out.push({ project: p.id, name: p.name, error: err instanceof Error ? err.message : String(err) });
+    }
+  return out;
+}
+
+function folderLine(m: FolderMoved): string {
+  if ("error" in m) return `${m.name}: not moved, ${m.error}`;
+  if (m.conflicts.length)
+    return `${m.name}: not moved, .agent/ already has other versions of ${m.conflicts.join(", ")}. Keep the one you want and run this again.`;
+  const kept = m.kept.length ? ` Git worktrees stay in .apc/${m.kept.join(", .apc/")}.` : "";
+  return `${m.name}: ${m.files} ${m.files === 1 ? "file" : "files"} moved from .apc/ to .agent/.${kept}`;
 }
 
 /** `apx update` when the core does not answer: a bundle install updates itself; others are told how. */

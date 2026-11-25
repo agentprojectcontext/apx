@@ -22,7 +22,7 @@ export function DeleteAgentDialog({ agent, onClose }: { agent: Agent; onClose():
     setBusy(false);
     if (ok) onClose();
   };
-  const file = agent.source === "apc" && agent.slug ? `.apc/agents/${agent.slug}.md` : undefined;
+  const file = agent.source === "apc" && agent.slug ? `.agent/agents/${agent.slug}.md` : undefined;
   return (
     <Dialog
       open
@@ -113,7 +113,7 @@ export function NewAgentDialog({
       footer={
         <>
           {slug && projectId && (
-            <span className="agentedit__file">{t("agent.edit.file", { file: `.apc/agents/${slug}.md` })}</span>
+            <span className="agentedit__file">{t("agent.edit.file", { file: `.agent/agents/${slug}.md` })}</span>
           )}
           <Button variant="secondary" disabled={busy} onClick={onClose}>
             {t("common.cancel")}

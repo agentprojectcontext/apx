@@ -148,7 +148,7 @@ function MemoryBody({ project }: { project: ProjectEntry }) {
             <Icons.FileText size={14} />
             <span>
               {t("memory.fileBefore")}
-              <code>.apc/memory.md</code>
+              <code>.agent/memory.md</code>
               {t("memory.fileAfter")}
             </span>
           </div>

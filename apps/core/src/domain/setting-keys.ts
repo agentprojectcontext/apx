@@ -130,7 +130,7 @@ export const SETTINGS = {
   ),
   /** The base project's name, description and kind (it has no folder to keep them in). */
   base_project: entry(BaseProject, { name: "Default" }),
-  /** The base project's areas and roles (a real project keeps them in its .apc/organization.json). */
+  /** The base project's areas and roles (a real project keeps them in its .agent/organization.json). */
   base_org: entry(Organization, { areas: [], roles: [] }),
   /**
    * Google Calendar's event reminders: off, 30 minutes ahead and looked at every 5 minutes until the owner chooses;
