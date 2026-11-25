@@ -6165,7 +6165,8 @@ The consult turn is contained in code, not only by its request (`engine/contact-
 `domain/contact-consult.ts`): it is offered only `ask_owner` and reads (`read_chat`, `search_chats`, `file_read`,
 `drive_read`, `sheets_read`, `sheets_tabs`, `read_output`, `load_skill`), no MCP or app bridge; its chat tools see only
 the owner's own chats of that project and their sub-threads (no contact chat, room or client); its files are fenced to
-the project's folders; a Drive file opens only when that project's chats already used its id; its recalled notes are
+the project's folders and the contact chat's temp folder (`confined`: no system temp folder, where other chats leave
+files, nor another chat's, and other projects' restrictions hold as for that project's agents); a Drive file opens only when that project's chats already used its id; its recalled notes are
 that project's only. Every call checks again that the contact's project reading holds, and an answer that comes after
 the owner withdrew it is dropped, inline or late. Drive search is left out: a file the project never used is the
 owner's to link.

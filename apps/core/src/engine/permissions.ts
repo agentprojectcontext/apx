@@ -60,8 +60,11 @@ export function createPermissions(o: { store: Store; home: string }) {
 
   /** The thread as the folder rule sees it for an agent as it acts (agentIn): its reach and the folders granted for good. */
   function scope<T extends ThreadOf>(agent: AgentRecord, thread: T): T & FolderThread {
-    // Answering a contact's agent, the super-agent keeps to the project's folders (DECISIONS.md#d-269).
-    const reach = isConsult(thread) ? "fenced" : reachOf(agent);
+    // Answering a contact's agent, the super-agent keeps to the project's folders and its own temp folder, and other
+    // projects' restrictions hold for it as for that project's agents (DECISIONS.md#d-269).
+    if (isConsult(thread))
+      return { ...thread, reach: "fenced", principal: { project: thread.project_id, owner: false }, confined: true };
+    const reach = reachOf(agent);
     const principal = { project: agent.project_id, owner: agent.kind === "secretary" };
     if (reach === "all" || reach === "fenced") return { ...thread, reach, principal };
     const granted = store.approvals.writeFolders(agent.id);

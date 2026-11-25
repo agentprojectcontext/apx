@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { z } from "zod";
@@ -9,11 +10,13 @@ import { CONTACT_CONSULT } from "../domain/runs.ts";
 import { consultTools, WITHDRAWN } from "../engine/contact-consult.ts";
 import { frameInput } from "../engine/context.ts";
 import { deliverResults } from "../engine/fanout.ts";
+import { createPermissions } from "../engine/permissions.ts";
 import { callTool, offeredIn, type Script, say } from "../engine/testkit.ts";
 import type { LlmRequest } from "../providers/llm.ts";
 import { tempDir, waitFor } from "../testkit/platform.ts";
 import { readingFixture } from "./contact-project-reading.test-support.ts";
 import { CONSULT_SUPER_AGENT, projectReadingTools } from "./contact-project-reading.ts";
+import { scratchDir, tempAreas } from "./folders.ts";
 import { defineTool } from "./types.ts";
 
 const toolResults = (req: LlmRequest) =>
@@ -27,11 +30,18 @@ type Boss = (req: LlmRequest, h: Fixture) => ReturnType<Script>;
 const answers: Boss = () => say("The pallets leave from the north dock.");
 
 /** A contact asks what the project's readable context does not hold; the super-agent answers and the agent relays it. */
-async function consultJourney(asks: number, boss: Boss = answers, until = "north dock") {
+async function consultJourney(
+  asks: number,
+  boss: Boss = answers,
+  until = "north dock",
+  prepare?: (h: Fixture) => Promise<void>,
+) {
   const wa = fakeWhatsApp();
   const contactTools: string[][] = [];
   const bossTools: string[][] = [];
   const bossSaw: string[] = [];
+  const bossSystem: string[] = [];
+  const otherSystem: string[] = [];
   let fixture: Fixture | undefined;
   const h = await readingFixture(
     (req, ctx) => {
@@ -47,8 +57,10 @@ async function consultJourney(asks: number, boss: Boss = answers, until = "north
       if (ctx.said.includes("contact_question")) {
         bossTools.push(offeredIn(req));
         bossSaw.push(ctx.said);
+        bossSystem.push(ctx.system);
         return boss(req, fixture as Fixture);
       }
+      otherSystem.push(ctx.system);
       return say("ok");
     },
     {
@@ -64,6 +76,7 @@ async function consultJourney(asks: number, boss: Boss = answers, until = "north
   );
   fixture = h;
   try {
+    await prepare?.(h);
     await h.env.client.call("channels.set", {
       id: "whatsapp",
       channel: { type: "whatsapp", self_owner: true, agent_id: "superagent" },
@@ -81,7 +94,7 @@ async function consultJourney(asks: number, boss: Boss = answers, until = "north
       .list()
       .find((t) => t.channel?.id === "whatsapp" && t.channel.person_id === h.person.id);
     assert.ok(thread);
-    return { h, wa, thread, contactTools, bossTools, bossSaw };
+    return { h, wa, thread, contactTools, bossTools, bossSaw, bossSystem, otherSystem };
   } catch (error) {
     await h.close();
     throw error;
@@ -322,6 +335,63 @@ test("a consult's answer coming later is dropped once the reading is withdrawn, 
     deliverResults(h.store, admit, parent, [{ child }]);
     assert.equal(admitted.length, 1, "a withdrawn consult reaches no one");
   } finally {
+    await h.close();
+  }
+});
+
+test("the consult reads its project and the contact chat's temp folder, never the system's temp folders or another chat's", async () => {
+  // Synthetic files a Home chat left behind: one in the system's temp folder, one in its own temp folder.
+  const leftovers: string[] = [];
+  const tries = (h: Fixture) => {
+    const home = h.store.threads.create({ kind: "loose", title: "Home errands", agent_ids: ["superagent"] });
+    const contact = h.store.threads.list().find((t) => t.channel?.id === "whatsapp");
+    assert.ok(contact);
+    const shared = path.join(tempAreas(h.env.home)[0] ?? os.tmpdir(), `apx-consult-${process.pid}.md`);
+    const theirs = path.join(scratchDir(h.store, h.env.home, home), "notes.md");
+    const own = path.join(scratchDir(h.store, h.env.home, contact), "pallets.md");
+    for (const [file, text] of [
+      [shared, `bank ${SECRET}`],
+      [theirs, `bank ${SECRET}`],
+      [own, "Pallets counted: 40"],
+    ] as const) {
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, text);
+      leftovers.push(file);
+    }
+    return [shared, theirs, "plans/delivery.md", own];
+  };
+  let steps: string[] | undefined;
+  const results: string[] = [];
+  const { h } = await consultJourney(1, async (req, fx) => {
+    steps ??= tries(fx);
+    const done = toolResults(req);
+    const next = steps[done.length];
+    if (next) return callTool(`read${done.length}`, "file_read", { path: next });
+    results.push(...done);
+    return say("The pallets leave from the north dock.");
+  });
+  try {
+    const [shared, theirs, project, own] = results;
+    assert.doesNotMatch(String(shared), new RegExp(SECRET));
+    assert.doesNotMatch(String(theirs), new RegExp(SECRET));
+    assert.match(String(project), /north dock/);
+    assert.match(String(own), /Pallets counted: 40/);
+    // The same file stays readable to the super-agent's own turns, which use the system's temp folders as scratch.
+    const sub = h.store.threads.list({ include_subthreads: true }).find((t) => t.session === CONTACT_CONSULT);
+    const plain = h.store.threads.create({
+      kind: "loose",
+      title: "Plain",
+      agent_ids: ["superagent"],
+      project_id: h.project.id,
+    });
+    const secretary = h.store.agents.get("superagent");
+    assert.ok(sub && secretary && leftovers[0]);
+    const permissions = createPermissions({ store: h.store, home: h.env.home });
+    const read = (t: typeof plain) => permissions.path(permissions.scope(secretary, t), leftovers[0] as string);
+    assert.ok("refused" in read(sub));
+    if (tempAreas(h.env.home).length) assert.ok(!("refused" in read(plain)));
+  } finally {
+    for (const file of leftovers) fs.rmSync(file, { force: true });
     await h.close();
   }
 });

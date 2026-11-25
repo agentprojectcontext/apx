@@ -168,6 +168,8 @@ export type FolderThread = Parameters<typeof workDir>[2] &
     lentWrite?: boolean | undefined;
     /** Folders outside its own the owner let this agent change for good (a folder card's "always"). */
     granted?: readonly string[] | undefined;
+    /** Kept to its project's folders and its own temp folder: the system's temp folders are closed too. */
+    confined?: boolean | undefined;
   };
 type Thread = FolderThread;
 
@@ -236,11 +238,14 @@ export function tempAreas(home: string): string[] {
   return out;
 }
 
-/** After a thread's own folders: other chats' temp folders stay closed, then the system's temp folders are scratch. */
-function sharedRoots(home: string): Root[] {
+/**
+ * After a thread's own folders: other chats' temp folders stay closed, then the system's temp folders are scratch,
+ * unless the thread is confined, where they hold other chats' files too.
+ */
+function sharedRoots(home: string, confined = false): Root[] {
   return [
     { dir: scratchRoot(home), write: false, scratch: true, off: true },
-    ...tempAreas(home).map((dir) => ({ dir, write: true, scratch: true })),
+    ...(confined ? [] : tempAreas(home).map((dir) => ({ dir, write: true, scratch: true }))),
   ];
 }
 
@@ -269,7 +274,7 @@ export function rootsOf(store: Store, home: string, thread: Thread): Root[] {
     { dir: artifactSources(home, thread.project_id), write: true, scratch: false },
     ...projectWorktrees(store, thread).map((dir) => ({ dir, write: true, scratch: false })),
     ...readOnlyFolders(store, thread).map((dir) => ({ dir, write: false, scratch: false })),
-    ...sharedRoots(home),
+    ...sharedRoots(home, thread.confined),
     // After the read-only folders and other chats' temp folders, which keep their own rule inside these.
     ...(thread.reach === "read"
       ? ownerProjects(store, home, thread).filter((r) => !denied.some((d) => insideReal(d, r.dir)))
