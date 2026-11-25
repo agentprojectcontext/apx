@@ -32,6 +32,17 @@ test("public attribution exception leaves other terms, paths, files and edits ch
   );
 });
 
+test("a phone-shaped hit remains detectable in approved content", () => {
+  const hash = (value: string) => createHash("sha256").update(value).digest("hex");
+  const text = ["Acme +", "54 9 11 2398 7604"].join("");
+  const approval = { file: "author.mjs", content: hash(text), terms: new Set([hash("Acme")]) };
+  const { matchers, allow } = parseTerms("Acme");
+  assert.deepEqual(
+    scanText("author.mjs", text, matchers, allow, approval).map((h) => h.term),
+    ["whatsapp-number"],
+  );
+});
+
 const me = "1234567+acme@users.noreply.github.com";
 const commit = (c: Partial<Commit>): Commit => ({
   sha: "0123456789abcdef",
@@ -58,6 +69,14 @@ test("a pull request merged in GitHub's web UI passes with its web-flow committe
   assert.deepEqual(terms({ authorEmail: "someone@example.com", committerEmail: "noreply@github.com" }), [
     "author-email",
   ]);
+});
+
+test("a private term in a commit remains detectable", () => {
+  const { matchers, allow } = parseTerms("Acme");
+  assert.deepEqual(
+    scanCommits([commit({ message: "fix: Acme attribution" })], matchers, allow).map((h) => h.term),
+    ["Acme"],
+  );
 });
 
 test("AI-tool trailers fail", () => {
