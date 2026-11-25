@@ -63,6 +63,59 @@ test("a historical consultation never displays private instructions while its co
   }
 });
 
+const unavailable = test.extend<{ fixture: Awaited<ReturnType<typeof readingFixture>> }>({
+  fixture: async ({ baseURL: _baseURL }, use) => {
+    const h = await readingFixture(undefined, { port: 0 });
+    try {
+      await use(h);
+    } finally {
+      await h.close();
+    }
+  },
+  expectedConsoleErrors: async ({ fixture: h }, use) => {
+    await use([
+      {
+        path: `${h.env.core.url}/rpc/threads.get`,
+        text: "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      },
+    ]);
+  },
+});
+unavailable("a missing conversation leaves a readable question without a broken link", async ({ page, fixture: h }) => {
+  try {
+    await prepare(h);
+    h.store.messages.add({
+      thread_id: h.thread.id,
+      author: { kind: "agent", id: h.agent.id },
+      parts: [
+        {
+          type: "subthread",
+          thread_id: "missing_conversation",
+          agent_id: "superagent",
+          title: "Private context not suitable for a preview",
+          question: "Can the north dock still receive the shipment?",
+          state: "completed",
+        },
+      ],
+    });
+    const failed = page.waitForResponse(
+      (response) => response.url().endsWith("/rpc/threads.get") && response.status() === 404,
+    );
+    await page.goto(`${h.env.core.url}/#channel=test&chat=${h.thread.id}`);
+    await failed;
+    await expect(page.locator(".chan__consult-fallback")).toContainText(
+      "Can the north dock still receive the shipment?",
+    );
+    await expect(page.locator(".chan__consult-link")).toHaveCount(0);
+    await expect(page.locator(".chan__msglist")).not.toContainText("Private context");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.locator(".chan__consult-fallback")).toBeVisible();
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/consult-missing-phone.png` });
+  } finally {
+    if (!page.isClosed()) await page.goto("about:blank");
+  }
+});
+
 test("consultation references, opening and continuing never add messages to the customer's WhatsApp", async ({
   page,
 }) => {
