@@ -34,7 +34,7 @@ export function ownerTools(store: Store): Tool[] {
     defineTool({
       name: "ask_owner",
       description:
-        "Ask the owner something only they can answer, and wait. options: short choices to tap (multi: several at once); they may still write their own answer. A late answer reaches you in a new turn.",
+        "Ask the owner something only they can answer, and wait. options: short choices to tap (multi: several at once); they may still write their own answer. A late answer reaches you in a new turn. In your task, a blocking card tracks its wait automatically; do not also set task_update awaits_owner.",
       args: z
         .object({
           question: z.string().min(1).max(1000).optional(),

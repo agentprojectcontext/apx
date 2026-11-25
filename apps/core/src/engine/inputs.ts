@@ -7,6 +7,7 @@ import { type ApprovalTarget, writeFolderApproval } from "../domain/approvals.ts
 import { type InputRecord, publicInput } from "../domain/inputs.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
+import { awaitTaskInput, settleTaskInput } from "../domain/task-input-wait.ts";
 import { badRequest, conflict, errorMessage, notFound, Shutdown, unauthorized } from "../errors.ts";
 import { addReadOnly } from "../tools/folders.ts";
 import type { Display } from "./display.ts";
@@ -87,6 +88,14 @@ export function createInputs(deps: {
   const { store } = deps;
   const waits = deps.waits ?? { turn: INPUT_WAIT_MS, external: EXTERNAL_INPUT_WAIT_MS };
   const waiting = new Map<string, (r: InputRecord) => void>();
+
+  function expireInput(id: string): InputRecord | undefined {
+    return store.tx(() => {
+      const settled = store.inputs.settle(id, "expired");
+      if (settled) settleTaskInput(store, settled);
+      return settled;
+    });
+  }
 
   /** Rewrites the input's card in the message that asked, for answers that arrive with no turn listening. */
   function settleCard(r: InputRecord): void {
@@ -171,11 +180,14 @@ export function createInputs(deps: {
             (g.key === r.approval?.key || (!!r.approval?.group && g.key === r.approval.group)) &&
             (!g.agent_id || g.agent_id === r.agent_id),
         );
-      const settled = store.inputs.settle(r.id, "approved", undefined, grant?.scope);
-      if (!settled) continue;
-      const listener = waiting.get(r.id);
-      if (listener) listener(settled);
-      else wake(settled);
+      store.tx(() => {
+        const settled = store.inputs.settle(r.id, "approved", undefined, grant?.scope);
+        if (!settled) return;
+        settleTaskInput(store, settled);
+        const listener = waiting.get(r.id);
+        if (listener) listener(settled);
+        else wake(settled);
+      });
     }
   });
 
@@ -211,29 +223,33 @@ export function createInputs(deps: {
       signal: AbortSignal;
     }): Promise<InputRecord> {
       const waitMs = o.external ? waits.external : waits.turn;
-      const rec = store.inputs.create({
-        run_id: o.run.id,
-        thread_id: o.run.thread_id,
-        agent_id: o.agent.id,
-        message_id: o.display.message.id,
-        call_id: o.callId,
-        kind: o.kind,
-        approval: o.approval,
-        prompt: o.prompt,
-        tool: o.tool,
-        args: o.args,
-        detail: o.detail,
-        change: o.change,
-        options: o.options,
-        multi: o.multi,
-        // A folder to change is lent for the call only: a read-only folder of the project would not let it write.
-        folders: o.folders && {
-          dirs: o.folders,
-          keep: !o.write && keepable(o.run.thread_id, o.folders),
-          ...(o.write ? { write: true } : {}),
-        },
-        waitMs: o.stays ? OPEN_INPUT_MS : waitMs,
-        app_only: o.appOnly,
+      const rec = store.tx(() => {
+        const input = store.inputs.create({
+          run_id: o.run.id,
+          thread_id: o.run.thread_id,
+          agent_id: o.agent.id,
+          message_id: o.display.message.id,
+          call_id: o.callId,
+          kind: o.kind,
+          approval: o.approval,
+          prompt: o.prompt,
+          tool: o.tool,
+          args: o.args,
+          detail: o.detail,
+          change: o.change,
+          options: o.options,
+          multi: o.multi,
+          // A folder to change is lent for the call only: a read-only folder of the project would not let it write.
+          folders: o.folders && {
+            dirs: o.folders,
+            keep: !o.write && keepable(o.run.thread_id, o.folders),
+            ...(o.write ? { write: true } : {}),
+          },
+          waitMs: o.stays ? OPEN_INPUT_MS : waitMs,
+          app_only: o.appOnly,
+        });
+        if (o.stays) awaitTaskInput(store, input);
+        return input;
       });
       const show = (r: InputRecord) =>
         o.display.upsert((p) => p.type === "input" && p.input_id === r.id, inputPartOf(r));
@@ -243,7 +259,7 @@ export function createInputs(deps: {
       const release = deps.hold(o.run.id);
       let timer: ReturnType<typeof setTimeout> | undefined;
       let stop: (() => void) | undefined;
-      const expire = () => store.inputs.settle(rec.id, "expired") ?? (store.inputs.get(rec.id) as InputRecord);
+      const expire = () => expireInput(rec.id) ?? (store.inputs.get(rec.id) as InputRecord);
       const current = () => store.inputs.get(rec.id) as InputRecord;
       try {
         const settled = await new Promise<InputRecord>((resolve) => {
@@ -281,7 +297,7 @@ export function createInputs(deps: {
       const draft = publicInput(rec).artifact_draft;
       if (draft && a.decision === "approve" && reviewedArtifact !== draft)
         throw unauthorized("public_artifact_review_required");
-      if (rec.state === "pending" && rec.expires_at <= new Date().toISOString()) store.inputs.settle(id, "expired");
+      if (rec.state === "pending" && rec.expires_at <= new Date().toISOString()) expireInput(id);
       const cur = store.inputs.get(id) as InputRecord;
       if (cur.state !== "pending") throw conflict(`input ${id} is already ${cur.state}`);
       // A card with no "only this time" (a permission such as the computer's) is approved for its narrowest scope.
@@ -320,12 +336,13 @@ export function createInputs(deps: {
           for (const dir of rec.folders ?? [])
             store.approvals.grant(writeFolderApproval(dir), "always", rec.thread_id, rec.agent_id);
         if (r && project && rec.folders) addReadOnly(store, deps.home, project, rec.folders);
+        if (!r) throw conflict(`input ${id} was answered already`);
+        settleTaskInput(store, r);
+        const listener = waiting.get(id);
+        if (listener) listener(r);
+        else wake(r);
         return r;
       });
-      if (!settled) throw conflict(`input ${id} was answered already`);
-      const listener = waiting.get(id);
-      if (listener) listener(settled);
-      else wake(settled);
       return settled;
     },
 
@@ -337,7 +354,11 @@ export function createInputs(deps: {
       const rec = store.inputs.get(id);
       const own = rec && rec.agent_id === agentId && (rec.kind === "question" || (!rec.tool && !rec.folders));
       if (!own) throw notFound(`question ${id} of yours`);
-      const settled = store.inputs.settle(id, "withdrawn");
+      const settled = store.tx(() => {
+        const input = store.inputs.settle(id, "withdrawn");
+        if (input) settleTaskInput(store, input);
+        return input;
+      });
       if (!settled) throw conflict(`question ${id} is already ${store.inputs.get(id)?.state ?? "closed"}`);
       const listener = waiting.get(id);
       if (listener) listener(settled);
@@ -359,7 +380,7 @@ export function createInputs(deps: {
      */
     restore(): void {
       const expire = (id: string) => {
-        const settled = store.inputs.settle(id, "expired");
+        const settled = expireInput(id);
         if (!settled) return;
         settleCard(settled);
         idleIfDone(settled.thread_id);
@@ -383,7 +404,7 @@ export function createInputs(deps: {
     close(threadId: string): number {
       let n = 0;
       for (const r of store.inputs.pending(threadId)) {
-        const settled = store.inputs.settle(r.id, "expired");
+        const settled = expireInput(r.id);
         if (!settled) continue;
         settleCard(settled);
         n++;

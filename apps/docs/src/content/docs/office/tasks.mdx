@@ -65,6 +65,28 @@ single group (for example only **In progress**), with every task in it instead o
   It is asked to review at once: asking for changes sends it back to whoever did it; approving makes it yours.
 - **Closed recently**: done or dropped, newest first.
 
+### Answering a task's question
+
+A blocking question or action card opened in the assigned agent's task chat puts the task in **Waiting for you**
+automatically. Answering that card removes only its own wait. If another card or a separate manual blocker remains,
+the task still waits. Optional questions do not block it. An answer does not close the task, bypass a review, or
+approve an action that you declined. A partial answer may need a follow-up question.
+
+APX resumes the listening turn, or queues one answer turn if the earlier turn ended or APX restarted. Repeating the
+same answer cannot start another turn. Clearing a separate manual wait from the task menu resumes idle assigned
+work once; it does not dismiss unanswered cards or start a second executor while work is running.
+
+A reply in the task comments acknowledges an agent's `@owner` request and reaches its agent through the task's
+comment queue. It is not approval of an action card and cannot remove a separate manual blocker or an unanswered
+card. For several independent decisions, use separate cards rather than one unstructured comment thread.
+
+Existing manual waits are kept: APX cannot safely infer which old question, permission or privacy requirement a
+free-text reply resolves. Clear that manual wait explicitly when it is resolved. Cards in unrelated chats are not
+silently linked to a task, and an old assignee's answer cannot release a new assignment's wait.
+
+For agents: use `ask_owner` in the assigned task chat for a blocking question or action; do not also set
+`task_update awaits_owner=true` for that same card. Reserve that flag and its `why` for a separate manual blocker.
+
 ### Group existing tasks as subtasks
 
 Ask your agent to put related tasks under an existing parent task. Both
