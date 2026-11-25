@@ -216,7 +216,8 @@ function labelOf(item: unknown, i: number): string {
   if (typeof item === "string" || typeof item === "number") return String(item);
   if (item && typeof item === "object") {
     const o = item as Record<string, unknown>;
-    for (const k of ["name", "title", "label", "area", "id"]) if (typeof o[k] === "string" && o[k]) return o[k] as string;
+    for (const k of ["name", "title", "label", "area", "id"])
+      if (typeof o[k] === "string" && o[k]) return o[k] as string;
   }
   return `Item ${i + 1}`;
 }
