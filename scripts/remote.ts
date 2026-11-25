@@ -19,7 +19,7 @@ const host = process.env.APX_REMOTE_HOST || configured("apx.remoteHost");
 const dir = process.env.APX_REMOTE_DIR ?? "apx-ci";
 const cpus = process.env.APX_REMOTE_CPUS ?? "24";
 const memory = process.env.APX_REMOTE_MEMORY ?? "40g";
-const shards = process.env.APX_REMOTE_SHARDS ?? "4";
+const shards = process.env.APX_REMOTE_SHARDS ?? "8";
 
 /** A branch name as a Docker- and folder-safe name: `feat/inbox-tabs` → `feat-inbox-tabs`. */
 export function slotOf(branch: string): string {
