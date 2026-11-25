@@ -3,6 +3,7 @@ import fs from "node:fs";
 import { test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { createLog } from "../log.ts";
+import { taskAssets } from "./task-assets.ts";
 
 const png = Buffer.from("89504e470d0a1a0a00000000", "hex");
 const upload = (name = "screen.png") => ({ name, mime: "image/png", data: png.toString("base64") });
@@ -50,6 +51,37 @@ test("selected task snapshots survive source chat deletion, pagination and resta
     await env.client.call("tasks.detach", { task: task.id, media_id: asset.media_id });
     assert.equal(fs.existsSync(path), false);
     assert.deepEqual((await env.client.call("tasks.get", { task: task.id })).attachments, []);
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});
+
+test("automatic sharing preserves different filenames and MIME types even when bytes match", async () => {
+  const env = await startCore({ llm: scriptedLlm(() => say("Done")) });
+  try {
+    const task = await env.client.call("tasks.create", { title: "Distinct deliverables" });
+    const assets = taskAssets(env.core.store, env.home);
+    const uploadCopy = async (name: string, mime: string) => {
+      const { media } = await env.client.call("media.upload", {
+        name,
+        mime,
+        data: Buffer.from('{"caption":"Hello"}').toString("base64"),
+      });
+      const source = env.core.store.media.get(media.id);
+      assert.ok(source);
+      return assets.write((_, share) => share(task, [source], "superagent"))[0];
+    };
+    const first = await uploadCopy("copy.txt", "text/plain");
+    const renamed = await uploadCopy("captions.txt", "text/plain");
+    const retyped = await uploadCopy("copy.txt", "application/json");
+    assert.ok(first && renamed && retyped);
+    assert.notEqual(renamed.id, first.id);
+    assert.equal(renamed.prompt, "captions.txt");
+    assert.notEqual(retyped.id, first.id);
+    assert.equal(retyped.mime, "application/json");
+    assert.equal((await uploadCopy("copy.txt", "application/json"))?.id, retyped.id);
+    assert.equal((await env.client.call("tasks.get", { task: task.id })).attachments.length, 3);
   } finally {
     await env.core.close();
     await env.cleanup();

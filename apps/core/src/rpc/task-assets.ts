@@ -68,11 +68,22 @@ export function taskAssets(store: Store, home: string) {
    */
   const shareIn = (task: Task, all: MediaRecord[], by: string, paths: string[]) => {
     const sources = [...new Map(all.map((s) => [s.id, s])).values()];
-    const onTask = store.taskAttachments.list(task.id).flatMap((a) => store.media.get(a.media_id) ?? []);
+    const kept = store.taskAttachments.list(task.id);
+    const onTask = kept.flatMap((a) => store.media.get(a.media_id) ?? []);
     const hash = (m: MediaRecord) => createHash("sha256").update(bytesOf(m)).digest("hex");
     const reused = new Map<string, MediaRecord>();
     for (const s of sources) {
-      const peers = onTask.filter((m) => m.bytes === s.bytes && m.id !== s.id);
+      const peers = onTask.filter((m) => {
+        const row = kept.find((a) => a.media_id === m.id);
+        const original = row && store.media.get(row.source_media_id);
+        return (
+          m.bytes === s.bytes &&
+          m.kind === s.kind &&
+          m.mime === s.mime &&
+          (original?.prompt ?? m.prompt) === s.prompt &&
+          m.id !== s.id
+        );
+      });
       const h = peers.length ? hash(s) : "";
       const same = peers.find((m) => hash(m) === h);
       if (same) reused.set(s.id, same);

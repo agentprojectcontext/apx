@@ -77,7 +77,14 @@ export function showTurnFiles(store: Store, task: Task, run: RunRecord, comment:
   try {
     if (share) files = share(task, sources, run.agent_id);
   } catch {
-    // Over the task's attachment limit: the files still show, from the agent's chat for the task.
+    store.messages.update({
+      ...comment,
+      parts: [
+        ...comment.parts,
+        { type: "text", text: "The files could not be kept on the task; their delivery is incomplete." },
+      ],
+    });
+    return;
   }
   withFiles(
     store,

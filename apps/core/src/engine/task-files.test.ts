@@ -114,6 +114,27 @@ test("a file shown in the agent's chat goes with its question to the owner on th
   assert.equal((await env.client.call("tasks.get", { task: task.id })).attachments.length, 2);
 });
 
+test("a full task reports incomplete delivery instead of publishing a private source reference", async () => {
+  fs.writeFileSync(path.join(work, "cut.mp4"), Buffer.from("blocked new cut"));
+  const { task, chat } = await taskForVera("Full evidence task");
+  const ids: string[] = [];
+  for (let i = 0; i < 50; i++) {
+    const { media } = await env.client.call("media.upload", {
+      name: `evidence-${i}.txt`,
+      mime: "text/plain",
+      data: Buffer.from(`Evidence ${i}`).toString("base64"),
+    });
+    ids.push(media.id);
+  }
+  for (let i = 0; i < ids.length; i += 20)
+    await env.client.call("tasks.attach", { task: task.id, media_ids: ids.slice(i, i + 20) });
+  await turn(chat.id, "Show the cut for review.");
+  const comment = (await agentComments(task.thread_id)).at(-1);
+  assert.match(JSON.stringify(comment?.parts), /delivery is incomplete/);
+  assert.deepEqual(files(comment), [], "no non-durable file is presented as a task attachment");
+  assert.equal((await env.client.call("tasks.get", { task: task.id })).attachments.length, 50);
+});
+
 test("waiting on the owner shows the files it is about with what they must decide", async () => {
   fs.writeFileSync(path.join(work, "poster.png"), Buffer.from("89504e470d0a1a0a0000", "hex"));
   const { task, chat } = await taskForVera("Poster");
