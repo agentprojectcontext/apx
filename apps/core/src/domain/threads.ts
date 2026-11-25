@@ -45,6 +45,8 @@ export type ThreadContext = {
   model_choice?: ModelChoice;
   /** A worker's session: the caller's own agent, run under instructions the caller wrote for one task. */
   worker?: Worker;
+  /** A session one step of a workflow opened: its end goes to the workflow, not to the asking turn (DECISIONS.md#d-272). */
+  workflow?: { id: string; key: string };
   /** A mailbox chat with only marked mail so far: its latest mark (Thread.mail_mark). */
   mail_mark?: MailMark;
   /** A mailbox chat whose sender wrote a mail a person wrote: it is a person's chat from then on. */

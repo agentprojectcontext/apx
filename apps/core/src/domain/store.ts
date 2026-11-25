@@ -49,6 +49,7 @@ import { taskAttachmentsRepo } from "./task-attachments.ts";
 import { taskLanesRepo } from "./task-lanes.ts";
 import { tasksRepo } from "./tasks.ts";
 import { threadsRepo } from "./threads.ts";
+import { workflowsRepo } from "./workflows.ts";
 
 export function createStore(db: Db, bus: Bus) {
   const q = sql(db);
@@ -124,6 +125,7 @@ export function createStore(db: Db, bus: Bus) {
     extensions: extensionsRepo(q),
     extensionEvents: extensionEventsRepo(q),
     extensionCatalogs: extensionCatalogsRepo(q),
+    workflows: workflowsRepo(q),
     clients: clientsRepo(q),
     devices: devicesRepo(q),
     nudges: nudgesRepo(q),

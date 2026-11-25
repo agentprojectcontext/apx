@@ -60,7 +60,9 @@ export function createAttention(deps: { store: Store; bus: Bus; now?: () => Date
           ? origin.name
           : origin?.kind === "delegation_results"
             ? origin.results.map((r) => r.name).join(", ")
-            : undefined;
+            : origin?.kind === "workflow_result"
+              ? origin.name
+              : undefined;
       store.notifications.add({
         kind: "run",
         // A turn that ended without a word or an action is not a finished one: the owner should look.

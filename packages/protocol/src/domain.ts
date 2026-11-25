@@ -62,7 +62,7 @@ export {
   RouterRule,
 } from "./domain-models.ts";
 export { MemorySettings, NoticePrefs, Nudge, OwnerIdentity, OwnerPatch } from "./domain-owner.ts";
-export { ConnectOffer, DocumentSource, Part } from "./domain-parts.ts";
+export { ConnectOffer, DocumentSource, Part, WorkflowStepState, WorkflowView } from "./domain-parts.ts";
 export {
   AccountContactPerms,
   Address,

@@ -6260,3 +6260,48 @@ the relay stays for what is the super-agent's own: settings, agents, Flows).
   `.claude/settings*.json` asks like `AGENTS.md`, since it would let a session widen itself.
 
 Not changed here: memory notes are still written only for the agent's own project.
+
+<a id="d-272"></a>
+## D-272 — 2026-11-25 — Workflows: a plan of delegations run by code, with a live card, not a model deciding each hand-off
+The owner watched a coding agent run a workflow (a script that fanned five agents out, piped each result through a
+check, grouped them in phases, showed each agent's state live with a stop button, and resumed from cached results after
+a failure) and asked for it in APX: "just a group of agents, or something better?". What APX had: `delegate` (the
+model decides each hand-off, two at once from a chat, answers of one turn delivered together, D-194) and Flows (the
+owner's published automations, started by events, D-172/D-181).
+
+| | `delegate` | Flows | Workflows |
+|---|---|---|---|
+| Who decides the next step | the model, each time | the owner's drawing | the plan the agent wrote, run by code |
+| Lifetime | a turn and its results | for good, published by the owner | one piece of work, minutes to hours |
+| Fan-out | two at once, the rest queued | none | up to four at once, over up to 24 items |
+| Stages | the model reads each answer | a DAG of steps | each item through up to four stages, no barrier |
+| Structured output | no | an AI step's text | JSON checked against a schema, one retry |
+| Resume after a stop | ask again | a new event | done steps reused, the rest run again |
+
+**Decision: an extension of delegation, not of Flows** (rule 15: extend before adding). Every agent call of a workflow
+is a delegation (`delegations.open` in `engine/delegation.ts`, the same function `delegate` uses): the same sub-thread,
+the callee's mode, the caller's write ceiling (D-104, D-126), rules and grants, the breaker and each agent's own budget
+(D-160), cycle and depth checks (an agent of a workflow asks nobody else, D-074), and D-271's rule for who works for the
+owner. Flows stay the owner's published automations: a one-off plan needs no draft, publish card or trigger.
+
+- **The plan** (`workflow` tool, found with `tool_search`, D-233): `items` (0–24) go through `stages` (1–4) in order,
+  each item on its own (item 3's check starts as soon as its search ends); a stage names an agent or a worker, a
+  `phase` shown on the card, a `task` with `{{item}}`, `{{item.field}}` and `{{previous}}`, an optional JSON `output`
+  schema, and `only_if` (a true field of the previous output, else the item stops there: the verify pattern). An
+  optional `finish` stage runs once with every item's last output (`{{results}}`): the only barrier. `parallel` (1–4,
+  default 3) caps how many agents of the workflow work at once; it is the workflow's own cap beside the chat's two for
+  `delegate` (D-202), because the whole plan is visible and stoppable on one card.
+- **Durable** (`workflows` table): the plan, each step's state, session, output and error; a step's run that a restart
+  resumes keeps reporting to it through its sub-thread. A workflow has a deadline (4 hours) and ends `done`, `failed`
+  or `stopped`. Stopping the chat stops its workflows; agents being paused stops a workflow before its next step.
+- **Resume** (`workflows.resume`, the card's Resume, or the tool's `resume`): done steps keep their output (the cache);
+  failed, canceled and unstarted ones run again. Changing the plan means a new workflow.
+- **Live card** (`workflow` part in the asking answer): phases with each agent's state, done/total, Stop while it runs,
+  Resume once stopped or failed, the result when done; a row opens that agent's session.
+- **The result** reaches the asking agent inside its turn when it ends within `wait_s`, else in a new turn
+  (`workflow_result`, the team's words, D-071), as a delegation's does.
+
+Rejected: running an agent-written script (JavaScript) in the core, as the coding agent does (a sandbox and a review
+surface for little more than items × stages give); building it on Flows (publishing and triggers are the wrong
+lifetime, and Flow steps may not delegate); raising the chat's delegation cap for everyone instead (D-202's reason,
+three agents on one task, still holds for model-decided hand-offs).

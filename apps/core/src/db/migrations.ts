@@ -1319,4 +1319,36 @@ export const MIGRATIONS: readonly string[] = [
   CREATE INDEX extension_events_pending ON extension_events(state, created_at);
   CREATE INDEX extension_events_rate ON extension_events(extension, created_at);
   `,
+  `
+  -- Workflows an agent started (DECISIONS.md#d-272): the plan, where it stands, and each agent call of it. A step's
+  -- output is what a later stage and a resume read; its session is the sub-thread its delegation opened.
+  CREATE TABLE workflows (
+    id TEXT PRIMARY KEY,
+    thread_id TEXT NOT NULL,
+    agent_id TEXT NOT NULL,
+    run_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    plan TEXT NOT NULL,
+    state TEXT NOT NULL CHECK(state IN ('running', 'done', 'failed', 'stopped')),
+    reason TEXT,
+    result TEXT,
+    deadline_at TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX workflows_thread ON workflows(thread_id, created_at);
+  CREATE INDEX workflows_state ON workflows(state);
+  CREATE TABLE workflow_steps (
+    workflow_id TEXT NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+    key TEXT NOT NULL,
+    state TEXT NOT NULL CHECK(state IN ('pending', 'working', 'done', 'skipped', 'failed', 'canceled')),
+    thread_id TEXT,
+    output TEXT,
+    error TEXT,
+    tries INTEGER NOT NULL DEFAULT 0,
+    started_at TEXT,
+    ended_at TEXT,
+    PRIMARY KEY (workflow_id, key)
+  );
+  `,
 ];

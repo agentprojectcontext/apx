@@ -194,7 +194,7 @@ export function createCalls(deps: {
     const self = new Set([run.agent_id, agent?.name.toLowerCase()].filter(Boolean));
     return store.runs.steps(run.id).some((s) => {
       if (s.state !== "ok") return false;
-      if (s.tool === "delegate") return true;
+      if (s.tool === "delegate" || s.tool === "workflow") return true;
       if (s.tool !== "task_create") return false;
       const to = typeof s.args.assignee === "string" ? s.args.assignee.trim().toLowerCase() : "";
       return Boolean(to) && !self.has(to) && !s.args.propose && !s.args.owed_by;

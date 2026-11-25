@@ -86,15 +86,15 @@ export function createFanout(deps: {
 
   /** The caller's other delegations still to answer: queued, at work or waiting on the owner. */
   const atWork = (parent: RunRecord, except?: string): RunRecord[] =>
-    store.runs
-      .children(parent.id)
-      .filter(
-        (r) =>
-          r.id !== except &&
-          r.trigger === "a2a" &&
-          (!TERMINAL.has(r.state) || deps.running(r.id)) &&
-          store.threads.get(r.thread_id)?.parent_id === parent.thread_id,
-      );
+    store.runs.children(parent.id).filter(
+      (r) =>
+        r.id !== except &&
+        r.trigger === "a2a" &&
+        // A workflow's steps answer the workflow, never this group (DECISIONS.md#d-272).
+        !store.threads.context(r.thread_id).workflow &&
+        (!TERMINAL.has(r.state) || deps.running(r.id)) &&
+        store.threads.get(r.thread_id)?.parent_id === parent.thread_id,
+    );
 
   /** Held runs in the order the caller asked for them: its cards' order (a restart resumes them in any order). */
   function heldRuns(parent: RunRecord, held: FanoutGroup["held"]): Held[] {

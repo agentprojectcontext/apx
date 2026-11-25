@@ -39,6 +39,7 @@ const OWN_GROUPS: Record<string, string[]> = {
   "Owner and attention": ["notify_owner", "attention_hours", "suggest_connection", "commitment_settle"],
   "Tasks and memory": ["task_tidy", "forget"],
   "Coding sessions": ["list_sessions", "start_session", "stop_session"],
+  "Many agents at once, by a plan": ["workflow"],
   "Documents and widgets": ["open_document", "show_widget", "edit_widget", "read_widget"],
   Media: ["make_image", "video_transcript"],
   "Screen of this computer": ["screen_open", "screen_do", "screen_snapshot"],

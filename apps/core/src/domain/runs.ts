@@ -94,7 +94,9 @@ export type Origin =
     }
   | ({ kind: "delegation_result" } & DelegationResult)
   /** Answers of teammates asked in one turn, delivered together once all are in or the hold ran out (DECISIONS.md#d-194). */
-  | { kind: "delegation_results"; results: Array<DelegationResult & { answer: string }> };
+  | { kind: "delegation_results"; results: Array<DelegationResult & { answer: string }> }
+  /** A workflow the agent started ended: its result, the team's words (DECISIONS.md#d-272). */
+  | { kind: "workflow_result"; workflow_id: string; name: string; state: "done" | "failed" | "stopped" | "running" };
 
 /** A delegated run that ended, as its caller hears of it. */
 export type DelegationResult = {
@@ -137,6 +139,7 @@ export const runsOnComputer = (o: Origin): boolean => {
     case "task_feedback":
     case "delegation_result":
     case "delegation_results":
+    case "workflow_result":
       return true;
     case "channel":
       return o.role === "owner";
