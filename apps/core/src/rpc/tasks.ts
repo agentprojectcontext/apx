@@ -11,6 +11,7 @@ import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
 import { ownerWordsOf } from "../domain/task-asked.ts";
 import { noticeTaskProposed, noticeTaskWaiting } from "../domain/task-attention.ts";
+import { manualTaskWait } from "../domain/task-input-wait.ts";
 import {
   boardScope,
   checkAssignee,
@@ -347,6 +348,7 @@ export function taskHandlers(
     ) => {
       const { changed, forced, requestReview } = assets.write((attach) => {
         const cur = visible(task, ctx);
+        if (c.awaits_owner !== undefined) c.awaits_owner = manualTaskWait(store, cur, c.awaits_owner);
         const sources = assets.prepare(attachments, ctx);
         checkColumn(store, c.status);
         // An agent keeps its tasks in its own project; the owner can move one anywhere (null = global).
@@ -406,20 +408,21 @@ export function taskHandlers(
         const acceptingReview = accepting && (c.status ?? cur.status) === "review";
         // An agent naming the task's own agent again while none of its chats for the task works has it go on; the
         // owner's edits send every field, so they never restart it (DECISIONS.md#d-210).
+        const ownerReleased =
+          ctx.actor === "human" &&
+          !ctx.agent &&
+          !ctx.client &&
+          !ctx.channel &&
+          cur.awaits_owner &&
+          c.awaits_owner === false;
         const resuming =
-          Boolean(ctx.agent) &&
-          c.assignee !== undefined &&
-          c.assignee === cur.assignee &&
+          (ownerReleased || (Boolean(ctx.agent) && c.assignee !== undefined && c.assignee === cur.assignee)) &&
+          Boolean(cur.assignee) &&
           cur.state === "open" &&
           !cur.proposed &&
           (c.status ?? cur.status) !== "review" &&
           !(c.awaits_owner ?? cur.awaits_owner) &&
-          !store.threads.busy(
-            store.threads
-              .byTask(cur.id)
-              .filter((t) => t.agent_ids[0] === cur.assignee)
-              .map((t) => t.id),
-          );
+          !store.threads.busy(store.threads.byTask(cur.id).flatMap((t) => store.threads.family(t.id)));
         const starting =
           !forced &&
           !unassign &&
@@ -563,7 +566,12 @@ export function taskHandlers(
       const sources = assets.prepare(attachments, ctx);
       return assets.write((_, share) => {
         store.tasks.heard(t.id, ownerWords(ctx, t.thread_id));
-        const message = withFiles(store, addComment(store, t, author, text, by(ctx)), share(t, sources, by(ctx)));
+        const ownerReply = ctx.actor === "human" && !ctx.agent && !ctx.client && !ctx.channel;
+        const message = withFiles(
+          store,
+          addComment(store, t, author, text, by(ctx), ownerReply),
+          share(t, sources, by(ctx)),
+        );
         // An agent's @mentions are consults whose answers come back to it (DECISIONS.md#d-132).
         const current = store.tasks.get(t.id) ?? t;
         const runs = ctx.agent

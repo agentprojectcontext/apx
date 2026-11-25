@@ -109,6 +109,9 @@ export type ThreadContext = {
   stall?: { revived_at: string; told?: string };
   /** Tasks agents gave from this chat while it was paused: each starts once the owner lets agents go on. */
   held?: HeldTask[];
+  /** Native task waits stay separate from an explicit manual blocker. */
+  task_input_wait?: { inputs: string[]; manual: boolean; comment?: boolean; assignment?: string };
+  task_inputs?: Record<string, { task: string; assignment: string }>;
   /** On a task's conversation: the owner's comments no agent has had yet (message ids), and those handed to a turn. */
   owner_unread?: string[];
   owner_handed?: Array<{ run: string; messages: string[] }>;

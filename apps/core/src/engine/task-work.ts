@@ -747,11 +747,18 @@ function textOf(store: Store, run: RunRecord): string {
 }
 
 /** A comment on the task, by the owner or an agent: the task moved, and an @owner asks for the owner's attention. */
-export function addComment(store: Store, task: Task, author: Author, text: string, by: string) {
+export function addComment(
+  store: Store,
+  task: Task,
+  author: Author,
+  text: string,
+  by: string,
+  ownerReply = by === "owner",
+) {
   const message = store.messages.add({ thread_id: task.thread_id, author, parts: [{ type: "text", text }] });
   if (author.kind === "agent") store.threads.join(task.thread_id, author.id);
   store.threads.patch(task.thread_id, { preview: previewOf(text) });
-  taskCommentAttention(store, task, text, by);
+  taskCommentAttention(store, task, text, by, ownerReply);
   store.tasks.touched(task.id, by);
   return message;
 }

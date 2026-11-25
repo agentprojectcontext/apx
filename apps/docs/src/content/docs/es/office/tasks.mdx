@@ -66,6 +66,34 @@ estado de al lado muestra un solo grupo (por ejemplo solo **En curso**), con tod
   nombra). Se le pide la revisión enseguida: si pide cambios, vuelve al que la hizo; si aprueba, pasa a la tuya.
 - **Cerradas hace poco**: hechas o descartadas, las más nuevas primero.
 
+### Responder una consulta de una tarea
+
+Una tarjeta de pregunta o acción que necesita tu respuesta, abierta en el chat de tarea del agente asignado, pone
+la tarea en **Te espera** automáticamente. Responder esa tarjeta quita únicamente su propia espera. Si queda otra
+tarjeta o un bloqueo manual independiente, la tarea sigue esperando. Las preguntas opcionales no la bloquean.
+Responder no cierra la tarea, no evita una revisión ni autoriza una acción que rechazaste. Una respuesta parcial
+puede necesitar otra pregunta.
+
+APX continúa el turno que escucha la respuesta, o encola un turno de respuesta si el anterior terminó o APX se
+reinició. Repetir la misma respuesta no inicia otro turno. Quitar un bloqueo manual desde el menú de la tarea
+reanuda una vez el trabajo asignado que esté inactivo; no descarta tarjetas sin responder ni inicia otro ejecutor
+si ya hay trabajo en curso.
+
+Una respuesta en los comentarios de la tarea acusa recibo de una consulta con `@owner` y llega a su agente por la
+cola de comentarios. No aprueba una tarjeta de acción ni quita un bloqueo manual independiente o una tarjeta sin
+responder. Para varias decisiones independientes, usá tarjetas separadas en vez de un hilo de comentarios sin
+correlación explícita.
+
+Las esperas manuales existentes se conservan: APX no puede inferir con seguridad qué pregunta, permiso o requisito
+de privacidad anterior resuelve una respuesta de texto libre. Quitá esa espera manual explícitamente cuando esté
+resuelta. Las tarjetas de otros chats no se vinculan silenciosamente con una tarea. Las tarjetas de una asignación
+anterior, o de antes de cerrar y reabrir la tarea, no pueden aprobar acciones ni destrabar la espera actual:
+descartalas y hacé una pregunta nueva en el chat actual de la tarea.
+
+Para agentes: usá `ask_owner` en el chat de la tarea asignada para una pregunta o acción bloqueante; no marques
+también `task_update awaits_owner=true` por esa misma tarjeta. Reservá ese indicador y su `why` para un bloqueo
+manual independiente.
+
 ### Agrupar tareas existentes como subtareas
 
 Pedile a tu agente que ponga tareas relacionadas debajo de una

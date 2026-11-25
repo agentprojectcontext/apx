@@ -436,7 +436,12 @@ export function taskTools(store: Store, home: string): Tool[] {
         description: descriptionArg,
         attachments: attachmentsArg,
         awaits_owner: z.boolean().optional(),
-        why: z.string().trim().max(1000).optional().describe("awaits_owner: what the owner must do or decide"),
+        why: z
+          .string()
+          .trim()
+          .max(1000)
+          .optional()
+          .describe("awaits_owner: a separate manual blocker, not an ask_owner card"),
         plan: z.string().max(4000).optional().describe("its checklist (- [x], - [~], - [ ]); in its own chat use plan"),
         reviewer: z.string().max(80).optional().describe('"owner" or agent'),
         ...shapeArgs,
