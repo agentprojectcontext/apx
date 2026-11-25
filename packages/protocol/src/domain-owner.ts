@@ -65,6 +65,8 @@ export const MemorySettings = z.object(
      * chain of model refs, the first tried first; "off"; or none (the agent's own API models).
      */
     aux_model: () => z.string().max(1000).optional(),
+    /** The owner's chosen helper chain, kept while the helper is Automatic or Off so Chosen brings it back. */
+    aux_chain: () => z.string().max(1000).optional(),
   }),
 );
 export type MemorySettings = z.infer<typeof MemorySettings>;

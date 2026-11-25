@@ -149,6 +149,7 @@ export const WORK: Readonly<Record<string, Setting>> = {
     says: () => "Change how memory works",
     refuse: (p, { store }) =>
       ownersField(p, memorySettings(store), "aux_model", MODEL) ??
+      ownersField(p, memorySettings(store), "aux_chain", MODEL) ??
       (p.mode === "semantic" && !store.settings.read("services").some((s) => s.kind === "embedding" && s.enabled)
         ? "no embedding engine is on to search by meaning: set one up first (embeddings.local)"
         : undefined),
