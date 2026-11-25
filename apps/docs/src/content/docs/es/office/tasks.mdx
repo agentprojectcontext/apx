@@ -86,8 +86,9 @@ correlación explícita.
 
 Las esperas manuales existentes se conservan: APX no puede inferir con seguridad qué pregunta, permiso o requisito
 de privacidad anterior resuelve una respuesta de texto libre. Quitá esa espera manual explícitamente cuando esté
-resuelta. Las tarjetas de otros chats no se vinculan silenciosamente con una tarea, y la respuesta al responsable
-anterior no destraba la espera de una asignación nueva.
+resuelta. Las tarjetas de otros chats no se vinculan silenciosamente con una tarea. Las tarjetas de una asignación
+anterior, o de antes de cerrar y reabrir la tarea, no pueden aprobar acciones ni destrabar la espera actual:
+descartalas y hacé una pregunta nueva en el chat actual de la tarea.
 
 Para agentes: usá `ask_owner` en el chat de la tarea asignada para una pregunta o acción bloqueante; no marques
 también `task_update awaits_owner=true` por esa misma tarjeta. Reservá ese indicador y su `why` para un bloqueo

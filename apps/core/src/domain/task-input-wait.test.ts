@@ -2,7 +2,13 @@ import assert from "node:assert/strict";
 import { type TestContext, test } from "node:test";
 import { createInputs } from "../engine/inputs.ts";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
-import { awaitTaskInput, commentTaskWait, manualTaskWait, settleTaskInput } from "./task-input-wait.ts";
+import {
+  awaitTaskInput,
+  commentTaskWait,
+  manualTaskWait,
+  settleTaskInput,
+  taskInputIsCurrent,
+} from "./task-input-wait.ts";
 
 async function fixture(t: TestContext) {
   const env = await startCore({ llm: scriptedLlm(() => say("Ready.")) });
@@ -158,6 +164,37 @@ test("a comment reply removes only comment attention, not a native card or manua
   } finally {
     await f.close();
   }
+});
+
+test("reassignment to the same agent invalidates old cards and cannot grant or admit stale work", async (t) => {
+  const f = await fixture(t);
+  const first = f.input();
+  awaitTaskInput(f.store, first);
+  f.store.tasks.change(f.task.id, { assignee: "superagent" }, "owner");
+  assert.equal(taskInputIsCurrent(f.store, first), false);
+  assert.throws(() => f.core.engine.respond(first.id, { text: "Blue" }), /no longer current/);
+  assert.equal(f.store.inputs.get(first.id)?.state, "pending");
+  assert.equal(f.current().awaits_owner, true);
+  assert.equal(f.store.runs.list(f.thread.id).length, 1);
+  assert.equal(manualTaskWait(f.store, f.current(), false), false, "explicit release can discard a stale wait");
+});
+
+test("closing and reopening a task starts a fresh wait cycle without reviving an old card", async (t) => {
+  const f = await fixture(t);
+  const first = f.input();
+  awaitTaskInput(f.store, first);
+  f.store.tasks.change(f.task.id, { state: "done", awaits_owner: false }, "owner");
+  f.store.tasks.change(f.task.id, { state: "open", awaits_owner: false }, "owner");
+  const second = f.input();
+  awaitTaskInput(f.store, second);
+  assert.equal(taskInputIsCurrent(f.store, first), false);
+  assert.equal(taskInputIsCurrent(f.store, second), true);
+  assert.throws(() => f.core.engine.respond(first.id, { text: "Red" }), /no longer current/);
+  assert.equal(f.current().awaits_owner, true);
+  f.answer(second.id);
+  assert.equal(f.current().awaits_owner, false);
+  assert.equal(f.current().state, "open");
+  assert.equal(f.store.threads.context(f.thread.id).task_inputs?.[second.id], undefined);
 });
 
 test("failed wake admission rolls back both the answer and the task transition, so a retry cannot lose work", async (t) => {

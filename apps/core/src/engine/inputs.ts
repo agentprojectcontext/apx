@@ -7,7 +7,7 @@ import { type ApprovalTarget, writeFolderApproval } from "../domain/approvals.ts
 import { type InputRecord, publicInput } from "../domain/inputs.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
-import { awaitTaskInput, settleTaskInput } from "../domain/task-input-wait.ts";
+import { awaitTaskInput, settleTaskInput, taskInputIsCurrent } from "../domain/task-input-wait.ts";
 import { badRequest, conflict, errorMessage, notFound, Shutdown, unauthorized } from "../errors.ts";
 import { addReadOnly } from "../tools/folders.ts";
 import type { Display } from "./display.ts";
@@ -168,6 +168,7 @@ export function createInputs(deps: {
     for (const r of store.inputs.pending()) {
       if (
         r.kind !== "confirm" ||
+        !taskInputIsCurrent(store, r) ||
         !r.approval ||
         publicInput(r).artifact_draft ||
         !store.approvals.allows(r.approval, r.thread_id, r.agent_id, r.args)
@@ -294,6 +295,8 @@ export function createInputs(deps: {
       const rec = store.inputs.get(id);
       if (!rec) throw notFound(`input ${id}`);
       if (rec.app_only && onChannel) throw unauthorized(APP_ONLY);
+      if (!taskInputIsCurrent(store, rec))
+        throw conflict("this task question is no longer current; withdraw it and ask again in the current assignment");
       const draft = publicInput(rec).artifact_draft;
       if (draft && a.decision === "approve" && reviewedArtifact !== draft)
         throw unauthorized("public_artifact_review_required");
