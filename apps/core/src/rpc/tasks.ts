@@ -487,7 +487,8 @@ export function taskHandlers(
               }
             : undefined,
         ) as Task;
-        if (updated.assignee && starting)
+        const released = updated.awaits_owner ? 0 : engine.releaseTaskInputs(updated.id);
+        if (updated.assignee && starting && !released)
           startTaskWork(store, engine.admit, updated, updated.assignee, askerOf(ctx), { transfer: true });
         return {
           changed: updated,
@@ -568,6 +569,7 @@ export function taskHandlers(
         const message = addComment(store, t, author, text, by(ctx), ownerReply);
         // An agent's @mentions are consults whose answers come back to it (DECISIONS.md#d-132).
         const current = store.tasks.get(t.id) ?? t;
+        if (!current.awaits_owner) engine.releaseTaskInputs(current.id);
         const runs = ctx.agent
           ? consultFromAgent(store, engine.admit, current, ctx.agent, text)
           : askMentioned(store, engine.admit, current, text);

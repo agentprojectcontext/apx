@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ApxClient } from "@apx/protocol/client";
+import { z } from "zod";
 import { waitFor } from "../testkit/platform.ts";
+import { defineTool } from "../tools/types.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
 const llm = () =>
@@ -111,15 +113,92 @@ test("a separate manual blocker survives an answer and unrelated messages", asyn
     await env.client.call("tasks.update", { task: task.id, awaits_owner: true });
     await env.client.call("tasks.comment", { task: task.id, text: "Privacy review is still unresolved." });
     await env.client.call("runs.respond", { input: input.id, text: "Blue, small" });
-    await env.settle(input.thread_id);
+    assert.equal(
+      env.core.store.runs.get(input.run_id)?.state,
+      "input-required",
+      "the answer cannot resume work through a privacy hold",
+    );
+    assert.equal(env.core.store.runs.steps(input.run_id).at(-1)?.state, "running");
     assert.equal(env.core.store.tasks.get(task.id)?.awaits_owner, true);
     const runsBefore = executions(env, input.thread_id).length;
     await env.client.call("tasks.update", { task: task.id, awaits_owner: false });
     await env.settle(input.thread_id);
     assert.equal(env.core.store.tasks.get(task.id)?.awaits_owner, false);
-    assert.equal(executions(env, input.thread_id).length, runsBefore + 1);
+    assert.equal(
+      executions(env, input.thread_id).length,
+      runsBefore,
+      "release resumes the parked listener, not a second executor",
+    );
     await env.client.call("tasks.update", { task: task.id, awaits_owner: false });
-    assert.equal(executions(env, input.thread_id).length, runsBefore + 1, "repeated release does not start twice");
+    assert.equal(executions(env, input.thread_id).length, runsBefore, "repeated release does not start twice");
+  } finally {
+    await cleanup(env);
+  }
+});
+
+for (const decision of ["approve", "deny"] as const) {
+  test(`an ${decision === "approve" ? "approved" : "owner-denied"} tool card cannot execute through a separate privacy hold`, async () => {
+    let performed = 0;
+    const probe = defineTool({
+      name: "probe",
+      description: "A local fixture that counts executions",
+      args: z.object({}),
+      effect: "external",
+      confirm: "always",
+      deadlineMs: 5000,
+      title: () => "Count one local execution",
+      run: async () => {
+        performed++;
+        return "Counted.";
+      },
+    });
+    const model = scriptedLlm((req, { afterTool }) =>
+      afterTool || req.messages.some((m) => m.role === "tool")
+        ? say("Decision received.")
+        : callTool("probe-call", "probe", {}),
+    );
+    const env = await startCore({ llm: model, extraTools: [probe] });
+    try {
+      const task = await env.client.call("tasks.create", {
+        title: "Probe wait",
+        description: "Wait for the independent privacy hold before executing the local probe.",
+        assignee: "superagent",
+        status: "doing",
+      });
+      const input = await pending(env, task.id);
+      await env.client.call("tasks.update", { task: task.id, awaits_owner: true });
+      await env.client.call("runs.respond", { input: input.id, decision });
+      assert.equal(performed, 0);
+      assert.equal(env.core.store.runs.get(input.run_id)?.state, "input-required");
+      await env.client.call("tasks.update", { task: task.id, awaits_owner: false });
+      await env.settle(input.thread_id);
+      assert.equal(performed, decision === "approve" ? 1 : 0);
+      assert.equal(executions(env, input.thread_id).length, 1);
+    } finally {
+      await cleanup(env);
+    }
+  });
+}
+
+test("explicitly releasing an idle manual task wait starts its assigned work only once", async () => {
+  const env = await startCore({ llm: llm() });
+  try {
+    const task = await env.client.call("tasks.create", {
+      title: "Idle manual hold",
+      description: "Resume the draft after its independent blocker is cleared.",
+      assignee: "superagent",
+      status: "doing",
+    });
+    const thread = env.core.store.threads.byTask(task.id)[0];
+    assert.ok(thread);
+    await env.settle(thread.id);
+    await env.client.call("tasks.update", { task: task.id, awaits_owner: true });
+    const before = executions(env, thread.id).length;
+    await env.client.call("tasks.update", { task: task.id, awaits_owner: false });
+    await env.settle(thread.id);
+    assert.equal(executions(env, thread.id).length, before + 1);
+    await env.client.call("tasks.update", { task: task.id, awaits_owner: false });
+    assert.equal(executions(env, thread.id).length, before + 1);
   } finally {
     await cleanup(env);
   }
@@ -169,6 +248,41 @@ test("outside apps and agent callers cannot answer or release the owner's native
     await env.settle(input.thread_id);
   } finally {
     await cleanup(env);
+  }
+});
+
+test("an answered card parked behind a manual hold survives restart without executing before explicit release", async () => {
+  const first = await startCore({ llm: llm() });
+  let second: Env | undefined;
+  try {
+    const task = await first.client.call("tasks.create", {
+      title: "Question test",
+      description: "Collect a draft choice while privacy review remains independent.",
+      assignee: "superagent",
+      status: "doing",
+    });
+    const input = await pending(first, task.id);
+    await first.client.call("tasks.update", { task: task.id, awaits_owner: true });
+    await first.client.call("runs.respond", { input: input.id, text: "Blue, small" });
+    assert.equal(first.core.store.runs.get(input.run_id)?.state, "input-required");
+    await first.core.close();
+    second = await startCore({ llm: llm(), home: first.home });
+    assert.equal(second.core.store.tasks.get(task.id)?.awaits_owner, true);
+    assert.equal(
+      executions(second, input.thread_id).length,
+      1,
+      "boot cannot execute the recorded answer through a hold",
+    );
+    await second.client.call("tasks.update", { task: task.id, awaits_owner: false });
+    await second.settle(input.thread_id);
+    assert.equal(executions(second, input.thread_id).length, 2);
+    assert.equal(executions(second, input.thread_id).filter((r) => r.input?.origin.kind === "input_answer").length, 1);
+    await second.client.call("tasks.update", { task: task.id, awaits_owner: false });
+    assert.equal(executions(second, input.thread_id).length, 2);
+  } finally {
+    if (second) await second.core.close();
+    else await first.core.close();
+    await first.cleanup();
   }
 });
 

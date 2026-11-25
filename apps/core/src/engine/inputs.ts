@@ -7,11 +7,14 @@ import { type ApprovalTarget, writeFolderApproval } from "../domain/approvals.ts
 import { type InputRecord, publicInput } from "../domain/inputs.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
-import { awaitTaskInput, settleTaskInput, taskInputIsCurrent } from "../domain/task-input-wait.ts";
+import { awaitTaskInput, finishTaskInput, settleTaskInput, taskInputIsCurrent } from "../domain/task-input-wait.ts";
 import { badRequest, conflict, errorMessage, notFound, Shutdown, unauthorized } from "../errors.ts";
 import { addReadOnly } from "../tools/folders.ts";
 import type { Display } from "./display.ts";
 import type { AdmitFn } from "./engine.ts";
+import { createInputDelivery } from "./input-delivery.ts";
+
+export { folderBinding } from "./input-delivery.ts";
 
 /** How long the agent waits in its turn for an answer before it ends the turn and the input stays open. */
 const INPUT_WAIT_MS = 15 * 60_000;
@@ -26,11 +29,6 @@ export type InputWaits = { turn: number; external: number };
 
 /** Approvals requiring the complete app card cannot be answered on a channel. */
 const APP_ONLY = "this approval is answered in the app (panel, desktop or phone), never on a channel";
-
-/** What a folder card's "once" answer is kept under, when it comes after the turn stopped waiting. */
-/** The grant a folder card gives for one call; one to change files there never doubles as one to read them. */
-export const folderBinding = (folders: string[], write = false) =>
-  `${write ? "write-folders" : "folders"}:${folders.join("\n")}`;
 
 /** The site and field of an agent's sign-in card (DECISIONS.md#d-264), or undefined for any other input. */
 export function loginRequest(r: InputRecord): { origin: string; kind: "username" | "password" } | undefined {
@@ -88,11 +86,18 @@ export function createInputs(deps: {
   const { store } = deps;
   const waits = deps.waits ?? { turn: INPUT_WAIT_MS, external: EXTERNAL_INPUT_WAIT_MS };
   const waiting = new Map<string, (r: InputRecord) => void>();
+  const pauseWait = new Map<string, () => void>();
 
-  function expireInput(id: string): InputRecord | undefined {
+  function expireInput(id: string, resume = false): InputRecord | undefined {
     return store.tx(() => {
       const settled = store.inputs.settle(id, "expired");
       if (settled) settleTaskInput(store, settled);
+      const record = settled ?? store.inputs.get(id);
+      if (record) {
+        finishTaskInput(store, record);
+        const task = store.threads.get(record.thread_id)?.task_id;
+        if (resume && task) delivery.releaseTask(task);
+      }
       return settled;
     });
   }
@@ -109,40 +114,7 @@ export function createInputs(deps: {
     });
   }
 
-  /** An answer for a run that no longer waits: a new turn tells the agent, in the owner's words. */
-  function wake(r: InputRecord): void {
-    settleCard(r);
-    let text: string;
-    const note = r.answer ? ` Their note: ${r.answer}` : "";
-    if (r.kind === "question") text = `You asked the owner: "${r.prompt}". Their answer: ${r.answer ?? "(empty)"}`;
-    // An action card (no tool): the owner accepted or declined the action itself.
-    else if (!r.tool && !r.folders)
-      text =
-        r.state === "approved"
-          ? `The owner accepted the action you proposed: "${r.prompt}". Do it now, as proposed.${note}`
-          : `The owner declined the action you proposed: "${r.prompt}". Do not do it.${note}`;
-    else if (r.state === "approved") {
-      const binding = r.approval?.key ?? (r.folders ? folderBinding(r.folders, r.folders_write) : undefined);
-      if (r.tool && (!r.approval_scope || r.approval_scope === "once"))
-        store.approvals.grantOnce(r.thread_id, r.agent_id, r.tool, r.args ?? {}, binding, r.approval?.server);
-      const what = r.folders
-        ? `let you ${r.folders_write ? "change files in" : "read"} ${r.folders.join(", ")}${r.approval_scope === "project" ? " in this project from now on" : r.approval_scope === "always" ? " from now on" : " for that call"}`
-        : `approved ${r.tool} (${r.detail ?? r.prompt})`;
-      text = `The owner ${what}, but your earlier turn had already ended, so it did not run. If it is still needed, call it again with the same arguments: it will run without asking.${r.answer ? ` Their note: ${r.answer}` : ""}`;
-    } else
-      text = `The owner declined ${r.tool} (${r.detail ?? r.prompt}). Do not try it again.${r.answer ? ` Their note: ${r.answer}` : ""}`;
-    const previous = store.runs.get(r.run_id);
-    deps.admit({
-      thread_id: r.thread_id,
-      agent_id: r.agent_id,
-      trigger: "user",
-      origin: { kind: "input_answer", input_id: r.id },
-      text,
-      reply_to: previous?.input?.reply_to,
-      parent_run_id: previous?.parent_run_id,
-      depth: previous?.depth ?? 0,
-    });
-  }
+  const delivery = createInputDelivery({ store, admit: deps.admit, waiting, pauseWait, settleCard });
 
   /** Why a folder card's folders cannot join its chat's project as read-only folders, or undefined when they can. */
   function cannotKeep(threadId: string, folders: string[]): string | undefined {
@@ -185,9 +157,7 @@ export function createInputs(deps: {
         const settled = store.inputs.settle(r.id, "approved", undefined, grant?.scope);
         if (!settled) return;
         settleTaskInput(store, settled);
-        const listener = waiting.get(r.id);
-        if (listener) listener(settled);
-        else wake(settled);
+        delivery.deliver(settled);
       });
     }
   });
@@ -266,6 +236,9 @@ export function createInputs(deps: {
         const settled = await new Promise<InputRecord>((resolve) => {
           waiting.set(rec.id, resolve);
           timer = setTimeout(() => resolve(o.stays ? current() : expire()), waitMs);
+          pauseWait.set(rec.id, () => {
+            if (timer) clearTimeout(timer);
+          });
           // A shutdown keeps the input open (the answer wakes the agent after the restart); anything else closes it.
           stop = () => resolve(o.signal.reason instanceof Shutdown && !o.approval?.browser ? current() : expire());
           if (o.signal.aborted) stop();
@@ -278,10 +251,13 @@ export function createInputs(deps: {
         if (stop) o.signal.removeEventListener("abort", stop);
         release();
         waiting.delete(rec.id);
-        if (!o.signal.aborted) {
-          store.runs.setState(o.run, "working");
-          store.threads.patch(o.run.thread_id, { state: "working" });
-        }
+        pauseWait.delete(rec.id);
+        if (!o.signal.aborted)
+          store.tx(() => {
+            store.runs.setState(o.run, "working");
+            store.threads.patch(o.run.thread_id, { state: "working" });
+            delivery.consumed(o.run.thread_id, o.run.id);
+          });
       }
     },
 
@@ -341,9 +317,7 @@ export function createInputs(deps: {
         if (r && project && rec.folders) addReadOnly(store, deps.home, project, rec.folders);
         if (!r) throw conflict(`input ${id} was answered already`);
         settleTaskInput(store, r);
-        const listener = waiting.get(id);
-        if (listener) listener(r);
-        else wake(r);
+        delivery.deliver(r);
         return r;
       });
       return settled;
@@ -359,7 +333,12 @@ export function createInputs(deps: {
       if (!own) throw notFound(`question ${id} of yours`);
       const settled = store.tx(() => {
         const input = store.inputs.settle(id, "withdrawn");
-        if (input) settleTaskInput(store, input);
+        if (input) {
+          settleTaskInput(store, input);
+          finishTaskInput(store, input);
+          const task = store.threads.get(input.thread_id)?.task_id;
+          if (task) delivery.releaseTask(task);
+        }
         return input;
       });
       if (!settled) throw conflict(`question ${id} is already ${store.inputs.get(id)?.state ?? "closed"}`);
@@ -383,7 +362,7 @@ export function createInputs(deps: {
      */
     restore(): void {
       const expire = (id: string) => {
-        const settled = expireInput(id);
+        const settled = expireInput(id, true);
         if (!settled) return;
         settleCard(settled);
         idleIfDone(settled.thread_id);
@@ -401,7 +380,10 @@ export function createInputs(deps: {
       };
       for (const r of store.inputs.overdue()) expire(r.id);
       for (const r of store.inputs.pending()) watch(r);
+      delivery.restore();
     },
+
+    releaseTask: delivery.releaseTask,
 
     /** The owner stops a chat no turn runs in: what it still asked them closes, so it stops waiting; how many. */
     close(threadId: string): number {
@@ -411,6 +393,10 @@ export function createInputs(deps: {
         if (!settled) continue;
         settleCard(settled);
         n++;
+      }
+      for (const id of Object.keys(store.threads.context(threadId).task_inputs ?? {})) {
+        const record = store.inputs.get(id);
+        if (record) finishTaskInput(store, record);
       }
       return n;
     },

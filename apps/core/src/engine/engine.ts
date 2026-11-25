@@ -680,6 +680,7 @@ export function createEngine(deps: {
     /** The owner's answer to something an agent asked (runs.respond). */
     respond: inputs.respond,
     pending: inputs.pending,
+    releaseTaskInputs: inputs.releaseTask,
     jobs,
     /** Stops only the turn in progress for the owner's new message; queued inputs and what it delegated still run. */
     interrupt: (threadId: string) => stopRunning(threadId, new Superseded()),

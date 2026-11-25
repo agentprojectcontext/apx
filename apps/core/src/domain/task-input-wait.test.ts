@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { type TestContext, test } from "node:test";
+import { createInputDelivery } from "../engine/input-delivery.ts";
 import { createInputs } from "../engine/inputs.ts";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import {
@@ -91,10 +92,20 @@ test("independent native waits settle by identity and repeated events cannot rel
       f.answer(first.id);
     });
     assert.equal(f.current().awaits_owner, true);
+    assert.equal(
+      f.core.engine.releaseTaskInputs(f.task.id),
+      0,
+      "one answer cannot run through another unresolved wait",
+    );
+    assert.equal(f.store.runs.list(f.thread.id).length, 1);
     f.store.tx(() => f.answer(second.id));
     assert.equal(f.current().awaits_owner, false);
     assert.equal(f.current().status, "review", "an answer cannot bypass a review");
     assert.equal(f.current().state, "open");
+    assert.equal(f.core.engine.releaseTaskInputs(f.task.id), 2);
+    await f.settle(f.thread.id);
+    assert.equal(f.store.runs.list(f.thread.id).filter((r) => r.input?.origin.kind === "input_answer").length, 1);
+    assert.equal(f.core.engine.releaseTaskInputs(f.task.id), 0);
   } finally {
     await f.close();
   }
@@ -194,7 +205,42 @@ test("closing and reopening a task starts a fresh wait cycle without reviving an
   f.answer(second.id);
   assert.equal(f.current().awaits_owner, false);
   assert.equal(f.current().state, "open");
+  assert.equal(f.core.engine.releaseTaskInputs(f.task.id), 1);
+  await f.settle(f.thread.id);
   assert.equal(f.store.threads.context(f.thread.id).task_inputs?.[second.id], undefined);
+});
+
+test("a listener notification stays durable until consumption, so losing the listener cannot lose the owner's answer", async (t) => {
+  const f = await fixture(t);
+  const input = f.input();
+  awaitTaskInput(f.store, input);
+  f.answer(input.id);
+  const record = f.store.inputs.get(input.id);
+  assert.ok(record);
+  let notified = 0;
+  const delivery = createInputDelivery({
+    store: f.store,
+    admit: f.core.engine.admit,
+    pauseWait: new Map(),
+    settleCard: () => undefined,
+    waiting: new Map([
+      [
+        input.id,
+        () => {
+          notified++;
+        },
+      ],
+    ]),
+  });
+  delivery.deliver(record);
+  assert.equal(notified, 1);
+  assert.equal(f.store.runs.list(f.thread.id).length, 1);
+  assert.equal(f.store.threads.context(f.thread.id).task_inputs?.[input.id]?.delivery, input.run_id);
+  // The engine instance has no live listener, as after a process loss before consumption.
+  assert.equal(f.core.engine.releaseTaskInputs(f.task.id), 1);
+  await f.settle(f.thread.id);
+  assert.equal(f.store.runs.list(f.thread.id).filter((r) => r.input?.origin.kind === "input_answer").length, 1);
+  assert.equal(f.core.engine.releaseTaskInputs(f.task.id), 0);
 });
 
 test("failed wake admission rolls back both the answer and the task transition, so a retry cannot lose work", async (t) => {
