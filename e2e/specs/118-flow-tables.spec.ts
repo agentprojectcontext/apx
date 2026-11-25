@@ -191,8 +191,10 @@ for (const lang of ["en", "es"] as const) {
     await editor.getByRole("button", { name: l.add(l.ai) }).click();
     const crew = editor.getByRole("radiogroup", { name: l.agent });
     await expect(crew.getByRole("radio")).toHaveCount(3);
-    await crew.getByRole("radio", { name: /Max/ }).click();
-    await expect(crew.getByRole("radio", { name: /Max/ })).toBeChecked();
+    // By role: an earlier spec in the same sandbox may have named the super-agent Max too.
+    const max = crew.getByRole("radio", { name: /Marketing & growth/ });
+    await max.click();
+    await expect(max).toBeChecked();
     await editor.getByRole("textbox", { name: l.task }).fill("Write to $trigger.name, short.");
     expect(await lostFields(side)).toEqual([]);
     await shot(page, `ai-crew-${lang}`);
