@@ -8,6 +8,7 @@
     ".": "./src/index.ts",
     "./client": "./src/client.ts",
     "./public-copy": "./src/public-copy.ts",
+    "./sticker-display": "./src/sticker-display.ts",
     "./artifact-link": "./src/artifact-link.ts",
     "./cdp": "./src/cdp.ts",
     "./browser-urls": "./src/browser-urls.ts",

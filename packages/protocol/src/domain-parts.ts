@@ -34,6 +34,8 @@ const KnownPart = z.discriminatedUnion("type", [
     schemaFields({
       type: () => z.literal("text"),
       text: () => z.string(),
+      /** Exact suffixes appended by attachment ingestion; text remains the original model/history input. */
+      attachment_notes: () => z.array(z.string()).optional(),
       /** A task consult's reply, kept as words for history readers and as a traced event for operators. */
       response: () =>
         z

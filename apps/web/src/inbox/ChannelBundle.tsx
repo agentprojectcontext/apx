@@ -6,6 +6,7 @@ import { isChannelKind } from "../channels/kinds.ts";
 import { shortWhen } from "../common/format.ts";
 import { useChannels } from "../data/channels.ts";
 import { isWorking } from "../data/identity.ts";
+import { useThreadPreview } from "../data/threadPreview.ts";
 import { useT } from "../i18n/index.ts";
 import { ChatRow } from "./InboxTabs.tsx";
 import { FoldContext, useRowFold } from "./RowFold.tsx";
@@ -56,7 +57,10 @@ function ChannelHead({ account, threads, onToggle }: { account: string; threads:
   const latest = threads[0];
   const unread = threads.reduce((n, th) => n + th.unread, 0);
   const working = threads.some((th) => isWorking(th.state));
-  const said = latest?.preview.split("\n").find((l) => l.trim()) ?? "";
+  const said =
+    useThreadPreview(latest)
+      .split("\n")
+      .find((l) => l.trim()) ?? "";
   return (
     <div className="threadrow-wrap" ref={fold.wrap}>
       <ConversationRow

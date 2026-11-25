@@ -2,6 +2,7 @@ import type { Agent, ChannelType, Person, Thread } from "@apx/protocol";
 import { Tooltip } from "@apx/ui";
 import { shortWhen } from "../common/format.ts";
 import type { PresenceState } from "../data/channels.ts";
+import { useThreadPreview } from "../data/threadPreview.ts";
 import { useT } from "../i18n/index.ts";
 import { AnswersLine } from "./AnswersLine.tsx";
 import { ContactFlags, useContactFlags } from "./flags.tsx";
@@ -62,6 +63,7 @@ export function ContactRow({
 }) {
   const t = useT();
   const { thread, person } = row;
+  const preview = useThreadPreview(thread);
   const name = person?.name ?? thread?.title ?? "";
   const relation = person?.relation ? t(RELATION_KEY[person.relation]) : undefined;
   const unread = thread?.unread ?? 0;
@@ -82,7 +84,7 @@ export function ContactRow({
           </span>
           <span className="chan__rowtop">
             <span className="chan__preview">
-              {thread ? thread.preview : (addressText(type, person, channelId) ?? t("ch.noChat"))}
+              {thread ? preview : (addressText(type, person, channelId) ?? t("ch.noChat"))}
             </span>
             {unread > 0 && <span className="chan__unread">{unread}</span>}
           </span>

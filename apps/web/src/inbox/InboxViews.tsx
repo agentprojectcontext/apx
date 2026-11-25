@@ -9,6 +9,7 @@ import { ChatProcesses } from "../common/ChatProcesses.tsx";
 import { shortWhen } from "../common/format.ts";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
 import { isWorking, routineName } from "../data/identity.ts";
+import { useThreadPreview } from "../data/threadPreview.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { ThreadAvatar } from "./ThreadAvatar.tsx";
@@ -20,9 +21,9 @@ import { useThreadChannel } from "./useThreadChannel.ts";
  * A chat's name for a list: its title, or what was said last when the title only repeats the agent's name. A routine
  * run's is what it told (its routine shows by its mark), or its name and the badge when it had nothing to tell.
  */
-function chatLabel(thread: Thread, agent: Agent | undefined, generic: string): ReactNode {
+function chatLabel(thread: Thread, agent: Agent | undefined, generic: string, preview: string): ReactNode {
   const plain = !thread.title || thread.title === agent?.name || thread.title === generic || thread.kind === "routine";
-  const said = thread.preview.split("\n").find((l) => l.trim()) ?? "";
+  const said = preview.split("\n").find((l) => l.trim()) ?? "";
   if (plain && isSkipAnswer(said))
     return (
       <>
@@ -54,6 +55,7 @@ export function SessionRow({
   onOpen?: (() => void) | undefined;
 }) {
   const t = useT();
+  const preview = useThreadPreview(thread);
   const engine = useEngineLabel(thread.engine);
   const channel = useThreadChannel(thread);
   return (
@@ -74,7 +76,7 @@ export function SessionRow({
         )}
         {/* Under its task, a chat's title only repeats the task's: what was said last tells them apart. */}
         <span className="tree__sessiontitle">
-          {label ?? chatLabel(thread, agent, withAgent ? thread.title : t("chat.new"))}
+          {label ?? chatLabel(thread, agent, withAgent ? thread.title : t("chat.new"), preview)}
         </span>
         {channel && (
           <span className="tree__agentmeta">
