@@ -6174,3 +6174,27 @@ Not decided here: quotas beyond the chat's existing limits, and consults from co
 super-agent's system prompt (who the owner is, its team) is unchanged in the consult turn.
 
 Docs impact: updated channels/overview in English and Spanish and the 2.17.0 project reading news entry.
+
+<a id="d-270"></a>
+## D-270 — 2026-11-24 — Agents fix by default, briefs keep the owner's scope, progress has a place from any chat
+The owner asked to check or improve something and got diagnoses that stopped there, then had to ask again. Three
+shared causes, not one agent's prompt: the base prompt said what a promise is but not what "check this" asks for, so
+a review ended at a report; the super-agent's briefs added limits the owner never set ("diagnosis and proposal only,
+do not implement"), and a task's brief yielded to the owner only where it asked for more than they said; and an agent
+working a task outside its chat (the super-agent on a teammate's result, a session it started) had its progress
+comments refused with "progress goes in your plan", a plan it could not write, so it kept retrying or wrote it in the
+description, which a running session does not read.
+
+The base prompt's promise line now says: asked to check or fix something, fix and verify unless told to change
+nothing; stop only at a rule (naming who unblocks it) or a choice that cannot be inferred. It replaced words of the same
+line and of the earlier-work line, so the realistic prompt stays in budget. `delegate` asks for no limit the owner did
+not set; the task block follows the owner where a brief asks for more or less than they said. `task_update` takes
+`plan` (the task's checklist), and a refused progress comment names that from outside the task's chat; one that
+@names an agent of another project says a comment never reaches it and to use delegate or the super-agent, instead of
+pointing at a plan. Comments stay as D-202 has them. The `apx-agents` skill lists "diagnosis as the end" among what
+to look for when reviewing agents' prompts.
+
+Not changed here: whether an outside engine session started with `start_session` can be steered while it runs, and a
+cross-project task @mention reaching another project's agent (privacy boundary; the super-agent reaches it).
+
+Docs impact: updated office/tasks in English and Spanish and rules/PROMPT_SIZE.md.

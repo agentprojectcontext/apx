@@ -38,6 +38,21 @@ export function mentioned(store: Store, text: string, projectId: string | undefi
   return out;
 }
 
+/** The agents a text @mentions that work outside this project: a task comment never reaches them. */
+export function mentionedElsewhere(store: Store, text: string, projectId: string | undefined): AgentRecord[] {
+  const away = (a: AgentRecord) => !worksIn(store.projects, a.project_id, projectId);
+  return [...text.matchAll(MENTIONS)].flatMap((m) => {
+    const ref = (m[1] ?? "").toLowerCase();
+    const r = store.agents.resolve(ref, projectId);
+    if ("agent" in r) return away(r.agent) ? [r.agent] : [];
+    // A name resolves only in this project: look for it in the others.
+    return store.agents
+      .list()
+      .filter((a) => (a.name.toLowerCase() === ref || a.slug === ref) && away(a))
+      .slice(0, 1);
+  });
+}
+
 /** Whether a text @mentions the owner: as @owner, @human or by their name. */
 export function mentionsOwner(store: Store, text: string): boolean {
   const normalize = (value: string) => value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
@@ -112,7 +127,7 @@ export function taskBlock(
   const asked = t.asked?.length ? `The owner's own words about it, oldest first:\n${askedText(store, t.asked)}` : "";
   const brief =
     asked && t.created_by !== "owner"
-      ? `The brief is ${creator}'s reading of those words. Where it asks for more than the owner said or goes against them, follow the owner and say so on the task; when you cannot tell, ask the owner before building on it.`
+      ? `The brief is ${creator}'s reading of those words. Where it asks for more or less than the owner said (a limit they never set, as only diagnosing) or goes against them, follow the owner and say so on the task; when you cannot tell, ask the owner before building on it.`
       : "";
   const others = store.threads
     .byTask(t.id)

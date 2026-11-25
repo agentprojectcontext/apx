@@ -40,8 +40,11 @@ test("the system prompt has no clock and no roster: same agent and thread, same 
   assert.match(systemPrompt(agent, { kind: "loose" }, "es"), /^Thread: chat\.$/m);
   assert.doesNotMatch(a, /^- Other agents:|^- Do your own assigned task|^- Work you hand/m);
   // A claim without a tool is false; a turn that needs no tool (a greeting, a known fact) is not.
-  assert.match(a, /An answer that says something was done when no tool did it is false/);
+  assert.match(a, /saying done what no tool did is false/);
   assert.doesNotMatch(a, /A turn with no tool call did nothing/);
+  // Asked to check something, the agent fixes and verifies it; only the owner's "change nothing" ends at a report.
+  assert.match(a, /Asked to check or fix something, fix and verify unless told to change nothing/);
+  assert.match(a, /stop only at a rule .* or a choice you cannot infer/);
 });
 
 test("the super-agent does small and medium work itself and finishes what it hands on (DECISIONS.md#d-237)", () => {

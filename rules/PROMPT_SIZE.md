@@ -21,7 +21,7 @@ is for what a new owner needs to find their way, not for padding. A channel turn
 3,900 chars) and the rule for them; an image service adds make_image (about 600).
 
 A realistic owner has its own budget in the same test: a WhatsApp channel with stickers, the computer allowed,
-instructions of their own, an "about" and a project with a 20,000-character AGENTS.md. Its project chat sends 8,250
+instructions of their own, an "about" and a project with a 20,000-character AGENTS.md. Its project chat sends 8,249 (2026-11-24, [D-270](DECISIONS.md#d-270))
 chars of system prompt besides that AGENTS.md, which goes whole (budget 8,250: the super-agent is told to do small and
 medium work itself and what it hands on, [D-237](DECISIONS.md#d-237); an agent that can change a project's
 files is told to look at a visible change running, [D-166](DECISIONS.md#d-166), and to commit, pull, merge, push or delete only

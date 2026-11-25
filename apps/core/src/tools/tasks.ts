@@ -16,7 +16,7 @@ import {
   taskProject,
   visibleTask,
 } from "../domain/tasks.ts";
-import { mentioned, mentionsOwner } from "../engine/office.ts";
+import { mentioned, mentionedElsewhere, mentionsOwner } from "../engine/office.ts";
 import { badRequest, CallError } from "../errors.ts";
 import { readsOutside } from "./folders.ts";
 import { cap, fromTeam, inlineName, untrusted } from "./result.ts";
@@ -142,13 +142,18 @@ function commentNoise(store: Store, t: Task, text: string, ctx: ToolContext): st
   if (ctx.thread.kind === "a2a" && t.assignee !== ctx.agent.id)
     return "you are helping whoever asked you, and your answer goes back to them. Say it there; they decide what reaches the task.";
   if (mentionsOwner(store, text) || mentioned(store, text, t.project_id, ctx.agent.id).length) return undefined;
+  const away = mentionedElsewhere(store, text, t.project_id)[0];
+  if (away)
+    return `${inlineName(away.name)} works in another project, and a task's comments reach only this project's agents: reach it with delegate, or ask the super-agent to.`;
   const steps = planSteps(t.plan ?? "");
   if (steps?.length && steps.every((s) => s.state === "done")) {
     const since = store.threads.context(t.thread_id).progress_at ?? t.created_at;
     const told = store.tasks.events(t.id).some((e) => e.op === "comment" && e.by === ctx.agent.id && e.at >= since);
     if (!told) return undefined;
   }
-  return "progress goes in your plan (mark the step, put the commit or test in its line), not in comments. Comment when the whole plan is done, or to ask someone (@owner for a decision or a change of direction, @agent for a teammate).";
+  // Outside the task's chat its plan is written with task_update, not plan, which is that chat's own (DECISIONS.md#d-270).
+  const where = ctx.thread.task_id === t.id ? "your plan" : "the task's plan (task_update plan)";
+  return `progress goes in ${where} (mark the step, put the commit or test in its line), not in comments. Comment when the whole plan is done, or to ask someone (@owner for a decision or a change of direction, @agent for a teammate).`;
 }
 
 /**
@@ -432,6 +437,7 @@ export function taskTools(store: Store, home: string): Tool[] {
         attachments: attachmentsArg,
         awaits_owner: z.boolean().optional(),
         why: z.string().trim().max(1000).optional().describe("awaits_owner: what the owner must do or decide"),
+        plan: z.string().max(4000).optional().describe("its checklist (- [x], - [~], - [ ]); in its own chat use plan"),
         reviewer: z.string().max(80).optional().describe('"owner" or agent'),
         ...shapeArgs,
         ...commitmentArgs,

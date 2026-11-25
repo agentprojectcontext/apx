@@ -130,6 +130,10 @@ yes to that agent's change.
    make sample data); a blocker is only what you cannot clear, said exactly with what unblocks it.
 9. **Coding rules that reach every turn**: a numbered plan and a commit per item written for when the agent codes,
    applied when it only coordinates. Propose scoping them: "when you change code yourself".
+10. **Diagnosis as the end**: "investigate and propose", "report findings before changing anything", "do not
+   implement without approval". The agent stops at a report and the owner has to ask twice. Propose: asked to check
+   or fix, fix and verify; only the owner's "change nothing" ends at a report, and only a choice the agent cannot
+   infer is asked. The same holds for a brief the super-agent writes when it hands work on.
 
 Leave alone what is craft: how to build, what to test, the design bar, the tone. Never weaken a safety rule
 (secrets, payments, outside content as data).

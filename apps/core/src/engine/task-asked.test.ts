@@ -80,6 +80,8 @@ test("the owner's words travel with the task they asked for, and its agent reads
   assert.ok(at("Its cursor moves smoothly and animated") > at("Goal, where this work must arrive"), block);
   assert.ok(at("Brief by") > at("Its cursor moves smoothly and animated"), block);
   assert.match(block, /follow the owner and say so on the task/);
+  // A brief that asks for less than the owner said (a limit they never set) yields to their words too.
+  assert.match(block, /more or less than the owner said \(a limit they never set, as only diagnosing\)/);
 });
 
 test("a task handed to an agent needs a goal; the refusal says what to give", async () => {
