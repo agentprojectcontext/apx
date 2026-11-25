@@ -150,7 +150,7 @@ El cuerpo son las instrucciones propias del agente. Escribilo como una nota para
 toca, cómo trabaja, qué no tiene que hacer nunca solo.
 
 **Grupos de herramientas** que podés nombrar en `tools:`: `browser`, `widgets`, `agents` (listar agentes, delegar,
-dar una herramienta), `shell`, `files`, `mcp`, `memory`, `images`, `tasks`. También podés nombrar herramientas
+correr un flujo de trabajo, dar una herramienta), `shell`, `files`, `mcp`, `memory`, `images`, `tasks`. También podés nombrar herramientas
 sueltas. La lista es el foco del agente, no un cerco: lo que nombra viaja en cada turno, y el agente encuentra
 cualquier otra herramienta cuando el trabajo la pide, así sus turnos quedan livianos. Su modo y sus reglas por caso
 siguen decidiendo qué corre, qué pregunta y qué te espera, y una regla que apagaste sigue quitándole esas herramientas.
@@ -335,6 +335,30 @@ nunca lo son. También puede decir cuánto puede cambiar esa carpeta el ayudante
 puede quien lo llamó, nunca más que el modo de quien lo llamó (en un hilo de código, la política de ese hilo), el modo
 del ayudante o el del proyecto; nombrar uno sólo lo achica. Su resultado vuelve a quien lo pidió como el de cualquier
 delegación.
+
+## Flujos de trabajo
+
+Cuando un trabajo es demasiado amplio para un solo agente, como revisar cada área de un proyecto o una lista larga de
+archivos, tu agente puede correr un **flujo de trabajo** en vez de pedirle ayuda a uno por uno. Escribe un plan y APX lo
+corre. El agente no decide cada paso sobre la marcha.
+
+- **Ítems y etapas.** Cada ítem (hasta 24) pasa por hasta cuatro etapas en orden, por ejemplo *buscar* y después
+  *verificar*. Un ítem pasa a su etapa siguiente apenas termina la anterior: no espera a los demás.
+- **Varios agentes a la vez.** Hasta cuatro agentes del flujo trabajan al mismo tiempo (tres por defecto). Cada etapa
+  nombra un agente del equipo o un ayudante que el agente describe.
+- **Resultados revisados.** Una etapa puede pedir su respuesta en JSON con una forma dada. Si la respuesta no encaja,
+  se la pide una vez más, y la etapa siguiente lee ese JSON. Una etapa también puede seguir sólo con los ítems que la
+  anterior marcó, como los hallazgos que una verificación confirmó.
+- **Una etapa final** puede leer el resultado de cada ítem y escribir el resumen que recibe tu agente.
+
+El chat muestra una tarjeta del flujo: sus fases, el estado de cada agente, cuántos pasos están hechos y el resultado
+cuando termina. Hacé clic en una fila para abrir el chat de ese agente. **Detener** cancela a los agentes que están
+trabajando y no arranca nada más. **Reanudar** vuelve a correr sólo lo que no terminó: los pasos hechos conservan su
+resultado. Un flujo corre como mucho cuatro horas desde que empieza o desde que se reanuda.
+
+Cada llamada a un agente dentro de un flujo es una delegación, así que valen los mismos límites: el modo de quien lo
+pidió, las reglas que pusiste, los presupuestos de tus agentes, y los ayudantes no delegan más. Cuando el flujo
+termina, tu agente recibe el resultado y termina tu pedido con él.
 
 ## Hasta dónde llegan tus agentes
 

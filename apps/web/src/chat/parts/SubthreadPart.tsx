@@ -1,8 +1,9 @@
 import type { Agent, Part } from "@apx/protocol";
-import { AgentAvatar, Button, Icons, MarkdownView, SubthreadCard, Tooltip } from "@apx/ui";
+import { AgentAvatar, Button, EngineIcon, Icons, MarkdownView, SubthreadCard, Tooltip } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { duration } from "../../common/format.ts";
 import { namedMentions } from "../../common/mentionNames.ts";
+import { useEngineLabel } from "../../common/useEngineLabel.ts";
 import { useMarkdownLabels } from "../../common/useMarkdownLabels.ts";
 import { refreshDelegation } from "../../data/delegation.ts";
 import { blobOf } from "../../data/identity.ts";
@@ -52,7 +53,9 @@ export function SubthreadPart({
   const failed = failedLine(part.failed, t);
   // The owner's own question on a task keeps its answer in view (DECISIONS.md#d-220).
   const [open, setOpen] = useUnfolded(part.thread_id, part.asked_by === "owner");
-  const name = part.worker ?? target?.name ?? part.agent_id;
+  // A session the caller opened on an outside engine is the engine's: the caller is only who asked (DECISIONS.md#d-274).
+  const engine = useEngineLabel(part.engine);
+  const name = engine ?? part.worker ?? target?.name ?? part.agent_id;
   // A consult on a task names who asked; a delegation's asker is the message's author.
   const askedBy =
     part.asked_by === "owner" ? ownerName || t("account.you") : (asker?.name ?? from?.name ?? t("common.agent"));
@@ -84,7 +87,9 @@ export function SubthreadPart({
   return (
     <SubthreadCard
       avatar={
-        part.worker ? (
+        part.engine ? (
+          <EngineIcon engine={part.engine} tile size={24} />
+        ) : part.worker ? (
           <Tooltip content={t("subthread.worker")}>
             <span className="subthread__worker">
               <Icons.Bot size={14} />

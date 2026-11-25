@@ -127,6 +127,12 @@ checkout code". The agent picks the engine, the project and, if you named one, t
 default), and sends the session its first task. The session shows under **External sessions** in that project, like
 one you started, and its answer comes back to the agent that asked, so you don't need to check on it.
 
+It reads as the engine's, not the agent's: the session carries the engine's name and face (Claude Code, Codex) in your
+lists, its header, its answers and its notices, and is named after the task. A small **Started by** chip with the
+agent's name takes you back to the chat that asked; in that chat its card reads "Roby → Claude Code". The session
+gets none of the agent's own: not its model (only the one the agent named, or the engine's default), memory, notes,
+skills or voice. You can read it while it works; what it answers goes back to the agent that started it.
+
 - In Auto and Total the agent starts it when you ask, without a card; it asks first when content from outside (a web
   page, another agent, a message) is in its turn. In Manual each start asks for your OK; in Plan the agent can't
   start one ([Rules by case](/concepts/autonomy/#rules-by-case)).

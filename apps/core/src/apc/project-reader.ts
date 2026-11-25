@@ -9,7 +9,7 @@ import { type ApcAgent, type ApcProject, isApcProject, readAgents, readProject }
 
 /**
  * What a project folder holds: its files, nothing to read there, or a folder the system refused to open. `moved` says
- * what moving its `.apc/` to `.agent/` did, when it had one (DECISIONS.md#d-273).
+ * what moving its `.apc/` to `.agent/` did, when it had one (DECISIONS.md#d-275).
  */
 export type ProjectFiles =
   | { state: "read"; project: ApcProject; agents: ApcAgent[]; moved?: FolderOutcome }

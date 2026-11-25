@@ -28,6 +28,49 @@ export const DocumentSource = z.object(
 );
 export type DocumentSource = z.infer<typeof DocumentSource>;
 
+/** Where one agent call of a workflow is. */
+export const WorkflowStepState = z.enum(["pending", "working", "done", "skipped", "failed", "canceled"]);
+export type WorkflowStepState = z.infer<typeof WorkflowStepState>;
+
+/** A workflow as the owner sees it: its phases, each agent's state, and how it ended (DECISIONS.md#d-273). */
+export const WorkflowView = z.object(
+  schemaFields({
+    name: () => z.string().max(80),
+    state: () => z.enum(["running", "done", "failed", "stopped"]),
+    done: () => z.number().int().nonnegative(),
+    total: () => z.number().int().nonnegative(),
+    phases: () =>
+      z.array(
+        z.object(
+          schemaFields({
+            title: () => z.string().max(60),
+            steps: () =>
+              z.array(
+                z.object(
+                  schemaFields({
+                    key: () => z.string().max(80),
+                    label: () => z.string().max(200),
+                    state: () => WorkflowStepState,
+                    thread_id: () => Id.optional(),
+                    agent_id: () => Id.optional(),
+                    /** A worker's name, when a worker does this step. */
+                    worker: () => z.string().max(40).optional(),
+                    ms: () => z.number().int().nonnegative().optional(),
+                    error: () => z.string().max(300).optional(),
+                  }),
+                ),
+              ),
+          }),
+        ),
+      ),
+    /** The start of the result, once it ended. */
+    result: () => z.string().max(4000).optional(),
+    /** Why it stopped or failed. */
+    reason: () => z.string().max(300).optional(),
+  }),
+);
+export type WorkflowView = z.infer<typeof WorkflowView>;
+
 /** What the UI shows. The model's own transcript is stored separately (two projections of one log). */
 const KnownPart = z.discriminatedUnion("type", [
   z.object(
@@ -89,6 +132,8 @@ const KnownPart = z.discriminatedUnion("type", [
       summary: () => z.string().optional(),
       /** A worker's name: a throwaway helper the caller started for this task (agent_id is then the caller's own). */
       worker: () => z.string().optional(),
+      /** An outside engine's own session the caller started: the engine answers in it, agent_id is the caller's own. */
+      engine: () => z.string().max(80).optional(),
       /** How long it worked, once it ended. */
       ms: () => z.number().int().nonnegative().optional(),
       /** Why it ended, once it did (a completed run that ran out of steps is not a finished one). */
@@ -295,6 +340,14 @@ const KnownPart = z.discriminatedUnion("type", [
             }),
           ),
         ),
+    }),
+  ),
+  /** A workflow the agent started: its phases, each agent's state, and the result once it ends (DECISIONS.md#d-273). */
+  z.object(
+    schemaFields({
+      type: () => z.literal("workflow"),
+      workflow_id: () => Id,
+      ...WorkflowView.shape,
     }),
   ),
   /** A Flow an agent made or changed in this turn: the chat shows its drawing and opens it in the editor. */

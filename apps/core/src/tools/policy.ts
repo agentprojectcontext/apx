@@ -49,7 +49,12 @@ const GROUPS: Record<string, (name: string) => boolean> = {
   browser: (n) => n.startsWith("browser_"),
   widgets: (n) => n.endsWith("_widget"),
   agents: (n) =>
-    n === "list_agents" || n === "delegate" || n === "grant_tool" || n === "agent_set" || n === "start_session",
+    n === "list_agents" ||
+    n === "delegate" ||
+    n === "workflow" ||
+    n === "grant_tool" ||
+    n === "agent_set" ||
+    n === "start_session",
   shell: (n) => n.startsWith("shell"),
   files: (n) => n.startsWith("file_") || n === "send_file" || n === "open_document",
   mcp: (n) => n.startsWith("mcp_") || BRIDGE.has(n),
@@ -163,7 +168,7 @@ export const keepsCard = (tool: Tool, args: Record<string, unknown>, agent: Agen
 
 const URL_DATA = "the URL carries data, and content from outside (web, another agent or a message) is in this turn";
 
-const PLAN_KEEPS = new Set([...ALWAYS, "delegate", "list_agents", "list_sessions"]);
+const PLAN_KEEPS = new Set([...ALWAYS, "delegate", "workflow", "list_agents", "list_sessions"]);
 
 const OUTSIDE = "content from outside (web, another agent or a message) is in this turn";
 

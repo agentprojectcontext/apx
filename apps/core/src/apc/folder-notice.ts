@@ -1,5 +1,5 @@
 // The owner hears once, in the app's tray, that a project's files moved from .apc/ to .agent/, or why they did not.
-// See DECISIONS.md#d-273
+// See DECISIONS.md#d-275
 import type { Store } from "../domain/store.ts";
 import type { FolderOutcome } from "./folder.ts";
 

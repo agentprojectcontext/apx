@@ -2,6 +2,7 @@ import type { Thread } from "@apx/protocol";
 import { Button, EmptyState, Icons, Skeleton } from "@apx/ui";
 import { Suspense, useEffect } from "react";
 import { useContactChat } from "../channels/useContactChat.ts";
+import { useEngineLabel } from "../common/useEngineLabel.ts";
 import { usePageVisible } from "../common/useInView.ts";
 import { loadThread, markRead } from "../data/actions.ts";
 import { useChannels } from "../data/channels.ts";
@@ -48,6 +49,7 @@ export function ChatView({
   const visible = usePageVisible();
   const offline = useData((s) => s.connection === "offline");
   const contact = useContactChat(thread);
+  const engineLabel = useEngineLabel(thread?.engine);
   const task = useConversationTask(thread);
   // A room's card docked beside the chat leaves its header the room of a narrow one: the panels go in a menu.
   const roomCard = useRoomCard();
@@ -150,7 +152,9 @@ export function ChatView({
         ) : readOnly ? (
           <div className="chat__readonly">
             <Icons.Users size={14} />
-            {t("chat.readOnly")}
+            {thread.engine && shown
+              ? t("chat.readOnlyEngine", { engine: engineLabel ?? thread.engine, name: shown.name })
+              : t("chat.readOnly")}
           </div>
         ) : (
           <>

@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { ago } from "../format";
-import { chatPreview, isWorking } from "../hooks/chatSelectors";
+import { chatPreview, engineName, isWorking } from "../hooks/chatSelectors";
 import type { Task, TaskUsage, Thread, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
+import { EngineIcon } from "../ui/EngineIcon";
 import { AgentAvatar, BottomSheet, ListRow, Spinner, useType } from "../ui/kit";
 
 /**
@@ -80,13 +81,19 @@ function WorkRow({ session, data, onPress }: { session: Thread; data: Workspace;
   // The live list knows if it is working now; the task's copy is from when the page was read.
   const chat = data.threads.find((item) => item.id === session.id) ?? session;
   const agent = data.agents.find((item) => item.id === session.agent_ids[0]);
-  const name = agent?.name ?? session.agent_ids[0] ?? "APX";
+  const name = session.engine ? engineName(session.engine) : (agent?.name ?? session.agent_ids[0] ?? "APX");
   const working = isWorking(chat.state);
   return (
     <ListRow
       label={session.kind === "a2a" ? `${name} · ${t("tkConsult")}` : name}
       sub={chatPreview(chat) || chat.title}
-      leading={<AgentAvatar name={name} blob={agent?.blob} id={agent?.id ?? name} size={32} />}
+      leading={
+        session.engine === "claude" || session.engine === "codex" ? (
+          <EngineIcon engine={session.engine} size={32} />
+        ) : (
+          <AgentAvatar name={name} blob={agent?.blob} id={agent?.id ?? name} size={32} />
+        )
+      }
       trailing={
         working ? (
           <View style={s.working}>

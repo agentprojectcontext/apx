@@ -6268,7 +6268,77 @@ The owner asked for a public author identity on every blog post and approved kee
 Docs impact: updated GUARDRAILS_PROFILE.md to describe the scoped gate exception.
 
 <a id="d-273"></a>
-## D-273 — 2026-11-25 — A project's APX files live in `.agent/`; `.apc/` is moved there by itself
+## D-273 — 2026-11-25 — Workflows: a plan of delegations run by code, with a live card, not a model deciding each hand-off
+The owner watched a coding agent run a workflow (a script that fanned five agents out, piped each result through a
+check, grouped them in phases, showed each agent's state live with a stop button, and resumed from cached results after
+a failure) and asked for it in APX: "just a group of agents, or something better?". What APX had: `delegate` (the
+model decides each hand-off, two at once from a chat, answers of one turn delivered together, D-194) and Flows (the
+owner's published automations, started by events, D-172/D-181).
+
+| | `delegate` | Flows | Workflows |
+|---|---|---|---|
+| Who decides the next step | the model, each time | the owner's drawing | the plan the agent wrote, run by code |
+| Lifetime | a turn and its results | for good, published by the owner | one piece of work, minutes to hours |
+| Fan-out | two at once, the rest queued | none | up to four at once, over up to 24 items |
+| Stages | the model reads each answer | a DAG of steps | each item through up to four stages, no barrier |
+| Structured output | no | an AI step's text | JSON checked against a schema, one retry |
+| Resume after a stop | ask again | a new event | done steps reused, the rest run again |
+
+**Decision: an extension of delegation, not of Flows** (rule 15: extend before adding). Every agent call of a workflow
+is a delegation (`delegations.open` in `engine/delegation.ts`, the same function `delegate` uses): the same sub-thread,
+the callee's mode, the caller's write ceiling (D-104, D-126), rules and grants, the breaker and each agent's own budget
+(D-160), cycle and depth checks (an agent of a workflow asks nobody else, D-074), and D-271's rule for who works for the
+owner. Flows stay the owner's published automations: a one-off plan needs no draft, publish card or trigger.
+
+- **The plan** (`workflow` tool, found with `tool_search`, D-233): `items` (0–24) go through `stages` (1–4) in order,
+  each item on its own (item 3's check starts as soon as its search ends); a stage names an agent or a worker, a
+  `phase` shown on the card, a `task` with `{{item}}`, `{{item.field}}` and `{{previous}}`, an optional JSON `output`
+  schema, and `only_if` (a true field of the previous output, else the item stops there: the verify pattern). An
+  optional `finish` stage runs once with every item's last output (`{{results}}`): the only barrier. `parallel` (1–4,
+  default 3) caps how many agents of the workflow work at once; it is the workflow's own cap beside the chat's two for
+  `delegate` (D-202), because the whole plan is visible and stoppable on one card.
+- **Durable** (`workflows` table): the plan, each step's state, session, output and error; a step's run that a restart
+  resumes keeps reporting to it through its sub-thread. A workflow has a deadline (4 hours) and ends `done`, `failed`
+  or `stopped`. Stopping the chat stops its workflows; agents being paused stops a workflow before its next step.
+- **Resume** (`workflows.resume`, the card's Resume, or the tool's `resume`): done steps keep their output (the cache);
+  failed, canceled and unstarted ones run again. Changing the plan means a new workflow.
+- **Live card** (`workflow` part in the asking answer): phases with each agent's state, done/total, Stop while it runs,
+  Resume once stopped or failed, the result when done; a row opens that agent's session.
+- **The result** reaches the asking agent inside its turn when it ends within `wait_s`, else in a new turn
+  (`workflow_result`, the team's words, D-071), as a delegation's does.
+
+Rejected: running an agent-written script (JavaScript) in the core, as the coding agent does (a sandbox and a review
+surface for little more than items × stages give); building it on Flows (publishing and triggers are the wrong
+lifetime, and Flow steps may not delegate); raising the chat's delegation cap for everyone instead (D-202's reason,
+three agents on one task, still holds for model-decided hand-offs).
+
+<a id="d-274"></a>
+## D-274 — 2026-11-25 — An engine session an agent opens is the engine's: its name and face, the agent only as who started it
+When an agent opened a Claude Code or Codex session (`start_session`), the core already ran it as the engine itself (no
+persona, notes, roster or skills: `DIRECT_NOTE`), but the screens did not say so. The session kept the agent in
+`agent_ids` and a `parent_id`, so its header read as the agent's delegated chat ("Agent ↔ agent"), the card in the
+agent's chat showed the agent's face, notices were titled with the agent's name and the phone named its answers after
+the agent. The owner read it as "Roby talking through Claude".
+
+Such a session now reads as the engine everywhere: lists, chat header, answers, the thinking and waiting lines, task
+views, notices (core titles them with the engine, `harness/labels.ts`), the side panel of the agent's chat ("Roby →
+Claude Code") and the phone. The `subthread` part carries `engine`. The agent shows only as a **Started by** chip that
+opens the chat that asked, and the task it sent stays the agent's words (a message with no run). The session is named
+after the task's first line; a session the owner opens is "Claude Code · folder", never the raw engine id.
+
+Kept: `agent_ids`, `parent_id` and the run's caller, because the caller's budget, permissions, write ceiling and where
+the answer goes ride on them (D-106, D-266); the session stays read-only for the owner like any delegated chat.
+
+Leaks checked: memory never reaches an engine session either way (`memoryEligibleChat`, `canRecallOwnChat`); voice
+replies are channel-only; the agent's model could still pick the engine's model when the chat had none (an older
+APX could save a CLI as an agent's model), so an engine session now runs only on its chat's model or the engine's
+default.
+
+Rejected: a separate "bot" agent per engine (a fake teammate with no memory or rules of its own, and one more place
+the caller's limits would have to follow); dropping the agent from the thread (loses budgets and the answer's way back).
+
+<a id="d-275"></a>
+## D-275 — 2026-11-25 — A project's APX files live in `.agent/`; `.apc/` is moved there by itself
 The owner no longer follows APC (the Agent Project Context standard APX v1 started) under that folder name and wants
 a project's APX files under a name that says what they are. `AGENTS.md` stays at the root: it is the cross-tool
 standard other agents read. Everything that was in `.apc/` (agents, `project.json`, `memory.md`, `skills/`,

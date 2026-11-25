@@ -17,6 +17,7 @@ import {
   ProjectKind,
   Run,
   Thread,
+  WorkflowView,
   WritePolicy,
 } from "./domain.ts";
 
@@ -619,6 +620,28 @@ export const appWorkspaceMethods = {
       z.object({
         canceled: z.boolean(),
       }),
+    effect: true,
+  }),
+  /** A workflow an agent started: its phases and agents, and each step's output once done (DECISIONS.md#d-273). */
+  "workflows.get": deferMethod({
+    params: () => z.object({ workflow: Id }).strict(),
+    result: () =>
+      z.object({
+        workflow: WorkflowView.extend({ id: Id, thread_id: Id }),
+        outputs: z.array(z.object({ key: z.string(), output: z.string() })),
+      }),
+    effect: false,
+  }),
+  /** Stops a running workflow: its agents at work are canceled and no step starts after them. */
+  "workflows.stop": deferMethod({
+    params: () => z.object({ workflow: Id }).strict(),
+    result: () => z.object({ stopped: z.boolean() }),
+    effect: true,
+  }),
+  /** Runs a stopped or failed workflow again: done steps keep their output, the rest run again. */
+  "workflows.resume": deferMethod({
+    params: () => z.object({ workflow: Id }).strict(),
+    result: () => z.object({ resumed: z.boolean() }),
     effect: true,
   }),
   /** Whether the ChatGPT plan is signed in for APX's own loop, and a sign-in in progress. */

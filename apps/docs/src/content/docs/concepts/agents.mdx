@@ -141,7 +141,7 @@ and follow up until they close. When a decision needs the owner, ask once, clear
 The body is the agent's own instructions. Write it like a note to a new colleague: what they own, how they work,
 what they should never do alone.
 
-**Tool groups** you can name in `tools:`: `browser`, `widgets`, `agents` (list agents, delegate, grant a tool),
+**Tool groups** you can name in `tools:`: `browser`, `widgets`, `agents` (list agents, delegate, run a workflow, grant a tool),
 `shell`, `files`, `mcp`, `memory`, `images`, `tasks`. You can also name single tools. The list is the agent's focus,
 not a fence: what it names comes with every turn, and the agent finds any other tool when the work needs it, which
 keeps its turns light. Its mode and its rules by case still decide what runs, asks or waits for you, and a rule you
@@ -323,6 +323,30 @@ the result says which project it was; APX's own folder and a read-only folder ar
 gets further than its caller: with no limit named it gets the most its caller may, never more than the caller's own
 mode (in a code thread, that thread's policy), the helper's mode or the project's; naming one only narrows it. Its
 result comes back to the caller like any other delegation's.
+
+## Workflows
+
+When a job is too wide for one agent, such as reviewing every area of a project or checking a long list of files,
+your agent can run a **workflow** instead of asking helpers one by one. It writes a plan and APX runs it. The agent
+doesn't decide each step as it goes.
+
+- **Items and stages.** Each item (up to 24) goes through up to four stages in order, for example *find* then
+  *verify*. An item moves to its next stage as soon as its last one ends: it doesn't wait for the other items.
+- **Several agents at once.** Up to four of the workflow's agents work at the same time (three by default). Each
+  stage names a standing agent or a helper the agent describes.
+- **Checked results.** A stage can require its answer as JSON in a given shape. An answer that doesn't fit is asked
+  for once more, and the next stage reads the JSON. A stage can also keep only the items the previous one marked,
+  such as the findings a check confirmed.
+- **A final stage** can read every item's result and write the summary your agent gets.
+
+The chat shows one card for the workflow: its phases, each agent's state, how many steps are done, and the result
+once it ends. Click a row to open that agent's chat. **Stop** cancels the agents at work and starts nothing more.
+**Resume** runs again only what didn't finish: finished steps keep their results. A workflow runs for at most four
+hours from its start or its last resume.
+
+Each agent call in a workflow is a delegation, so the same limits apply: the mode of whoever asked, the rules you set,
+your agents' budgets, and no further delegating from the helpers. When the workflow ends, your agent gets the result
+and finishes your request with it.
 
 ## What your agents can reach
 

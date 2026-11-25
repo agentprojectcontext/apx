@@ -539,6 +539,8 @@ export function frameInput(origin: Origin, text: string): string {
       if (origin.session === CONTACT_CONSULT)
         return `${delegationBlock(origin, text)}This is ${inlineName(origin.name)}'s answer to what you asked for the person in this chat. Answer them now with what it says they may be told; do not ask the same again.`;
       return `${delegationBlock(origin, text)}This is the result of a task you delegated earlier. Finish the owner's request with it (what is left is yours), then tell them what matters; do not delegate the same task again. ${REDIRECT_NOTE}`;
+    case "workflow_result":
+      return `${fromTeam("workflow_result", { name: origin.name, state: origin.state, id: origin.workflow_id }, text)}\nThis is the result of the workflow "${inlineName(origin.name)}" you started earlier. Finish the owner's request with it (what is left is yours), then tell them what matters; do not start the same workflow again.${origin.state === "done" ? "" : ` Some steps did not finish: resume it with workflow resume="${origin.workflow_id}" if they should, keeping what is done.`}`;
     case "delegation_results":
       return `${origin.results.map((r) => delegationBlock(r, r.answer)).join("\n")}These are the results of the ${origin.results.length} tasks you delegated together, all that came in. Finish the owner's request with them (what is left is yours), then tell them what matters in one answer; do not delegate the same tasks again. ${REDIRECT_NOTE}`;
   }

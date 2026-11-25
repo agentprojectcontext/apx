@@ -1,5 +1,5 @@
 // The folder a project keeps APX's files in (`.agent/`), and the move from `.apc/`, the name earlier versions used: run
-// by itself at start and on register; a project it could not move keeps working from `.apc/`. See DECISIONS.md#d-273
+// by itself at start and on register; a project it could not move keeps working from `.apc/`. See DECISIONS.md#d-275
 import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";

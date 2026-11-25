@@ -11,6 +11,11 @@ import { defineTool, type Tool } from "./types.ts";
 const writeOfMode = (mode: string): z.infer<typeof WritePolicy> =>
   mode === "plan" ? "read-only" : mode === "manual" ? "ask" : "auto";
 
+const titleOf = (task: string): string => {
+  const line = task.trim().split("\n")[0]?.trim() ?? "";
+  return line.length > 80 ? `${line.slice(0, 79)}…` : line || "Session";
+};
+
 export function externalSessionTools(store: Store): Tool[] {
   return [
     defineTool({
@@ -70,6 +75,8 @@ export function externalSessionTools(store: Store): Tool[] {
           agent_id: ctx.agent.id,
           project_id: project.id,
           engine: a.engine,
+          // Named after what it was asked, as a delegation is: the engine's name is its face, not its title.
+          title: titleOf(a.task),
           write,
           ...(a.cwd !== undefined ? { cwd: a.cwd } : {}),
           ...(a.model ? { model: a.model } : {}),
@@ -80,6 +87,7 @@ export function externalSessionTools(store: Store): Tool[] {
             type: "subthread",
             thread_id: thread.id,
             agent_id: ctx.agent.id,
+            engine: a.engine,
             title: thread.title,
             state: sent.run.state === "queued" ? "queued" : "working",
           });

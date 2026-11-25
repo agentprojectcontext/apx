@@ -22,6 +22,7 @@ export function unasked(origin: Origin): boolean {
     case "task_result":
     case "delegation_result":
     case "delegation_results":
+    case "workflow_result":
     case "added":
       return true;
     case "user":

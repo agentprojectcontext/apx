@@ -26,6 +26,8 @@ function fromOf(origin: Origin): JobFrom {
       return { kind: origin.kind, name: origin.name };
     case "delegation_results":
       return { kind: "delegation_result", name: origin.results.map((r) => r.name).join(", ") };
+    case "workflow_result":
+      return { kind: "delegation_result", name: origin.name };
     case "surface":
       return { kind: origin.kind, name: origin.title };
     // A reviewer's return to a coordinator: a team's word, shown as the reviewer's agent.

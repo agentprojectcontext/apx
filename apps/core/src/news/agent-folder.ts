@@ -1,6 +1,6 @@
 import type { NewsEntry } from "./entries.ts";
 
-// Told to an owner whose projects APX moved from .apc/ to .agent/. See DECISIONS.md#d-273
+// Told to an owner whose projects APX moved from .apc/ to .agent/. See DECISIONS.md#d-275
 export const AGENT_FOLDER_NEWS: NewsEntry = {
   id: "agent-folder",
   since: "2.17.0",
