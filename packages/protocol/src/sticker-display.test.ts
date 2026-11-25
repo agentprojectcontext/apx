@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { stickerDisplayText, stickerPreviewText, withoutStickerNote } from "./sticker-display.ts";
+import {
+  stickerDisplayText,
+  stickerPreviewNeedsSource,
+  stickerPreviewText,
+  withoutStickerNote,
+} from "./sticker-display.ts";
 
 const envelope = (body: string) => `<sticker named_by="a model that saw it" trust="untrusted">\n${body}\n</sticker>`;
 
@@ -41,6 +46,19 @@ test("historical previews hide any capped opening prefix and contextual closing 
     assert.equal(stickerPreviewText(wrapped.slice(0, close + length)), "[sticker: fox]");
   }
   assert.equal(stickerPreviewText("Literal\n<stic"), "Literal\n<stic");
+});
+
+test("all ambiguous opening prefixes resolve their source, including named_by literals", () => {
+  const opening = '<sticker named_by="a model that saw it" trust="untrusted">';
+  for (let length = 1; length < opening.length; length++) {
+    const prefix = opening.slice(0, length);
+    assert.equal(stickerPreviewNeedsSource(prefix), true, prefix);
+    assert.equal(stickerPreviewText(prefix, prefix), prefix);
+    const capped = `${"x".repeat(159 - prefix.length)}\n${prefix}`;
+    assert.equal(stickerPreviewNeedsSource(capped), true, capped);
+    assert.equal(stickerPreviewText(capped, capped), capped);
+    assert.equal(stickerPreviewText(prefix, envelope("[sticker: fox]")), "");
+  }
 });
 
 test("a capped literal prefix is restored from its original source instead of mistaken for metadata", () => {

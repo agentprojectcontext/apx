@@ -23,13 +23,16 @@ test("sticker captions and historical grouped previews in both languages and wid
         await page.setViewportSize({ width, height: 900 });
         await page.goto(`${fixture.url}/?lang=${language}#channel=test&chat=${fixture.thread}`);
         await expect(page.locator(".chan__text")).toHaveText([
+          "[sticker]",
+          "Human caption",
+          "[sticker]",
           "Hello there",
           literalCaption,
           "[sticker: fox]",
           "[sticker: Missing picture]",
           "Multiple stickers",
         ]);
-        await expect(page.locator(".chan__bubble")).toHaveCount(6);
+        await expect(page.locator(".chan__bubble")).toHaveCount(10);
         await expect(page.locator("body")).not.toContainText("named_by");
         await expect(page.locator("body")).not.toContainText('trust="untrusted"');
         const contact = page.getByRole("complementary", {
@@ -41,7 +44,28 @@ test("sticker captions and historical grouped previews in both languages and wid
         }
         await expect(contact).toHaveCount(0);
         await expect(page.getByText(literalCaption, { exact: true })).toBeVisible();
+        await page.locator(".chan__bubble").first().scrollIntoViewIfNeeded();
+        await page.screenshot({ path: info.outputPath(`unnamed-${language}-${width}.png`) });
+        await page.getByText(literalCaption, { exact: true }).scrollIntoViewIfNeeded();
         await page.screenshot({ path: info.outputPath(`channel-${language}-${width}.png`) });
+        await page
+          .getByRole("button", {
+            name: language === "es" ? "Configuración del canal" : "Channel settings",
+            exact: true,
+          })
+          .click();
+        await page
+          .locator(".config__nav")
+          .getByRole("button", { name: language === "es" ? "Stickers y emojis" : "Stickers and emoji", exact: true })
+          .click();
+        const adult = page.locator(".stk__row").filter({ hasText: language === "es" ? "+18" : "18+" });
+        await expect(adult).toBeVisible();
+        await expect(adult.getByRole("switch")).not.toBeChecked();
+        await page.screenshot({ path: info.outputPath(`adult-catalog-${language}-${width}.png`) });
+        await page
+          .getByRole("dialog")
+          .getByRole("button", { name: language === "es" ? "Cerrar" : "Close", exact: true })
+          .click();
         await page.goto(`${fixture.url}/?lang=${language}#thread=${fixture.thread}`);
         await expect(page.getByText(literalCaption, { exact: true })).toBeVisible();
         await expect(page.getByText("[sticker: fox]", { exact: true })).toBeVisible();
@@ -56,7 +80,9 @@ test("sticker captions and historical grouped previews in both languages and wid
             .click();
         }
         const heads = page.locator(".channelbundle__head");
-        await expect(heads).toHaveCount(7);
+        await expect(heads).toHaveCount(10);
+        await expect(heads.filter({ hasText: "Named literal" })).toContainText('<sticker named_by="');
+        await expect(heads.filter({ hasText: "Cut named opening" })).not.toContainText("<");
         await expect(heads.filter({ hasText: "Short opening" })).not.toContainText("<");
         await expect(heads.filter({ hasText: "Short literal" })).toContainText("<stic");
         await expect(heads.filter({ hasText: "Delivery line" })).toContainText("[sticker: A friendly mascot]");
@@ -68,6 +94,9 @@ test("sticker captions and historical grouped previews in both languages and wid
         await page.goto(`${fixture.url}/?lang=${language}#channel=literal-cap`);
         await expect(page.locator(".chan__preview")).toContainText("<stic");
         await page.screenshot({ path: info.outputPath(`literal-${language}-${width}.png`) });
+        await page.goto(`${fixture.url}/?lang=${language}#channel=literal-named-cap`);
+        await expect(page.locator(".chan__preview")).toContainText('<sticker named_by="');
+        await page.screenshot({ path: info.outputPath(`named-literal-${language}-${width}.png`) });
       }
     }
     const kept = await client.call("threads.get", { thread: fixture.thread });

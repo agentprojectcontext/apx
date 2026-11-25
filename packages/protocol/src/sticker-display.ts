@@ -13,12 +13,7 @@ export function stickerDisplayText(text: string): string {
 export function stickerPreviewNeedsSource(text: string): boolean {
   const lines = text.split(/\r?\n/);
   const last = lines.at(-1) ?? "";
-  return (
-    !lines.includes(OPEN_LINE) &&
-    last.startsWith("<") &&
-    OPEN_LINE.startsWith(last) &&
-    !last.startsWith('<sticker named_by="')
-  );
+  return !lines.includes(OPEN_LINE) && last.startsWith("<") && OPEN_LINE.startsWith(last);
 }
 
 export function stickerPreviewText(text: string, source?: string): string {

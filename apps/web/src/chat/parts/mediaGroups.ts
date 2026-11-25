@@ -46,5 +46,14 @@ export function bubbleFiles(parts: readonly Part[]): Array<Extract<Part, { type:
 export function withoutFilesNote(parts: readonly Part[], text: string): string {
   const attached = parts.some((p) => p.type === "file" || p.type === "image" || p.type === "audio");
   if (!attached) return stickerDisplayText(text);
+  // Bare notes and identical human captions need provenance; see HISTORY.md#attachment-note-provenance.
+  const source = parts.find((p) => p.type === "text" && p.text === text);
+  if (source?.type === "text") {
+    for (const note of (source.attachment_notes ?? []).toReversed()) {
+      if (text === note) text = "";
+      else if (text.endsWith(`\n${note}`)) text = text.slice(0, -note.length - 1);
+      else break;
+    }
+  }
   return text.trim() === "[attached files]" ? "" : withoutStickerNote(text);
 }

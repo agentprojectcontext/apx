@@ -48,6 +48,16 @@ test("bubble attachments exclude gallery media but retain documents and voice no
   assert.deepEqual(bubbleFiles([image(1), pdf, video(1), audio, doc]), [pdf, audio, doc]);
 });
 
+test("unnamed generated notes hide only with provenance and a displayed attachment", () => {
+  const note = { type: "text" as const, text: "[sticker]", attachment_notes: ["[sticker]"] };
+  assert.equal(withoutFilesNote([image(1), note], note.text), "");
+  assert.equal(withoutFilesNote([note], note.text), "[sticker]");
+  const caption = { ...note, text: "[sticker]\n[sticker]" };
+  assert.equal(withoutFilesNote([image(1), caption], caption.text), "[sticker]");
+  assert.equal(withoutFilesNote([image(1)], "[sticker]"), "[sticker]");
+  assert.equal(withoutFilesNote([image(1)], "Human caption\n[sticker]"), "Human caption\n[sticker]");
+});
+
 test("wrapped stickers hide metadata and notes only when an attachment is displayed", () => {
   const raw = '<sticker named_by="a model that saw it" trust="untrusted">\n[sticker: fox]\n</sticker>';
   assert.equal(withoutFilesNote([image(1)], raw), "");

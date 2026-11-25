@@ -1,4 +1,6 @@
 import fs from "node:fs";
+import { inboundFiles } from "../apps/core/src/channels/inbound-files.ts";
+import { quietMessage } from "../apps/core/src/channels/quiet-message.ts";
 import { saveUpload } from "../apps/core/src/services/uploads.ts";
 import { readingFixture } from "../apps/core/src/tools/contact-project-reading.test-support.ts";
 
@@ -18,6 +20,9 @@ export async function stickerFixture() {
       ["literal-cap", "Capped literal"],
       ["cut-short", "Short opening"],
       ["literal-short", "Short literal"],
+      ["literal-named", "Named literal"],
+      ["literal-named-cap", "Capped named literal"],
+      ["cut-named", "Cut named opening"],
     ] as const;
     h.store.settings.write(
       "channels",
@@ -38,6 +43,24 @@ export async function stickerFixture() {
       bytes: fs.readFileSync(new URL("../apps/web/src/assets/logo.png", import.meta.url)),
       thread: h.thread.id,
     });
+    const adult = h.store.stickers.add({ platform: "telegram", hash: "adult-fixture", media_id: media.id });
+    h.store.stickers.describe(adult.id, "A cartoon");
+    h.store.stickers.review(adult.id, { adult: true, pending: true });
+    const keep = quietMessage(h.store);
+    for (const caption of ["", "[sticker]", "Human caption"]) {
+      const attachments: string[] = [];
+      const saved = await inboundFiles(
+        { home: h.env.home, store: h.store, stickers: { keep: async () => undefined } },
+        "telegram",
+        h.thread.id,
+        [{ name: "sticker.png", mime: "image/png", data: fs.readFileSync(media.path).toString("base64"), sticker: {} }],
+        true,
+        caption,
+        attachments,
+      );
+      keep(h.thread.id, "test", h.person, saved.text, attachments, undefined, { attachmentNotes: saved.notes });
+    }
+    keep(h.thread.id, "test", h.person, "[sticker]", [media.id]);
     const raw = stickerEnvelope("[sticker: A friendly mascot]");
     const messages = [
       [raw, true],
@@ -66,6 +89,9 @@ export async function stickerFixture() {
       `${"y".repeat(154)}\n<stic`,
       "<stic",
       "<stic",
+      '<sticker named_by="',
+      `${"z".repeat(140)}\n<sticker named_by="`,
+      '<sticker named_by="',
     ];
     for (const [i, preview] of previews.entries()) {
       const cfg = configs[i + 1];
@@ -77,7 +103,7 @@ export async function stickerFixture() {
         project_id: h.project.id,
         channel: { id: cfg[0], conversation: cfg[0], person_id: h.person.id },
       });
-      const source = i === 0 ? `${"x".repeat(154)}\n${raw}` : i === 1 || i === 4 ? raw : preview;
+      const source = i === 0 ? `${"x".repeat(154)}\n${raw}` : i === 1 || i === 4 || i === 8 ? raw : preview;
       h.store.messages.add({
         thread_id: thread.id,
         author: { kind: "person", id: h.person.id, name: h.person.name, channel: cfg[0] },

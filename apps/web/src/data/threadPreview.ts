@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { loadThread } from "./actions.ts";
 import { useData } from "./state.ts";
 
-/** A capped '<stic' can also be a literal caption: resolve that rare ambiguity from the original message. */
+/** Any capped opening tag can also be a literal caption: resolve that ambiguity from the original message. */
 export function useThreadPreview(thread: Thread | undefined): string {
   const preview = thread?.preview ?? "";
   const messages = useData((s) => (thread ? s.messages[thread.id] : undefined));

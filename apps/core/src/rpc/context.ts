@@ -35,6 +35,8 @@ export type CallContext = {
         person_id: string;
         name: string;
         role: "owner" | "contact";
+        /** Only channel ingestion supplies attachment-note provenance, never an RPC caller. */
+        attachmentNotes?: string[] | undefined;
       }
     | undefined;
 };

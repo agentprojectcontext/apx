@@ -136,6 +136,7 @@ export function threadHandlers(
     author: Author,
     steer: boolean,
     admit: Omit<Admit, "thread_id" | "text">,
+    attachmentNotes?: string[],
   ) {
     const files = admit.attachments ?? [];
     return store.tx(() => {
@@ -149,7 +150,7 @@ export function threadHandlers(
               ? CHROME_VIA
               : undefined,
         parts: [
-          { type: "text", text },
+          { type: "text", text, ...(attachmentNotes?.length ? { attachment_notes: attachmentNotes } : {}) },
           ...files.map((f) =>
             f.kind === "image"
               ? ({ type: "image", media_id: f.media_id, mime: f.mime, alt: f.name } as const)
@@ -266,6 +267,7 @@ export function threadHandlers(
           role: ch.role,
         },
       },
+      ch.attachmentNotes,
     );
   }
 

@@ -29,7 +29,14 @@ export type OwnerWords = {
   /** The owner's chat the words came to (Home, or the channel's own), and its agent. */
   threadId: string;
   agent: AgentRecord;
-  channel: { id: string; conversation: string; message?: string | undefined; person_id: string; name: string };
+  channel: {
+    id: string;
+    conversation: string;
+    message?: string | undefined;
+    person_id: string;
+    name: string;
+    attachmentNotes?: string[] | undefined;
+  };
   text: string;
   attachments: Attachment[];
   /** Said in a public room and handed on to Home (DECISIONS.md#d-213): where, and where Home's answers go meanwhile. */
@@ -64,7 +71,14 @@ export function relayOwnerWords(
           thread_id: w.threadId,
           author: { kind: "person", id: w.channel.person_id, name: w.channel.name, channel: w.channel.id },
           via: w.channel.id,
-          parts: [{ type: "text", text: w.text }, ...w.attachments.flatMap((f) => partOf(store, f.media_id))],
+          parts: [
+            {
+              type: "text",
+              text: w.text,
+              ...(w.channel.attachmentNotes?.length ? { attachment_notes: w.channel.attachmentNotes } : {}),
+            },
+            ...w.attachments.flatMap((f) => partOf(store, f.media_id)),
+          ],
         });
     if (!w.room) {
       store.threads.patch(w.threadId, { preview: previewOf(w.text) });
