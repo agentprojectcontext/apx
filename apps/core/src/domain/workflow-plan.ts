@@ -198,16 +198,40 @@ const outputNote = (schema: JsonSchema) =>
   `End your answer with your result as JSON in a \`\`\`json block that fits this schema; that block is what the workflow passes on:\n${JSON.stringify(schema)}`;
 
 /** Each item that went through every stage, with its last output (as JSON when it is). */
+/** Each item's last output as text the owner reads on the card: a heading per item, fields as a list, never raw JSON. */
 function resultsOf(plan: WorkflowPlan, steps: ReadonlyMap<string, StepView>): string {
   const last = plan.stages.length - 1;
-  const rows = (plan.items?.length ? plan.items : [undefined]).flatMap((item, i) => {
+  const items = plan.items?.length ? plan.items : [undefined];
+  const blocks = items.flatMap((item, i) => {
     const step = steps.get(keyOf(last, i));
     if (step?.state !== "done") return [];
-    const out = parsed(step.output?.slice(0, RESULT_ITEM_CHARS));
-    return [{ ...(item !== undefined ? { item } : {}), output: out }];
+    const body = readable(parsed(step.output?.slice(0, RESULT_ITEM_CHARS)));
+    return [items.length > 1 || item !== undefined ? `### ${labelOf(item, i)}\n\n${body}` : body];
   });
-  return JSON.stringify(rows, null, 2).slice(0, RESULTS_CHARS);
+  return blocks.join("\n\n").slice(0, RESULTS_CHARS);
 }
+
+/** An item's name for its heading: itself when it is text, else its first name-like field. */
+function labelOf(item: unknown, i: number): string {
+  if (typeof item === "string" || typeof item === "number") return String(item);
+  if (item && typeof item === "object") {
+    const o = item as Record<string, unknown>;
+    for (const k of ["name", "title", "label", "area", "id"]) if (typeof o[k] === "string" && o[k]) return o[k] as string;
+  }
+  return `Item ${i + 1}`;
+}
+
+/** A value as Markdown: text as it is, an object's fields as a list, anything deeper as one line of JSON. */
+function readable(value: unknown): string {
+  if (value === undefined || value === null) return "";
+  if (typeof value !== "object") return String(value);
+  if (Array.isArray(value)) return value.map((v) => `- ${line(v)}`).join("\n");
+  return Object.entries(value as Record<string, unknown>)
+    .map(([k, v]) => (typeof v === "string" && v.includes("\n") ? `**${k}:**\n\n${v}` : `- **${k}:** ${line(v)}`))
+    .join("\n");
+}
+
+const line = (v: unknown): string => (typeof v === "string" ? v : JSON.stringify(v));
 
 /** The workflow's result: the finish stage's output, else each item's last output. */
 export function resultOf(plan: WorkflowPlan, steps: ReadonlyMap<string, StepView>): string {

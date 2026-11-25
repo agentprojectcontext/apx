@@ -8,6 +8,7 @@ import {
   outputOf,
   readiness,
   refOf,
+  resultOf,
   type StepView,
   stepsOf,
   taskText,
@@ -96,4 +97,22 @@ test("a plan names an agent or a worker per stage, and only_if never on the firs
     stages: [{ phase: "A", agent: "scout", task: "t", only_if: "f" }],
   });
   assert.equal(first.success, false);
+});
+
+test("without a finish stage the result reads as text per item, never raw JSON", () => {
+  const twoStage = WorkflowPlan.parse({
+    name: "Review",
+    items: [{ area: "Core", scope: "workflows" }, "Panel"],
+    stages: [{ phase: "Check", agent: "scout", task: "Check {{item}}" }],
+  });
+  const out = resultOf(
+    twoStage,
+    views([
+      [keyOf(0, 0), "done", "Approved: nothing new failed.\n\nStatus: done"],
+      [keyOf(0, 1), "done", JSON.stringify({ verdict: "fix", why: "the card overflows" })],
+    ]),
+  );
+  assert.match(out, /^### Core\n\nApproved: nothing new failed\./);
+  assert.match(out, /### Panel\n\n- \*\*verdict:\*\* fix\n- \*\*why:\*\* the card overflows/);
+  assert.doesNotMatch(out, /"output"|"item"|^\[/m);
 });
