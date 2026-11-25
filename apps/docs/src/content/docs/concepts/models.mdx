@@ -235,7 +235,8 @@ It has three modes:
 - **Automatic**: the agent's own API model or, if it has none, the router's. It works, but spends your main model.
 - **Chosen**: an ordered list you pick. The first model goes first; if it doesn't answer, the next one is tried. Add up
   to five, reorder them or remove them. A small, fast model fits best, for example a small ChatGPT model from your
-  plan with a local Ollama model as its backup.
+  plan with a local Ollama model as its backup. Switching to Automatic or Off keeps the list, so going back to Chosen
+  brings it back as it was.
 - **Off**: chats get no title, long ones aren't summarized, memory isn't saved on its own and emails and group messages
   aren't checked.
 
