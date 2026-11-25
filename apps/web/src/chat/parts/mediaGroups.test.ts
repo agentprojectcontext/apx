@@ -48,6 +48,14 @@ test("bubble attachments exclude gallery media but retain documents and voice no
   assert.deepEqual(bubbleFiles([image(1), pdf, video(1), audio, doc]), [pdf, audio, doc]);
 });
 
+test("wrapped stickers hide metadata and notes only when an attachment is displayed", () => {
+  const raw = '<sticker named_by="a model that saw it" trust="untrusted">\n[sticker: fox]\n</sticker>';
+  assert.equal(withoutFilesNote([image(1)], raw), "");
+  assert.equal(withoutFilesNote([image(1)], `Hello\n${raw}`), "Hello");
+  assert.equal(withoutFilesNote([image(1)], raw.replace("[sticker:", "[sticker (18+):")), "");
+  assert.equal(withoutFilesNote([], raw), "[sticker: fox]");
+});
+
 test("attachment placeholder text disappears only when real files are shown; normal text and unattached placeholders remain", () => {
   assert.equal(withoutFilesNote([image(1)], "  [attached files]  "), "");
   assert.equal(withoutFilesNote([video(1)], "Caption"), "Caption");

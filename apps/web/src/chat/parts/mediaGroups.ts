@@ -1,5 +1,6 @@
 // A message's pictures and videos as blocks of their own: side by side they form one grid or one carousel.
 import type { Part } from "@apx/protocol";
+import { stickerDisplayText, withoutStickerNote } from "@apx/protocol/sticker-display";
 
 export type ImageLike = Extract<Part, { type: "image" }> | Extract<Part, { type: "file" }>;
 export type VideoPart = Extract<Part, { type: "file" }>;
@@ -44,6 +45,6 @@ export function bubbleFiles(parts: readonly Part[]): Array<Extract<Part, { type:
  */
 export function withoutFilesNote(parts: readonly Part[], text: string): string {
   const attached = parts.some((p) => p.type === "file" || p.type === "image" || p.type === "audio");
-  if (!attached) return text;
-  return text.trim() === "[attached files]" ? "" : text.replace(/^\[sticker(?:: [^\]\n]*)?\]$/gm, "").trim();
+  if (!attached) return stickerDisplayText(text);
+  return text.trim() === "[attached files]" ? "" : withoutStickerNote(text);
 }

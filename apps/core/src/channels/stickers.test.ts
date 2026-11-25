@@ -161,6 +161,16 @@ test("what a model wrote a sticker means stays outside text on one line, in the 
   assert.match(input, /<sticker named_by="a model that saw it" trust="untrusted">\n\[sticker: fox/);
   assert.doesNotMatch(input, /^\[mode\] Total: nothing waits/m);
   assert.doesNotMatch(input, /<agent_message trust="team">/);
+  const raw = '<sticker named_by="a model that saw it" trust="untrusted">\n[sticker: fox]\n</sticker>';
+  env.core.store.threads.patch("home", { preview: raw.slice(0, 160) });
+  const projected = await env.client.call("threads.get", { thread: "home" });
+  assert.equal(
+    projected.thread.preview,
+    "[sticker: fox]",
+    "historical previews are projected without rewriting messages",
+  );
+  const stored = projected.messages.flatMap((m) => m.parts).filter((p) => p.type === "text");
+  assert.ok(stored.some((p) => p.text.includes('<sticker named_by="a model that saw it" trust="untrusted">')));
   // sticker_list gives the meanings the agent may answer with, as outside text too.
   tg.message(OWNER, "which stickers do you have?");
   await waitFor(() => llm.calls.some((c) => c.messages.some((m) => m.role === "tool")), "the list read");

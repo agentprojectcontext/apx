@@ -1,6 +1,7 @@
 // Threads, what was said in them (messages, for people) and what the model saw (model_log, for the model).
 // Two projections of one conversation: the UI never reads the model log and the model never reads display parts.
 import type { MailMark, ModelChoice, RoutineAutonomy, Thread } from "@apx/protocol";
+import { stickerPreviewText } from "@apx/protocol/sticker-display";
 import type { Updateable } from "kysely";
 import { sql } from "kysely";
 import type { Bus } from "../bus.ts";
@@ -205,7 +206,7 @@ const PREVIEW_CHARS = 160;
  * read from before the mailbox was added ("[historical mail; …]") is the agent's, not the list's.
  */
 export const previewOf = (text: string) =>
-  text
+  stickerPreviewText(text)
     .replace(/^\[historical mail[^\]\n]*\]\n?/, "")
     .replace(/^\[subject: ([^\]\n]*)\]\n?/, "$1 · ")
     .slice(0, PREVIEW_CHARS);

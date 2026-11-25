@@ -1,4 +1,5 @@
 import type { Thread } from "@apx/protocol";
+import { stickerPreviewText } from "@apx/protocol/sticker-display";
 import type { Selectable } from "kysely";
 import type { ThreadsTable } from "../db/schema.ts";
 import { opt } from "./sql.ts";
@@ -48,7 +49,7 @@ export const toThread = (r: Selectable<ThreadsTable> & { routine_id?: string | n
     : {}),
   ...fromContext(r.context),
   state: r.state as Thread["state"],
-  preview: r.preview,
+  preview: stickerPreviewText(r.preview),
   unread: Number(r.unread),
   created_at: r.created_at,
   updated_at: r.updated_at,
