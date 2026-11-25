@@ -13,9 +13,18 @@ test("a second consultation steered into an active session keeps its own questio
   const displays: ReturnType<typeof openDisplay>[] = [];
   try {
     const boss = h.store.agents.get("superagent");
+    const agent = h.store.agents.get(h.agent.id);
     assert.ok(boss);
+    assert.ok(agent);
     const caller = () => {
-      const run = h.store.runs.create({ thread_id: h.thread.id, agent_id: h.agent.id, trigger: "user", depth: 0 });
+      const run = h.store.runs.create({
+        thread_id: h.thread.id,
+        agent_id: h.agent.id,
+        trigger: "user",
+        depth: 0,
+        input: { origin: { kind: "user" }, text: question },
+        deadline_at: new Date(Date.now() + 60000).toISOString(),
+      });
       const display = openDisplay(
         h.store,
         h.store.messages.add({
@@ -26,7 +35,7 @@ test("a second consultation steered into an active session keeps its own questio
         }),
       );
       displays.push(display);
-      return { agent: h.agent, run, display };
+      return { agent, run, display };
     };
     let steered = "";
     const delegation = createDelegations({
