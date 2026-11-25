@@ -6,6 +6,7 @@ import { ChatView } from "../chat/ChatView.tsx";
 import { shortWhen } from "../common/format.ts";
 import { loadChannels, loadPresence, type PresenceState, useChannels } from "../data/channels.ts";
 import { useData } from "../data/state.ts";
+import { useThreadPreview } from "../data/threadPreview.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { SidePanel } from "../panel/SidePanel.tsx";
 import { ListColumn } from "../shell/ListColumn.tsx";
@@ -402,6 +403,7 @@ function RoomRow({
   onPick(): void;
 }) {
   const t = useT();
+  const preview = useThreadPreview(thread);
   const mode = channel.rooms?.rooms.find((r) => r.id === thread.channel?.conversation)?.mode;
   return (
     <li>
@@ -420,7 +422,7 @@ function RoomRow({
             <span className="chan__rowtime">{shortWhen(thread.updated_at)}</span>
           </span>
           <span className="chan__rowtop">
-            <span className="chan__preview">{thread.preview}</span>
+            <span className="chan__preview">{preview}</span>
             {thread.unread > 0 && <span className="chan__unread">{thread.unread}</span>}
           </span>
           <span className="chan__rowtop chan__rowanswer">

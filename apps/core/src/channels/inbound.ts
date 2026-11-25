@@ -1,7 +1,7 @@
 // What arrives on a channel. Who wrote (an exact address match) decides where the words go: the owner's thread, a
 // contact's sealed thread, or a pairing request for a stranger. Button presses decide only when the owner presses them.
 
-import { CHANNEL_DEFAULTS, channelKindRules, type Thread, UPLOAD_LIMITS } from "@apx/protocol";
+import { CHANNEL_DEFAULTS, channelKindRules, type Thread } from "@apx/protocol";
 import type { Bus } from "../bus.ts";
 import type { AuxAbout } from "../domain/aux-calls.ts";
 import {
@@ -21,11 +21,11 @@ import { newsAction } from "../news/entries.ts";
 import type { InternalCall } from "../rpc/internal.ts";
 import type { Services } from "../services/registry.ts";
 import { saveUpload } from "../services/uploads.ts";
-import { inlineName, untrusted } from "../tools/result.ts";
 import { agentProject, answersInHome, contactAnswerer } from "./agent-project.ts";
 import { asksToStop } from "./closers.ts";
 import type { Delivery } from "./delivery.ts";
 import { type Held, waitsForHours } from "./held.ts";
+import { inboundFiles } from "./inbound-files.ts";
 import { createMailReporter } from "./mail-notices.ts";
 import { type Button, buttonId, inputPresentation, parseButton, ratingOf, shown } from "./notices.ts";
 import type { ChannelNotice, TellOwner } from "./owner-notices.ts";
@@ -161,28 +161,9 @@ export function createInbound(deps: {
       }
       if (voice && !quiet) text = await heard(m, thread.id, voice);
     }
-    for (const file of m.files ?? []) {
-      try {
-        attachments.push(
-          saveUpload(
-            deps.home,
-            store,
-            { name: file.name, mime: file.mime, bytes: Buffer.from(file.data, "base64"), thread: thread.id },
-            // Videos and documents are kept to play or download; a picture stays small enough for a model to see.
-            file.mime.startsWith("image/") ? undefined : UPLOAD_LIMITS.channelBytes,
-          ).id,
-        );
-      } catch (err) {
-        text += `\n[attachment could not be accepted: ${errorMessage(err, 200)}]`;
-      }
-      // A sticker is kept for good the moment it arrives, and read as what it means (a silenced contact's unnamed).
-      if (file.sticker) {
-        const s = await deps.stickers.keep(cfg.type, file, thread.id, !quiet);
-        const said = `[sticker${s?.adult ? " (18+)" : ""}${s?.meaning ? `: ${inlineName(s.meaning, 160)}` : ""}]`;
-        // A model wrote its meaning from a picture someone sent: outside text, even in the owner's turn.
-        text = `${text}\n${s?.meaning ? untrusted("sticker", { named_by: "a model that saw it" }, said) : said}`.trim();
-      }
-    }
+    const files = await inboundFiles(deps, cfg.type, thread.id, m.files, quiet, text, attachments);
+    text = files.text;
+    const provenance = files.notes.length ? { attachmentNotes: files.notes } : undefined;
     // A silenced contact keeps its files without transcription, a model call or a work-folder copy.
     if (quiet) {
       const said = m.voice ? `${text ? `${text}\n` : ""}[voice note]` : text;
@@ -193,6 +174,7 @@ export function createInbound(deps: {
         said,
         attachments,
         person.muted ? undefined : { answered: "no: this account answers only its owner" },
+        provenance,
       );
       keepMail(thread.id, m, kept);
       if (person.unreviewed) report(cfg, person, m.sender.id, said, thread.id);
@@ -201,7 +183,7 @@ export function createInbound(deps: {
     if (waits) {
       const said = text.trim() || (attachments.length ? "[attached files]" : "[empty message]");
       const note = { answered: "not yet: it came outside the channel's attention hours" };
-      theirLast(thread.id, cfg.id, m, keepQuiet(thread.id, cfg.id, person, said, attachments, note));
+      theirLast(thread.id, cfg.id, m, keepQuiet(thread.id, cfg.id, person, said, attachments, note, provenance));
       deps.held.hold(cfg, person, thread.id, m.conversation, m.sender.id);
       return "done";
     }
@@ -209,7 +191,7 @@ export function createInbound(deps: {
     // Supervised: kept unanswered, and the owner gets the reply the agent would send.
     if (supervised) {
       const said = text.trim() || (attachments.length ? "[attached files]" : "[empty message]");
-      theirLast(thread.id, cfg.id, m, keepQuiet(thread.id, cfg.id, person, said, attachments, {}));
+      theirLast(thread.id, cfg.id, m, keepQuiet(thread.id, cfg.id, person, said, attachments, {}, provenance));
       deps.suggestions.held(cfg, person, m.sender.id, thread.id);
       return "done";
     }
@@ -258,6 +240,7 @@ export function createInbound(deps: {
           person_id: person.id,
           name: person.name,
           role: owner ? "owner" : "contact",
+          ...provenance,
         },
       },
       `channel:${rowId}`,
