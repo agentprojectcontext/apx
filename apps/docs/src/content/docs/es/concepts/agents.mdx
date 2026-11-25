@@ -336,6 +336,30 @@ puede quien lo llamó, nunca más que el modo de quien lo llamó (en un hilo de 
 del ayudante o el del proyecto; nombrar uno sólo lo achica. Su resultado vuelve a quien lo pidió como el de cualquier
 delegación.
 
+## Flujos de trabajo
+
+Cuando un trabajo es demasiado amplio para un solo agente, como revisar cada área de un proyecto o una lista larga de
+archivos, tu agente puede correr un **flujo de trabajo** en vez de pedirle ayuda a uno por uno. Escribe un plan y APX lo
+corre. El agente no decide cada paso sobre la marcha.
+
+- **Ítems y etapas.** Cada ítem (hasta 24) pasa por hasta cuatro etapas en orden, por ejemplo *buscar* y después
+  *verificar*. Un ítem pasa a su etapa siguiente apenas termina la anterior: no espera a los demás.
+- **Varios agentes a la vez.** Hasta cuatro agentes del flujo trabajan al mismo tiempo (tres por defecto). Cada etapa
+  nombra un agente del equipo o un ayudante que el agente describe.
+- **Resultados revisados.** Una etapa puede pedir su respuesta en JSON con una forma dada. Si la respuesta no encaja,
+  se la pide una vez más, y la etapa siguiente lee ese JSON. Una etapa también puede seguir sólo con los ítems que la
+  anterior marcó, como los hallazgos que una verificación confirmó.
+- **Una etapa final** puede leer el resultado de cada ítem y escribir el resumen que recibe tu agente.
+
+El chat muestra una tarjeta del flujo: sus fases, el estado de cada agente, cuántos pasos están hechos y el resultado
+cuando termina. Hacé clic en una fila para abrir el chat de ese agente. **Detener** cancela a los agentes que están
+trabajando y no arranca nada más. **Reanudar** vuelve a correr sólo lo que no terminó: los pasos hechos conservan su
+resultado. Un flujo corre como mucho cuatro horas desde que empieza o desde que se reanuda.
+
+Cada llamada a un agente dentro de un flujo es una delegación, así que valen los mismos límites: el modo de quien lo
+pidió, las reglas que pusiste, los presupuestos de tus agentes, y los ayudantes no delegan más. Cuando el flujo
+termina, tu agente recibe el resultado y termina tu pedido con él.
+
 ## Hasta dónde llegan tus agentes
 
 El rol, el área y las herramientas de un agente dicen en qué es bueno y dónde suele trabajar. Nunca lo hacen rechazar

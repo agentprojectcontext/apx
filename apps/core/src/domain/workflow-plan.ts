@@ -72,7 +72,7 @@ export const WorkflowPlan = z
   });
 export type WorkflowPlan = z.infer<typeof WorkflowPlan>;
 
-export const FINISH = "finish";
+const FINISH = "finish";
 
 /** What an agent asks for: a new workflow, or one of its own to run again. */
 export type WorkflowAsk = { plan: WorkflowPlan; resume?: undefined } | { resume: string; plan?: undefined };
@@ -194,7 +194,7 @@ export function taskText(plan: WorkflowPlan, ref: StepRef, steps: ReadonlyMap<st
   return `This is one step of the workflow "${plan.name}" (phase ${stage.phase}). ${text}`;
 }
 
-export const outputNote = (schema: JsonSchema) =>
+const outputNote = (schema: JsonSchema) =>
   `End your answer with your result as JSON in a \`\`\`json block that fits this schema; that block is what the workflow passes on:\n${JSON.stringify(schema)}`;
 
 /** Each item that went through every stage, with its last output (as JSON when it is). */

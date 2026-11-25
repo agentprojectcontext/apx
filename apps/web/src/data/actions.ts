@@ -275,6 +275,15 @@ export async function cancelJob(job: string): Promise<void> {
   }
 }
 
+/** Stops a workflow an agent started, or runs what did not finish again (DECISIONS.md#d-272). */
+export async function workflowAction(workflow: string, action: "stop" | "resume"): Promise<void> {
+  try {
+    await client.call(action === "stop" ? "workflows.stop" : "workflows.resume", { workflow });
+  } catch (e) {
+    notify(t("workflow.error", { error: errText(e) }));
+  }
+}
+
 export async function cancel(threadId: string): Promise<void> {
   try {
     await client.call("threads.cancel", { thread: threadId });

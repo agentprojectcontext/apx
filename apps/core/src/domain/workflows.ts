@@ -3,7 +3,7 @@
 import { newId, now, qb, type Sql } from "./sql.ts";
 import type { StepState, WorkflowPlan } from "./workflow-plan.ts";
 
-export type WorkflowState = "running" | "done" | "failed" | "stopped";
+type WorkflowState = "running" | "done" | "failed" | "stopped";
 
 export type WorkflowRecord = {
   id: string;

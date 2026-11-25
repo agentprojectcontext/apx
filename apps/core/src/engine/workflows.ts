@@ -32,7 +32,7 @@ import { laterReplyTo } from "./home-channel.ts";
 import { answerOf } from "./run-outcome.ts";
 
 /** The most a workflow may run in all, from its start or its last resume. */
-export const WORKFLOW_CAP_MS = 4 * 3600_000;
+const WORKFLOW_CAP_MS = 4 * 3600_000;
 /** What a later turn of the asking agent reads of the result, and what the card shows of it. */
 const RESULT_CHARS = 20_000;
 const CARD_RESULT_CHARS = 4000;
@@ -108,7 +108,8 @@ export function createWorkflows(deps: WorkflowDeps) {
     return {
       name: w.name.slice(0, 80),
       state: w.state,
-      done: steps.filter((s) => ENDED.has(s.state)).length,
+      // Done means finished or not needed: a canceled or failed step is not done.
+      done: steps.filter((s) => s.state === "done" || s.state === "skipped").length,
       total: steps.length,
       phases,
       ...(w.result !== undefined ? { result: w.result.slice(0, CARD_RESULT_CHARS) } : {}),
@@ -531,4 +532,3 @@ export function createWorkflows(deps: WorkflowDeps) {
   };
 }
 
-export type Workflows = ReturnType<typeof createWorkflows>;

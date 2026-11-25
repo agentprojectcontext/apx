@@ -56,6 +56,7 @@ import { TASK_GOALS_NEWS } from "./task-goals.ts";
 import { TASK_REGROUP_NEWS } from "./task-regroup.ts";
 import { VOICE_CALLS_NEWS } from "./voice-calls.ts";
 import { WHATSAPP_GROUPS_NEWS } from "./whatsapp-groups.ts";
+import { WORKFLOWS_NEWS } from "./workflows.ts";
 
 /** What an entry may ask about this install before it is told. */
 export type NewsFacts = {
@@ -210,6 +211,7 @@ export const NEWS: readonly NewsEntry[] = [
   BROWSER_RECIPES_NEWS,
   SUPER_AGENT_SETUP_NEWS,
   AGENTS_REACH_NEWS,
+  WORKFLOWS_NEWS,
   {
     id: "storage-screen",
     since: "2.13.0",
