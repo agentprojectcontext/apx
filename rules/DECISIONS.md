@@ -6260,3 +6260,9 @@ the relay stays for what is the super-agent's own: settings, agents, Flows).
   `.claude/settings*.json` asks like `AGENTS.md`, since it would let a session widen itself.
 
 Not changed here: memory notes are still written only for the agent's own project.
+
+<a id="d-272"></a>
+## D-272 — 2026-11-25 — Owner-approved public blog attribution
+The owner asked for a public author identity on every blog post and approved keeping it when the private-data gate flagged it. Rule 17 otherwise remains in force: the gate exempts only four approved literal matches in the exact reviewed author-data file bytes. A content edit invalidates the exception; a detected term then fails. New denylist matches, public path and phone shapes, and commit scans remain active. Without a local denylist, these personal terms are not detected. Updating the exemption requires renewed review, not a blanket allowlist. The published attribution and repository history are public; this exception is not a general privacy audit.
+
+Docs impact: updated GUARDRAILS_PROFILE.md to describe the scoped gate exception.

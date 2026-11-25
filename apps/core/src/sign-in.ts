@@ -43,7 +43,7 @@ export function siteWords(origin: string): string[] {
   return labels.filter((l) => !GENERIC.has(l) && !/^\d+$/.test(l));
 }
 
-/** A variable name for a sign-in the owner saves: the site, then who signs in ("GOOGLE_MANU_LOGIN"). */
+/** A variable name for a sign-in the owner saves: the site, then who signs in ("GOOGLE_ACME_LOGIN"). */
 export function loginName(origin: string, username: string): string {
   const clean = (s: string, max: number) =>
     s
