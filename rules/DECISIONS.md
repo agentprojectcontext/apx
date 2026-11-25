@@ -6202,3 +6202,61 @@ Not changed here: whether an outside engine session started with `start_session`
 cross-project task @mention reaching another project's agent (privacy boundary; the super-agent reaches it).
 
 Docs impact: updated office/tasks in English and Spanish and rules/PROMPT_SIZE.md.
+
+<a id="d-271"></a>
+## D-271 — 2026-11-25 — An agent wears a hat: its role guides, never walls; between the owner's agents, rules and records replace walls
+The owner was close to collapsing the team into one super-agent with roles, because the specialists kept stopping at
+walls the super-agent never hit: "an agent can only read its own thread's jobs" while a teammate's gates were running,
+"an agent works only on its own project's tasks", reading nothing outside its own project, a widget "not being its
+permission". A month of the owner's store (2026-10-26 → 2026-11-25) had 189 + 119 + 72 task comments refused, 88
+delegations refused mid-task, 33 `shell_output` and 24 cross-project `task_get` refusals, and 25 folder cards for
+writes in the owner's own projects, 98% of cards approved. The "not my permission" for widgets came from no check at
+all: D-209's prompt line ("work outside your area goes to that area's agent") and a stale template `tools:` list that
+agents installed around 2026-11-14 kept as a hard allowlist.
+
+The model now is Claude's: one capable agent that works for different projects. Its role, area and `tools:` are a hat:
+what it is good at, where it usually works, the tools it uses first. Working for the owner it may read any of the
+owner's chats, jobs, tasks and project files, and act where the work is, saying where it acted, so "it created this in
+another project" is always visible and explained instead of forbidden.
+
+Who counts is decided in one place (`domain/owner-work.ts`): a turn works for the owner when its chat (and the chats
+above it) has no contact, room, outside app, Flow bot or contact consult. Every widened check goes through it.
+
+- **Chats** (`canReadChat`): any chat that works for the owner, any project; results from another project say where.
+  The narrow rule stays as `canReadOwnScope` for automatic recall, contact project reading and every outsider turn.
+  What the owner asked to forget stays hidden in any project's chat read from another.
+- **Jobs and outputs**: `shell_output`, `shell_kill`, `read_output`, `stop_session` and `media.transcribe` reach a
+  chat the agent can read, naming that chat. Another chat's whole turn stays its own.
+- **Tasks**: list, get, create (explicit `project`), update, move, comment and close in any project, with "This task
+  is in project X". A self-handoff may go to another project. Data rules stay (a parent in the same project, an
+  assignee who works in the task's project, now saying how to fix it); so do "only the owner accepts a proposed task"
+  and "an agent cannot move a task higher up".
+- **Refusals become routing** (amends D-202, D-270): mid-plan progress is noted on the plan's step; a helper's
+  comment is told to be part of its answer; a second comment in a turn joins the first; the task's agent may ask a
+  teammate mid-task, recorded on the task. The per-turn executor lock, depth and fan-out caps stay.
+- **The hat** (amends D-209): `tools:` is focus — listed tools are sent, the rest are found with `tool_search` under
+  the same mode and rules; a caller's list no longer narrows its helper (mode and rules still do). A rule the owner
+  set to off, the super-agent's own tools and every outsider tool set stay walls. The prompt says the agent's usual
+  area and that a role is never a reason to refuse, and one line tells every agent its reach. Widget tools take a
+  `project`. Example roles lost their "never" lines except QA's no-fix while reviewing and the legal disclaimer.
+- **Files** (extends D-108): a code thread or worktree session gets the same writable owner projects as other chats
+  (kept to its folder only when the owner made it read-only, fenced or a consult); a program writing where it runs in
+  an unregistered folder raises the folder card instead of "read-only folder"; the owner's other chats' temp folders
+  are readable (not in Manual, not in protected projects); Claude and Codex folder cards offer "Always"; a delegated
+  session may work in any of the owner's projects or worktrees.
+
+What stays a wall: contacts and rooms, outside apps, Flow bots and contact consults (D-262, D-263, D-269); APX's own
+folder, `.git`, `AGENTS.md`/`.apc` asks and deletions (D-266); projects being moved; the owner's mode (Plan, Manual),
+rules set to off, fenced reach and read-only folders; human-only methods; group chats; turn budgets.
+
+Rejected: one super-agent with roles instead of agents (the owner wants separate agents with their own memory, model
+and face); a "ask the super-agent when blocked" relay for every wall (one more turn for what the agent may simply do;
+the relay stays for what is the super-agent's own: settings, agents, Flows).
+- **Outside engines**: Claude Code and other harnesses also write in their own project's folder (before, only the
+  owner's other projects were writable without a card); Codex outside code threads writes in the owner's projects in
+  Auto, Accept edits and Total through a permission profile that never reads APX's home and keeps `AGENTS.md`, `.apc`
+  and Claude settings read-only unless Total; a turn not for the owner keeps only its temp folders. `start_session`
+  may open a session in any of the owner's projects not being moved, and says where. An edit to
+  `.claude/settings*.json` asks like `AGENTS.md`, since it would let a session widen itself.
+
+Not changed here: memory notes are still written only for the agent's own project.

@@ -28,7 +28,7 @@ export const appMediaMethods = {
   }),
   /**
    * Creates or updates a widget by its stable name (per project). Called by an agent, it lands in the agent's thread;
-   * `thread` places it elsewhere.
+   * `thread` places it elsewhere, and one of the owner's agents may name another `project` (DECISIONS.md#d-271).
    */
   "surfaces.show": deferMethod({
     params: () =>

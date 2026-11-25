@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { z } from "zod";
 import { deleteApproval, nativeApproval, strictApproval } from "../domain/approvals.ts";
+import { placeName } from "../domain/owner-work.ts";
 import type { Store } from "../domain/store.ts";
 import { namesApc } from "../engine/paths.ts";
 import { AGENT_WORKSPACE } from "../environments/worker.ts";
@@ -225,9 +226,9 @@ export function judgeCommand(
   cwd: string,
   o: Omit<JudgeOptions, "write" | "name"> & { userHome?: string; strict?: boolean } = {},
 ): Extract<Access, { refused: string }> | undefined {
-  // Reading anywhere is not a folder to protect: only a read-only folder the owner named (or one lent) is; `strict`
-  // refuses those words anyway.
-  const locked = o.strict === true || roots.some((r) => !r.write && !r.off && !r.anywhere);
+  // Reading anywhere, or the owner's other chats' temp files, is not a folder to protect: only a read-only folder the
+  // owner named (or one lent) is; `strict` refuses those words anyway.
+  const locked = o.strict === true || roots.some((r) => !r.write && !r.off && !r.anywhere && !r.scratch);
   const unknown = (what: string) => (locked ? { refused: refusal.unknown(what) } : undefined);
   let from: string | undefined = cwd;
   let old: string | undefined;
@@ -241,9 +242,10 @@ export function judgeCommand(
         if (n.known && locked) return unknown("this command");
         continue;
       }
-      // Any program may write where it runs; refused only in a read-only folder.
-      const r = judge(roots, ".", from);
-      if (!("refused" in r) && !r.write) return { refused: refusal.readOnly(from) };
+      // Any program may write where it runs: a read-only folder refuses it, a folder outside its own is the owner's
+      // to lend (the refusal carries the offer, as a file_write there does).
+      const r = judge(roots, ".", from, { ...o, write: true, name: from });
+      if ("refused" in r) return r;
       continue;
     }
     const to = n.to;
@@ -428,20 +430,27 @@ export function shellTools(
       title: () => "Read a job's output",
       async run(a, ctx) {
         const r = await ctx.call("jobs.get", { job: a.job, ...(a.offset === undefined ? {} : { offset: a.offset }) });
-        const head = `${r.job.state}${r.job.exit_code === undefined ? "" : ` (exit ${r.job.exit_code})`} · ${r.size} bytes · showing from ${r.offset}`;
+        const from =
+          r.job.thread_id === ctx.thread.id
+            ? ""
+            : `job from chat ${r.job.thread_title ?? r.job.thread_id} (${placeName(store, r.job.thread_project_id)}) · `;
+        const head = `${from}${r.job.state}${r.job.exit_code === undefined ? "" : ` (exit ${r.job.exit_code})`} · ${r.size} bytes · showing from ${r.offset}`;
         return `${head}\n${untrusted("command_output", { job: a.job }, r.output)}`;
       },
     }),
     defineTool({
       name: "shell_kill",
-      description: "Stop a terminal job you started.",
+      description: "Stop a terminal job.",
       args: z.object({ job: z.string().min(1) }),
       effect: "local",
       deadlineMs: 10_000,
       title: () => "Stopped a job",
       async run(a, ctx) {
         const r = await ctx.call("jobs.cancel", { job: a.job });
-        return r.canceled ? `job ${a.job} stopped` : `job ${a.job} was not running`;
+        const at = store.threads.get(store.jobs.get(a.job)?.thread_id ?? ctx.thread.id);
+        // Stopping work in another chat says where, so the owner can see it (DECISIONS.md#d-271).
+        const where = !at || at.id === ctx.thread.id ? "" : ` in chat ${at.title} (${placeName(store, at.project_id)})`;
+        return r.canceled ? `job ${a.job} stopped${where}` : `job ${a.job} was not running${where}`;
       },
     }),
   ];

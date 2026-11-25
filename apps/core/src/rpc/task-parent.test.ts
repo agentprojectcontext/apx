@@ -137,7 +137,9 @@ test("reparenting refuses self, descendant cycles, missing and cross-project par
       "hidden",
     );
     assert.equal(denied.ok, false);
-    assert.match(!denied.ok ? denied.error.message : "", /own project's tasks/);
+    // The owner's agent reaches the other project's task (DECISIONS.md#d-271); a parent there is still a data error.
+    assert.match(!denied.ok ? denied.error.message : "", /same project/);
+    assert.equal(env.core.store.tasks.get(other.id)?.parent_id, undefined);
     const model = new ApxClient({ url: env.core.url, actor: "agent" });
     await assert.rejects(model.call("tasks.update", { task: a.id, parent: b.id }), /parent:/);
   } finally {

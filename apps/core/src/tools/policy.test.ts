@@ -40,57 +40,112 @@ const ALL = [
   tool("ask_owner"),
 ];
 const names = (a: AgentRecord) => allowedTools(a, ALL).map((t) => t.name);
+/** What a turn sends directly for this agent (its focus), and what an outsider's turn lets it use at all. */
+const focused = (a: AgentRecord, tools = ALL) => {
+  const p = inherit(a, [], tools);
+  return p.tools.filter((t) => p.focus(t.name)).map((t) => t.name);
+};
+const walled = (a: AgentRecord, tools = ALL, callers: AgentRecord[] = []) => inherit(a, callers, tools, true);
 
-test("tools: lists filter by name or group and keep the always-available tools", () => {
+test("tools: a list is the agent's focus by name or group; every other tool stays reachable (DECISIONS.md#d-271)", () => {
   assert.deepEqual(
-    names(agent()),
+    focused(agent()),
     ALL.map((t) => t.name),
   );
-  assert.deepEqual(names(agent({ tools: ["browser"] })), ["browser_open", "browser_text", "read_output", "ask_owner"]);
-  assert.deepEqual(names(agent({ tools: ["Show_Widget", "agents"] })), [
+  assert.deepEqual(focused(agent({ tools: ["browser"] })), [
+    "browser_open",
+    "browser_text",
+    "read_output",
+    "ask_owner",
+  ]);
+  assert.deepEqual(focused(agent({ tools: ["Show_Widget", "agents"] })), [
     "show_widget",
     "delegate",
     "read_output",
     "ask_owner",
   ]);
+  // The list no longer walls the owner's agent off anything: it reaches every tool its rules allow.
+  assert.deepEqual(
+    names(agent({ tools: ["browser"] })),
+    ALL.map((t) => t.name),
+  );
+  // An outsider's turn (a contact, a consult, a Flow bot) keeps the list as a wall.
+  assert.deepEqual(
+    walled(agent({ tools: ["browser"] })).tools.map((t) => t.name),
+    ["browser_open", "browser_text", "read_output", "ask_owner"],
+  );
 });
 
-test("quota reads obey explicit lists, risk rules and caller restrictions without opening administration", () => {
+test("an agent with a stale tools list still reaches show_widget through the bridge; rules off and outsiders do not", () => {
+  const bridge = [tool("tool_search"), tool("tool_run")];
+  const all = [...ALL, ...bridge, tool("task_list"), tool("shell", "local", "ask")];
+  // The list templates wrote before widgets and images were in it.
+  const stale = agent({ tools: ["files", "shell", "tasks", "memory", "browser", "agents", "mcp", "web_search"] });
+  const p = inherit(stale, [], all);
+  assert.equal(p.allows("show_widget"), true, "show_widget is still the agent's");
+  assert.equal(p.focus("show_widget"), false, "outside its focus it is found with tool_search, not sent");
+  assert.equal(p.focus("tool_search") && p.allows("tool_search"), true, "the bridge stays in the turn");
+  assert.equal(p.focus("shell"), true);
+  // An explicit rule turning a risk off still takes the tool away, list or not.
+  assert.equal(inherit(agent({ ...stale, rules: { write: "off" } }), [], all).allows("show_widget"), false);
+  // A contact's sealed turn, a consult or a Flow bot: the list stays a wall.
+  assert.equal(walled(stale, all).allows("show_widget"), false);
+});
+
+test("quota reads obey risk rules, never open administration, and a caller's list no longer narrows a helper", () => {
   const quota = planUsageTools();
   const all = [...ALL, ...quota, tool("apx_settings")];
   assert.ok(allowedTools(agent(), all).some((t) => t.name === "plan_usage"));
   assert.ok(!allowedTools(agent(), all).some((t) => t.name === "apx_settings"));
+  assert.ok(!allowedTools(agent({ tools: ["apx_settings"] }), all).some((t) => t.name === "apx_settings"));
   assert.ok(!allowedTools(agent({ rules: { read: "off" } }), all).some((t) => t.name === "plan_usage"));
-  assert.ok(!allowedTools(agent({ tools: ["browser"] }), all).some((t) => t.name === "plan_usage"));
-  assert.equal(inherit(agent(), [agent({ tools: ["browser"] })], all).allows("plan_usage"), false);
+  assert.ok(allowedTools(agent({ tools: ["browser"] }), all).some((t) => t.name === "plan_usage"));
+  assert.equal(inherit(agent(), [agent({ tools: ["browser"] })], all).allows("plan_usage"), true);
+  assert.equal(walled(agent(), all, [agent({ tools: ["browser"] })]).allows("plan_usage"), false);
+  // A rule off above still narrows the helper (actingAs), whatever the lists say.
+  assert.equal(inherit(agent(), [agent({ rules: { read: "off" } })], all).allows("plan_usage"), false);
 });
 
-test("an explicit MCP-only list restricts builtins even when no MCP server supplies a bridge", () => {
+test("an MCP-only list focuses on MCP for the owner, and still restricts builtins in an outsider's turn", () => {
   for (const tools of [["mcp"], ["mcp_notes_echo"], ["tool_search", "tool_run"]]) {
-    assert.deepEqual(names(agent({ tools })), ["read_output", "ask_owner"]);
+    assert.deepEqual(
+      names(agent({ tools })),
+      ALL.map((t) => t.name),
+    );
+    assert.deepEqual(focused(agent({ tools })), ["read_output", "ask_owner"]);
+    assert.deepEqual(
+      walled(agent({ tools })).tools.map((t) => t.name),
+      ["read_output", "ask_owner"],
+    );
   }
 });
 
-test("tools: a list of MCP tools still restricts once they come through tool_search and tool_run", () => {
+test("tools: a list of MCP tools restricts what joins later only in an outsider's turn", () => {
   const withBridge = [...ALL, tool("tool_search"), tool("tool_run")];
   const a = agent({ tools: ["mcp_notes_echo"] });
   assert.deepEqual(
-    allowedTools(a, withBridge).map((t) => t.name),
+    walled(a, withBridge).tools.map((t) => t.name),
     ["read_output", "ask_owner", "tool_search", "tool_run"],
   );
-  // The MCP tools that join later are held to the same list, and to every caller's up the chain.
-  const p = inherit(a, [agent({ id: "boss", tools: ["mcp"] })], withBridge);
+  // There the MCP tools that join later are held to the same list, and to every caller's up the chain.
+  const p = walled(a, withBridge, [agent({ id: "boss", tools: ["mcp"] })]);
   assert.equal(p.allows("mcp_notes_echo"), true);
   assert.equal(p.allows("mcp_notes_wipe"), false);
   assert.equal(
-    inherit(agent(), [agent({ id: "boss", tools: ["browser"] })], withBridge).allows("mcp_notes_echo"),
+    walled(agent(), withBridge, [agent({ id: "boss", tools: ["browser"] })]).allows("mcp_notes_echo"),
     false,
   );
+  // For the owner, every MCP tool stays reachable through the bridge.
+  assert.equal(inherit(a, [agent({ id: "boss", tools: ["browser"] })], withBridge).allows("mcp_notes_wipe"), true);
 });
 
-test("tools: a list naming nothing APX knows does not strip the agent of every tool", () => {
+test("tools: a list naming nothing APX knows focuses on nothing, and strips no tool", () => {
   assert.deepEqual(
-    names(agent({ tools: ["Bash", "Edit"] })),
+    focused(agent({ tools: ["Bash", "Edit"] })),
+    ALL.map((t) => t.name),
+  );
+  assert.deepEqual(
+    walled(agent({ tools: ["Bash", "Edit"] })).tools.map((t) => t.name),
     ALL.map((t) => t.name),
   );
 });

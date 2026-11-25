@@ -1,7 +1,9 @@
 import path from "node:path";
 import { type Author, CHROME_VIA, type Task, type Thread } from "@apx/protocol";
+import type { AgentRecord } from "../domain/agents.ts";
 import { ownerActsOn } from "../domain/channels.ts";
-import { canReadChat } from "../domain/chat-access.ts";
+import { canReadChat, canReadOwnScope } from "../domain/chat-access.ts";
+import { ownerAgentOf } from "../domain/owner-work.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import { engineOf } from "../domain/refs.ts";
 import { type Attachment, ownerOrigin, publicRun, TERMINAL } from "../domain/runs.ts";
@@ -122,6 +124,12 @@ export function threadHandlers(
     if (!agent) throw notFound(`agent of thread ${threadId}`);
     return { thread, agent };
   };
+
+  /** The owner's agents working for the owner read the owner's chats anywhere; any other caller keeps its own scope. */
+  function chatReader(ctx: CallContext): (agent: AgentRecord, thread: Thread) => boolean {
+    const wide = Boolean(ownerAgentOf(store, ctx));
+    return (agent, thread) => (wide ? canReadChat : canReadOwnScope)(store, agent, thread);
+  }
 
   /** An outside app reads and writes only in the chats it started. */
   function ownClientThread(threadId: string, ctx: CallContext): void {
@@ -286,11 +294,12 @@ export function threadHandlers(
     "threads.list": ({ project_id, root_thread, include_subthreads, delegated, include_archived, engine }, ctx) => {
       const agent = ctx.agent && store.agents.get(ctx.agent.id);
       const protectedProjects = new Set(store.projectProtection.list().map((p) => p.project));
+      const readable = chatReader(ctx);
       const visible = (thread: Thread) =>
         !thread.project_id ||
         !protectedProjects.has(thread.project_id) ||
         (ctx.actor === "human" && !ctx.agent) ||
-        !!(agent && canReadChat(store, agent, thread));
+        !!(agent && readable(agent, thread));
       if (!root_thread) {
         const threads = store.threads
           .list({
@@ -326,7 +335,7 @@ export function threadHandlers(
       ownClientThread(thread, ctx);
       if (ctx.agent) {
         const agent = store.agents.get(ctx.agent.id);
-        if (!agent || !canReadChat(store, agent, t)) throw notFound(`thread ${thread}`);
+        if (!agent || !chatReader(ctx)(agent, t)) throw notFound(`thread ${thread}`);
       } else if (
         ctx.actor !== "human" &&
         t.project_id &&

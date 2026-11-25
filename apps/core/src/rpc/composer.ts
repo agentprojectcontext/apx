@@ -2,6 +2,7 @@
 
 import fs from "node:fs";
 import nodePath from "node:path";
+import { ownerAgentOf } from "../domain/owner-work.ts";
 import type { Store } from "../domain/store.ts";
 import { audienceOf } from "../engine/audience.ts";
 import type { Caller } from "../engine/permissions.ts";
@@ -10,6 +11,7 @@ import { readStoredAttachment, saveLocalAttachment } from "../services/attachmen
 import type { Services } from "../services/registry.ts";
 import { pruneTaskUploads, saveUpload } from "../services/uploads.ts";
 import type { Access, FolderThread } from "../tools/folders.ts";
+import type { CallContext } from "./context.ts";
 import { readableMedia } from "./media-access.ts";
 import type { Handlers } from "./router.ts";
 
@@ -26,6 +28,16 @@ export function composerHandlers(deps: {
 }) {
   const { store } = deps;
   pruneTaskUploads(store);
+  /** Audio from another chat the owner's agent may read for the owner (DECISIONS.md#d-271); contacts' stays sealed. */
+  const ownersAgentHears = (id: string, ctx: CallContext) => {
+    if (!ctx.agent || !ownerAgentOf(store, ctx)) return false;
+    try {
+      readableMedia(store, id, ctx);
+      return true;
+    } catch {
+      return false;
+    }
+  };
   return {
     "media.attach": ({ path, document }, ctx) => {
       const caller = ctx.agent;
@@ -112,7 +124,8 @@ export function composerHandlers(deps: {
         throw unauthorized("an agent transcribes only audio attached in its own chat");
       if (thread && !store.threads.get(thread)) throw notFound(`thread ${thread}`);
       const media = media_id ? store.media.get(media_id) : undefined;
-      if (media_id && (media?.kind !== "audio" || media.service || (media.thread_id && media.thread_id !== thread)))
+      const elsewhere = !!media?.thread_id && media.thread_id !== thread;
+      if (media_id && (media?.kind !== "audio" || media.service || (elsewhere && !ownersAgentHears(media_id, ctx))))
         throw badRequest(`no audio upload ${media_id} in this chat`);
       const stored = media ? deps.services.read(media.id) : undefined;
       if (media && !stored) throw notFound(`audio ${media.id}`);

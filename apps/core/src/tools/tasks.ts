@@ -1,8 +1,9 @@
 // task_*: agents work the office board through the tasks.* methods, like the owner does in the app.
 import { createHash } from "node:crypto";
-import { type Task, TaskKind, TaskPriority, TaskTag } from "@apx/protocol";
+import { type Message, type Task, TaskKind, TaskPriority, TaskTag } from "@apx/protocol";
 import { planSteps } from "@apx/protocol/task-plan";
 import { z } from "zod";
+import { placeName } from "../domain/owner-work.ts";
 import type { Store } from "../domain/store.ts";
 import { ownerWordsOf } from "../domain/task-asked.ts";
 import {
@@ -19,6 +20,7 @@ import {
 import { mentioned, mentionedElsewhere, mentionsOwner } from "../engine/office.ts";
 import { badRequest, CallError } from "../errors.ts";
 import { readsOutside } from "./folders.ts";
+import { PLAN_CHARS } from "./plan.ts";
 import { cap, fromTeam, inlineName, untrusted } from "./result.ts";
 import { documentsOnly, uncommittedWork } from "./task-evidence.ts";
 import { type CheckContext, defineTool, type Tool, type ToolContext } from "./types.ts";
@@ -134,17 +136,25 @@ export function boardText(tasks: Task[], where: (t: Task) => string | undefined,
 }
 
 /**
- * Why an agent's comment would only add to what the owner skips; undefined when it belongs on the task. A task's
- * comments are read by people: the turns the owner started, a message to someone, and the plan done (DECISIONS.md#d-202).
+ * Where an agent's comment goes when it would only add to what the owner skips; undefined when it belongs on the task.
+ * A task's comments are read by people: the turns the owner started, a message to someone, and the plan done
+ * (DECISIONS.md#d-202). The rest is routed, not refused (DECISIONS.md#d-271).
  */
-function commentNoise(store: Store, t: Task, text: string, ctx: ToolContext): string | undefined {
+type CommentRoute = { to: "answer"; caller: string } | { to: "plan"; why: string } | { to: "refused"; why: string };
+
+function commentRoute(store: Store, t: Task, text: string, ctx: ToolContext): CommentRoute | undefined {
   if (ownerWordsOf(store, ctx.run.id).length) return undefined;
-  if (ctx.thread.kind === "a2a" && t.assignee !== ctx.agent.id)
-    return "you are helping whoever asked you, and your answer goes back to them. Say it there; they decide what reaches the task.";
+  if (ctx.thread.kind === "a2a" && t.assignee !== ctx.agent.id) {
+    const asker = ctx.thread.agent_ids.find((id) => id !== ctx.agent.id);
+    return { to: "answer", caller: (asker && store.agents.get(asker)?.name) || "whoever asked you" };
+  }
   if (mentionsOwner(store, text) || mentioned(store, text, t.project_id, ctx.agent.id).length) return undefined;
   const away = mentionedElsewhere(store, text, t.project_id)[0];
   if (away)
-    return `${inlineName(away.name)} works in another project, and a task's comments reach only this project's agents: reach it with delegate, or ask the super-agent to.`;
+    return {
+      to: "refused",
+      why: `${inlineName(away.name)} works in another project, and a task's comments reach only this project's agents: reach it with delegate, or ask the super-agent to.`,
+    };
   const steps = planSteps(t.plan ?? "");
   if (steps?.length && steps.every((s) => s.state === "done")) {
     const since = store.threads.context(t.thread_id).progress_at ?? t.created_at;
@@ -153,8 +163,22 @@ function commentNoise(store: Store, t: Task, text: string, ctx: ToolContext): st
   }
   // Outside the task's chat its plan is written with task_update, not plan, which is that chat's own (DECISIONS.md#d-270).
   const where = ctx.thread.task_id === t.id ? "your plan" : "the task's plan (task_update plan)";
-  return `progress goes in ${where} (mark the step, put the commit or test in its line), not in comments. Comment when the whole plan is done, or to ask someone (@owner for a decision or a change of direction, @agent for a teammate).`;
+  return {
+    to: "plan",
+    why: `progress lives in ${where}: mark the step and put the commit or test in its line. Comment when the whole plan is done, or to ask someone (@owner for a decision or a change of direction, @agent for a teammate).`,
+  };
 }
+
+/** The plan step progress is noted on: the one being done, else the next, else the last. */
+function progressStep(steps: { state: string }[]): number {
+  const doing = steps.findIndex((s) => s.state === "doing");
+  if (doing >= 0) return doing;
+  const next = steps.findIndex((s) => s.state === "pending");
+  return next >= 0 ? next : steps.length - 1;
+}
+
+/** Comments past this are full: the rest goes in the agent's answer. */
+const COMMENT_CHARS = 3000;
 
 /**
  * Writing on the board is the owner's own record and runs even with outside content in the turn. Handing work to a
@@ -252,6 +276,9 @@ export function taskTools(store: Store, home: string): Tool[] {
   const waits = (task: string, ctx: CheckContext) =>
     Boolean(store.threads.context(ctx.thread.id).held?.some((h) => h.task === task));
   const scopeOf = (ctx: CheckContext) => boardScope(store, { id: ctx.agent.id, thread_id: ctx.thread.id });
+  /** Where a task acted on from another project's chat is, so the result records it (DECISIONS.md#d-271). */
+  const placeOf = (t: Pick<Task, "project_id">, ctx: CheckContext) =>
+    t.project_id && t.project_id !== ctx.thread.project_id ? ` This task is in ${placeName(store, t.project_id)}.` : "";
   const taskOf = (id: string, ctx: CheckContext) => field("task", () => visibleTask(store, id, scopeOf(ctx)));
   /** What a new task or a change names besides the task: a real column, assignee and person, a date that reads. */
   const checkNamed = (
@@ -260,11 +287,80 @@ export function taskTools(store: Store, home: string): Tool[] {
     project: string | undefined,
   ) => {
     field("status", () => checkColumn(store, a.status));
-    field("assignee", () => checkAssignee(store, a.assignee, project));
+    field("assignee", () => checkAssignee(store, a.assignee, project, true));
     const person = a.person;
     if (person) field("person", () => personOf(store, person));
     field("due_at", () => dueOf(due));
   };
+  /** What a new task's creator is told: whether it started, waits, or transferred this turn's work. */
+  const createdText = (t: Task, ctx: ToolContext): string => {
+    const under = t.parent_id ? `, a subtask of ${t.parent_id}` : "";
+    if (t.proposed)
+      return `proposed ${t.id}${under}: it starts when the owner accepts it. Tell them what you proposed and why, in one line each.`;
+    // Unassigned tasks are valid capture-only records, not work already in progress.
+    if (!t.assignee && t.kind === "task")
+      return `created ${t.id} in ${t.status}${under}, unassigned: capture only, no execution started. If the owner only wanted to record it, you are done. Assign with task_update and a description only when execution is wanted.`;
+    if (t.assignee && !t.description.trim()) return `created ${t.id} in ${t.status}${under}. ${UNSPECIFIED}`;
+    // Its close reports back to this chat (DECISIONS.md#d-076): no need to watch the board for it.
+    const back =
+      t.assignee !== ctx.agent.id && ctx.thread.kind !== "a2a" ? " When they close it, their report comes here." : "";
+    if (t.assignee && waits(t.id, ctx)) return `created ${t.id} in ${t.status}${under}. ${PAUSED(t.assignee)}`;
+    if (store.threads.context(ctx.thread.id).task_handoff?.run === ctx.run.id)
+      return `created ${t.id} in ${t.status}${under}. Execution transferred to its task session with the existing findings. End this turn; do not do more work here. Its closing report comes back here.`;
+    return `created ${t.id} in ${t.status}${under}.${t.assignee ? ` ${t.assignee} starts on it ${t.start_at && t.start_at > new Date().toISOString() ? `at ${t.start_at}` : "now"}.${back}` : ""}`;
+  };
+  /** This turn's own comment on the task, if it posted one; a turn's own answer (it has a run) is never one. */
+  const turnComment = (t: Task, ctx: ToolContext): Message | undefined =>
+    store.messages
+      .list(t.thread_id, 30)
+      .findLast(
+        (m) =>
+          m.author.kind === "agent" &&
+          m.author.id === ctx.agent.id &&
+          !m.run_id &&
+          m.created_at >= ctx.run.started_at &&
+          m.parts.some((p) => p.type === "text"),
+      );
+  /** More of this turn's words join its comment, within what a comment holds. */
+  const addToComment = (t: Task, m: Message, text: string): string => {
+    const at = m.parts.findLastIndex((p) => p.type === "text");
+    const part = m.parts[at];
+    if (part?.type !== "text") return "";
+    const joined = `${part.text}\n\n${text}`;
+    if (joined.length > COMMENT_CHARS)
+      return "not added: this turn's comment on the task is full. Say the rest in your answer, or in one comment next turn.";
+    store.messages.update({ ...m, parts: m.parts.map((p, i) => (i === at ? { ...part, text: joined } : p)) });
+    store.tasks.touched(t.id, m.author.kind === "agent" ? m.author.id : "owner", "update");
+    return "added to your comment on the task from this turn (one comment a turn).";
+  };
+  /** Progress noted where it lives: on the plan's current step, or the task's history when it has no plan. */
+  const noteProgress = async (t: Task, text: string, ctx: ToolContext): Promise<string> => {
+    const steps = planSteps(t.plan ?? "");
+    const said = text.replace(/\s+/g, " ").trim().slice(0, 300);
+    if (steps?.length) {
+      const at = progressStep(steps);
+      const plan = (t.plan ?? "")
+        .split("\n")
+        .filter((l) => l.trim())
+        .map((l, i) => (i === at && !l.includes(said) ? `${l} (${said})` : l))
+        .join("\n");
+      if (plan.length <= PLAN_CHARS) {
+        try {
+          await ctx.call("tasks.update", { task: t.id, plan });
+          return `noted on the plan's step "${steps[at]?.step}", not posted as a comment.`;
+        } catch {
+          // A plan this caller may not rewrite: the note still lands in the task's history below.
+        }
+      }
+    }
+    store.tasks.change(t.id, {}, ctx.agent.id, said);
+    return "noted in the task's history, not posted as a comment.";
+  };
+  /** A helper that opened work tells whoever asked it, in its answer (DECISIONS.md#d-271). */
+  const openedFor = (t: Task, ctx: ToolContext) =>
+    ctx.thread.kind === "a2a" && t.assignee && !t.proposed
+      ? ` Say in your answer that you opened ${t.id}, so whoever asked you knows.`
+      : "";
   return [
     defineTool({
       name: "task_get",
@@ -319,8 +415,9 @@ export function taskTools(store: Store, home: string): Tool[] {
     defineTool({
       name: "task_list",
       description:
-        "List this project's tasks by newest activity (default open), with ids, columns, commitments. The super-agent sees all projects.",
+        "List this project's tasks by newest activity (default open), with ids, columns, commitments; project: another one's.",
       args: z.object({
+        project: z.string().min(1).max(80).optional().describe("id or name"),
         mine: z.boolean().optional(),
         state: z.enum(["open", "done", "dropped"]).optional(),
         commitments: z.boolean().optional().describe("Only commitments (person on the other side)."),
@@ -334,7 +431,21 @@ export function taskTools(store: Store, home: string): Tool[] {
         // One argument drives the traversal: "start" for the first page, then each page's next_cursor.
         const exhaustive = a.cursor !== undefined;
         const after = a.cursor && a.cursor !== "start" ? a.cursor : undefined;
+        const key = a.project?.trim().toLowerCase();
+        const named = key
+          ? store.projects.list().find((p) => p.id === a.project || p.name.toLowerCase() === key)
+          : undefined;
+        if (a.project && !named)
+          return `no project "${a.project}". Projects: ${store.projects
+            .list()
+            .slice(0, 30)
+            .map((p) => p.name)
+            .join(", ")}`;
+        const elsewhere = named && named.id !== ctx.thread.project_id ? named.id : undefined;
+        if (elsewhere && scopeOf(ctx) && !scopeOf(ctx)?.owner) return "this chat lists only its own project's tasks.";
+        const head = elsewhere ? `${placeName(store, elsewhere)}:\n` : "";
         const r = await ctx.call("tasks.list", {
+          ...(elsewhere ? { project: elsewhere } : {}),
           ...(a.state ? { state: a.state } : {}),
           ...(a.mine ? { assignee: ctx.agent.id } : {}),
           ...(a.commitments ? { commitments: true } : {}),
@@ -354,7 +465,7 @@ export function taskTools(store: Store, home: string): Tool[] {
           }
           const more = shown.length < r.tasks.length || Boolean(r.next_cursor);
           const cursor = more ? (shown.at(-1)?.id ?? null) : null;
-          return `${taskLines(shown, rowOf) || "no matching tasks"}\nnext_cursor: ${cursor ?? "none"}. This is a live traversal, not a snapshot; repeat if tasks changed.`;
+          return `${head}${taskLines(shown, rowOf) || "no matching tasks"}\nnext_cursor: ${cursor ?? "none"}. This is a live traversal, not a snapshot; repeat if tasks changed.`;
         }
         const cols = `columns: ${r.columns.map((c) => c.id).join(", ")}`;
         // Tasks from more than one place: each says which project it is in (by name, as the owner calls it).
@@ -364,15 +475,15 @@ export function taskTools(store: Store, home: string): Tool[] {
         const where = (t: Task) =>
           listed ? (t.project_id ? (names.get(t.project_id) ?? t.project_id) : listed.base.name) : undefined;
         if (r.tasks.length)
-          return `${boardText(r.tasks, where)}\n${cols}${r.truncated ? "\nMore tasks exist; use cursor start to enumerate every matching task." : ""}`;
+          return `${head}${boardText(r.tasks, where)}\n${cols}${r.truncated ? "\nMore tasks exist; use cursor start to enumerate every matching task." : ""}`;
         // An empty filtered list is not an empty board: say what was asked and what else is open.
         const scope = [a.state ?? "open", a.mine ? "assigned to you" : "", a.commitments ? "commitments" : ""];
         const empty = `no tasks (${scope.filter(Boolean).join(", ")}).`;
-        if (!a.mine && !a.commitments && (a.state ?? "open") === "open") return `${empty} ${cols}`;
-        const open = (await ctx.call("tasks.list", {})).tasks;
+        if (!a.mine && !a.commitments && (a.state ?? "open") === "open") return `${head}${empty} ${cols}`;
+        const open = (await ctx.call("tasks.list", elsewhere ? { project: elsewhere } : {})).tasks;
         const by = Map.groupBy(open, (t) => t.status);
         const spread = [...by].map(([status, ts]) => `${ts.length} ${status}`).join(", ");
-        return `${empty} The board has ${open.length} open${open.length ? ` (${spread})` : ""}; task_list with no filters lists them. ${cols}`;
+        return `${head}${empty} The board has ${open.length} open${open.length ? ` (${spread})` : ""}; task_list with no filters lists them. ${cols}`;
       },
     }),
     defineTool({
@@ -385,7 +496,7 @@ export function taskTools(store: Store, home: string): Tool[] {
         description: descriptionArg,
         attachments: attachmentsArg,
         assignee: z.string().max(80).optional(),
-        project: z.string().min(1).max(80).optional().describe("project id; super-agent only"),
+        project: z.string().min(1).max(80).optional().describe("project id; default this chat's"),
         status: z.string().max(40).optional(),
         ...described(shapeArgs),
         ...described(commitmentArgs),
@@ -405,22 +516,7 @@ export function taskTools(store: Store, home: string): Tool[] {
       title: (a) => `Created the task ${String(a.title ?? "").slice(0, 60)}`,
       async run(a, ctx) {
         const t = await ctx.call("tasks.create", { ...a, attachments: await attachmentIds(a.attachments, ctx) });
-        const under = t.parent_id ? `, a subtask of ${t.parent_id}` : "";
-        if (t.proposed)
-          return `proposed ${t.id}${under}: it starts when the owner accepts it. Tell them what you proposed and why, in one line each.`;
-        // Unassigned tasks are valid capture-only records, not work already in progress.
-        if (!t.assignee && t.kind === "task")
-          return `created ${t.id} in ${t.status}${under}, unassigned: capture only, no execution started. If the owner only wanted to record it, you are done. Assign with task_update and a description only when execution is wanted.`;
-        if (t.assignee && !t.description.trim()) return `created ${t.id} in ${t.status}${under}. ${UNSPECIFIED}`;
-        // Its close reports back to this chat (DECISIONS.md#d-076): no need to watch the board for it.
-        const back =
-          t.assignee !== ctx.agent.id && ctx.thread.kind !== "a2a"
-            ? " When they close it, their report comes here."
-            : "";
-        if (t.assignee && waits(t.id, ctx)) return `created ${t.id} in ${t.status}${under}. ${PAUSED(t.assignee)}`;
-        if (store.threads.context(ctx.thread.id).task_handoff?.run === ctx.run.id)
-          return `created ${t.id} in ${t.status}${under}. Execution transferred to its task session with the existing findings. End this turn; do not do more work here. Its closing report comes back here.`;
-        return `created ${t.id} in ${t.status}${under}.${t.assignee ? ` ${t.assignee} starts on it ${t.start_at && t.start_at > new Date().toISOString() ? `at ${t.start_at}` : "now"}.${back}` : ""}`;
+        return `${createdText(t, ctx)}${placeOf(t, ctx)}${openedFor(t, ctx)}`;
       },
     }),
     defineTool({
@@ -473,7 +569,7 @@ export function taskTools(store: Store, home: string): Tool[] {
           store.threads.context(ctx.thread.id).task_handoff?.run === ctx.run.id
             ? " Execution transferred to its task session. End this turn; do not do more work here."
             : "";
-        return `updated: ${taskLines([t], (x) => line(x))}${pending}${paused}${transferred}`;
+        return `updated: ${taskLines([t], (x) => line(x))}${pending}${paused}${transferred}${placeOf(t, ctx)}`;
       },
     }),
     defineTool({
@@ -492,16 +588,21 @@ export function taskTools(store: Store, home: string): Tool[] {
       deadlineMs: 5_000,
       title: (a) => `Commented on ${String(a.task ?? "")}`,
       async run(a, ctx) {
-        // One comment a turn: progress shows in the plan, and a task's conversation is read by people (D-188).
-        const said = store.runs
-          .steps(ctx.run.id)
-          .some((s) => s.tool === "task_comment" && s.state === "ok" && s.args.task === a.task);
-        if (said)
-          throw badRequest(
-            "text: you already commented on this task in this turn; say the rest in your answer, or in one comment next turn",
-          );
-        const why = commentNoise(store, taskOf(a.task, ctx), a.text, ctx);
-        if (why) throw badRequest(`not posted: ${why}`);
+        const t = taskOf(a.task, ctx);
+        const where = placeOf(t, ctx);
+        const route = commentRoute(store, t, a.text, ctx);
+        if (route?.to === "refused") throw badRequest(`not posted: ${route.why}`);
+        if (route?.to === "answer")
+          return `not posted on the task: you are answering ${route.caller}, so this is part of your answer to them. Say it there; they decide what reaches the task.`;
+        // One comment a turn (D-188): more words this turn join it, unless they ask someone or carry files.
+        const mine = turnComment(t, ctx);
+        const asks = mentionsOwner(store, a.text) || mentioned(store, a.text, t.project_id, ctx.agent.id).length > 0;
+        const joins = Boolean(mine) && !asks && !a.attachments?.length;
+        // With the plan done, more words this turn belong with its report, not in the last step's line.
+        const planDone = Boolean(planSteps(t.plan ?? "")?.every((s) => s.state === "done"));
+        if (route?.to === "plan" && !(joins && planDone))
+          return `${await noteProgress(t, a.text, ctx)} ${route.why}${where}`;
+        if (mine && joins) return addToComment(t, mine, a.text) + where;
         const attachments = await attachmentIds(a.attachments?.length ? a.attachments : undefined, ctx);
         const r = await ctx.call("tasks.comment", {
           task: a.task,
@@ -511,8 +612,8 @@ export function taskTools(store: Store, home: string): Tool[] {
         const files = r.message.parts.filter((p) => p.type === "file" || p.type === "image").length;
         const shown = files ? ` ${files} file(s) shown with it.` : "";
         return r.runs.length
-          ? `commented;${shown} ${r.runs.length} agent(s) will answer there, and the answer comes back to you: do not wait for it.`
-          : `commented.${shown}`;
+          ? `commented;${shown} ${r.runs.length} agent(s) will answer there, and the answer comes back to you: do not wait for it.${where}`
+          : `commented.${shown}${where}`;
       },
     }),
     defineTool({
@@ -566,7 +667,7 @@ export function taskTools(store: Store, home: string): Tool[] {
         const t = taskOf(a.task, ctx);
         if (a.remove?.length) {
           const r = await ctx.call("tasks.tidy", { task: t.id, remove: a.remove, summary: a.summary });
-          return `removed ${r.removed}${r.kept.length ? `; kept (not an agent's plain comment on it): ${r.kept.join(", ")}` : ""}${r.message ? "; summary posted" : ""}.`;
+          return `removed ${r.removed}${r.kept.length ? `; kept (not an agent's plain comment on it): ${r.kept.join(", ")}` : ""}${r.message ? "; summary posted" : ""}.${placeOf(t, ctx)}`;
         }
         const name = (id: string) => store.agents.get(id)?.name ?? id;
         const rows = store.messages
@@ -622,7 +723,7 @@ export function taskTools(store: Store, home: string): Tool[] {
       title: (a) => `Marked ${String(a.task ?? "")} ${String(a.state ?? "")}`,
       async run(a, ctx) {
         const t = await ctx.call("tasks.close", a);
-        return `now ${t.state}.`;
+        return `now ${t.state}.${placeOf(t, ctx)}`;
       },
     }),
     defineTool({
@@ -641,7 +742,9 @@ export function taskTools(store: Store, home: string): Tool[] {
       title: (a) => `Marked ${String(a.task ?? "")} ${String(a.outcome ?? "")}`,
       async run(a, ctx) {
         const t = await ctx.call("tasks.settle", a);
-        return t.state === "open" ? `still open, now due ${t.due_at ?? "?"}.` : `closed: ${t.outcome ?? t.state}.`;
+        const said =
+          t.state === "open" ? `still open, now due ${t.due_at ?? "?"}.` : `closed: ${t.outcome ?? t.state}.`;
+        return `${said}${placeOf(t, ctx)}`;
       },
     }),
   ];

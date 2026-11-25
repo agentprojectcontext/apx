@@ -1,12 +1,10 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { callTool, inputOrEnd, pendingInput, say, scriptedLlm, startCore } from "../engine/testkit.ts";
-import { realpath } from "../paths.ts";
-import { removeDir } from "../testkit/platform.ts";
+import { removeDir, tempDir } from "../testkit/platform.ts";
 import { refusal } from "./folders.ts";
 import { commandFolder } from "./shell.ts";
 
@@ -28,7 +26,7 @@ let repo: string;
 let project: string;
 before(async () => {
   env = await startCore({ llm });
-  northwind = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-northwind-")));
+  northwind = tempDir("apx-northwind-").path;
   repo = path.join(northwind, "app");
   fs.mkdirSync(path.join(northwind, "docs"), { recursive: true });
   fs.writeFileSync(path.join(northwind, "docs", "plan.md"), "the plan\n");
@@ -199,7 +197,7 @@ test("the folder holding the project is lent for one call, never kept: it would 
 
 test("auto reads another project's file and runs a reading command there with no card", async () => {
   await env.client.call("agents.update", { agent: "fausto", autonomy: "auto" });
-  const other = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-acme-")));
+  const other = tempDir("apx-acme-").path;
   fs.writeFileSync(path.join(other, "brief.md"), "acme brief\n");
   try {
     for (const inProject of [true, false]) {
@@ -248,7 +246,7 @@ test("auto asks before writing outside its project; once never keeps the folder"
 
 test("auto changes the owner's other projects and their worktrees with no card, never one in APX's home", async () => {
   await env.client.call("agents.update", { agent: "fausto", autonomy: "auto" });
-  const acme = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-acme-")));
+  const acme = tempDir("apx-acme-").path;
   const site = path.join(acme, "site");
   const tree = path.join(acme, "site-fix");
   fs.mkdirSync(site);
@@ -332,5 +330,35 @@ test("a worktree inside the project is made through the folder rule; one outside
   for (const c of ["git worktree add ../x -b fix/x", "git worktree add /tmp/../elsewhere/x"]) {
     const r = verdict(c);
     assert.ok("refused" in r && /outside the folders you can change/.test(r.refused), `${c}: ${JSON.stringify(r)}`);
+  }
+});
+
+test("auto: a program that writes where it runs outside its folders raises the folder card, not a read-only refusal", async () => {
+  await env.client.call("agents.update", { agent: "fausto", autonomy: "auto" });
+  const fresh = tempDir("apx-fresh-").path;
+  const init = { name: "shell", args: { command: "git init -q", cwd: fresh } };
+  try {
+    const r = commandFolder(env.core.store, env.home, { id: "t_here", project_id: project, reach: "read" }, init.args);
+    assert.ok("refused" in r && r.offer === fresh, JSON.stringify(r));
+    const no = await run(init, { decision: "deny" });
+    assert.deepEqual(no.input?.folders, [fresh]);
+    assert.deepEqual(no.input?.approval_scopes, ["once", "always"]);
+    assert.doesNotMatch(no.said, /read-only folder/);
+    assert.equal(fs.existsSync(path.join(fresh, ".git")), false);
+    const yes = await run(init, { decision: "approve" });
+    assert.match(yes.said, /exit 0/);
+    assert.ok(fs.existsSync(path.join(fresh, ".git")));
+    // A read-only folder the owner named still refuses, with nothing to offer.
+    await env.client.call("projects.update", { project, read_only_folders: [path.join(northwind, "docs")] });
+    const ro = await run({ name: "shell", args: { command: "make", cwd: path.join(northwind, "docs") } });
+    assert.equal(ro.input, undefined);
+    assert.match(ro.said, /refused: .*read-only folder/);
+    // An agent kept to its folders still may not run there.
+    const fenced = { id: "t_here", project_id: project, reach: "fenced" as const };
+    assert.ok("refused" in commandFolder(env.core.store, env.home, fenced, { command: "make", cwd: northwind }));
+  } finally {
+    await env.client.call("projects.update", { project, read_only_folders: [] });
+    await env.client.call("agents.update", { agent: "fausto", autonomy: "manual" });
+    await removeDir(fresh);
   }
 });

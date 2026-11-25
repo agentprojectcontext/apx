@@ -294,9 +294,12 @@ export function createExecutor(o: {
     const { name, args: raw } = called === TOOL_RUN ? unwrapCall(given) : { name: called, args: given };
     // A tool found through the bridge (an MCP server's, a connected app's) joins on first use, named either way.
     if (called === TOOL_RUN || name === "grant_tool" || !byName.has(name)) await join();
+    // Not offered directly: joined from `late`, which holds only what the turn's policy allows (an agent's focus).
     const bridged =
       called !== TOOL_RUN ||
-      ((name.startsWith("mcp_") || foundLater(name)) && name !== TOOL_RUN && name !== TOOL_SEARCH);
+      ((name.startsWith("mcp_") || foundLater(name) || !offered.has(name)) &&
+        name !== TOOL_RUN &&
+        name !== TOOL_SEARCH);
     const tool = bridged ? byName.get(name) : undefined;
     const title = tool ? toolTitle(store, tool, raw) : name;
     const began = now();
@@ -683,6 +686,11 @@ export function createExecutor(o: {
     const deletion = decision.why === "always" && ran && onlyDeletes(command, o.apxPort());
     const grantable = deletion && inside;
     if (grantable && store.approvals.allows(deleteApproval, thread.id, agent.id)) return allow();
+    // A change outside its folders is the same folder card as ours: once, or always for this agent (DECISIONS.md#d-108).
+    const offered = [...new Set(judged.flatMap((r) => ("refused" in r && r.offer ? [r.offer] : [])))];
+    // A command that only reads keeps the plain card, and so does one asking to read first (its offer may be a read).
+    const changing = !reading && !deletion && own !== "always" && own !== "never" && (!ran || scope.reach === "read");
+    const folders = changing && offered.length ? offered : undefined;
     const reason = (req.input as { description?: unknown } | undefined)?.description;
     const answer = await o.inputs.ask({
       run: o.run(),
@@ -690,9 +698,14 @@ export function createExecutor(o: {
       display,
       callId: req.callId,
       kind: "confirm",
-      prompt: deletion ? deletePrompt(store, agent.name) : confirmPrompt(store, decision.why, agent.name, req.title),
+      prompt: deletion
+        ? deletePrompt(store, agent.name)
+        : folders
+          ? folderPrompt(store, agent.name, folders, true)
+          : confirmPrompt(store, decision.why, agent.name, req.title),
       tool: req.kind,
       ...(grantable ? { approval: deleteApproval } : {}),
+      ...(folders ? { folders, write: true } : {}),
       ...(deletion
         ? {
             detail: deletionDetail(

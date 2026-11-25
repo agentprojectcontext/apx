@@ -131,8 +131,8 @@ one you started, and its answer comes back to the agent that asked, so you don't
   page, another agent, a message) is in its turn. In Manual each start asks for your OK; in Plan the agent can't
   start one ([Rules by case](/concepts/autonomy/#rules-by-case)).
 - The session never gets more than the agent that asked: no freer write policy than its chat, no more than the
-  project's autonomy allows, and only inside the agent's folder. An agent tied to one project can't open a session in
-  another.
+  project's autonomy allows, and only inside the agent's folder. Working for you, an agent may open one in any of your
+  projects (not one being moved), and its answer says which.
 - It counts against the asking agent's spending limits: when those are reached, the session doesn't start and takes
   no new messages.
 - An agent answering another agent can't start sessions; and a session is not a teammate or a shell: it is the engine
@@ -145,6 +145,9 @@ one you started, and its answer comes back to the agent that asked, so you don't
   the session read, unless the agent's own rules ask before writing or turn it off; on Manual or Plan it runs
   read-only (and says why), unless its rules let it write on its own. A session another agent delegated with
   **Asks before changes** stays read-only for Codex even on Total, since it cannot ask.
+- Codex never reads APX's own folder. Outside a code chat it writes in your projects as the agent's mode allows, and
+  it leaves `AGENTS.md`, `.apc` and Claude Code's settings files alone unless the agent is on Total. An edit to
+  `.claude/settings.json` asks you first, whichever agent makes it.
 - The engine's checklist is APX's plan, under its answer (in a task's chat, the task's plan). Claude Code's own task
   list, subagents and questions are not offered: it uses APX's plan, delegation and questions, with their approvals.
 - Once an engine session reads outside content (a web page, a message), the rest of that session is treated as

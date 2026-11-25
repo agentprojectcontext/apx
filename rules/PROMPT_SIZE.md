@@ -10,7 +10,7 @@ Measured on a fresh install: the secretary, a new chat, default settings, no ski
 
 | Part | Budget | Now (2026-10-25) |
 |---|---|---|
-| System prompt | 10,000 chars (about 2,300 tokens) | 6,074 chars on 2026-11-17 (what fits the turn is done in it, a task only for work that outlives it, [D-238](DECISIONS.md#d-238); the permission mode's text said here once instead of in every turn; the delegate and web rules short, their details in their tools; the secretary's line says what it does itself and what it hands on, [D-237](DECISIONS.md#d-237)) |
+| System prompt | 10,000 chars (about 2,300 tokens) | 6,073 chars on 2026-11-25 (every agent told its reach across the owner's projects and chats, paid for by shorter delegation lines, [D-271](DECISIONS.md#d-271); what fits the turn is done in it, a task only for work that outlives it, [D-238](DECISIONS.md#d-238); the permission mode's text said here once instead of in every turn; the delegate and web rules short, their details in their tools; the secretary's line says what it does itself and what it hands on, [D-237](DECISIONS.md#d-237)) |
 | Tool definitions (27, without the browser) | 30,000 chars (about 7,100 tokens) | 16,332 chars on 2026-11-17, about 3,870 tokens (`task_create` opens with when not to use it, [D-238](DECISIONS.md#d-238); APX's rarely used tools named in `tool_search` by use and called by name, [D-233](DECISIONS.md#d-233), [D-234](DECISIONS.md#d-234); before, 24,094 with 41; the channel and contact tools and make_image only once a channel or an image service is on) |
 | A turn's input before the message | — | 264 chars: one `[context]` line (time, channel, mode) and the roster when it changed |
 | A delegated task's input, besides the task | — | the caller and its rules, with the four-line report it asks for (180 chars, about 45 tokens), only in that agent's turn |
@@ -21,7 +21,7 @@ is for what a new owner needs to find their way, not for padding. A channel turn
 3,900 chars) and the rule for them; an image service adds make_image (about 600).
 
 A realistic owner has its own budget in the same test: a WhatsApp channel with stickers, the computer allowed,
-instructions of their own, an "about" and a project with a 20,000-character AGENTS.md. Its project chat sends 8,249 (2026-11-24, [D-270](DECISIONS.md#d-270))
+instructions of their own, an "about" and a project with a 20,000-character AGENTS.md. Its project chat sends 8,249 (2026-11-25, [D-270](DECISIONS.md#d-270), [D-271](DECISIONS.md#d-271))
 chars of system prompt besides that AGENTS.md, which goes whole (budget 8,250: the super-agent is told to do small and
 medium work itself and what it hands on, [D-237](DECISIONS.md#d-237); an agent that can change a project's
 files is told to look at a visible change running, [D-166](DECISIONS.md#d-166), and to commit, pull, merge, push or delete only

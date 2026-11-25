@@ -3,13 +3,14 @@
 // a new input. See DECISIONS.md#d-009
 import { DEFAULT_AUTONOMY, type Message, type Part, type Thread, type WritePolicy } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
+import { placeName, worksForOwner } from "../domain/owner-work.ts";
 import { worksIn } from "../domain/projects.ts";
 import { type DelegationResult, type Origin, type RunRecord, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf, strictestWrite, type Worker, worksInFolder } from "../domain/threads.ts";
 import { agentReply } from "../tools/agents.ts";
-import { folderInProject } from "../tools/folders.ts";
-import { modeOf, withProjectAutonomy } from "../tools/policy.ts";
+import { folderInProject, ownerFolder, readOnlyFolders } from "../tools/folders.ts";
+import { modeOf, reachOf, withProjectAutonomy } from "../tools/policy.ts";
 import { fromTeam, inlineName } from "../tools/result.ts";
 import { ancestors } from "./ancestry.ts";
 import { agentTripped, heldNotice, tellStuck, tripped } from "./breaker.ts";
@@ -52,9 +53,22 @@ export type DelegateTo = {
 type Workspace = { cwd: string; write: WritePolicy };
 
 /**
+ * Whether every agent in a delegation reaches every folder on its own (total, or acting outside on its own): only then
+ * may a session work in a folder that is none of the owner's projects. Each agent's own mode, never one narrower.
+ */
+function chainReachesAll(store: Store, parent: Thread, agents: AgentRecord[]): boolean {
+  const above = [parent, ...ancestors(store, parent.id)];
+  if (above.some((t) => store.threads.context(t.id).flow_step || store.threads.context(t.id).routine_autonomy))
+    return false;
+  const chain = [...agents, ...above.flatMap((t) => store.agents.get(t.agent_ids[0] ?? "") ?? [])];
+  return chain.every((a) => reachOf(withProjectAutonomy(store, a)) === "all");
+}
+
+/**
  * The folder a delegation works in, when the caller named one or a write policy (then the project's root), or why
  * not. Its write policy is the strictest of the caller's thread, the caller's autonomy (its project's when it has
- * none) and the one asked for: a delegation never gets further than its caller (DECISIONS.md#d-104).
+ * none) and the one asked for: a delegation never gets further than its caller (DECISIONS.md#d-104). Working for the
+ * owner, the folder may be in any of the owner's projects or their worktrees (`where` names it, DECISIONS.md#d-271).
  */
 export function workspaceOf(
   store: Store,
@@ -63,12 +77,22 @@ export function workspaceOf(
   parent: Thread,
   projectId: string | undefined,
   req: Pick<DelegateTo, "folder" | "write">,
-): Workspace | undefined | string {
+  home?: string,
+): (Workspace & { where?: string }) | undefined | string {
   // Asked for nothing, no folder of its own: our loop works in its project anyway, an outside engine on APX's side.
   if (req.folder === undefined && !req.write) return undefined;
   let cwd: string;
+  let where: string | undefined;
   try {
-    cwd = folderInProject(store, projectId, req.folder);
+    if (home && worksForOwner(store, parent)) {
+      const anywhere = chainReachesAll(store, parent, [caller, callee]);
+      const found = ownerFolder(store, home, projectId, req.folder, {
+        anywhere,
+        readOnly: readOnlyFolders(store, parent),
+      });
+      cwd = found.dir;
+      if (found.project) where = placeName(store, found.project);
+    } else cwd = folderInProject(store, projectId, req.folder);
   } catch (err) {
     const why = (err as Error).message;
     return `refused: ${why.startsWith("needs") ? `a folder to work in ${why}` : why}`;
@@ -81,7 +105,7 @@ export function workspaceOf(
     writeOfMode(modeOf(withProjectAutonomy(store, callee))),
     writeOfMode(store.projects.get(projectId ?? "")?.autonomy ?? DEFAULT_AUTONOMY),
   );
-  return { cwd, write: strictestWrite(ceiling, req.write ?? ceiling) };
+  return { cwd, write: strictestWrite(ceiling, req.write ?? ceiling), ...(where ? { where } : {}) };
 }
 
 /** The most a mode lets an agent change files: plan reads, manual asks, the rest go ahead. */
@@ -253,6 +277,8 @@ export function createDelegations(deps: {
   ended(run: RunRecord): void;
   /** A delegated run's first deadline in a thread, written to its row until its clock moves it. */
   windowMs(threadId: string): number;
+  /** APX's home, never a session's folder; without it a session's folder keeps to its project. */
+  home?: string | undefined;
   /**
    * Hands `framed` words to the running turn of `a.agent_id` in `a.thread_id` when its loop takes words mid-turn;
    * undefined when none can. A turn that ends before taking them runs `a` instead.
@@ -585,8 +611,9 @@ export function createDelegations(deps: {
           : undefined;
       if (assigned)
         return `refused: ${to.name} already received task ${assigned.task} in this turn. Its task session is the executor; do not open a duplicate delegation. Use task_get for its existing sessions and report, not another executor. Only for a genuinely different goal, set independent=true and explain the separate outcome in task; never use it to retry this work.`;
-      const place = workspaceOf(store, from.agent, worker ? from.agent : to, parentThread, projectId, req);
-      if (typeof place === "string") return place;
+      const found = workspaceOf(store, from.agent, worker ? from.agent : to, parentThread, projectId, req, deps.home);
+      if (typeof found === "string") return found;
+      const place = found && { cwd: found.cwd, write: found.write };
       if (existing && place && (existing.cwd !== place.cwd || existing.write !== place.write)) {
         // Same project, another folder or policy: a free session takes it and keeps its context; a busy one is left.
         if (store.threads.busy([existing.id])) {
@@ -726,7 +753,7 @@ export function createDelegations(deps: {
       });
       const at = `${
         place
-          ? `\nIt works in ${place.cwd}, writes: ${place.write}${req.write && req.write !== place.write ? ` (${req.write} would go further than you may)` : ""}.`
+          ? `\nIt works in ${place.cwd}${found?.where ? ` (${found.where})` : ""}, writes: ${place.write}${req.write && req.write !== place.write ? ` (${req.write} would go further than you may)` : ""}.`
           : ""
       }${moved ? `\nSession "${moved}" works elsewhere, so this is a new session "${name}" without its context: continue it with session="${name}".` : ""}`;
       if (queued) {

@@ -591,7 +591,10 @@ export const appSetupMethods = {
           autonomy: Autonomy.nullable().optional(),
           parent: z.string().max(64).optional(),
           blob: z.string().max(40).optional(),
-          /** The tools (or groups) it may use, and the skills it works with; [] goes back to all of them. */
+          /**
+           * The tools (or groups) it uses first, the rest staying reachable when needed, and the skills it works with;
+           * [] puts all of them first again.
+           */
           tools: z.array(z.string().trim().min(1).max(80)).max(200).optional(),
           skills: z.array(z.string().trim().min(1).max(120)).max(200).optional(),
           /** Runs its team (false clears it). */

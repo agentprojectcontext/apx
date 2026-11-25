@@ -30,7 +30,9 @@ description: Create, edit, clone, import and review APX agents in their destinat
 
 ## Tools and grants
 
-- Every agent has all the tools its place allows unless its `tools` list narrows it. When the owner asks to give or
+- An agent's `tools` list is its focus: those are sent first, and the rest stay reachable through `tool_search` under
+  the same mode and rules (a rule set to off removes a tool). A role or list is never a reason to refuse work the
+  owner asked for. When the owner asks to give or
   take a tool, read the agent (`agent_set {agent}` shows `tools:`), then save the whole list with
   `agent_set {agent, tools}`; `[]` goes back to all. Names are tools (`file_write`) or groups (`browser`, `files`,
   `shell`, `mcp`); an unknown name is refused before anything is saved.

@@ -61,9 +61,26 @@ test("grant_tool narrows a grant to a condition and an end date, and a plain gra
   assert.equal(await row(), undefined);
 });
 
-test("grant_tool says why a tool is not granted: the agent's own list leaves it out, or it runs the team", async () => {
+test("grant_tool grants a tool the agent's list leaves out, its list being focus; a rule set to off and the team's tools stay walls", async () => {
+  // The list only says what it uses first (DECISIONS.md#d-271): the grant is made, and the tool is found by tool_search.
   const listed = await grants.ask({ agent: "acme-browser", tools: ["remember"] });
-  assert.match(listed.answer, /Acme Browser's tool list leaves them out \(agent_set tools adds them\): remember/);
+  assert.match(listed.answer, /^Acme Browser can now use without asking: remember$/);
+  assert.deepEqual(await granted("acme-browser"), ["apx:remember"]);
+  const reach = async () => {
+    await grants.ask("hello", undefined, "acme-browser");
+    const tools = grants.llm.calls.at(-1)?.tools ?? [];
+    const search = tools.find((t) => t.function.name === "tool_search")?.function.description ?? "";
+    return { sent: tools.some((t) => t.function.name === "remember"), found: /\bremember\b/.test(search) };
+  };
+  assert.deepEqual(await reach(), { sent: false, found: true });
+  // A rule the owner set to off keeps it out of the agent's turns, grant or not.
+  await grants.env.client.call("agents.update", { agent: "acme-browser", rules: { write: "off" } });
+  try {
+    assert.deepEqual(await reach(), { sent: false, found: false });
+  } finally {
+    await grants.env.client.call("agents.update", { agent: "acme-browser", rules: null });
+    await grants.ask({ agent: "acme-browser", tools: ["remember"], revoke: true });
+  }
   const own = await grants.ask({ agent: "acme-helper", tools: ["apx_settings"] });
   assert.match(own.answer, /apx_settings stay yours/);
   assert.deepEqual(await granted("acme-browser"), []);

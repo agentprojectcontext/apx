@@ -44,7 +44,7 @@ export const deleteApproval: ApprovalTarget = {
 };
 
 /** The server name of APX's own tools in grants (an MCP server's is its approval id). */
-export const APX_SERVER = "apx";
+const APX_SERVER = "apx";
 
 /**
  * One of APX's own tools: one key per tool name, so the owner's "always" for an agent covers that tool's calls that

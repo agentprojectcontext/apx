@@ -1,5 +1,6 @@
 import { DEFAULT_AUTONOMY, ModelRef, WritePolicy } from "@apx/protocol";
 import { z } from "zod";
+import { placeName, worksForOwner } from "../domain/owner-work.ts";
 import { worksIn } from "../domain/projects.ts";
 import { engineOf } from "../domain/refs.ts";
 import type { Store } from "../domain/store.ts";
@@ -42,8 +43,11 @@ export function externalSessionTools(store: Store): Tool[] {
         if (matches.length !== 1) return "refused: name one registered project by its id or exact, unique name";
         const project = matches[0];
         if (!project) return "refused: no project";
+        // Working for the owner, any of the owner's projects not being moved (DECISIONS.md#d-271).
+        const moving = store.projectProtection.list().some((p) => p.project === project.id);
+        const ownersWork = worksForOwner(store, ctx.thread) && !moving;
         if (
-          !worksIn(store.projects, ctx.agent.project_id, project.id) ||
+          !(worksIn(store.projects, ctx.agent.project_id, project.id) || ownersWork) ||
           (ctx.thread.reach === "fenced" && project.id !== ctx.thread.project_id)
         )
           return "refused: this agent cannot start a session in another project";
@@ -86,6 +90,7 @@ export function externalSessionTools(store: Store): Tool[] {
             model: a.model ?? "default",
             write,
             state: sent.run.state,
+            ...(project.id === ctx.thread.project_id ? {} : { where: placeName(store, project.id) }),
           });
         } catch (err) {
           return `session ${thread.id} was created but not started: ${err instanceof Error ? err.message : String(err)}; do not create a duplicate`;

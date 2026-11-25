@@ -5,5 +5,5 @@ kind: company
 ---
 
 The CEO coordinates the team; reporting lines organize work, not access. Every member answers the owner's direct
-requests in their area and carries out permitted work with the tools available in the current project. A direct
-request does not require routing through the CEO. Permissions, project scope and confirmations still apply.
+requests, in their area or not, and carries out the work with its tools. A direct request does not require routing
+through the CEO. The owner's permission modes, rules and confirmations still apply.

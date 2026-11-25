@@ -205,20 +205,22 @@ Arriba de la descripción, una tarea muestra adónde tiene que llegar su trabajo
   terminar un paso de su plan (contando desde el último paso hecho o desde tu último mensaje), se pausan. Ves el
   motivo en el chat, con el botón para dejarlos seguir, y una vez en tus notificaciones. Un paso hecho, o tu mensaje,
   vuelve a empezar la cuenta.
-- **Un agente hace el trabajo, una revisión al final**: el agente de una tarea la hace él mismo. Le pide algo a otro
-  agente recién cuando terminó el resto de su plan, en general una revisión (salvo que vos le pidas ayuda antes); un
-  worker propio (una búsqueda, un log, una primera mirada al diff) lo puede ayudar en cualquier momento. Lo que tiene
-  que hacer otro pasa a ser una subtarea. Quien revisa informa qué funciona, qué falla y qué no pudo probar;
+- **Un agente hace el trabajo, una revisión al final**: el agente de una tarea la hace él mismo, y pide una revisión
+  cuando terminó el resto de su plan. En el camino le puede pedir una parte a un compañero (un número, un diseño, una
+  verificación) o arrancar un worker propio (una búsqueda, un log, una primera mirada al diff); el historial de la
+  tarea registra a quién le pidió qué. Lo que tiene que hacer otro pasa a ser una subtarea. Quien revisa informa qué funciona, qué falla y qué no pudo probar;
   nunca aprueba ni bloquea. La tarea vuelve a su agente, que decide qué arreglar y la entrega.
 - **El agente de una tarea la entrega**: cuando la tarea pide publicar o desplegar, eso es parte del trabajo. Un paso
   que se puede deshacer (subir una rama, un deploy) lo hace; uno difícil (una versión o un tag, un pago, una migración
   de datos en producción, un mensaje en tu nombre) te espera. Cierra la tarea diciendo qué funciona, qué falta y qué
   tan lista está, de 1 a 5.
 - **Pocos comentarios**: un agente comenta en una tarea cuando termina su plan, para preguntarte algo a vos o a un
-  compañero (con `@nombre`), o cuando te responde; como mucho una vez por turno y en líneas cortas. El avance se ve en
-  el plan, también cuando un agente trabaja la tarea desde otro chat (tu superagente, con el resultado de un compañero,
-  lo escribe ahí también). Un ayudante le responde a quien le preguntó, no a la tarea. Un `@nombre` llega sólo a
-  agentes del proyecto de la tarea; a uno de otro proyecto se le pregunta a través de tu superagente.
+  compañero (con `@nombre`), o cuando te responde; un comentario por turno, en líneas cortas, y lo que agregue en el
+  mismo turno se suma a ese. El avance se ve en el plan: una nota de avance queda en el paso en curso en vez de ser un
+  comentario, también cuando un agente trabaja la tarea desde otro chat (tu superagente, con el resultado de un
+  compañero, lo escribe ahí también). La nota de un ayudante pasa a ser parte de su respuesta a quien le preguntó, no un
+  comentario en la tarea. Un `@nombre` llega sólo a agentes del proyecto de la tarea; a uno de otro proyecto se le
+  pregunta directo con una delegación, o a través de tu superagente.
 - **Limpiar tareas viejas**: las tareas de antes de 2.13 pueden tener decenas de comentarios de avance. Tu
   super-agente te ofrece limpiarlas: te dice qué sacaría de cada tarea y el único resumen que dejaría, y no borra nada
   hasta que le digas que sí. Tus propios comentarios quedan siempre.
@@ -427,8 +429,9 @@ apx tasks done <id-tarea>
 Las columnas para `move` son `backlog`, `todo`, `doing` y `review`.
 
 <Aside type="note">
-Los agentes pueden abrir, mover, comentar y cerrar tareas con sus propias herramientas, así que "Lucía, poné eso en
-el tablero para Tomás" funciona en cualquier chat.
+Los agentes pueden abrir, mover, comentar y cerrar tareas con sus propias herramientas, en cualquiera de tus
+proyectos, así que "Lucía, poné eso en el tablero para Tomás" funciona en cualquier chat. Cuando la tarea está en otro
+proyecto, el agente dice en cuál.
 </Aside>
 
 ## Herramientas de agentes
@@ -438,7 +441,7 @@ el tablero para Tomás" funciona en cualquier chat.
 - Una descripción cortada en `task_get` se lee con `description_page: "0"` y luego cada `next_page`; si la descripción cambia entre páginas, la lectura falla y hay que empezar de nuevo.
 - `task_get` incluye campos, historial, sesiones de trabajo, consultas, subtareas, uso de tokens y los últimos 60 mensajes de la conversación. Las evidencias guardadas (referencias a archivos, parches y resúmenes de consultas) se conservan en su mensaje; no descarga adjuntos ni inventa pruebas faltantes.
 - Cada sección tiene un límite para el modelo, con marcas cuando se omite contenido o hay comentarios anteriores. El contenido se devuelve como datos, no como instrucciones.
-- Los agentes de proyecto pueden leer tareas de su proyecto y globales, pero no tareas ni trabajo relacionado de otros proyectos. Un ID inexistente o fuera del ámbito devuelve el mismo error seguro. La secretaria global conserva su visibilidad de todo el tablero.
+- Trabajando para vos, cualquiera de tus agentes lee y trabaja tareas de todos los proyectos: `task_list` y `task_create` aceptan un `project`, y un resultado sobre una tarea de otro proyecto dice dónde está. Un chat de un contacto, una sala o una app de afuera llega sólo a las tareas de su propio proyecto y a las globales, y ahí un ID inexistente o fuera del ámbito devuelve el mismo error seguro. Un proyecto que se está moviendo guarda sus tareas para sí hasta que termina la mudanza.
 - `task_create`, `task_update`, `task_comment` y `task_close` crean y mantienen tareas; `commitment_settle` registra el resultado acordado de un compromiso.
 - `plan` guarda la lista de pasos del agente; en el chat de una tarea es el plan de la tarea. Desde otro chat, la escribe `task_update plan`.
 

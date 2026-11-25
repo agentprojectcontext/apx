@@ -209,7 +209,7 @@ test("an external session keeps its caller's folder by default and refuses roots
   }
 });
 
-test("a project agent cannot launch a session in another project", async () => {
+test("a project agent working for the owner launches a session in another project, saying where, never in one being moved", async () => {
   const other = tempDir("apx-other-project-");
   try {
     const otherId = (await env.client.call("projects.register", { path: other.path, init: true })).project.id;
@@ -223,12 +223,23 @@ test("a project agent cannot launch a session in another project", async () => {
       prompt: "",
       browser_profile: "shared",
     });
+    // A role and a home project are a hat, not a fence (DECISIONS.md#d-271).
+    const started = JSON.parse((await start({ project: otherId }, undefined, undefined, "scoped-reviewer")).result) as {
+      thread: string;
+      where?: string;
+    };
+    assert.match(started.where ?? "", /^project /);
+    assert.equal(env.core.store.threads.get(started.thread)?.project_id, otherId);
+    await env.settle(started.thread);
+    // A project being moved stays closed to other projects' agents.
+    env.core.store.projectProtection.protect("move_other", otherId);
     const count = seen.length;
     assert.match(
       (await start({ project: otherId }, undefined, undefined, "scoped-reviewer")).result,
       /another project/,
     );
     assert.equal(seen.length, count);
+    env.core.store.projectProtection.restore("move_other");
   } finally {
     await other.remove();
   }

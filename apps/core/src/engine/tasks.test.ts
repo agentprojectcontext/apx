@@ -16,6 +16,9 @@ const bridgeHeld = new Promise<void>((r) => {
   releaseBridge = r;
 });
 
+/** A chat whose consults an outside app opened: its agents answer for that app, not for the owner. */
+let outsideChat = "";
+
 // Vera and Roby keep mentioning each other: an answer to an agent's @mention asks no one further (DECISIONS.md#d-132).
 const llm = scriptedLlm(async (req, { said, afterTool }) => {
   const system = String(req.messages[0]?.content);
@@ -49,12 +52,15 @@ const llm = scriptedLlm(async (req, { said, afterTool }) => {
   if (said.includes("ask the owner")) return say("@JULIAN please confirm the launch date.");
   if (said.includes("hand over subtask"))
     return callTool("t4", "delegate", { agent: "vera", task: "assign a subtask to roby" });
-  if (said.includes("assign a subtask to roby"))
+  if (said.includes("assign a subtask to roby")) {
+    for (const id of outsideChat ? env.core.store.threads.children(outsideChat) : [])
+      env.core.store.threads.mergeContext(id, { client: "external" });
     return callTool("t5", "task_create", {
       goal: "Done as asked",
       title: "Proofread the post",
       assignee: "superagent",
     });
+  }
   const ping = /ping roby on (task_\w+)/.exec(said);
   if (ping) return callTool("t3", "task_comment", { task: ping[1], text: "@roby what do you think?" });
   if (system.startsWith("You are Vera")) return say("Done my part, @roby your turn.");
@@ -420,10 +426,12 @@ test("a task an agent makes while working a task is its subtask, listed on it", 
   );
 });
 
-test("an answering agent cannot silently drop a requested assignee and leave an orphan task", async () => {
+test("an agent answering in an outside app's chat cannot silently drop a requested assignee and leave an orphan task", async () => {
   const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", project_id: project });
+  outsideChat = chat.id;
   await env.client.call("threads.send", { thread: chat.id, text: "hand over subtask" });
   await env.settle(chat.id);
+  outsideChat = "";
   const { tasks } = await env.client.call("tasks.list", { project });
   assert.equal(
     tasks.find((x) => x.title === "Proofread the post"),
@@ -433,6 +441,22 @@ test("an answering agent cannot silently drop a requested assignee and leave an 
     .flatMap((c) => c.messages)
     .find((m) => m.role === "tool" && /so you start no task work/.test(String(m.content)));
   assert.match(String(refusal?.content), /the agent that asked you|assigns it/);
+});
+
+test("the owner's agent answering a teammate opens the task it was asked for and says so", async () => {
+  const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", project_id: project });
+  await env.client.call("threads.send", { thread: chat.id, text: "hand over subtask" });
+  await env.settle(chat.id);
+  const { tasks } = await env.client.call("tasks.list", { project });
+  const opened = tasks.find((x) => x.title === "Proofread the post");
+  assert.ok(opened);
+  assert.equal(opened.assignee, "superagent");
+  assert.equal(opened.created_by, "vera");
+  const told = llm.calls
+    .flatMap((c) => c.messages)
+    .find((m) => m.role === "tool" && String(m.content).includes(`Say in your answer that you opened ${opened.id}`));
+  assert.ok(told, "the helper is told to say it opened the task");
+  await env.client.call("tasks.close", { task: opened.id, state: "dropped" });
 });
 
 test("an agent the owner consults on a task can create and start the tasks the owner asks for", async () => {

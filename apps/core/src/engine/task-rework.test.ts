@@ -175,7 +175,7 @@ test("active work prevents rework and idempotent retries cannot admit duplicate 
   assert.equal(env.core.store.tasks.events(task.id).filter((e) => e.data.rework_run_id).length, 1);
 });
 
-test("rework keeps project scope, hand-off permissions and paused limits", async () => {
+test("rework keeps outsiders' project scope and hand-off permissions, and paused limits", async () => {
   const { task } = await closedTask();
   const { store, engine } = env.core;
   const handlers = taskHandlers(store, engine, env.home);
@@ -191,18 +191,29 @@ test("rework keeps project scope, hand-off permissions and paused limits", async
   store.projects.upsert({ id: "project_other", name: "Northwind" });
   const elsewhere = await env.client.call("tasks.create", { title: "Another project", project: "project_other" });
   await env.client.call("tasks.close", { task: elsewhere.id, state: "done" });
+  // An outside app's chat keeps its agent to its own project's tasks (DECISIONS.md#d-271).
+  const outside = store.threads.create({ kind: "loose", title: "Outside app", agent_ids: ["vera"] });
+  store.threads.mergeContext(outside.id, { client: "external" });
   assert.throws(
     () =>
       handlers["tasks.close"](
         { task: elsewhere.id, state: "open", rework: true, note: "Fix it" },
-        {
-          ...context,
-          agent: { ...context.agent, id: "vera" },
-        },
+        { ...context, agent: { ...context.agent, id: "vera", thread_id: outside.id } },
       ),
     /own project's tasks/,
   );
+  // The owner's own agent reaches it, and the task's own rules still apply.
+  assert.throws(
+    () =>
+      handlers["tasks.close"](
+        { task: elsewhere.id, state: "open", rework: true, note: "Fix it" },
+        { ...context, agent: { ...context.agent, id: "vera" } },
+      ),
+    /rework requires an assignee/,
+  );
+  assert.equal(store.tasks.get(elsewhere.id)?.state, "done");
   const consult = store.threads.create({ kind: "a2a", title: "Consult", agent_ids: ["superagent", "vera"] });
+  store.threads.mergeContext(consult.id, { client: "external" });
   assert.throws(
     () =>
       handlers["tasks.close"](

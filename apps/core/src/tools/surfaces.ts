@@ -3,6 +3,7 @@
 import { SurfaceOrigin, type SurfaceSummary } from "@apx/protocol";
 import { z } from "zod";
 import { memorySummary } from "../domain/artifact-memory.ts";
+import { placeName, worksForOwner } from "../domain/owner-work.ts";
 import { inheritsFrom } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import { builtFromFiles } from "./artifact-files.ts";
@@ -41,13 +42,59 @@ export function card(ctx: ToolContext, surface: SurfaceSummary) {
   });
 }
 
+/** Where a widget call works: this chat's project, or another of the owner's it named; `in` says it in a result. */
+type Place = { project: string | undefined; in: string };
+
+const PROJECT_ARG = z
+  .string()
+  .max(120)
+  .optional()
+  .describe("another of the owner's projects (id or name, home for none); default this chat's");
+
 export function surfaceTools(store: Store, home: string): Tool[] {
-  const find = (ctx: ToolContext, name: string) => store.surfaces.byName(ctx.thread.project_id, slug(name));
+  const find = (at: Place, name: string) => store.surfaces.byName(at.project, slug(name));
   /** A subproject's parent's apps, to read (a change makes the subproject a copy of its own with show_widget). */
-  const inherited = (ctx: ToolContext) => {
-    const from = inheritsFrom(store.projects, ctx.thread.project_id);
+  const inherited = (at: Place) => {
+    const from = inheritsFrom(store.projects, at.project);
     return from ? store.surfaces.apps(from.project) : [];
   };
+  /**
+   * The project a call names, reached only from a chat that works for the owner and never into or out of a project
+   * being migrated (DECISIONS.md#d-271). A string: why not.
+   */
+  const placeOf = (ctx: ToolContext, ref: string | undefined): Place | string => {
+    const here = ctx.thread.project_id ?? undefined;
+    const q = ref?.trim();
+    if (!q) return { project: here, in: "" };
+    const all = store.projects.list();
+    const found = /^home$/i.test(q)
+      ? null
+      : (all.find((p) => p.id === q) ?? all.find((p) => p.name.toLowerCase() === q.toLowerCase()));
+    // Checked before naming any project: a chat for someone else learns none of the owner's.
+    const named = found === undefined ? q : (found?.id ?? undefined);
+    if (named !== here && !worksForOwner(store, ctx.thread)) return "this chat reaches only its own project's widgets.";
+    if (found === undefined)
+      return `no project "${q}". Projects: ${all
+        .slice(0, 30)
+        .map((p) => p.name)
+        .join(", ")}`;
+    const project = found?.id;
+    if (project === here) return { project: here, in: "" };
+    if (store.projectProtection.list().some((p) => p.project === here || p.project === project))
+      return "refused: a project being migrated keeps its widgets to itself until the migration ends.";
+    return { project, in: ` in ${placeName(store, project)}` };
+  };
+  /**
+   * Where a change to a widget lands: its own chat when that chat is in its project, else the project itself. None for
+   * a new widget in Home from a project's chat: the call would land in this chat's project instead.
+   */
+  const target = (ctx: ToolContext, at: Place, threadId: string | undefined) => {
+    if (!at.in) return { thread: ctx.thread.id };
+    const own = threadId ? store.threads.get(threadId) : undefined;
+    if (own && (own.project_id ?? undefined) === at.project) return { thread: own.id };
+    return at.project ? { project: at.project } : undefined;
+  };
+  const NO_HOME = "a new widget in Home is made from a chat outside any project: name a project, or make it here.";
   return [
     defineTool({
       name: "show_widget",
@@ -66,6 +113,7 @@ export function surfaceTools(store: Store, home: string): Tool[] {
           .max(5)
           .optional()
           .describe('origins it may reach, e.g. ["https://api.example.com"]'),
+        project: PROJECT_ARG,
       }),
       effect: "local",
       // A widget that reaches out could carry what is in the chat to that origin: asked while outside content is in play.
@@ -77,16 +125,20 @@ export function surfaceTools(store: Store, home: string): Tool[] {
       deadlineMs: 10_000,
       title: (a) => `Made the widget ${String(a.title ?? a.name)}`,
       async run(a, ctx) {
-        const files = builtFromFiles(home, ctx.thread.project_id, slug(a.name));
+        const at = placeOf(ctx, a.project);
+        if (typeof at === "string") return at;
+        const files = builtFromFiles(home, at.project, slug(a.name));
         if (files) return files;
         const broken = await widgetScriptError(a.html.slice(0, MAX_HTML), "show_widget", ctx.signal);
         if (broken) return broken;
         if (ctx.signal.aborted) return STOPPED;
+        const to = target(ctx, at, find(at, a.name)?.thread_id);
+        if (!to) return NO_HOME;
         const surface = await ctx.call("surfaces.show", {
           name: slug(a.name),
           title: a.title.slice(0, 120) || a.name,
           html: a.html.slice(0, MAX_HTML),
-          thread: ctx.thread.id,
+          ...to,
           // Where the widget lives is the owner's choice once made: an agent adds a place, never takes one away.
           ...(a.pin ? { pinned: true } : {}),
           ...(a.app ? { app: true } : {}),
@@ -95,7 +147,7 @@ export function surfaceTools(store: Store, home: string): Tool[] {
         });
         card(ctx, surface);
         const where = [
-          surface.project_id ? "" : "in no project (a chat outside a project makes a global widget)",
+          surface.project_id || at.in ? "" : "in no project (a chat outside a project makes a global widget)",
           surface.pinned ? "pinned to the project's board" : "",
           a.pin && surface.page ? "not pinned: a web page is never on a board" : "",
           surface.app ? "an app" : "",
@@ -103,38 +155,41 @@ export function surfaceTools(store: Store, home: string): Tool[] {
           surface.page ? "shown as a web page" : "",
           surface.connect ? `connecting to ${surface.connect.join(", ")}` : "",
         ].filter(Boolean);
-        return `widget "${surface.name}" v${surface.version} shown${where.length ? `, ${where.join(", ")}` : ""}.`;
+        return `widget "${surface.name}" v${surface.version} shown${at.in}${where.length ? `, ${where.join(", ")}` : ""}.`;
       },
     }),
     defineTool({
       name: "read_widget",
       description:
         "Read a widget of this project by name: title, version, origins, full HTML and state, for edit_widget. Without a name it lists this project's widgets.",
-      args: z.object({ name: z.string().optional() }),
+      args: z.object({ name: z.string().optional(), project: PROJECT_ARG }),
       effect: "none",
       deadlineMs: 10_000,
       title: (a) => (a.name ? `Read the widget ${String(a.name)}` : "Listed the widgets"),
       async run(a, ctx) {
+        const at = placeOf(ctx, a.project);
+        if (typeof at === "string") return at;
         if (!a.name) {
-          const own = store.surfaces.list({ project: ctx.thread.project_id });
+          const own = store.surfaces.list({ project: at.project });
           const taken = new Set(own.map((s) => s.name));
-          const list = [...own, ...inherited(ctx).filter((s) => !taken.has(s.name))];
+          const list = [...own, ...inherited(at).filter((s) => !taken.has(s.name))];
           if (!list.length)
-            return `no widgets ${ctx.thread.project_id ? "in this project" : "outside a project"} yet: make one with show_widget.`;
-          return list
+            return `no widgets ${at.in ? at.in.trim() : at.project ? "in this project" : "outside a project"} yet: make one with show_widget.`;
+          const head = at.in ? `Widgets${at.in}:\n` : "";
+          return `${head}${list
             .slice(0, 40)
             .map(
               (s) =>
-                `- ${s.name}: ${s.title} (v${s.version}${s.app ? ", app" : s.page ? ", web page" : ""}${s.pinned ? ", pinned" : ""}${s.in_apps ? ", in Apps" : ""}${s.project_id === ctx.thread.project_id ? "" : ", the parent project's"})`,
+                `- ${s.name}: ${s.title} (v${s.version}${s.app ? ", app" : s.page ? ", web page" : ""}${s.pinned ? ", pinned" : ""}${s.in_apps ? ", in Apps" : ""}${(s.project_id ?? undefined) === at.project ? "" : ", the parent project's"})`,
             )
-            .join("\n");
+            .join("\n")}`;
         }
         const wanted = slug(a.name);
-        const parents = inherited(ctx).find((x) => x.name === wanted);
-        const s = find(ctx, a.name) ?? (parents && store.surfaces.get(parents.id));
-        if (!s) return `no widget named ${a.name}: read_widget without a name lists them.`;
+        const parents = inherited(at).find((x) => x.name === wanted);
+        const s = find(at, a.name) ?? (parents && store.surfaces.get(parents.id));
+        if (!s) return `no widget named ${a.name}${at.in}: read_widget without a name lists them.`;
         const net = s.connect ? `, connects to ${s.connect.join(", ")}` : "";
-        const html = `widget "${s.name}" · ${s.title} · v${s.version}${net}\n<html_source>\n${s.html}\n</html_source>`;
+        const html = `widget "${s.name}"${at.in} · ${s.title} · v${s.version}${net}\n<html_source>\n${s.html}\n</html_source>`;
         // Written by the widget as the owner used it: data to read, never instructions.
         const state = s.state
           ? `\n<widget_state>\n${JSON.stringify(s.state).slice(0, STATE_SHOWN)}\n</widget_state>`
@@ -159,13 +214,16 @@ export function surfaceTools(store: Store, home: string): Tool[] {
         pin: z.boolean().optional(),
         page: z.boolean().optional(),
         state: z.record(z.string(), z.unknown()).optional().describe("APX.state keys to set, null removes"),
+        project: PROJECT_ARG,
       }),
       effect: "local",
       deadlineMs: 10_000,
       title: (a) => `Edited the widget ${String(a.name ?? "")}`,
       async run(a, ctx) {
-        const s = find(ctx, a.name);
-        if (!s) return `no widget named ${a.name}: make it with show_widget, or list them with read_widget.`;
+        const at = placeOf(ctx, a.project);
+        if (typeof at === "string") return at;
+        const s = find(at, a.name);
+        if (!s) return `no widget named ${a.name}${at.in}: make it with show_widget, or list them with read_widget.`;
         if (a.pin && (a.page ?? s.page)) return "a web page is a document, not a board tile: it cannot be pinned.";
         const flags = {
           ...(a.app === undefined ? {} : { app: a.app }),
@@ -180,7 +238,7 @@ export function surfaceTools(store: Store, home: string): Tool[] {
           if (a.state) await ctx.call("surfaces.set_state", { surface: s.id, patch: a.state });
           const surface = hasFlags ? await ctx.call("surfaces.update", { surface: s.id, ...flags }) : s;
           if (hasFlags) card(ctx, surface);
-          return `widget "${surface.name}" v${surface.version}: ${surface.app ? "app" : surface.page ? "web page" : "widget"}, ${surface.pinned ? "pinned" : "not pinned"}${surface.in_apps ? ", in Apps" : ""}; HTML unchanged${remembered}.`;
+          return `widget "${surface.name}"${at.in} v${surface.version}: ${surface.app ? "app" : surface.page ? "web page" : "widget"}, ${surface.pinned ? "pinned" : "not pinned"}${surface.in_apps ? ", in Apps" : ""}; HTML unchanged${remembered}.`;
         }
         const files = builtFromFiles(home, s.project_id, s.name);
         if (files) return files;
@@ -196,16 +254,18 @@ export function surfaceTools(store: Store, home: string): Tool[] {
         const broken = await widgetScriptError(html, "edit_widget", ctx.signal);
         if (broken) return broken;
         if (ctx.signal.aborted) return STOPPED;
+        const to = target(ctx, at, s.thread_id);
+        if (!to) return NO_HOME;
         if (a.state) await ctx.call("surfaces.set_state", { surface: s.id, patch: a.state });
         const surface = await ctx.call("surfaces.show", {
           name: s.name,
           title: a.title?.trim().slice(0, 120) || s.title,
           html,
-          thread: ctx.thread.id,
+          ...to,
           ...flags,
         });
         card(ctx, surface);
-        return `widget "${surface.name}" is now v${surface.version} (${edits.length} edit${edits.length === 1 ? "" : "s"}${remembered}).`;
+        return `widget "${surface.name}"${at.in} is now v${surface.version} (${edits.length} edit${edits.length === 1 ? "" : "s"}${remembered}).`;
       },
     }),
   ];

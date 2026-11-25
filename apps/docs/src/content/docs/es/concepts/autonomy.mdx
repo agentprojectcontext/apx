@@ -40,10 +40,16 @@ limpiar los comentarios de una tarea y todo lo que haría que otra persona pase 
 rol de dueño).
 
 En Auto y Acepta ediciones, tus otros proyectos registrados y sus worktrees de git se escriben como la carpeta del
-agente: los registraste vos. Escribir en cualquier otra carpeta muestra una tarjeta para esa llamada: **Solo esta vez**
-lo deja escribir ahí una vez, y **Permitirle siempre a este agente cambiarla** se lo permite a ese agente para siempre (se
-revoca en sus permisos). Los archivos escritos antes de estos modos siguen funcionando: `ask` se lee
-como Manual y `standard` o `edits` como Auto.
+agente: los registraste vos. Lo mismo vale en un hilo de código o una sesión en un worktree, salvo que lo hayas dejado
+de sólo lectura. Escribir en cualquier otra carpeta muestra una tarjeta para esa llamada: **Solo esta vez** lo deja
+escribir ahí una vez, y **Permitirle siempre a este agente cambiarla** se lo permite a ese agente para siempre (se
+revoca en sus permisos). Las sesiones de Claude Code y Codex reciben la misma tarjeta, **Siempre** incluido. Un
+programa que el agente corre en una carpeta que no es de ninguno de tus proyectos (un build en una carpeta nueva, por
+ejemplo) también muestra esa tarjeta, en vez de fallar. Los archivos escritos antes de estos modos siguen funcionando:
+`ask` se lee como Manual y `standard` o `edits` como Auto.
+
+Trabajando para vos, un agente también lee los archivos que dejaste en tus otros chats (una captura, un documento),
+sin cambiarlos. No en Manual, ni desde un proyecto que estás moviendo; los chats de tus contactos siguen cerrados.
 
 ## Qué pregunta cada herramienta
 
@@ -83,8 +89,8 @@ Y así se cruzan. "Acá" es escribir un archivo o correr un comando en la carpet
 
 Cuando uno de tus agentes le delega a otro, el ayudante trabaja en el **modo de quien le pide**, no en el suyo: un
 agente en Total que le pide ayuda a un compañero no lo ve frenarse por lo que él no se frenaría. El ayudante mantiene
-sus propias reglas por caso, una regla que apaga algo en cualquier punto de la cadena sigue apagada, y sólo recibe las
-herramientas que pueden usar todos los agentes de la cadena. Pedir una sesión que trabaja en otra carpeta abre una
+sus propias reglas por caso y su propio foco de `tools:` (la lista de quien le pide no lo achica), y una regla que
+apaga algo en cualquier punto de la cadena sigue apagada. Pedir una sesión que trabaja en otra carpeta abre una
 sesión nueva con el mismo agente ahí, con una nota que lo dice.
 
 Las sesiones externas de Claude Code, Codex y ACP usan estas mismas reglas de permisos. Auto no es Total: un

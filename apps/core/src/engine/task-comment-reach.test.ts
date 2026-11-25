@@ -1,6 +1,6 @@
-// An agent working a task from outside its chat (the super-agent on a teammate's result) records progress on the
-// task's plan with task_update, and a comment naming an agent of another project says how to reach it, instead of
-// pointing at a plan or a mention it cannot use (DECISIONS.md#d-202).
+// An agent working a task from outside its chat (the super-agent on a teammate's result) has a progress comment noted
+// where progress lives (the task's history, or its plan's step once it has a plan), and a comment naming an agent of
+// another project says how to reach it, instead of a mention it cannot use (DECISIONS.md#d-202, DECISIONS.md#d-271).
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { TERMINAL } from "../domain/runs.ts";
@@ -29,6 +29,7 @@ const llm = scriptedLlm((req, { system, said, afterTool }) => {
   if (step === 0) return callTool("c0", "task_comment", { task, text: "Scout found the hinge is loose." });
   if (step === 1) return callTool("c1", "task_comment", { task, text: "@yago is the clinic report in your notes?" });
   if (step === 2) return callTool("u0", "task_update", { task, plan: PLAN });
+  if (step === 3) return callTool("c2", "task_comment", { task, text: "Scout tightened the hinge." });
   return say("Recorded.");
 });
 
@@ -48,15 +49,26 @@ after(async () => {
   for (const f of folders) await f.remove();
 });
 
-test("outside a task's chat, progress goes on its plan with task_update, and another project's agent is not reached by a comment", async () => {
+test("outside a task's chat, progress is noted on the task's history or plan step, and another project's agent is not reached by a comment", async () => {
   chat = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
   await env.client.call("threads.send", { thread: chat, text: "REACH-CASE: check the back door." });
-  await waitFor(() => results.length >= 3, "the turn on Scout's result");
+  await waitFor(() => results.length >= 4, "the turn on Scout's result");
   await env.settle(chat);
-  const [progress, mention, update] = results;
-  assert.match(String(progress), /not posted: progress goes in the task's plan \(task_update plan\)/);
-  assert.match(String(mention), /Yago works in another project.*delegate/);
+  const [progress, mention, update, planned] = results;
+  // No plan yet: the note goes in the task's history, and the agent is told where progress lives.
+  assert.match(
+    String(progress),
+    /^noted in the task's history, not posted as a comment\. .*task's plan \(task_update plan\)/,
+  );
+  assert.match(String(mention), /not posted: Yago works in another project.*delegate/);
   assert.match(String(update), /^updated/);
-  assert.equal(env.core.store.tasks.get(task)?.plan, PLAN);
-  assert.equal(env.core.store.tasks.events(task).filter((e) => e.op === "comment").length, 0);
+  // With a plan, the note joins the step being done.
+  assert.match(String(planned), /^noted on the plan's step "Fix it", not posted as a comment\./);
+  assert.equal(
+    env.core.store.tasks.get(task)?.plan,
+    "- [x] Found the cause\n- [~] Fix it (Scout tightened the hinge.)",
+  );
+  const events = env.core.store.tasks.events(task);
+  assert.ok(events.some((e) => e.by === "superagent" && e.data.note === "Scout found the hinge is loose."));
+  assert.equal(events.filter((e) => e.op === "comment").length, 0);
 });
