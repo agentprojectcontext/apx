@@ -4,7 +4,7 @@ import { quietMessage } from "../apps/core/src/channels/quiet-message.ts";
 import { saveUpload } from "../apps/core/src/services/uploads.ts";
 import { readingFixture } from "../apps/core/src/tools/contact-project-reading.test-support.ts";
 
-export const stickerEnvelope = (note: string) =>
+const stickerEnvelope = (note: string) =>
   `<sticker named_by="a model that saw it" trust="untrusted">\n${note}\n</sticker>`;
 export const literalCaption = "[sticker: examples] and [notes]";
 
