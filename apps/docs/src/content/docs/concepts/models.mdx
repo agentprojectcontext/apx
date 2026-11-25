@@ -108,6 +108,14 @@ marked as on this computer. To stop offering a found app, remove it from the lis
 On a server with no panel, three environment variables add one OpenAI-compatible provider: `APX_LLM_BASE_URL`,
 `APX_LLM_KEY_REF` (a secret's name) and `APX_LLM_MODELS`. See [Configuration](/reference/configuration/).
 
+### A model is missing from the list
+
+Run `apx models --refresh` to ask again without waiting for the daily refresh. This does not change any saved
+agent or router model. ChatGPT's app and Codex can offer different lists: seeing a model in the app does not
+establish that your connected plan offers it through Codex. APX uses the plan's own list, not manually added IDs.
+For external Codex sessions, update the Codex CLI on the core's computer before refreshing; an older CLI can
+receive a smaller catalog. Listing a model does not by itself prove that a turn can run with it.
+
 ### Your ChatGPT plan
 
 Your ChatGPT plan can be a provider too, shown as **Codex**. Its models then run in APX's loop with APX's tools.

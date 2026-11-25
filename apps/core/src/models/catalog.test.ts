@@ -144,6 +144,11 @@ test("a signed-in plan's models are asked to the plan with its sign-in, never re
       ],
     );
     const call = asked.find((a) => a.url.startsWith("http://plan.test/codex/models?client_version="));
+    const version = new URL(call?.url ?? "http://missing.test").searchParams.get("client_version");
+    assert.ok(version && version.localeCompare("0.172.0", undefined, { numeric: true }) >= 0);
+    const refreshed = (await catalog.list(true)).find((e) => e.id === "chatgpt");
+    assert.equal(asked.length, 2, "explicit refresh asks the authenticated source again");
+    assert.deepEqual(refreshed?.models, plan?.models);
     assert.equal(call?.headers.get("authorization"), "Bearer tok");
     assert.equal(call?.headers.get("chatgpt-account-id"), "acct-1");
   } finally {

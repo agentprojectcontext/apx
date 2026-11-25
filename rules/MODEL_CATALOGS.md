@@ -35,6 +35,20 @@ The starter model a new router chain gets (`models/starter.ts`) is picked from t
 A provider's own router over its free models (an id ending in `/free`, such as OpenRouter's) is the starter and heads
 that provider's list: a new account may have no credit, and a paid model would fail its first turn.
 
+## ChatGPT and Codex client versions
+
+The ChatGPT plan endpoint filters its response by `client_version`. APX sends the greater of the installed
+Codex version and its verified compatibility floor (`models/codex-version.ts`, currently `0.172.0`). This is a
+client version, not a model allowlist: only models returned by the authenticated source are offered. The installed
+version is checked on each uncached plan fetch, so a CLI upgrade is visible on the next explicit refresh without
+a core restart. An absent, broken or older CLI uses the compatibility floor.
+
+The external Codex catalog still comes from the installed `codex debug models`, not from the plan provider's list.
+An old CLI can therefore offer fewer models than the ChatGPT app or the current CLI. Update that CLI separately,
+then run `apx models --refresh`; never add guessed model IDs or rewrite saved selections to compensate.
+A successful catalog response proves listing only, not inference access. A model available in the ChatGPT app is
+not by itself proof that the Codex transport offers it to the same account.
+
 ## What a refresh never changes
 
 A refresh never rewrites a model an agent, the router or a chat already has. When a provider retires that model, the
