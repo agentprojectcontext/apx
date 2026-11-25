@@ -46,6 +46,7 @@ export const CONFIG_SECTIONS = [
   "engines",
   "external",
   "router",
+  "helper-model",
   "agents",
   "memory",
   "voices",

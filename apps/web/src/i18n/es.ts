@@ -1181,6 +1181,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "mcp.status.needsSignIn": "Necesita que inicies sesión",
   "mcp.status.error": "Error",
   "config.router": "Router",
+  "config.helperModel": "Modelo ayudante",
   "router.default": "Por defecto",
   "local.title": "Transcripción en esta máquina",
   "local.active": "En uso: {model}",
@@ -1456,7 +1457,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "mem.auto_recall.hint": "Frases relevantes del dueño en chats de este agente y mismo proyecto, con su fuente.",
   "mem.auto_capture": "Guardar recuerdos duraderos",
   "mem.auto_capture.hint":
-    "El modelo auxiliar selecciona citas exactas del dueño. Recuerdos privados de este agente y proyecto.",
+    "El modelo ayudante selecciona citas exactas del dueño. Recuerdos privados de este agente y proyecto.",
   "mem.auto_dream": "AutoDream",
   "mem.auto_dream.hint":
     "Una vez al día ordena el cuaderno de cada agente y las notas que comparten un proyecto o tus agentes: une repetidas y retira lo que una nota más nueva corrige. Tus notas no se tocan; los cambios se pueden deshacer.",
@@ -1783,16 +1784,33 @@ export const es: Partial<Record<MessageKey, string>> = {
   "mem.autoCompact": "Resumir los chats largos",
   "mem.autoCompactHint":
     "Cuando un chat se alarga, los turnos viejos pasan a un resumen; los últimos quedan textuales.",
-  "mem.aux": "Modelo ayudante",
-  "mem.auxHint.auto":
-    "Pone títulos a los chats y resume los largos. Automático: usa el modelo por API del agente o, si no tiene, los del router.",
-  "mem.auxHint.pick":
-    "Pone títulos a los chats y resume los largos con el modelo que elijas. Conviene uno rápido por API.",
-  "mem.auxHint.off": "Desactivado: los chats no reciben título y los largos no se resumen.",
-  "mem.aux.auto": "Automático",
-  "mem.aux.pick": "Elegido",
-  "mem.aux.off": "Desactivado",
-  "mem.aux.pickOne": "Elegí un modelo",
+  "mem.helperPointer": "Escribe los títulos, los resúmenes y la memoria automática. Se elige en su propia sección.",
+  "mem.helperOpen": "Abrir",
+  "helperModel.lead":
+    "Un modelo aparte para el trabajo de fondo, así tus agentes no gastan su modelo principal en tareas chicas. Conviene uno chico y rápido: por ejemplo uno chico de ChatGPT de tu plan, con uno local de respaldo.",
+  "helperModel.does": "Qué hace",
+  "helperModel.job.titles": "Pone título a los chats y resume los largos.",
+  "helperModel.job.memory": "Guarda lo que vale recordar de cada chat y ordena las notas de tus agentes.",
+  "helperModel.job.judge": "Decide qué mails merecen un aviso y qué mensajes de grupos merecen respuesta.",
+  "helperModel.job.images": "Describe las imágenes y stickers que te mandan, si sabe leer imágenes.",
+  "helperModel.job.groups": "Elige qué agente responde en un chat de grupo.",
+  "helperModel.job.drafts": "Sugiere borradores de respuesta cuando el agente no tiene otro modelo para eso.",
+  "helperModel.job.review": "Repasa la actividad para proponerte mejoras.",
+  "helperModel.job.backup": "Cubre al modelo de un agente en avisos cortos y al leer chats que importás.",
+  "helperModel.which": "Qué modelo usa",
+  "helperModel.hint.auto":
+    "Automático: usa el modelo del agente o, si no tiene, los del router. Funciona, pero gasta tu modelo principal.",
+  "helperModel.hint.pick": "Usa el primero de la lista; si no responde, prueba con el siguiente.",
+  "helperModel.hint.off":
+    "Desactivado: los chats no reciben título, los largos no se resumen, la memoria no se guarda sola y no se revisan mails ni mensajes de grupos.",
+  "helperModel.mode.auto": "Automático",
+  "helperModel.mode.pick": "Elegido",
+  "helperModel.mode.off": "Desactivado",
+  "helperModel.pickOne": "Elegí un modelo",
+  "helperModel.addBackup": "Sumar un respaldo",
+  "helperModel.remove": "Quitar",
+  "helperModel.first": "Primero",
+  "helperModel.backup": "Respaldo",
   "svc.embedding.empty": "Todavía no hay motores. Sumá uno local o una API.",
   "svc.transcription.empty":
     "Todavía no hay motor de transcripción: las notas de voz llegan como “no se pudo escuchar”.",
