@@ -32,6 +32,15 @@ test("sticker captions and historical grouped previews in both languages and wid
         await expect(page.locator(".chan__bubble")).toHaveCount(6);
         await expect(page.locator("body")).not.toContainText("named_by");
         await expect(page.locator("body")).not.toContainText('trust="untrusted"');
+        const contact = page.getByRole("complementary", {
+          name: language === "es" ? "Contacto" : "Contact",
+          exact: true,
+        });
+        if (await contact.count()) {
+          await contact.getByRole("button", { name: language === "es" ? "Cerrar" : "Close", exact: true }).click();
+        }
+        await expect(contact).toHaveCount(0);
+        await expect(page.getByText(literalCaption, { exact: true })).toBeVisible();
         await page.screenshot({ path: info.outputPath(`channel-${language}-${width}.png`) });
         await page.goto(`${fixture.url}/?lang=${language}#thread=${fixture.thread}`);
         await expect(page.getByText(literalCaption, { exact: true })).toBeVisible();
