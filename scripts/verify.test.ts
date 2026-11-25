@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
+import { samePath } from "../apps/core/src/paths.ts";
 import { tempDir } from "../apps/core/src/testkit/platform.ts";
 import { unitTestFiles } from "./test-coverage.ts";
 import { suites } from "./test-shard.ts";
@@ -91,8 +92,13 @@ test("coverage's unit part runs every unit test file preflight runs, so verify l
   }
   assert.deepEqual(missing, []);
   // Run whole by preflight: the phone app's (its Jest screens run in coverage too) and the repo scripts' own.
-  const whole = suites(root).flatMap((s) => ("whole" in s ? [s.dir] : []));
-  assert.deepEqual(whole.sort(), [".", "apps/mobile"].sort());
+  const whole = suites(root).flatMap((s) => ("whole" in s ? [path.resolve(root, s.dir)] : []));
+  assert.equal(whole.length, 2, whole.join(", "));
+  for (const dir of [root, path.join(root, "apps", "mobile")])
+    assert.ok(
+      whole.some((d) => samePath(d, dir)),
+      dir,
+    );
   assert.ok([...covered].some((f) => f.startsWith(`apps${path.sep}mobile${path.sep}src`)));
   assert.ok([...covered].some((f) => f.startsWith(`scripts${path.sep}`)));
 });
