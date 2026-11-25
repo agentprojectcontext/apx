@@ -11,6 +11,7 @@ import { useEngineLabel } from "../common/useEngineLabel.ts";
 import { useChannels } from "../data/channels.ts";
 import { DEFAULT_PID, isWorking, projectName, routineName } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
+import { useThreadPreview } from "../data/threadPreview.ts";
 import { type T, useT } from "../i18n/index.ts";
 import { AccountLine } from "../lazy.ts";
 import { useNav } from "../shell/nav.ts";
@@ -144,7 +145,7 @@ export function ThreadRow({ thread, agent, selected, account = false, bundled = 
  * two lines of it (the core keeps a mail's preview as "Subject · text").
  */
 function Said({ thread, mail }: { thread: Thread; mail: boolean }) {
-  const text = thread.preview.replace(/\s+/g, " ").trim();
+  const text = useThreadPreview(thread).replace(/\s+/g, " ").trim();
   if (isSkipAnswer(text))
     return (
       <span className="threadrow__said">

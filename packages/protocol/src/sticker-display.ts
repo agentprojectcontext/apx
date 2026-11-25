@@ -1,30 +1,56 @@
-// Display-only projections: the stored message and the model's trust envelope stay untouched.
+// Display-only projections: stored messages, tool inputs and model trust envelopes stay untouched.
 const OPEN_LINE = '<sticker named_by="a model that saw it" trust="untrusted">';
-const OPEN = /^<sticker named_by="a model that saw it" trust="untrusted">\r?\n/gm;
-const CLOSE = /^<\/sticker>(?:\r?\n|$)/gm;
+const CLOSE_LINE = "</sticker>";
+const ENVELOPE =
+  /^<sticker named_by="a model that saw it" trust="untrusted">\r?\n(\[sticker(?: \(18\+\))?(?:: [^\r\n]*)?\])\r?\n<\/sticker>(?:\r?\n|$)/gm;
 
 export function stickerDisplayText(text: string): string {
-  const opened = text.replace(OPEN, "");
-  return opened === text ? text : opened.replace(CLOSE, "").trim();
+  const displayed = text.replace(ENVELOPE, "$1\n");
+  return displayed === text ? text : displayed.trim();
 }
 
-// Older previews were capped before projection and can end midway through an envelope line.
-export function stickerPreviewText(text: string): string {
-  const displayed = stickerDisplayText(text);
-  const lines = displayed.split("\n");
+// Historical previews are capped at 160 characters, sometimes midway through generated metadata.
+export function stickerPreviewNeedsSource(text: string): boolean {
+  const lines = text.split(/\r?\n/);
   const last = lines.at(-1) ?? "";
-  if (
-    (last.startsWith("<sticker") && OPEN_LINE.startsWith(last)) ||
-    (displayed !== text && last.startsWith("</") && "</sticker>".startsWith(last))
-  ) {
-    lines.pop();
-    return lines.join("\n").trim();
+  return (
+    !lines.includes(OPEN_LINE) &&
+    last.startsWith("<") &&
+    OPEN_LINE.startsWith(last) &&
+    !last.startsWith('<sticker named_by="')
+  );
+}
+
+export function stickerPreviewText(text: string, source?: string): string {
+  if (source?.startsWith(text) && stickerPreviewNeedsSource(text)) {
+    const tail = source.slice(text.lastIndexOf("\n") + 1);
+    if (!tail.startsWith(OPEN_LINE)) return text;
   }
-  return displayed;
+  const lines = text.split(/\r?\n/);
+  const displayed: string[] = [];
+  let inside = false;
+  for (const [index, line] of lines.entries()) {
+    const last = index === lines.length - 1;
+    if (line === OPEN_LINE) {
+      inside = true;
+    } else if (inside && (line === CLOSE_LINE || (last && line.startsWith("<") && CLOSE_LINE.startsWith(line)))) {
+      inside = false;
+    } else if (
+      !(
+        last &&
+        (text.length === 160 ||
+          line.startsWith('<sticker named_by="') ||
+          (source !== undefined && stickerPreviewNeedsSource(text))) &&
+        line.startsWith("<") &&
+        OPEN_LINE.startsWith(line)
+      )
+    ) {
+      displayed.push(line);
+    }
+  }
+  return displayed.join("\n").trim();
 }
 
 export function withoutStickerNote(text: string): string {
-  return stickerDisplayText(text)
-    .replace(/^\[sticker(?: \(18\+\))?(?:: [^\n]*)?\]$/gm, "")
-    .trim();
+  return text.replace(ENVELOPE, "\n").trim();
 }

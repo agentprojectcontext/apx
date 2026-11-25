@@ -2,12 +2,12 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { previewOf } from "./threads.ts";
 
-test("sticker previews retain the meaning and caption without internal envelopes", () => {
+test("source sticker previews retain the raw envelope and caption for non-display consumers", () => {
   const wrapped = '<sticker named_by="a model that saw it" trust="untrusted">\n[sticker (18+): fox]\n</sticker>';
-  assert.equal(previewOf(wrapped), "[sticker (18+): fox]");
-  assert.equal(previewOf(`Hello\n${wrapped}`), "Hello\n[sticker (18+): fox]");
+  assert.equal(previewOf(wrapped), wrapped);
+  assert.equal(previewOf(`Hello\n${wrapped}`), `Hello\n${wrapped}`);
   const long = wrapped.replace("fox", "x".repeat(200));
-  assert.equal(previewOf(long), `[sticker (18+): ${"x".repeat(200)}]`.slice(0, 160));
+  assert.equal(previewOf(long), long.slice(0, 160));
 });
 
 test("a mail's preview starts with its subject, without the note on mail read from before", () => {

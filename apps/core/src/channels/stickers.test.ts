@@ -166,8 +166,8 @@ test("what a model wrote a sticker means stays outside text on one line, in the 
   const projected = await env.client.call("threads.get", { thread: "home" });
   assert.equal(
     projected.thread.preview,
-    "[sticker: fox]",
-    "historical previews are projected without rewriting messages",
+    raw,
+    "historical source previews stay intact for tools and other non-display callers",
   );
   const stored = projected.messages.flatMap((m) => m.parts).filter((p) => p.type === "text");
   assert.ok(stored.some((p) => p.text.includes('<sticker named_by="a model that saw it" trust="untrusted">')));
