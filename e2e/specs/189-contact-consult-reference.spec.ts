@@ -1,3 +1,4 @@
+import type { AdapterIO, ChannelAdapter } from "../../apps/core/src/channels/types.ts";
 import { callTool, say } from "../../apps/core/src/engine/testkit.ts";
 import { waitFor } from "../../apps/core/src/testkit/platform.ts";
 import { readingFixture } from "../../apps/core/src/tools/contact-project-reading.test-support.ts";
@@ -54,6 +55,99 @@ test("a historical consultation never displays private instructions while its co
     await expect(page.locator(".chan__consult-link")).toHaveCount(0);
   } finally {
     release.resolve();
+    try {
+      if (!page.isClosed()) await page.goto("about:blank");
+    } finally {
+      await h.close();
+    }
+  }
+});
+
+test("consultation references, opening and continuing never add messages to the customer's WhatsApp", async ({
+  page,
+}) => {
+  const outbound: Array<{ conversation: string; text: string }> = [];
+  let receive: AdapterIO["receive"] | undefined;
+  const adapter: ChannelAdapter = {
+    caps: { typing: false, buttons: false },
+    async start(io) {
+      receive = io.receive;
+      return { account: "Acme delivery" };
+    },
+    async stop() {},
+    async send(conversation, presentation) {
+      outbound.push({ conversation, text: presentation.text });
+      return { external_id: `sent-${outbound.length}` };
+    },
+  };
+  const reply = "Your delivery is confirmed.";
+  const internal = "Private review for the delivery agent only.";
+  const h = await readingFixture(
+    (_req, { system, afterTool, said }) => {
+      if (system.includes("You are Delivery")) {
+        if (!afterTool)
+          return callTool("consult", "consult_super_agent", {
+            question: said.includes("again") ? "Can you check the dock again?" : question,
+          });
+        return say(reply);
+      }
+      return say(internal);
+    },
+    { port: 0, channelAdapters: { whatsapp: () => adapter } },
+  );
+  try {
+    await h.env.client.call("setup.finish", {});
+    h.store.persons.link(h.person.id, { channel: "test", external_id: h.person.id });
+    await h.env.client.call("channels.set", {
+      id: "test",
+      channel: {
+        type: "whatsapp",
+        label: "Delivery line",
+        agent_id: h.agent.id,
+        strangers: "ignore",
+        owner_thread: "own",
+      },
+    });
+    expect(receive).toBeDefined();
+    const send = (external_id: string, text: string) =>
+      receive?.({
+        external_id,
+        conversation: h.person.id,
+        sender: { id: h.person.id, name: h.person.name },
+        text,
+        private: true,
+      });
+    const cards = () =>
+      h.store.messages
+        .list(h.thread.id, 50)
+        .flatMap((m) => m.parts)
+        .filter((p) => p.type === "subthread");
+    send("first-message", "Check the delivery dock.");
+    await waitFor(
+      () => outbound.length === 1 && cards().some((p) => p.state === "completed"),
+      "the authorized reply reaches the customer",
+    );
+    expect(outbound).toEqual([{ conversation: h.person.id, text: reply }]);
+    await page.goto(`${h.env.core.url}/#channel=test&chat=${h.thread.id}`);
+    await page.locator(".chan__consult-link").click();
+    await expect(page.locator(".sidepanel .transcript")).toContainText(internal);
+    expect(outbound).toEqual([{ conversation: h.person.id, text: reply }]);
+    send("second-message", "Please check again.");
+    await waitFor(
+      () => outbound.length === 2 && cards().length === 2 && cards().every((p) => p.state === "completed"),
+      "the continued consultation and second authorized reply settle",
+    );
+    expect(cards()[1]?.thread_id).toBe(cards()[0]?.thread_id);
+    await page.goto(`${h.env.core.url}/#channel=test&chat=${h.thread.id}`);
+    const next = page.locator(".chan__consult-link").filter({ hasText: "Can you check the dock again?" });
+    await expect(next).toBeVisible();
+    await next.click();
+    await expect(page.locator(".sidepanel .transcript")).toContainText("Can you check the dock again?");
+    expect(outbound).toEqual([
+      { conversation: h.person.id, text: reply },
+      { conversation: h.person.id, text: reply },
+    ]);
+  } finally {
     try {
       if (!page.isClosed()) await page.goto("about:blank");
     } finally {
