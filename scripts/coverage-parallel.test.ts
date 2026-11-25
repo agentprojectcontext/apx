@@ -50,7 +50,7 @@ test("builds once, runs every CI part with no more than the limit at a time, the
     fs.mkdirSync(stale, { recursive: true });
     const fake = fakeStart({ hold: true });
     const lines: string[] = [];
-    const run = runTogether({ root: dir.path, env: {}, start: fake.start, print: (l) => lines.push(l) });
+    const run = runTogether({ root: dir.path, env: {}, start: fake.start, print: (l) => lines.push(l), staggerMs: 0 });
     // The first parts run side by side, never more than the limit; each one that ends lets the next start.
     let peak = 0;
     while (fake.calls.filter((c) => c.args.includes("--together")).length < PARTS.length || fake.waiting.length) {
@@ -95,7 +95,10 @@ test("a failed build runs no part against stale output", async () => {
   try {
     const fake = fakeStart({ fail: (c) => c.args.includes("build:web") });
     const lines: string[] = [];
-    assert.equal(await runTogether({ root: dir.path, env: {}, start: fake.start, print: (l) => lines.push(l) }), true);
+    assert.equal(
+      await runTogether({ root: dir.path, env: {}, start: fake.start, print: (l) => lines.push(l), staggerMs: 0 }),
+      true,
+    );
     assert.equal(fake.calls.length, 1);
     assert.match(lines.join("\n"), /no part runs against stale output/);
   } finally {
@@ -108,7 +111,10 @@ test("one failing part keeps the run red, shows its log's last lines and still m
   try {
     const fake = fakeStart({ fail: (c) => c.args.includes("--shard=3/6") });
     const lines: string[] = [];
-    assert.equal(await runTogether({ root: dir.path, env: {}, start: fake.start, print: (l) => lines.push(l) }), true);
+    assert.equal(
+      await runTogether({ root: dir.path, env: {}, start: fake.start, print: (l) => lines.push(l), staggerMs: 0 }),
+      true,
+    );
     const out = lines.join("\n");
     assert.match(out, /✗ web-3-of-6/);
     assert.match(out, /output of .*--shard=3\/6/);
@@ -134,6 +140,7 @@ test("a part that outlives its limit is stopped and fails the run", async () => 
       parts: PARTS.slice(0, 2),
       partMs: 1000,
       jobs: 2,
+      staggerMs: 0,
     });
     await waitFor(() => fake.waiting.length === 2, "both parts started");
     for (const finish of fake.waiting.splice(1)) finish();
@@ -143,6 +150,36 @@ test("a part that outlives its limit is stopped and fails the run", async () => 
     assert.deepEqual(fake.stopped, ["scripts/test-coverage.ts --e2e --part=unit --together"]);
     assert.match(lines.join("\n"), /✗ unit .*out of time/);
     assert.match(lines.join("\n"), /✓ web-1-of-6/);
+  } finally {
+    await dir.remove();
+  }
+});
+
+test("lanes start a stagger apart, so the panel parts' heavy setups do not all begin in the same second", async () => {
+  const dir = tempDir("coverage-parallel-");
+  try {
+    const timers = manualTimers();
+    const fake = fakeStart({ hold: true });
+    const started = () => fake.calls.filter((c) => c.args.includes("--together")).length;
+    const run = runTogether({
+      root: dir.path,
+      env: {},
+      start: fake.start,
+      print: () => {},
+      after: timers.after,
+      parts: PARTS.slice(0, 3),
+      jobs: 3,
+      staggerMs: 1000,
+    });
+    await waitFor(() => started() === 1, "the first lane started");
+    timers.tick(999);
+    assert.equal(started(), 1);
+    timers.tick(1);
+    await waitFor(() => started() === 2, "the second lane started a stagger later");
+    timers.tick(1000);
+    await waitFor(() => started() === 3, "the third lane started two staggers later");
+    fake.release();
+    assert.equal(await run, false);
   } finally {
     await dir.remove();
   }

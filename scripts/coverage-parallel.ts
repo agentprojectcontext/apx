@@ -37,6 +37,12 @@ export const BUILDS: string[][] = [
  */
 export const JOBS = 4;
 
+/**
+ * Lanes start this far apart: each panel part first replays the heavy setup (first run, Telegram, WhatsApp), and
+ * three of them starting with the unit run in the same second missed their budgets; later parts never did.
+ */
+const STAGGER_MS = 60_000;
+
 /** A part that has not ended by then is stopped and counts as failed; each suite inside has a shorter limit of its own. */
 const PART_MS = 45 * 60_000;
 
@@ -57,6 +63,8 @@ export type TogetherOptions = {
   partMs?: number;
   /** How many parts run at the same time; the next one starts when one ends. */
   jobs?: number;
+  /** How long each lane waits after the one before it to start its first part. */
+  staggerMs?: number;
   /** Lines of a failing part's log shown. */
   tail?: number;
 };
@@ -116,7 +124,9 @@ export async function runTogether(o: TogetherOptions): Promise<boolean> {
   };
   const queue = [...parts];
   const results: Awaited<ReturnType<typeof runPart>>[] = [];
-  const lane = async () => {
+  const lane = async (_: unknown, index: number) => {
+    const wait = index * (o.staggerMs ?? STAGGER_MS);
+    if (wait) await new Promise<void>((resolve) => after(wait, resolve));
     for (let part = queue.shift(); part; part = queue.shift()) results.push(await runPart(part));
   };
   await Promise.all(Array.from({ length: jobs }, lane));
