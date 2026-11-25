@@ -536,7 +536,7 @@ test("an outside agent's edit of APC files or AGENTS.md always asks, even when i
   await env.client.call("agents.update", { agent: "superagent", autonomy: "auto", rules: { outside: "auto" } });
   try {
     const asks = [
-      { kind: "edit", path: path.join(cwd, ".agent", "agents", "roby.md") },
+      { kind: "edit", path: path.join(cwd, ".apx", "agents", "roby.md") },
       { kind: "edit", path: "AGENTS.md" },
     ];
     await env.client.call("threads.send", { thread: t0.id, text: `probe ${JSON.stringify(asks)}` });

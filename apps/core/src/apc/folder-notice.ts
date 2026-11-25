@@ -1,4 +1,4 @@
-// The owner hears once, in the app's tray, that a project's files moved from .apc/ to .agent/, or why they did not.
+// The owner hears once, in the app's tray, that a project's files moved from .apc/ to .apx/, or why they did not.
 // See DECISIONS.md#d-275
 import type { Store } from "../domain/store.ts";
 import type { FolderOutcome } from "./folder.ts";
@@ -19,8 +19,8 @@ export function tellFolderMove(store: Store, project: { id: string; name: string
   const why =
     outcome.state === "conflict"
       ? en
-        ? `.agent/ already has other versions of ${outcome.conflicts.join(", ")}. Keep the one you want; APX tries again at the next start.`
-        : `.agent/ ya tiene otras versiones de ${outcome.conflicts.join(", ")}. Quedate con la que quieras; APX prueba de nuevo en el próximo inicio.`
+        ? `.apx/ already has other versions of ${outcome.conflicts.join(", ")}. Keep the one you want; APX tries again at the next start.`
+        : `.apx/ ya tiene otras versiones de ${outcome.conflicts.join(", ")}. Quedate con la que quieras; APX prueba de nuevo en el próximo inicio.`
       : outcome.state === "failed"
         ? en
           ? `Not moved (${outcome.error}). It keeps working from .apc/ and tries again at the next start.`
@@ -33,16 +33,16 @@ export function tellFolderMove(store: Store, project: { id: string; name: string
     title:
       outcome.state === "moved"
         ? en
-          ? `${project.name}: agents moved to .agent/`
-          : `${project.name}: agentes movidos a .agent/`
+          ? `${project.name}: agents moved to .apx/`
+          : `${project.name}: agentes movidos a .apx/`
         : en
           ? `${project.name}: agents not moved`
           : `${project.name}: no se movieron los agentes`,
     body:
       outcome.state === "moved"
         ? en
-          ? `Its agents and settings are now in .agent/ instead of .apc/. If the folder is in git, the change shows as a diff for you to commit.${kept}`
-          : `Sus agentes y su configuración ahora están en .agent/ en vez de .apc/. Si la carpeta está en git, el cambio aparece como diff para que lo commitees.${kept}`
+          ? `Its agents and settings are now in .apx/ instead of .apc/. If the folder is in git, the change shows as a diff for you to commit.${kept}`
+          : `Sus agentes y su configuración ahora están en .apx/ en vez de .apc/. Si la carpeta está en git, el cambio aparece como diff para que lo commitees.${kept}`
         : why,
   });
 }

@@ -18,7 +18,7 @@ test("review application revalidates after staging bytes and preserves an editor
       prompt: "Original instructions",
     });
     const before = await env.client.call("agents.get", { agent: agent.id });
-    const file = path.join(dir.path, ".agent", "agents", "writer.md");
+    const file = path.join(dir.path, ".apx", "agents", "writer.md");
     const original = fs.readFileSync(file, "utf8");
     const write = fs.writeFileSync;
     let intervened = false;

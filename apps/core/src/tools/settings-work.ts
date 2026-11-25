@@ -84,7 +84,7 @@ export const WORK: Readonly<Record<string, Setting>> = {
     says: (p) => `Create the project ${inlineName(str(p.name) || str(p.path))}${p.path ? ` in ${str(p.path)}` : ""}`,
   },
   "projects.register": {
-    does: "add a folder already on disk as a project (path; init: give a plain folder AGENTS.md and .agent/)",
+    does: "add a folder already on disk as a project (path; init: give a plain folder AGENTS.md and .apx/)",
     named: ["path"],
     says: (p) => `Add the folder ${str(p.path)} as a project`,
   },

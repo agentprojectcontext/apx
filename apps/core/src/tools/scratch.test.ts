@@ -50,10 +50,10 @@ let agent = "";
 before(async () => {
   env = await startCore({ llm, extraTools: [readPage] });
   root = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-scratch-project-")));
-  fs.mkdirSync(path.join(root, ".agent", "agents"), { recursive: true });
-  fs.writeFileSync(path.join(root, ".agent", "project.json"), JSON.stringify({ name: "Northwind" }));
+  fs.mkdirSync(path.join(root, ".apx", "agents"), { recursive: true });
+  fs.writeFileSync(path.join(root, ".apx", "project.json"), JSON.stringify({ name: "Northwind" }));
   fs.writeFileSync(
-    path.join(root, ".agent", "agents", "steady.md"),
+    path.join(root, ".apx", "agents", "steady.md"),
     "---\nname: Steady\nrole: tester\nautonomy: standard\n---\n\nYou help.\n",
   );
   await env.client.call("projects.register", { path: root });
@@ -78,7 +78,7 @@ test("a project chat writes, runs and sends its temporary files from its temp fo
   assert.equal(named, path.join(scratchRoot(env.home), t.id));
   assert.ok(!isInside(env.home, named) && !isInside(root, named));
   assert.equal(fs.readFileSync(path.join(named, "numbers.py"), "utf8"), "print(1 + 2 + 3)\n");
-  assert.deepEqual(fs.readdirSync(root), [".agent"]);
+  assert.deepEqual(fs.readdirSync(root), [".apx"]);
   const parts = messages.flatMap((m) => m.parts);
   assert.ok(parts.some((p) => p.type === "file" && p.name === "numbers.py"));
   const changes = parts.filter((p) => p.type === "changes");

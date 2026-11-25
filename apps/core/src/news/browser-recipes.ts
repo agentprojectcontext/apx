@@ -20,7 +20,7 @@ export const BROWSER_RECIPES_NEWS: NewsEntry = {
     "Agents can now send a whole browser sequence in one call (browser_do: open, click, type, wait, naming buttons " +
     "as the page shows them) instead of reading the page between clicks. Once it works, they save it as a recipe of " +
     "the project, with blanks for what changes (the text, the date, an image to attach), and a memory note so they find it again; next " +
-    "time it is one short call per item. Recipes are a list of steps in the project's .agent folder, never code, and " +
+    "time it is one short call per item. Recipes are a list of steps in the project's .apx folder, never code, and " +
     "follow the same browser rules. Also new: a task an agent creates or hands on while working for the owner may use " +
     "the owner's Chrome, as the owner's own tasks do.",
   actions: [

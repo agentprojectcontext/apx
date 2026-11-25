@@ -1,4 +1,4 @@
-// A project's areas and roles: `.agent/organization.json`, the same file APX v1 wrote. Read leniently (v1 wrote nulls,
+// A project's areas and roles: `.apx/organization.json`, the same file APX v1 wrote. Read leniently (v1 wrote nulls,
 // a hand edit may break one entry): an entry that does not fit is skipped, not the whole file.
 
 import fs from "node:fs";

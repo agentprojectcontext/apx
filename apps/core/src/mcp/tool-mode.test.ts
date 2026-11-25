@@ -121,7 +121,7 @@ test("a global server narrowed to some projects says so, and moves into a projec
     (await env.client.call("mcp.list", project ? { project } : {})).servers.find((s) => s.name === "acme");
   const server = { url: "https://mcp.example.com/mcp", headers: { "x-api-key": "secret://ACME_KEY" } };
   try {
-    for (const dir of [a, b]) fs.mkdirSync(path.join(dir.path, ".agent"));
+    for (const dir of [a, b]) fs.mkdirSync(path.join(dir.path, ".apx"));
     const pa = (await env.client.call("projects.register", { path: a.path })).project.id;
     const pb = (await env.client.call("projects.register", { path: b.path })).project.id;
     await env.client.call("mcp.set", { name: "acme", server });

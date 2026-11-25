@@ -360,6 +360,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const apc = createApcSync({
     store,
     log,
+    home: config.home,
     engines: { has: (id) => engineIds.harness.has(id) || providers.has(id) },
     read: opts.projectRead ?? projectReader?.read,
     ...(opts.runTimers ? { timers: opts.runTimers } : {}),

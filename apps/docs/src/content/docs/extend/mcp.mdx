@@ -22,9 +22,9 @@ client, see [Outside clients](/extend/outside-clients/).
 - **Global** servers are yours. Every project inherits them; a project can turn one off for itself, or stop using
   the global ones altogether. Their environment and headers may use your [variables](/extend/integrations/#variables-and-secrets)
   as `secret://NAME`.
-- **Project** servers are declared in the project's `.agent/mcps.json`, committed with the repository:
+- **Project** servers are declared in the project's `.apx/mcps.json`, committed with the repository:
 
-```json title=".agent/mcps.json"
+```json title=".apx/mcps.json"
 {
   "mcpServers": {
     "docs": { "command": "npx", "args": ["-y", "@acme/docs-mcp"] },
@@ -34,7 +34,7 @@ client, see [Outside clients](/extend/outside-clients/).
 ```
 
 A repository can name any command, so **a project server starts only after you approve that exact definition**. If
-the file changes, it needs approving again. `.agent/mcps.json` never holds tokens: a definition that mentions
+the file changes, it needs approving again. `.apx/mcps.json` never holds tokens: a definition that mentions
 `secret://` is ignored there.
 
 ### Private servers for one project (development preview)
@@ -56,7 +56,7 @@ unchanged. Repository connections keep belonging to their repository and do not 
 
 Before making it global, check that its variables exist in the places where you will use it. Project variables are
 not copied into the global store. The editor names any variables that need a value in the selected scope; you can
-still save a connection while preparing those values. This does not move a repository's `.agent/mcps.json` definition.
+still save a connection while preparing those values. This does not move a repository's `.apx/mcps.json` definition.
 
 ### Variables and links from chat (development preview)
 

@@ -254,7 +254,7 @@ export function systemPrompt(
     project ? projectBlock(project) : "",
     project?.kind ? `It is a${/^[aeiou]/.test(project.kind) ? "n" : ""} ${project.kind} project.` : "",
     project?.org ? `\n### Its areas and roles\n${orgText(project.org)}` : "",
-    project?.memory ? `\n### Project notes (.agent/memory.md)\n\n${project.memory}` : "",
+    project?.memory ? `\n### Project notes (.apx/memory.md)\n\n${project.memory}` : "",
     skills ? `\n${skills}` : "",
     "",
     "## How you work",
@@ -310,7 +310,7 @@ export function systemParts(system: string, pieces: Array<[string, string | unde
 
 const WRITES: Record<NonNullable<Thread["write"]>, string> = {
   ask: "ask (a change runs as your mode and rules allow; what they leave to the owner waits for an OK)",
-  auto: "auto (Claude Code and Codex edit inside this folder without asking, unless you work in manual or plan mode; git config, .agent/ and AGENTS.md always ask; APX's own tools follow your mode and rules)",
+  auto: "auto (Claude Code and Codex edit inside this folder without asking, unless you work in manual or plan mode; git config, .apx/ and AGENTS.md always ask; APX's own tools follow your mode and rules)",
   "read-only":
     "read-only (nothing here may change; shell runs only commands that read: ls, cat, grep, rg, find, sort, sed -n, jq or git status|log|diff|show|branch, joined by && | ;, with no redirect into a file, no $ and nothing that writes or goes online)",
 };

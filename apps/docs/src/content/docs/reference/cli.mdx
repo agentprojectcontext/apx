@@ -67,7 +67,7 @@ console doesn't start: `apx` prints the help instead.
 | `apx wizard` | Guided terminal setup and maintenance. |
 | `apx upgrade --check` | Is there a newer APX? |
 | `apx upgrade` | Apply it, the same as **Update now** in the panel. When the core does not answer, an APX installed with the install script updates itself anyway: it downloads the newest bundle, checks it and has the service start it. `apx update` is the same command. |
-| `apx doctor` | Why the core does not answer on this computer (what its log says, the service, a newer release) and the one command to run next. Works without the core; `--json`. `--fix` (alias `doctor fix`) repairs recognized hotfix migrations with the core down, making a private consistent backup first; unknown schemas are refused. With the core running it retries moving projects APX could not move from `.apc/` to `.agent/`, then compacts chat history and reclaims disk space. |
+| `apx doctor` | Why the core does not answer on this computer (what its log says, the service, a newer release) and the one command to run next. Works without the core; `--json`. `--fix` (alias `doctor fix`) repairs recognized hotfix migrations with the core down, making a private consistent backup first; unknown schemas are refused. With the core running it retries moving projects APX could not move from `.apc/` to `.apx/`, then compacts chat history and reclaims disk space. |
 | `apx logs` | The newest lines of the core's log, through the core: `-n 200`, `--level info\|warn\|error`, `--grep text`, `--scope core\|output`, `--json`. With no core answering, the file on this computer. |
 | `apx service logs` | The log file on this computer (`<home>/logs/core.log`); `-n 100`, `-f` to follow it. |
 | `apx daemon` | Explains which `apx service` command to use (the background core is now a service). |
@@ -153,22 +153,22 @@ Two tasks are open in Acme Store: the spring catalog (in progress, Lucía) and t
 |---|---|
 | `apx agents` | Agents and the model each one runs on (★ marks Home). |
 | `apx agents show <agent>` | Its fields and full prompt. |
-| `apx agents new <slug> "<Name>"` | A new agent; `--project <id>` puts it in a project (written to `.agent/agents/<slug>.md`), `--role "<role>"` sets its role. |
+| `apx agents new <slug> "<Name>"` | A new agent; `--project <id>` puts it in a project (written to `.apx/agents/<slug>.md`), `--role "<role>"` sets its role. |
 | `apx agents set <agent> key=value…` | Change any field the agent editor has (an unknown one lists them all). Lists as `tools=web_search,shell` (`tools=` is all of them), `orchestrator=true`, `rules='{"write":"ask"}'`; `autonomy=` or `rules=` go back to the default. |
 | `apx agents set <agent> --prompt-file <file>` | Replace its prompt from a file (`-` reads stdin). |
 | `apx agents limits [<agent> runs=… tokens=… \| <agent> clear \| default runs=… tokens=…]` | How far agents go without you in one chat: the default, and an agent's own budget (`0` = no limit). |
 | `apx agents clone <agent…>` | Copy agents into a project (`--project <id>`); `--rename` gives each a free name, `--under <slug>` sets the parent. |
-| `apx agents archive <agent>` | Archive an agent (a project agent's file moves to `.agent/agents/.archived/`). |
+| `apx agents archive <agent>` | Archive an agent (a project agent's file moves to `.apx/agents/.archived/`). |
 | `apx agents archived` | Archived agents; `apx agents restore <agent>` brings one back. |
 | `apx agents model <agent> <ref>` | Its model: `<engine>/<model>`, `<engine>`, `router` or `default`; `--router` keeps the router as its fallback; `--fallbacks <ref>,<ref>` sets its own fallback models in order (`""` clears them). |
 | `apx projects [list]` | Projects (a `!` marks a folder that is missing). |
-| `apx projects register <folder>` | Register a folder with `AGENTS.md` and/or `.agent/`. |
+| `apx projects register <folder>` | Register a folder with `AGENTS.md` and/or `.apx/`. |
 | `apx projects create "<Name>"` | A new project, in `--path <folder>` (made if missing) or a folder of its own in APX's home; `--kind personal\|app\|company\|software\|other`, `--desc "…"`. `--parent <project>\|base` makes it a [subproject](/concepts/projects/#subprojects), in its parent's folder unless `--path`. |
 | `apx projects set <project>` | Change `--name`, `--kind`, `--desc`, `--autonomy manual\|auto\|accept_edits\|plan\|total` (how far its agents go without asking) or `--parent <project>\|base\|none` (whose subproject it is; `none` makes it a project of its own). |
 | `apx projects detach <project>` | Make a subproject a project of its own; it keeps its folder, agents, chats and memory. |
 | `apx projects folders list\|add\|rm <project> [folder]` | Folders its agents may read and never change (another checkout, docs): `file_read` and `shell` read there, nothing writes. |
 | `apx projects rm <project>` | Forget it in APX; its folder and files are never deleted. |
-| `apx init [folder]` | Make a folder (this one by default) an APC project and register it; writes only what is missing (`AGENTS.md`, `.agent/`). |
+| `apx init [folder]` | Make a folder (this one by default) an APC project and register it; writes only what is missing (`AGENTS.md`, `.apx/`). |
 | `apx projects sync [project]` | Read the project files again. |
 
 ## Models and usage
@@ -254,7 +254,7 @@ Other channels (WhatsApp, Discord, Slack) are set up in the panel. See [Channels
 | `apx mcps logs <server>` | What a server printed on stderr since the core started (`--project`, `-n 100`). |
 | `apx sessions projects codex\|claude` | Claude Code or Codex projects and chats on this computer. |
 | `apx sessions import codex\|claude <project>` | Bring them in as an APX project (`--only <id,…>`, `--name "…"`); also `digest`, `adopt` and `page`. |
-| `apx mcps trust <project> <server>` | Approve a server a project's `.agent/mcps.json` names (`untrust` to undo). |
+| `apx mcps trust <project> <server>` | Approve a server a project's `.apx/mcps.json` names (`untrust` to undo). |
 | `apx mcp tools <server> [<tool>]` | Tool descriptions and JSON schemas. |
 | `apx mcp run <server> <tool> '<json>'` | Call a tool directly and print the raw result; `-` reads the arguments from stdin. |
 | `apx mcp check <server>` | A connection test. |

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { AGENT_DIR, LEGACY_DIR } from "../apc/folder.ts";
+import { APX_DIR, LEGACY_DIR } from "../apc/folder.ts";
 import { badRequest } from "../errors.ts";
 import { isInside, real, realpath, samePath } from "../paths.ts";
 
@@ -45,7 +45,7 @@ export function readMigrationFile(file: string, limit = 256 * 1024 * 1024): Buff
 }
 const digest = (file: string) => createHash("sha256").update(readMigrationFile(file)).digest("hex");
 const forbidden = (name: string) =>
-  [".git", AGENT_DIR, LEGACY_DIR, "node_modules"].includes(name) || /^\.env(?:\.|$)|\.(?:pem|key|p12|pfx)$/i.test(name);
+  [".git", APX_DIR, LEGACY_DIR, "node_modules"].includes(name) || /^\.env(?:\.|$)|\.(?:pem|key|p12|pfx)$/i.test(name);
 
 /** Every existing component is checked, not only the final file's real location. */
 export function migrationFilePath(root: string, relative: string): string {

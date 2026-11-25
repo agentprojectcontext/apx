@@ -14,7 +14,7 @@ let project = "";
 before(async () => {
   env = await startCore({ llm });
   repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-org-")));
-  fs.mkdirSync(path.join(repo, ".agent"), { recursive: true });
+  fs.mkdirSync(path.join(repo, ".apx"), { recursive: true });
   fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Northwind\n");
   project = (await env.client.call("projects.register", { path: repo })).project.id;
 });
@@ -38,8 +38,8 @@ test("the base project is named, described and typed by the owner", async () => 
   assert.deepEqual(cleared.base, { name: "Acme", kind: "company" });
 });
 
-test("a project's areas and roles live in .agent/organization.json, v1's format read as it is", async () => {
-  const file = path.join(repo, ".agent", "organization.json");
+test("a project's areas and roles live in .apx/organization.json, v1's format read as it is", async () => {
+  const file = path.join(repo, ".apx", "organization.json");
   // v1 wrote nulls for what is missing, and a hand edit may break one entry.
   fs.writeFileSync(
     file,
@@ -103,7 +103,7 @@ test("the base project's areas and roles are kept by APX and reach the chats out
 
 test("an organization.json saved with a BOM is read as written", async () => {
   fs.writeFileSync(
-    path.join(repo, ".agent", "organization.json"),
+    path.join(repo, ".apx", "organization.json"),
     `\uFEFF${JSON.stringify({ areas: [{ slug: "sales", name: "Ventas" }], roles: [] })}`,
   );
   assert.deepEqual((await env.client.call("org.get", { project })).areas, [{ slug: "sales", name: "Ventas" }]);

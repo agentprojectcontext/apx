@@ -17,7 +17,7 @@ const MCPS_USAGE = `apx mcps [list [project]]                      MCP servers a
 apx mcps tools|run|check <server> …            Its tools, run one, or test that it starts (apx mcp tools …)
 apx mcps signin <server> [--project p]         Sign in to one that asked for it (its page opens in your browser)
 apx mcps logs <server> [--project p] [-n 100]  What it printed on stderr since the core started (secrets masked)
-apx mcps trust|untrust <project> <server>      Approve a project's server as its .agent/mcps.json defines it
+apx mcps trust|untrust <project> <server>      Approve a project's server as its .apx/mcps.json defines it
 apx mcps on|off <server> --project p           Turn one of your servers on or off inside a project
 apx mcps show <name> [--project p]             Its definition (secrets show as secret://NAME)
 apx mcps add <name> [--env K=V…] -- <command…|url>   Add one of your own (--header K=V for a url)
@@ -26,7 +26,7 @@ apx mcps set <name> --env K=V…                 Change variables (or --header) 
 apx mcps scope <name> global|<project-id>      Make a private server available everywhere or only in one project
 apx mcps rename <name> <new-name>              The same server under another name
 apx mcps rm <name>                             Remove one of your own
-  Live from the next message: nothing restarts. --project p works on that project's .agent/mcps.json instead.`;
+  Live from the next message: nothing restarts. --project p works on that project's .apx/mcps.json instead.`;
 
 export async function mcpCommand(client: ApxClient, args: string[], o: Options): Promise<void> {
   const [sub, server, tool, raw] = args;

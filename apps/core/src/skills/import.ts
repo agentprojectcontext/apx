@@ -176,7 +176,7 @@ function filesOf(dir: string): { files: Found[]; skipped: string[]; scripts: str
 
 /** Where picked skills land, and what is already there. */
 export type ImportTarget = {
-  /** `<home>/skills` or a project's `.agent/skills`. */
+  /** `<home>/skills` or a project's `.apx/skills`. */
   dir: string;
   /** For a project: its folder, so no link on the way out of it is written through. */
   repo?: string | undefined;
@@ -245,7 +245,7 @@ export function previewSkills(source: SkillImportSource, target: ImportTarget, g
   return read(source, target, git, (found) => found.map(publicCandidate));
 }
 
-/** Refuses a target whose way out of the project goes through a link (`.agent` or `.agent/skills`). */
+/** Refuses a target whose way out of the project goes through a link (`.apx` or `.apx/skills`). */
 function checkTarget(target: ImportTarget): void {
   if (!target.repo) return;
   for (let p = target.dir; isInside(target.repo, p) && p !== target.repo; p = path.dirname(p))

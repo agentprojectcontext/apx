@@ -1,12 +1,12 @@
 // Keeps the core's index in step with the projects' files: on register, on start, on request and while running
-// (a watcher on each project's .agent/). Files are the truth; the database is the index the rest of the core reads.
+// (a watcher on each project's .apx/). Files are the truth; the database is the index the rest of the core reads.
 
 import fs from "node:fs";
 import path from "node:path";
 import type { ModelChoice } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
 import type { Log } from "../log.ts";
-import { AGENT_DIR, type FolderOutcome, moveIfLegacy, ownDir } from "./folder.ts";
+import { APX_DIR, type FolderOutcome, holdsApxHome, holdsApxHomeMessage, moveIfLegacy, ownDir } from "./folder.ts";
 import { tellFolderMove } from "./folder-notice.ts";
 import { listField, textField } from "./frontmatter.ts";
 import type { ProjectFiles, ReadProjectFiles } from "./project-reader.ts";
@@ -65,10 +65,12 @@ export function createApcSync(deps: {
   /** The watcher's debounce: a clock of its own, so a test's run clock counts only what the test started. */
   watchTimers?: Timers;
   readMs?: number;
+  /** APX's home: a folder holding it is never read or moved as a project (holdsApxHome). */
+  home?: string;
 }) {
   const { store, log } = deps;
   const watchers = new Map<string, fs.FSWatcher[]>();
-  // The folder (.agent or .apc) each project is watched in.
+  // The folder (.apx or .apc) each project is watched in.
   const watchingDir = new Map<string, string>();
   // Each folder's queued reindex, as its cancel.
   const queued = new Map<string, () => void>();
@@ -79,11 +81,13 @@ export function createApcSync(deps: {
   const waits = new Set<() => void>();
   let closed = false;
 
+  const refused = (root: string) => deps.home !== undefined && holdsApxHome(root, deps.home);
+
   /** The owner hears what moving a project's .apc/ did, once per move. */
   function told(projectId: string, outcome: FolderOutcome): void {
     const project = store.projects.get(projectId);
     if (project) tellFolderMove(store, project, outcome);
-    log.info({ project: projectId, outcome: outcome.state }, "project folder .apc/ → .agent/");
+    log.info({ project: projectId, outcome: outcome.state }, "project folder .apc/ → .apx/");
   }
 
   /** An id for a new file's agent: the natural one unless another agent (e.g. a renamed one) already holds it. */
@@ -116,7 +120,7 @@ export function createApcSync(deps: {
     store.projects.setLegacyFolder(projectId, p.legacy !== undefined);
     // An unreadable project.json says nothing about the name or kind: keep what the index knew.
     const meta = p.metaError && indexed ? indexed : p;
-    if (p.metaError) log.warn({ root: abs, err: p.metaError }, "could not read .agent/project.json");
+    if (p.metaError) log.warn({ root: abs, err: p.metaError }, "could not read .apx/project.json");
     const present = new Set(agents.map((a) => a.slug));
     return store.tx(() => {
       // A second record an earlier apx_id change left at this folder stops being listed, and its agents with it;
@@ -190,6 +194,11 @@ export function createApcSync(deps: {
   /** Reads one folder off the main thread; past the deadline it shows as waiting, and its answer still lands. */
   function loadOne(id: string, root: string): Promise<void> {
     const read = deps.read;
+    if (refused(root)) {
+      log.warn({ project: id, root }, "a project folder holds APX's home; not read");
+      store.projects.setPresent(id, false);
+      return Promise.resolve();
+    }
     if (!read || store.agentMigrationPending.list().some((move) => move.source === id || move.destination === id))
       return Promise.resolve();
     const generation = generations.get(root) ?? 0;
@@ -229,9 +238,9 @@ export function createApcSync(deps: {
     });
   }
 
-  /** Watches .agent/ (recursively) and the project folder itself for AGENTS.md and .agent; changes reindex, debounced. */
+  /** Watches .apx/ (recursively) and the project folder itself for AGENTS.md and .apx; changes reindex, debounced. */
   function watch(root: string): void {
-    // Watched again when the folder its files are in changes (.apc/ moved to .agent/, or made by hand).
+    // Watched again when the folder its files are in changes (.apc/ moved to .apx/, or made by hand).
     const dir = ownDir(root);
     const has = fs.existsSync(path.join(root, dir));
     if (watchers.has(root) && (watchingDir.get(root) === dir || !has)) return;
@@ -259,7 +268,7 @@ export function createApcSync(deps: {
         list.push(fs.watch(path.join(root, dir), { recursive: true }, changed));
         watchingDir.set(root, dir);
       }
-      list.push(fs.watch(root, (_e, file) => (file === "AGENTS.md" || file === AGENT_DIR) && changed()));
+      list.push(fs.watch(root, (_e, file) => (file === "AGENTS.md" || file === APX_DIR) && changed()));
     } catch {}
     for (const w of list) w.on("error", () => w.close());
     watchers.set(root, list);
@@ -278,11 +287,12 @@ export function createApcSync(deps: {
         queued.delete(abs);
       }
     },
-    /** Registers a folder as a project (it must have .agent/, AGENTS.md or .apc/ to move) and indexes it. */
+    /** Registers a folder as a project (it must have .apx/, AGENTS.md or .apc/ to move) and indexes it. */
     register(root: string): SyncResult {
       const abs = path.resolve(root);
       if (!fs.existsSync(abs) || !fs.statSync(abs).isDirectory()) throw new Error(`not a folder: ${abs}`);
-      if (!isApcProject(abs)) throw new Error(`not a project (no .agent/ or AGENTS.md): ${abs}`);
+      if (deps.home && holdsApxHome(abs, deps.home)) throw new Error(holdsApxHomeMessage(abs));
+      if (!isApcProject(abs)) throw new Error(`not a project (no .apx/ or AGENTS.md): ${abs}`);
       const moved = moveIfLegacy(abs);
       const r = syncRoot(abs);
       if (moved) told(r.project, moved);
@@ -312,7 +322,7 @@ export function createApcSync(deps: {
         if (!p.path) continue;
         // A folder still being read off the main thread may be held by the system: that read settles it.
         if (reading.has(path.resolve(p.path))) continue;
-        if (!fs.existsSync(p.path) || !isApcProject(p.path)) {
+        if (!fs.existsSync(p.path) || !isApcProject(p.path) || refused(p.path)) {
           store.projects.setPresent(p.id, false);
           continue;
         }

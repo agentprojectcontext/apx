@@ -1027,7 +1027,7 @@ export const en = {
   "project.basePath": "Base space · APX work folder",
   "project.settings": "Project settings",
   "project.settings.title": "{name} settings",
-  "project.settings.body": "Kept in the project's .agent/project.json, so they travel with the folder.",
+  "project.settings.body": "Kept in the project's .apx/project.json, so they travel with the folder.",
   "project.settings.baseBody":
     "The base project has no folder: APX keeps its name and kind, and its agents work anywhere. To work in a folder, make a project out of it.",
   "project.settings.baseNameHint": "It stays the base project whatever you name it.",
@@ -1047,7 +1047,7 @@ export const en = {
   "project.autonomy.plan.hint": "Reads and proposes changes; changes nothing until you switch the mode.",
   "project.autonomy.total.hint": "Asks you nothing, in any folder but APX's. Only for projects you fully trust.",
   "project.settings.folder": "Folder",
-  "project.settings.folderHint": "Chats that work in the folder use it, and its .agent/ holds the agents and settings.",
+  "project.settings.folderHint": "Chats that work in the folder use it, and its .apx/ holds the agents and settings.",
   "project.settings.folderMissing": "The folder is not on disk right now (moved, or a drive that is not mounted).",
   "project.settings.folderWaiting":
     "This folder has not opened for APX yet. If your Mac asks whether “node” can access it, choose Allow: APX reads the folder as soon as it can.",

@@ -107,7 +107,7 @@ export type NewsFacts = {
   promptedAgents?: number;
   /** The chats' database is over 500 MB and keeps its free space until it is rewritten once (compacted). */
   bigStore?: boolean;
-  /** APX moved (or tried to move) a project's files from .apc/ to .agent/. */
+  /** APX moved (or tried to move) a project's files from .apc/ to .apx/. */
   agentFolder?: boolean;
   /** Projects the owner registered (the base project not counted). */
   projects?: number;

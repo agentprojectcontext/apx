@@ -4,7 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { ChannelRooms, type PersonRelation, RoomMode, type ServiceSettings } from "@apx/protocol";
-import { AGENT_DIR, LEGACY_DIR } from "../apc/folder.ts";
+import { APX_DIR, LEGACY_DIR } from "../apc/folder.ts";
 
 /** A JSON file of v1's, parsed; throws like JSON.parse. Windows editors and PowerShell 5 may start it with a BOM. */
 export const jsonFile = (file: string): unknown => JSON.parse(fs.readFileSync(file, "utf8").replace(/^\uFEFF/, ""));
@@ -56,7 +56,7 @@ export function v1Projects(home: string): V1Project[] {
   const out: V1Project[] = [];
   for (const p of list(v1Config(home).projects)) {
     const dir = str(obj(p).path);
-    const own = dir && [LEGACY_DIR, AGENT_DIR].find((f) => fs.existsSync(path.join(dir, f)));
+    const own = dir && [LEGACY_DIR, APX_DIR].find((f) => fs.existsSync(path.join(dir, f)));
     if (!dir || !own) continue;
     const meta = obj(readJson(path.join(dir, own, "project.json")));
     const id = str(meta.apx_id);
@@ -69,9 +69,9 @@ export function v1Projects(home: string): V1Project[] {
   return out;
 }
 
-/** The agents a project defines (.apc/agents/*.md, or .agent/agents once moved). */
+/** The agents a project defines (.apc/agents/*.md, or .apx/agents once moved). */
 export function v1AgentCount(project: V1Project): number {
-  const own = [AGENT_DIR, LEGACY_DIR].find((f) => fs.existsSync(path.join(project.path, f, "agents"))) ?? AGENT_DIR;
+  const own = [APX_DIR, LEGACY_DIR].find((f) => fs.existsSync(path.join(project.path, f, "agents"))) ?? APX_DIR;
   try {
     return fs.readdirSync(path.join(project.path, own, "agents")).filter((f) => f.endsWith(".md")).length;
   } catch {

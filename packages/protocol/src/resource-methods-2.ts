@@ -136,7 +136,7 @@ export const resourceMethodsPart2 = {
   }),
   /**
    * Adds, replaces or (null) removes one of the owner's own servers (env and header values may hold secret://), or,
-   * with `project`, one in that project's .agent/mcps.json (no secret://; approved as the owner wrote it).
+   * with `project`, one in that project's .apx/mcps.json (no secret://; approved as the owner wrote it).
    * `server.project` limits a private server to one project; null makes it global without copying variables.
    */
   "mcp.set": deferMethod({

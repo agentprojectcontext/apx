@@ -4,7 +4,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { AGENT_DIR, needsFolderMove } from "../apc/folder.ts";
+import { APX_DIR, needsFolderMove } from "../apc/folder.ts";
 import type { ApcSync } from "../apc/sync.ts";
 import { projectOrchestrator } from "../domain/agent-directory.ts";
 import type { AuxAbout } from "../domain/aux-calls.ts";
@@ -69,8 +69,8 @@ export function sessionHandlers(store: Store, homes: NativeHomes, deps: SessionD
     const known = projectAt(store, cwd);
     if (known) return known;
     if (!fs.existsSync(cwd)) return createProject(deps.apc, deps.home, { name }).project;
-    // A folder that already is a project keeps its own name and files (ones still in .agent/ are offered the move).
-    if (fs.existsSync(path.join(cwd, AGENT_DIR, "project.json")) || needsFolderMove(cwd))
+    // A folder that already is a project keeps its own name and files (ones still in .apx/ are offered the move).
+    if (fs.existsSync(path.join(cwd, APX_DIR, "project.json")) || needsFolderMove(cwd))
       try {
         return deps.apc.register(cwd).project;
       } catch (err) {

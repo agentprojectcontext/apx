@@ -1,5 +1,5 @@
 // Reading and writing a skill's SKILL.md for the Resources screen. The owner's skills live in APX's home; a project's
-// in `.agent/skills/`, written without following a symlink out of the repo. APX's, extensions' and the other apps' skills
+// in `.apx/skills/`, written without following a symlink out of the repo. APX's, extensions' and the other apps' skills
 // are read-only here (one of those is copied into APX to be changed).
 
 import fs from "node:fs";
@@ -44,7 +44,7 @@ const isLink = (p: string) => {
 };
 
 /**
- * Writes SKILL.md in folder `folder`: the project's `.agent/skills/<folder>/` (refusing any symlink on the way) or the
+ * Writes SKILL.md in folder `folder`: the project's `.apx/skills/<folder>/` (refusing any symlink on the way) or the
  * owner's `<home>/skills/<folder>/` (which may be a link the owner made; the write goes to its target). The folder,
  * not the frontmatter `name`, says which skill it is: the two may differ.
  */

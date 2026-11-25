@@ -88,11 +88,11 @@ test("a dry plan writes nothing", () => {
   assert.ok(!fs.existsSync(path.join(home, ".cursor", "skills")));
 });
 
-test("a refresh over an old apc-context leaves only the .agent version, in every app's folder", () => {
+test("a refresh over an old apc-context leaves only the .apx version, in every app's folder", () => {
   const home = tmpHome();
   const shipped = readSkills(sourceDir());
   const text = shipped.find((s) => s.name === "apc-context")?.files["SKILL.md"] ?? "";
-  assert.match(text, /\.agent\//);
+  assert.match(text, /\.apx\//);
   assert.doesNotMatch(text, /ALWAYS activate|migrate\.md/);
   const targets = runtimes({ home });
   for (const r of targets) {

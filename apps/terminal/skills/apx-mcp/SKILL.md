@@ -1,6 +1,6 @@
 ---
 name: apx-mcp
-description: Connects a coding CLI to APX over MCP (`apx mcp` — the embedded browser's browser_* tools, and with a client token apx_agents / apx_ask / apx_read to ask APX's agents), registers it in Claude Code or Codex, and manages the MCP servers APX's own agents use (`apx mcps`, `.agent/mcps.json` approval). Triggers: 'apx mcp', 'connect to APX', 'APX browser tools', 'apx_ask', 'add an MCP to APX', 'MCP not approved'.
+description: Connects a coding CLI to APX over MCP (`apx mcp` — the embedded browser's browser_* tools, and with a client token apx_agents / apx_ask / apx_read to ask APX's agents), registers it in Claude Code or Codex, and manages the MCP servers APX's own agents use (`apx mcps`, `.apx/mcps.json` approval). Triggers: 'apx mcp', 'connect to APX', 'APX browser tools', 'apx_ask', 'add an MCP to APX', 'MCP not approved'.
 ---
 
 # apx-mcp
@@ -42,7 +42,7 @@ apx clients rm <id>                              # revoke
 ```
 
 The token lets the app act as a model within its scopes, never as the owner. It belongs in the runtime's MCP
-config as an environment variable, never in a repo, a prompt or `.agent/`.
+config as an environment variable, never in a repo, a prompt or `.apx/`.
 
 ### Register it
 
@@ -95,18 +95,18 @@ apx mcps trust|untrust <project> <server>  # approve a project's server as its f
   reads them, so an edit there changes nothing.
 - Put `--` before a command whose own flags start with `-` (`apx mcps add notes -- npx -y notes-mcp`).
 
-- A project declares servers in `.agent/mcps.json` (`{"mcpServers": {"name": {"command": …, "args": […]}}}` or
+- A project declares servers in `.apx/mcps.json` (`{"mcpServers": {"name": {"command": …, "args": […]}}}` or
   `{"url": …}`). A repo can name any command, so **a project server starts only after the owner approves that exact
   definition**; any change to it needs approving again. Approving is the owner's decision — tell the user what the
   server runs and let them run `apx mcps trust`.
-- `.agent/mcps.json` is committed: it never holds tokens. A definition that mentions `secret://` is ignored there.
+- `.apx/mcps.json` is committed: it never holds tokens. A definition that mentions `secret://` is ignored there.
 - The owner's own servers may use `secret://<name>` in env and header values (set with `apx secrets set`); keep the
   reference as it is when copying a server, never the value.
 - A project can opt out of the owner's global servers; then only its own count there.
 
 ## Don't
 
-- Don't put a client token or any secret in `.agent/`, `AGENTS.md`, a commit or a prompt.
+- Don't put a client token or any secret in `.apx/`, `AGENTS.md`, a commit or a prompt.
 - Don't approve (`trust`) a project's server on your own — it runs a command on the owner's machine.
 - Don't confuse `apx mcp` (APX serving tools to you) with `apx mcps` (servers APX runs for its agents).
 - Old v1 forms (`apx mcp add --scope runtime`, `apx mcp run`, `apx mcp tools`, `apx mcp logs`) do not exist here.

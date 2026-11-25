@@ -66,9 +66,9 @@ test("voice and transcription: a service that is not there and a model off the l
 });
 
 test("MCP: running a project's server keeps the owner's card even in Total; its tools are approved in Auto", async () => {
-  fs.mkdirSync(path.join(dir.path, ".agent"));
+  fs.mkdirSync(path.join(dir.path, ".apx"));
   fs.writeFileSync(
-    path.join(dir.path, ".agent", "mcps.json"),
+    path.join(dir.path, ".apx", "mcps.json"),
     JSON.stringify({ mcpServers: { notes: { command: process.execPath, args: [SERVER] } } }),
   );
   const project = (await h.env.client.call("projects.register", { path: dir.path })).project.id;

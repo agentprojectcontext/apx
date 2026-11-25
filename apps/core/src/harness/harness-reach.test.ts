@@ -96,7 +96,7 @@ test("AGENTS.md and agent files in its own project still ask; APX's home is refu
   const { thread, repo } = await chat();
   await env.client.call("agents.update", { agent: "superagent", autonomy: "auto" });
   try {
-    for (const file of [path.join(repo, "AGENTS.md"), path.join(repo, ".agent", "agents", "helper.md")]) {
+    for (const file of [path.join(repo, "AGENTS.md"), path.join(repo, ".apx", "agents", "helper.md")]) {
       const r = await probe(thread.id, [{ kind: "edit", path: file }]);
       assert.equal(r.asked, true, `${file} asks the owner`);
       assert.equal(r.said, "[false]");
@@ -174,9 +174,9 @@ test("Codex with no folder of its own writes the owner's projects in Auto, Accep
   assert.equal(at(fsTable, closed), "none");
   assert.equal(at(fsTable, path.join(other, "vendor")), "read");
   assert.equal(at(fsTable, path.join(project, "AGENTS.md")), "read");
-  assert.equal(at(fsTable, path.join(project, ".agent")), "read");
-  assert.equal(at(fsTable, path.join(project, ".agent", "worktrees")), "write");
-  assert.equal(at(fsTable, path.join(project, ".apc")), "read", "kept until its files move to .agent/");
+  assert.equal(at(fsTable, path.join(project, ".apx")), "read");
+  assert.equal(at(fsTable, path.join(project, ".apx", "worktrees")), "write");
+  assert.equal(at(fsTable, path.join(project, ".apc")), "read", "kept until its files move to .apx/");
   assert.equal(at(fsTable, path.join(project, ".apc", "worktrees")), "write");
   assert.equal(at(fsTable, path.join(project, ".claude", "settings.json")), "read");
 

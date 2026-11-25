@@ -273,7 +273,7 @@ type FolderMoved = { project: string; name: string } & (
   | { error: string }
 );
 
-/** Moves the files of every project still keeping them in .apc/ (earlier versions' folder) to .agent/. */
+/** Moves the files of every project still keeping them in .apc/ (earlier versions' folder) to .apx/. */
 async function moveFolders(client: Pick<ApxClient, "call">): Promise<FolderMoved[]> {
   const { projects } = await client.call("projects.list", {});
   const out: FolderMoved[] = [];
@@ -290,9 +290,9 @@ async function moveFolders(client: Pick<ApxClient, "call">): Promise<FolderMoved
 function folderLine(m: FolderMoved): string {
   if ("error" in m) return `${m.name}: not moved, ${m.error}`;
   if (m.conflicts.length)
-    return `${m.name}: not moved, .agent/ already has other versions of ${m.conflicts.join(", ")}. Keep the one you want and run this again.`;
+    return `${m.name}: not moved, .apx/ already has other versions of ${m.conflicts.join(", ")}. Keep the one you want and run this again.`;
   const kept = m.kept.length ? ` Git worktrees stay in .apc/${m.kept.join(", .apc/")}.` : "";
-  return `${m.name}: ${m.files} ${m.files === 1 ? "file" : "files"} moved from .apc/ to .agent/.${kept}`;
+  return `${m.name}: ${m.files} ${m.files === 1 ? "file" : "files"} moved from .apc/ to .apx/.${kept}`;
 }
 
 /** `apx update` when the core does not answer: a bundle install updates itself; others are told how. */

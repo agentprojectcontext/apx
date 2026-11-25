@@ -1,13 +1,24 @@
-// The folder a project keeps APX's files in (`.agent/`), and the move from `.apc/`, the name earlier versions used: run
+// The folder a project keeps APX's files in (`.apx/`), and the move from `.apc/`, the name earlier versions used: run
 // by itself at start and on register; a project it could not move keeps working from `.apc/`. See DECISIONS.md#d-275
 import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { isInside, real } from "../paths.ts";
 
 /** Agents, project.json, memory, skills, MCP servers, recipes: the project's own APX files, next to AGENTS.md. */
-export const AGENT_DIR = ".agent";
+export const APX_DIR = ".apx";
 /** Where earlier APX versions (and v1) kept the same files. Goes with the move once no install has one. */
 export const LEGACY_DIR = ".apc";
+/**
+ * A folder that holds APX's own home can never be a project: at the user's home folder, its `.apx/` would be the
+ * folder where APX keeps its data, so reading or writing project files there would touch APX itself.
+ */
+export const holdsApxHome = (root: string, home: string): boolean => isInside(real(root), real(home));
+
+/** What the owner is told when they pick such a folder. */
+export const holdsApxHomeMessage = (root: string): string =>
+  `${root} holds the folder where APX keeps its own data, so it can't be a project. Pick a folder inside it instead.`;
+
 /** Folders inside either where agents keep git worktrees: a checkout of the code, never moved or guarded. */
 export const CHECKOUTS: ReadonlySet<string> = new Set(["worktree", "worktrees"]);
 
@@ -43,19 +54,19 @@ function legacyEntries(root: string): string[] {
 
 /** The project's files are only in `.apc/` (a move has not run or failed): it works from there until one succeeds. */
 export const needsFolderMove = (root: string): boolean =>
-  !isDir(path.join(root, AGENT_DIR)) && !isLink(path.join(root, AGENT_DIR)) && legacyEntries(root).length > 0;
+  !isDir(path.join(root, APX_DIR)) && !isLink(path.join(root, APX_DIR)) && legacyEntries(root).length > 0;
 
 /** Something in `.apc/` is still there to move or clear. */
 export const hasLegacyFolder = (root: string): boolean => legacyEntries(root).length > 0;
 
 export type FolderMove = {
-  /** Files of `.apc/` that are now in `.agent/` (ones already there and equal count too). */
+  /** Files of `.apc/` that are now in `.apx/` (ones already there and equal count too). */
   files: number;
   /** `.apc/` is gone, or holds only worktrees (`kept`). */
   done: boolean;
   /** Worktree folders left in `.apc/`: a git checkout moves with `git worktree move`, never by copying. */
   kept: string[];
-  /** Files `.agent/` already has with other content: nothing of `.apc/` was removed. */
+  /** Files `.apx/` already has with other content: nothing of `.apc/` was removed. */
   conflicts: string[];
 };
 
@@ -91,21 +102,21 @@ function copyEntry(from: string, to: string): void {
 }
 
 /**
- * Moves a project's files from `.apc/` to `.agent/`: copies, checks that every file arrived equal, and only then
- * removes them from `.apc/`. With no `.agent/` yet the copy is made aside and renamed in at once, so a reindex never
+ * Moves a project's files from `.apc/` to `.apx/`: copies, checks that every file arrived equal, and only then
+ * removes them from `.apc/`. With no `.apx/` yet the copy is made aside and renamed in at once, so a reindex never
  * sees half of it. Safe to run again: equal files count as
- * moved, and a file `.agent/` has with other content stops before anything is removed. Worktrees stay where they are.
+ * moved, and a file `.apx/` has with other content stops before anything is removed. Worktrees stay where they are.
  */
 export function moveLegacyFolder(root: string): FolderMove {
   const abs = path.resolve(root);
   const from = path.join(abs, LEGACY_DIR);
-  const to = path.join(abs, AGENT_DIR);
+  const to = path.join(abs, APX_DIR);
   for (const [p, name] of [
     [from, LEGACY_DIR],
-    [to, AGENT_DIR],
+    [to, APX_DIR],
   ] as const)
     if (isLink(p)) throw new Error(`${name} is a link: nothing moved`);
-  if (fs.existsSync(to) && !isDir(to)) throw new Error(`a file named ${AGENT_DIR} is in the way: nothing moved`);
+  if (fs.existsSync(to) && !isDir(to)) throw new Error(`a file named ${APX_DIR} is in the way: nothing moved`);
   const entries = legacyEntries(abs);
   const checkouts = () => (isDir(from) ? fs.readdirSync(from).filter((e) => CHECKOUTS.has(e)) : []);
   if (!entries.length) {
@@ -114,7 +125,7 @@ export function moveLegacyFolder(root: string): FolderMove {
   }
   const files = entries.flatMap((e) => (isDir(path.join(from, e)) ? walk(from, e) : [e]));
   if (!fs.existsSync(to)) {
-    const aside = path.join(abs, `${AGENT_DIR}.moving-${randomBytes(4).toString("hex")}`);
+    const aside = path.join(abs, `${APX_DIR}.moving-${randomBytes(4).toString("hex")}`);
     try {
       for (const f of files) copyEntry(path.join(from, f), path.join(aside, f));
       const differ = files.filter((f) => !same(path.join(from, f), path.join(aside, f)));
@@ -149,10 +160,10 @@ function clearEmpty(dir: string): void {
 }
 
 /**
- * The folder name a project's files are in now: `.agent`, or `.apc` while they could not be moved yet (that project keeps
+ * The folder name a project's files are in now: `.apx`, or `.apc` while they could not be moved yet (that project keeps
  * working from there, reads and writes, until a move succeeds).
  */
-export const ownDir = (root: string): string => (needsFolderMove(root) ? LEGACY_DIR : AGENT_DIR);
+export const ownDir = (root: string): string => (needsFolderMove(root) ? LEGACY_DIR : APX_DIR);
 
 /** The folder a project's files are in now (see ownDir). */
 export const projectDir = (root: string): string => path.join(root, ownDir(root));

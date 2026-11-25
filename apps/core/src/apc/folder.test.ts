@@ -36,7 +36,7 @@ const tree = (dir: string): Record<string, string> => {
   return out;
 };
 
-test("the move copies every file of .apc/ to .agent/, then leaves only its worktrees", async () => {
+test("the move copies every file of .apc/ to .apx/, then leaves only its worktrees", async () => {
   const root = legacyProject();
   try {
     const before = tree(path.join(root, ".apc"));
@@ -44,10 +44,10 @@ test("the move copies every file of .apc/ to .agent/, then leaves only its workt
     const r = moveLegacyFolder(root);
     assert.deepEqual(r, { files: 5, done: true, kept: ["worktrees"], conflicts: [] });
     const { "worktrees/fix-1/src/a.ts": worktree, ...definitions } = before;
-    assert.deepEqual(tree(path.join(root, ".agent")), definitions);
+    assert.deepEqual(tree(path.join(root, ".apx")), definitions);
     assert.deepEqual(tree(path.join(root, ".apc")), { "worktrees/fix-1/src/a.ts": worktree });
     assert.ok(!needsFolderMove(root) && !hasLegacyFolder(root));
-    assert.ok(!fs.readdirSync(root).some((e) => e.startsWith(".agent.moving")), "the copy made aside is gone");
+    assert.ok(!fs.readdirSync(root).some((e) => e.startsWith(".apx.moving")), "the copy made aside is gone");
     assert.equal(fs.readFileSync(path.join(root, "AGENTS.md"), "utf8"), "# Northwind\n", "AGENTS.md stays");
   } finally {
     await removeDir(root);
@@ -58,16 +58,16 @@ test("the move is safe to run again, and finishes one cut after the copy", async
   const root = legacyProject();
   try {
     moveLegacyFolder(root);
-    const moved = tree(path.join(root, ".agent"));
+    const moved = tree(path.join(root, ".apx"));
     assert.deepEqual(moveLegacyFolder(root), { files: 0, done: true, kept: ["worktrees"], conflicts: [] });
-    assert.deepEqual(tree(path.join(root, ".agent")), moved);
+    assert.deepEqual(tree(path.join(root, ".apx")), moved);
 
-    // A run stopped after the copy: .agent/ is whole and .apc/ still has the same files.
+    // A run stopped after the copy: .apx/ is whole and .apc/ still has the same files.
     write(path.join(root, ".apc", "memory.md"), "Use metric units.\n");
     write(path.join(root, ".apc", "agents", "arch.md"), moved["agents/arch.md"] ?? "");
-    assert.ok(hasLegacyFolder(root) && !needsFolderMove(root), ".agent/ is read; .apc/ only waits to be cleared");
+    assert.ok(hasLegacyFolder(root) && !needsFolderMove(root), ".apx/ is read; .apc/ only waits to be cleared");
     assert.deepEqual(moveLegacyFolder(root), { files: 2, done: true, kept: ["worktrees"], conflicts: [] });
-    assert.deepEqual(tree(path.join(root, ".agent")), moved);
+    assert.deepEqual(tree(path.join(root, ".apx")), moved);
     assert.ok(!hasLegacyFolder(root));
 
     // Once its worktree is gone, the empty .apc/ goes too.
@@ -79,44 +79,44 @@ test("the move is safe to run again, and finishes one cut after the copy", async
   }
 });
 
-test("a file .agent/ already has with other content stops the move before anything is removed", async () => {
+test("a file .apx/ already has with other content stops the move before anything is removed", async () => {
   const root = legacyProject();
   try {
-    write(path.join(root, ".agent", "agents", "arch.md"), "---\nname: Arch\nautonomy: auto\n---\n");
-    write(path.join(root, ".agent", "notes.md"), "mine\n");
+    write(path.join(root, ".apx", "agents", "arch.md"), "---\nname: Arch\nautonomy: auto\n---\n");
+    write(path.join(root, ".apx", "notes.md"), "mine\n");
     const before = tree(path.join(root, ".apc"));
     const r = moveLegacyFolder(root);
     assert.deepEqual(r.conflicts, ["agents/arch.md"]);
     assert.equal(r.done, false);
     assert.deepEqual(tree(path.join(root, ".apc")), before, ".apc/ is untouched");
     assert.equal(
-      fs.readFileSync(path.join(root, ".agent", "agents", "arch.md"), "utf8"),
+      fs.readFileSync(path.join(root, ".apx", "agents", "arch.md"), "utf8"),
       "---\nname: Arch\nautonomy: auto\n---\n",
     );
 
-    // The owner keeps theirs: the rest moves in beside what .agent/ had.
-    fs.copyFileSync(path.join(root, ".agent", "agents", "arch.md"), path.join(root, ".apc", "agents", "arch.md"));
+    // The owner keeps theirs: the rest moves in beside what .apx/ had.
+    fs.copyFileSync(path.join(root, ".apx", "agents", "arch.md"), path.join(root, ".apc", "agents", "arch.md"));
     assert.deepEqual(moveLegacyFolder(root), { files: 5, done: true, kept: ["worktrees"], conflicts: [] });
-    assert.equal(fs.readFileSync(path.join(root, ".agent", "notes.md"), "utf8"), "mine\n");
-    assert.equal(fs.readFileSync(path.join(root, ".agent", "memory.md"), "utf8"), "Use metric units.\n");
+    assert.equal(fs.readFileSync(path.join(root, ".apx", "notes.md"), "utf8"), "mine\n");
+    assert.equal(fs.readFileSync(path.join(root, ".apx", "memory.md"), "utf8"), "Use metric units.\n");
   } finally {
     await removeDir(root);
   }
 });
 
-test("a linked .apc/ or .agent/ is never moved through; a link inside is copied as a link", async () => {
+test("a linked .apc/ or .apx/ is never moved through; a link inside is copied as a link", async () => {
   const root = legacyProject();
   const outside = tempDir("apx-folder-out-").path;
   try {
     write(path.join(outside, "secret.md"), "not the project's\n");
     fs.symlinkSync(path.join(outside, "secret.md"), path.join(root, ".apc", "agents", "linked.md"));
     moveLegacyFolder(root);
-    assert.ok(fs.lstatSync(path.join(root, ".agent", "agents", "linked.md")).isSymbolicLink());
+    assert.ok(fs.lstatSync(path.join(root, ".apx", "agents", "linked.md")).isSymbolicLink());
 
     const other = legacyProject();
     try {
-      fs.symlinkSync(outside, path.join(other, ".agent"), "junction");
-      assert.throws(() => moveLegacyFolder(other), /\.agent is a link/);
+      fs.symlinkSync(outside, path.join(other, ".apx"), "junction");
+      assert.throws(() => moveLegacyFolder(other), /\.apx is a link/);
       assert.ok(fs.existsSync(path.join(other, ".apc", "agents", "arch.md")));
     } finally {
       await removeDir(other);
@@ -127,20 +127,20 @@ test("a linked .apc/ or .agent/ is never moved through; a link inside is copied 
   }
 });
 
-test("a project works from .apc/ until its move succeeds; a file named .agent in the way fails it", async () => {
+test("a project works from .apc/ until its move succeeds; a file named .apx in the way fails it", async () => {
   const root = legacyProject();
   try {
     assert.equal(ownDir(root), ".apc");
-    write(path.join(root, ".agent"), "not a folder");
+    write(path.join(root, ".apx"), "not a folder");
     assert.equal(ownDir(root), ".apc", "a stray file is not the project's folder");
     const failed = moveIfLegacy(root);
     assert.equal(failed?.state, "failed");
-    assert.match(failed?.state === "failed" ? failed.error : "", /a file named \.agent is in the way/);
+    assert.match(failed?.state === "failed" ? failed.error : "", /a file named \.apx is in the way/);
     assert.ok(fs.existsSync(path.join(root, ".apc", "agents", "arch.md")), ".apc/ is untouched");
 
-    fs.rmSync(path.join(root, ".agent"));
+    fs.rmSync(path.join(root, ".apx"));
     assert.deepEqual(moveIfLegacy(root), { state: "moved", files: 5, kept: ["worktrees"] });
-    assert.equal(projectDir(root), path.join(root, ".agent"));
+    assert.equal(projectDir(root), path.join(root, ".apx"));
     assert.equal(moveIfLegacy(root), undefined, "nothing left to move, nothing to tell");
   } finally {
     await removeDir(root);

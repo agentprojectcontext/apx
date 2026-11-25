@@ -68,7 +68,7 @@ pipe) la consola no arranca: `apx` muestra la ayuda.
 | `apx wizard` | Configuración y mantenimiento guiados en la terminal. |
 | `apx upgrade --check` | ¿Hay un APX más nuevo? |
 | `apx upgrade` | Aplicarlo, igual que **Actualizar ahora** en el panel. Si el core no responde, un APX instalado con el script de instalación se actualiza igual: baja el paquete más nuevo, lo verifica y hace que el servicio lo arranque. `apx update` es el mismo comando. |
-| `apx doctor` | Por qué el core no responde en esta computadora (qué dice su log, el servicio, si hay una versión más nueva) y el comando a correr. Funciona sin el core; `--json`. `--fix` (alias `doctor fix`) repara migraciones hotfix reconocidas con el core caído y crea antes un backup privado y consistente; rechaza esquemas desconocidos. Con el core activo reintenta mover a `.agent/` los proyectos que APX no pudo mover desde `.apc/`, y después compacta el historial y recupera espacio. |
+| `apx doctor` | Por qué el core no responde en esta computadora (qué dice su log, el servicio, si hay una versión más nueva) y el comando a correr. Funciona sin el core; `--json`. `--fix` (alias `doctor fix`) repara migraciones hotfix reconocidas con el core caído y crea antes un backup privado y consistente; rechaza esquemas desconocidos. Con el core activo reintenta mover a `.apx/` los proyectos que APX no pudo mover desde `.apc/`, y después compacta el historial y recupera espacio. |
 | `apx logs` | Las líneas más nuevas del log del core, a través del core: `-n 200`, `--level info\|warn\|error`, `--grep texto`, `--scope core\|output`, `--json`. Si ningún core responde, el archivo de esta computadora. |
 | `apx service logs` | El archivo de log de esta computadora (`<home>/logs/core.log`); `-n 100`, `-f` para seguirlo. |
 | `apx daemon` | Explica qué comando `apx service` usar (el core en segundo plano ahora es un servicio). |
@@ -154,22 +154,22 @@ Hay dos tareas abiertas en Acme Store: el catálogo de primavera (en curso, Luc�
 |---|---|
 | `apx agents` | Los agentes y el modelo con que corre cada uno (★ marca a Home). |
 | `apx agents show <agent>` | Sus campos y su prompt completo. |
-| `apx agents new <slug> "<Name>"` | Un agente nuevo; `--project <id>` lo pone en un proyecto (se escribe en `.agent/agents/<slug>.md`), `--role "<role>"` le da un rol. |
+| `apx agents new <slug> "<Name>"` | Un agente nuevo; `--project <id>` lo pone en un proyecto (se escribe en `.apx/agents/<slug>.md`), `--role "<role>"` le da un rol. |
 | `apx agents set <agent> key=value…` | Cambia cualquier campo del editor de agentes (uno desconocido los lista todos). Listas como `tools=web_search,shell` (`tools=` es todas), `orchestrator=true`, `rules='{"write":"ask"}'`; `autonomy=` o `rules=` vuelven al valor por defecto. |
 | `apx agents set <agent> --prompt-file <file>` | Reemplaza su prompt desde un archivo (`-` lee stdin). |
 | `apx agents limits [<agent> runs=… tokens=… \| <agent> clear \| default runs=… tokens=…]` | Hasta dónde avanzan los agentes sin vos en un chat: el valor por defecto y el presupuesto propio de un agente (`0` = sin límite). |
 | `apx agents clone <agent…>` | Copia agentes a un proyecto (`--project <id>`); `--rename` le da a cada uno un nombre libre, `--under <slug>` fija el padre. |
-| `apx agents archive <agent>` | Archiva un agente (el archivo de un agente de proyecto pasa a `.agent/agents/.archived/`). |
+| `apx agents archive <agent>` | Archiva un agente (el archivo de un agente de proyecto pasa a `.apx/agents/.archived/`). |
 | `apx agents archived` | Agentes archivados; `apx agents restore <agent>` trae uno de vuelta. |
 | `apx agents model <agent> <ref>` | Su modelo: `<engine>/<model>`, `<engine>`, `router` o `default`; `--router` deja el router como respaldo; `--fallbacks <ref>,<ref>` define sus modelos de respaldo en orden (`""` los borra). |
 | `apx projects [list]` | Los proyectos (un `!` marca una carpeta que no está). |
-| `apx projects register <folder>` | Registra una carpeta con `AGENTS.md` y/o `.agent/`. |
+| `apx projects register <folder>` | Registra una carpeta con `AGENTS.md` y/o `.apx/`. |
 | `apx projects create "<Name>"` | Un proyecto nuevo, en `--path <folder>` (se crea si falta) o en una carpeta propia en el home de APX; `--kind personal\|app\|company\|software\|other`, `--desc "…"`. `--parent <project>\|base` lo hace [subproyecto](/es/concepts/projects/#subproyectos), en la carpeta del padre salvo con `--path`. |
 | `apx projects set <project>` | Cambia `--name`, `--kind`, `--desc`, `--autonomy manual\|auto\|accept_edits\|plan\|total` (hasta dónde llegan sus agentes sin preguntar) o `--parent <project>\|base\|none` (de quién es subproyecto; `none` lo separa en un proyecto aparte). |
 | `apx projects detach <project>` | Separa un subproyecto en un proyecto aparte; conserva su carpeta, sus agentes, sus chats y su memoria. |
 | `apx projects folders list\|add\|rm <project> [folder]` | Carpetas que sus agentes pueden leer y nunca cambiar (otro checkout, documentación): `file_read` y `shell` leen ahí, nada escribe. |
 | `apx projects rm <project>` | Lo olvida en APX; su carpeta y sus archivos nunca se borran. |
-| `apx init [folder]` | Convierte una carpeta (esta por defecto) en un proyecto APC y la registra; solo escribe lo que falta (`AGENTS.md`, `.agent/`). |
+| `apx init [folder]` | Convierte una carpeta (esta por defecto) en un proyecto APC y la registra; solo escribe lo que falta (`AGENTS.md`, `.apx/`). |
 | `apx projects sync [project]` | Vuelve a leer los archivos del proyecto. |
 
 ## Modelos y consumo
@@ -255,7 +255,7 @@ Los demás canales (WhatsApp, Discord, Slack) se configuran en el panel. Mirá [
 | `apx mcps logs <server>` | Lo que un servidor imprimió por stderr desde que arrancó el core (`--project`, `-n 100`). |
 | `apx sessions projects codex\|claude` | Proyectos y chats de Claude Code o Codex en esta computadora. |
 | `apx sessions import codex\|claude <project>` | Los trae como un proyecto de APX (`--only <id,…>`, `--name "…"`); también `digest`, `adopt` y `page`. |
-| `apx mcps trust <project> <server>` | Aprueba un servidor que nombra el `.agent/mcps.json` de un proyecto (`untrust` para deshacerlo). |
+| `apx mcps trust <project> <server>` | Aprueba un servidor que nombra el `.apx/mcps.json` de un proyecto (`untrust` para deshacerlo). |
 | `apx mcp tools <server> [<tool>]` | Las descripciones de las herramientas y sus esquemas JSON. |
 | `apx mcp run <server> <tool> '<json>'` | Llama a una herramienta directo y muestra el resultado crudo; `-` lee los argumentos de stdin. |
 | `apx mcp check <server>` | Una prueba de conexión. |

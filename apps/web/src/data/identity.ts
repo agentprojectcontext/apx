@@ -108,7 +108,7 @@ export type ProjectEntry = {
   kind?: string | undefined;
   /** A subproject's parent (DEFAULT_PID for the base project): it works with the parent's agents and resources. */
   parent?: string | undefined;
-  /** Its agents and settings are still in .apc/: the overview offers the move to .agent/. */
+  /** Its agents and settings are still in .apc/: the overview offers the move to .apx/. */
   legacyFolder?: boolean | undefined;
 };
 

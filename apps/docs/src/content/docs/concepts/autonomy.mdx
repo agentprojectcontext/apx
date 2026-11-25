@@ -55,10 +55,10 @@ Every tool call has a level, and some depend on their arguments: a read-only `gi
 
 | Tool level | Examples |
 |---|---|
-| `never` | Reading files, searching the web, recalling notes, listing tasks, saving a note, looking at your screen, shell commands that only read on this machine (`ls`, `find . | grep`, `git log`, `git branch -a`, `apx status`, `apx tasks`, `apx mcps list`, `apx usage 7`, any `apx … --help`): they run even with outside content in the turn. Reading `AGENTS.md` or `.agent/` is reading too. |
+| `never` | Reading files, searching the web, recalling notes, listing tasks, saving a note, looking at your screen, shell commands that only read on this machine (`ls`, `find . | grep`, `git log`, `git branch -a`, `apx status`, `apx tasks`, `apx mcps list`, `apx usage 7`, any `apx … --help`): they run even with outside content in the turn. Reading `AGENTS.md` or `.apx/` is reading too. |
 | `untrusted` | Writing files in the project, messaging a contact, posting to a channel, typing in the browser, forgetting a note, giving another agent a tool, the phone's location, opening a URL with a query string, assigning a task to an agent. |
 | `ask` | Any shell command that is not plainly read-only, including a plain `git push` of a branch, opening apps on your screen. |
-| `always` | Destructive shell commands (`rm -rf`, `sudo`, `git reset --hard`, `git branch -D`…), a push that cuts a release or rewrites history (a tag, `--force`, `gh release`, `npm publish`), changing `AGENTS.md` or anything in `.agent/` (with a file tool or a command), commands that reach APX's own API, or its CLI for anything but reading (`apx chat`, `apx runs respond`, `apx routines add`, or any `apx` run with a variable set before it), not a folder or a word named apx, sending an iMessage, answering a contact, using your browser login, clicking, typing or pressing keys on your screen. |
+| `always` | Destructive shell commands (`rm -rf`, `sudo`, `git reset --hard`, `git branch -D`…), a push that cuts a release or rewrites history (a tag, `--force`, `gh release`, `npm publish`), changing `AGENTS.md` or anything in `.apx/` (with a file tool or a command), commands that reach APX's own API, or its CLI for anything but reading (`apx chat`, `apx runs respond`, `apx routines add`, or any `apx` run with a variable set before it), not a folder or a word named apx, sending an iMessage, answering a contact, using your browser login, clicking, typing or pressing keys on your screen. |
 
 An agent that can change files commits, pulls, merges or pushes only when you or its task asked for it, or a rule or
 note of the project says how (the website straight to `main`, say); otherwise it asks you once. Publishing a task's
@@ -176,7 +176,7 @@ you (unless the agent is on `total`); the agent's own reads, edits and commands 
   person. See [Channels](/channels/overview/).
 
 <Aside type="tip">
-  Writing `AGENTS.md` or anything in `.agent/` always asks (except on `total`): those files decide what agents are and
+  Writing `AGENTS.md` or anything in `.apx/` always asks (except on `total`): those files decide what agents are and
   how free they are, so an agent can't quietly raise its own autonomy.
 </Aside>
 

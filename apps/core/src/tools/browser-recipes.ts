@@ -1,4 +1,4 @@
-// Browser recipes: a browser_do sequence saved under a name in the project (`.agent/browser-recipes/<name>.json`), so
+// Browser recipes: a browser_do sequence saved under a name in the project (`.apx/browser-recipes/<name>.json`), so
 // repeating it costs one short call. Plain data, never code: it runs only through browser_do (DECISIONS.md#d-265).
 
 import fs from "node:fs";

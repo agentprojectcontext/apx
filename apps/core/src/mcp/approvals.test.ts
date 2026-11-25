@@ -30,9 +30,9 @@ const llm = () =>
 async function setup() {
   const env = await startCore({ llm: llm() });
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-grants-"));
-  fs.mkdirSync(path.join(root, ".agent"));
+  fs.mkdirSync(path.join(root, ".apx"));
   fs.writeFileSync(
-    path.join(root, ".agent", "mcps.json"),
+    path.join(root, ".apx", "mcps.json"),
     JSON.stringify({
       mcpServers: { notes: { command: process.execPath, args: [SERVER] } },
     }),
