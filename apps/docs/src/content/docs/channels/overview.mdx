@@ -256,6 +256,13 @@ record proposal retains the source version read at creation; approving it does n
 report. Long records can be updated by a version-bound passage or append without reconstructing their full text.
 Proposals for explicitly registered editable local documents remain separate.
 
+When what it may read does not answer the person (a document you never linked in that chat, something only your side
+knows), the agent asks your super-agent. The question goes to a sub-thread of the contact's chat, marked as a contact's
+words, where the super-agent looks it up in that project with your access and answers only what that person may be
+told. Anything that would act for them (send, pay, delete, share files, change settings) or that it is unsure may be
+shared, it asks you in the app first. Its answer comes back to the agent, in the same turn or a moment later, and the
+agent writes to the person. Asking again while it works continues the same question.
+
 For agents, the owner turns it on with `apx_settings` `contacts.set` and `perms: { project_reading: true }` for that
 person; it always asks in the app.
 

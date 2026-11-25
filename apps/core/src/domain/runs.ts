@@ -268,6 +268,9 @@ export const reachIn = (store: {
 /** The session of the sub-thread where the super-agent checks words a channel could not vouch for (DECISIONS.md#d-144). */
 export const OWNER_CHECK = "owner-check";
 
+/** The session of the sub-thread where the super-agent answers what a contact's agent could not (DECISIONS.md#d-269). */
+export const CONTACT_CONSULT = "contact-consult";
+
 /** A turn on the super-agent's answer to such words: it goes on with that chat's conversation, on its channel. */
 export const answersChecked = (o: Origin | undefined): boolean =>
   o?.kind === "delegation_result" && o.session === OWNER_CHECK;
