@@ -67,11 +67,6 @@ export function awaitTaskInput(store: Store, input: InputRecord): void {
 export function settleTaskInput(store: Store, input: InputRecord): void {
   if (input.state === "pending") return;
   const current = taskInputIsCurrent(store, input);
-  const bindings = { ...store.threads.context(input.thread_id).task_inputs };
-  if (bindings[input.id]) {
-    delete bindings[input.id];
-    store.threads.mergeContext(input.thread_id, { task_inputs: bindings });
-  }
   const thread = store.threads.get(input.thread_id);
   const task = thread?.task_id ? store.tasks.get(thread.task_id) : undefined;
   if (!task) return;
@@ -84,6 +79,14 @@ export function settleTaskInput(store: Store, input: InputRecord): void {
   store.threads.mergeContext(task.thread_id, { task_input_wait: { ...prior, inputs, manual } });
   if (eligible && !inputs.length && !manual && !prior.comment && task.awaits_owner)
     store.tasks.change(task.id, { awaits_owner: false }, "system");
+}
+
+/** Remove the durable answer outbox entry only after delivery or cancellation. */
+export function finishTaskInput(store: Store, input: InputRecord): void {
+  const bindings = { ...store.threads.context(input.thread_id).task_inputs };
+  if (!bindings[input.id]) return;
+  delete bindings[input.id];
+  store.threads.mergeContext(input.thread_id, { task_inputs: bindings });
 }
 
 /** Manual task edits cannot accidentally erase another outstanding native question. */

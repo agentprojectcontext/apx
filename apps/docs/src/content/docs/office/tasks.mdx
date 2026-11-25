@@ -72,8 +72,10 @@ automatically. Answering that card removes only its own wait. If another card or
 the task still waits. Optional questions do not block it. An answer does not close the task, bypass a review, or
 approve an action that you declined. A partial answer may need a follow-up question.
 
-APX resumes the listening turn, or queues one answer turn if the earlier turn ended or APX restarted. Repeating the
-same answer cannot start another turn. Clearing a separate manual wait from the task menu resumes idle assigned
+Once all of that task's waits are resolved, APX resumes the listening turn or queues one answer turn if the earlier
+turn ended or APX restarted. Until then it records the answer without continuing the approved call or the listening
+turn, including across a restart. Several recorded answers in the same task chat are delivered together rather
+than starting an executor for each. Repeating the same answer cannot start another turn. Clearing a separate manual wait from the task menu resumes idle assigned
 work once; it does not dismiss unanswered cards or start a second executor while work is running.
 
 A reply in the task comments acknowledges an agent's `@owner` request and reaches its agent through the task's
