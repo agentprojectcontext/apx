@@ -25,6 +25,7 @@ import { failureOf } from "../domain/run-failure.ts";
 import { inChrome, type RunRecord, runsOnComputer } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf, type Worker, worksInFolder } from "../domain/threads.ts";
+import type { WorkflowAsk } from "../domain/workflow-plan.ts";
 import { computerBriefing, HOME_COMPUTER } from "../environments/briefing.ts";
 import { AGENT_WORKSPACE } from "../environments/worker.ts";
 import { CallError, Canceled, DeadlineExceeded, errorMessage, Shutdown, Superseded } from "../errors.ts";
@@ -149,6 +150,8 @@ export type TurnDeps = {
   /** How the agent acts and how far its files reach: every permission question goes here. */
   permissions: Permissions;
   delegate(caller: Caller, to: DelegateTo, task: string, waitMs: number, signal?: AbortSignal): Promise<string>;
+  /** Starts a workflow (or resumes one) from this turn and waits up to `waitMs` for its result (DECISIONS.md#d-273). */
+  workflow?(caller: Caller, w: WorkflowAsk, waitMs: number, signal?: AbortSignal): Promise<string>;
 };
 
 export type ToolCall = <M extends MethodName>(
@@ -349,6 +352,12 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     // Harnesses and delegations see the agent as it acts here (its project's and callers' mode), never its bare record.
     delegate: (to, task, waitMs, signal) =>
       deps.delegate({ run, agent: policy.agent, display }, to, task, waitMs, signal),
+    ...(deps.workflow
+      ? {
+          workflow: (w: WorkflowAsk, waitMs: number, signal?: AbortSignal) =>
+            deps.workflow?.({ run, agent: policy.agent, display }, w, waitMs, signal) ?? Promise.resolve(""),
+        }
+      : {}),
   });
   const system = () =>
     thread.engine

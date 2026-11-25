@@ -44,6 +44,10 @@ export const silent = (store: Store, run: RunRecord): boolean =>
 export function droppedResult(store: Store, run: RunRecord): boolean {
   const kind = run.input?.origin.kind;
   return (
-    (kind === "delegation_result" || kind === "delegation_results" || kind === "task_result") && silent(store, run)
+    (kind === "delegation_result" ||
+      kind === "delegation_results" ||
+      kind === "task_result" ||
+      kind === "workflow_result") &&
+    silent(store, run)
   );
 }

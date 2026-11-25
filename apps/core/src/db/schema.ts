@@ -776,6 +776,33 @@ export interface ThreadsTable {
   task_id: string | null;
 }
 
+export interface WorkflowStepsTable {
+  workflow_id: string;
+  key: string;
+  state: string;
+  thread_id: string | null;
+  output: string | null;
+  error: string | null;
+  tries: Generated<number>;
+  started_at: string | null;
+  ended_at: string | null;
+}
+
+export interface WorkflowsTable {
+  id: string;
+  thread_id: string;
+  agent_id: string;
+  run_id: string;
+  name: string;
+  plan: string;
+  state: string;
+  reason: string | null;
+  result: string | null;
+  deadline_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Database {
   addresses: AddressesTable;
   agents: AgentsTable;
@@ -839,4 +866,6 @@ export interface Database {
   task_uploads: TaskUploadsTable;
   tasks: TasksTable;
   threads: ThreadsTable;
+  workflow_steps: WorkflowStepsTable;
+  workflows: WorkflowsTable;
 }

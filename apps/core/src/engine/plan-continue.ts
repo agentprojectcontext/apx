@@ -7,7 +7,7 @@ import type { AdmitFn } from "./engine.ts";
 import { answerOf } from "./run-outcome.ts";
 import { awaiting } from "./task-continue.ts";
 
-const RESULTS = new Set(["delegation_result", "delegation_results", "task_result"]);
+const RESULTS = new Set(["delegation_result", "delegation_results", "task_result", "workflow_result"]);
 
 /** The plan this chat's agent last wrote, when a step is still left. */
 function openPlan(store: Store, threadId: string): boolean {

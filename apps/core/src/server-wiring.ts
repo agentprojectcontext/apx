@@ -102,6 +102,7 @@ import { threadAdminHandlers } from "./rpc/thread-admin.ts";
 import { threadHandlers } from "./rpc/threads.ts";
 import { transcriptionHandlers } from "./rpc/transcription.ts";
 import { webhookHandlers } from "./rpc/webhooks.ts";
+import { workflowHandlers } from "./rpc/workflows.ts";
 import type { Secrets } from "./secrets.ts";
 import type { SignIn } from "./sign-in.ts";
 import { runGit } from "./skills/import.ts";
@@ -138,6 +139,7 @@ import type { Tool } from "./tools/types.ts";
 import { videoTools } from "./tools/video.ts";
 import { vmTools } from "./tools/vm.ts";
 import { webTools } from "./tools/web.ts";
+import { workflowTool } from "./tools/workflow.ts";
 import { type Gate, originsFor } from "./transport/guard.ts";
 import { httpHandler } from "./transport/http.ts";
 import { attachVmDisplay } from "./transport/vm-display.ts";
@@ -238,6 +240,7 @@ export function builtinTools(
 ): Tool[] {
   const tools = [
     ...agentTools(store),
+    workflowTool(store),
     ...agentSetTools(store),
     ...chatTools(store),
     ...externalSessionTools(store),
@@ -413,6 +416,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...runHandlers(d.store, d.engine, d.publications),
     ...signInCardHandlers({ store: d.store, secrets: d.secrets, signIn: d.signIn, respond: d.engine.respond }),
     ...jobHandlers(d.store, d.engine),
+    ...workflowHandlers(d.store, d.engine),
     ...memoryHandlers(d.store, d.memory, d.memoryMaintenance),
     ...channelsH,
     ...contactSourceHandlers(d.store),
