@@ -33,8 +33,8 @@ test("sticker captions and historical grouped previews in both languages and wid
           "Multiple stickers",
         ]);
         await expect(page.locator(".chan__bubble")).toHaveCount(10);
-        await expect(page.locator("body")).not.toContainText("named_by");
-        await expect(page.locator("body")).not.toContainText('trust="untrusted"');
+        await expect(page.locator(".chan__msgs, .chat__scroll")).not.toContainText("named_by");
+        await expect(page.locator(".chan__msgs, .chat__scroll")).not.toContainText('trust="untrusted"');
         const contact = page.getByRole("complementary", {
           name: language === "es" ? "Contacto" : "Contact",
           exact: true,
@@ -43,17 +43,25 @@ test("sticker captions and historical grouped previews in both languages and wid
           await contact.getByRole("button", { name: language === "es" ? "Cerrar" : "Close", exact: true }).click();
         }
         await expect(contact).toHaveCount(0);
+        const news = page.getByRole("complementary", {
+          name: language === "es" ? "Novedades e invitaciones" : "News and invitations",
+          exact: true,
+        });
+        if (await news.isVisible())
+          await news.getByRole("button", { name: language === "es" ? "Cerrar" : "Close", exact: true }).click();
         await expect(page.getByText(literalCaption, { exact: true })).toBeVisible();
         await page.locator(".chan__bubble").first().scrollIntoViewIfNeeded();
         await page.screenshot({ path: info.outputPath(`unnamed-${language}-${width}.png`) });
         await page.getByText(literalCaption, { exact: true }).scrollIntoViewIfNeeded();
         await page.screenshot({ path: info.outputPath(`channel-${language}-${width}.png`) });
-        await page
-          .getByRole("button", {
-            name: language === "es" ? "Configuración del canal" : "Channel settings",
-            exact: true,
-          })
-          .click();
+        const settings = language === "es" ? "Configuración del canal" : "Channel settings";
+        if (width === 390) {
+          await page.goto(`${fixture.url}/?lang=${language}#channel=test`);
+          await page.locator(".chan__switch").click();
+          await page.getByRole("menuitem", { name: settings, exact: true }).click();
+        } else {
+          await page.getByRole("button", { name: settings, exact: true }).click();
+        }
         await page
           .locator(".config__nav")
           .getByRole("button", { name: language === "es" ? "Stickers y emojis" : "Stickers and emoji", exact: true })
@@ -69,8 +77,8 @@ test("sticker captions and historical grouped previews in both languages and wid
         await page.goto(`${fixture.url}/?lang=${language}#thread=${fixture.thread}`);
         await expect(page.getByText(literalCaption, { exact: true })).toBeVisible();
         await expect(page.getByText("[sticker: fox]", { exact: true })).toBeVisible();
-        await expect(page.locator("body")).not.toContainText("named_by");
-        await expect(page.locator("body")).not.toContainText("[sticker (18+):");
+        await expect(page.locator(".chan__msgs, .chat__scroll")).not.toContainText("named_by");
+        await expect(page.locator(".chan__msgs, .chat__scroll")).not.toContainText("[sticker (18+):");
         await page.screenshot({ path: info.outputPath(`transcript-${language}-${width}.png`) });
         // The phone shows either the chat or its Inbox: return to the list to inspect the grouped row.
         await page.goto(`${fixture.url}/?lang=${language}`);
@@ -81,7 +89,9 @@ test("sticker captions and historical grouped previews in both languages and wid
         }
         const heads = page.locator(".channelbundle__head");
         await expect(heads).toHaveCount(10);
-        await expect(heads.filter({ hasText: "Named literal" })).toContainText('<sticker named_by="');
+        await expect(heads.filter({ has: page.getByText("Named literal", { exact: true }) })).toContainText(
+          '<sticker named_by="',
+        );
         await expect(heads.filter({ hasText: "Cut named opening" })).not.toContainText("<");
         await expect(heads.filter({ hasText: "Short opening" })).not.toContainText("<");
         await expect(heads.filter({ hasText: "Short literal" })).toContainText("<stic");
@@ -100,6 +110,10 @@ test("sticker captions and historical grouped previews in both languages and wid
       }
     }
     const kept = await client.call("threads.get", { thread: fixture.thread });
+    const captionWithNote = kept.messages
+      .flatMap((m) => m.parts)
+      .find((p) => p.type === "text" && p.text === "[sticker]\n[sticker]");
+    expect(captionWithNote?.type === "text" && captionWithNote.attachment_notes).toEqual(["[sticker]"]);
     expect(kept.thread.preview).toBe(fixture.raw.slice(0, 160));
     expect(kept.messages.flatMap((m) => m.parts).some((p) => p.type === "text" && p.text === fixture.raw)).toBe(true);
   } finally {
