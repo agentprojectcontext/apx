@@ -97,7 +97,7 @@ test("the tool starts a visible external session on its engine default, linked t
   assert.deepEqual(env.core.store.threads.context(started.thread).model_choice, { model: "claude", router: false });
 });
 
-test("the session reads as its engine: named after the task, its card says the engine (DECISIONS.md#d-272-engine-sessions)", async () => {
+test("the session reads as its engine: named after the task, its card says the engine (DECISIONS.md#d-274)", async () => {
   const { caller, done, result } = await start({ task: "Review the login change\nmore detail for the engine" });
   const started = JSON.parse(result) as { thread: string };
   await env.settle(started.thread);

@@ -200,7 +200,7 @@ export function PinMark() {
  * what kind of chat it is).
  */
 function contextOf(thread: Thread, agent: Agent | undefined, t: T): string {
-  // An engine session an agent opened says who started it; the engine is the one speaking (DECISIONS.md#d-272-engine-sessions).
+  // An engine session an agent opened says who started it; the engine is the one speaking (DECISIONS.md#d-274).
   if (thread.engine)
     return thread.parent_id && agent ? t("engine.startedBy", { name: agent.name }) : t("nav.externalSession");
   if (thread.kind === "group") return "";

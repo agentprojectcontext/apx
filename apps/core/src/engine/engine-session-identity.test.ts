@@ -4,7 +4,7 @@ import type { Harness, TurnIO } from "../harness/index.ts";
 import { removeDir, tempDir, waitFor } from "../testkit/platform.ts";
 import { say, scriptedLlm, startCore } from "./testkit.ts";
 
-// An engine session is the engine itself, not the agent that opened it (DECISIONS.md#d-272-engine-sessions).
+// An engine session is the engine itself, not the agent that opened it (DECISIONS.md#d-274).
 const seen: Array<{ models: string[]; system: string; history: TurnIO["history"] }> = [];
 const claude: Harness = {
   id: "claude",

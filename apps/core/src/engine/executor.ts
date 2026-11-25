@@ -179,6 +179,7 @@ export function createExecutor(o: {
     as: { run: RunRecord; callId: string; owner?: boolean },
   ): Promise<Result<M>>;
   delegate: ToolContext["delegate"];
+  workflow?: ToolContext["workflow"];
   jobs: Jobs;
   /** Work in progress the turn waits on: its idle deadline is held until the returned function is called. */
   busy?: (() => () => void) | undefined;
@@ -538,6 +539,7 @@ export function createExecutor(o: {
           }
         : {}),
       delegate: o.delegate,
+      ...(o.workflow ? { workflow: o.workflow } : {}),
       askOwner: (prompt, options, canContinue, multi, appOnly) =>
         o.inputs.ask({
           run,

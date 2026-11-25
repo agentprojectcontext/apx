@@ -44,6 +44,8 @@ test("memory: its settings change and keep its model; the model stays the owner'
   assert.equal((await settings()).mode, "notes");
   const model = { method: "memory.set_settings", params: { aux_model: "fake/fake-2" } };
   assert.match((await h.ask(model)).answer, /aux_model stays the owner's/);
+  const chain = { method: "memory.set_settings", params: { aux_chain: "fake/fake-2" } };
+  assert.match((await h.ask(chain)).answer, /aux_chain stays the owner's/);
 });
 
 test("skills and servers: a skill written, turned off, and a project's global servers, each once approved", async () => {

@@ -82,7 +82,7 @@ export function ChatHeader({
   // An engine session is the engine itself: its name and icon, not the agent that owns the run.
   const engine = useEngineLabel(thread.engine);
   const agents = useData((s) => s.agents);
-  // One an agent opened is still the engine's: the agent shows only as who started it (DECISIONS.md#d-272-engine-sessions).
+  // One an agent opened is still the engine's: the agent shows only as who started it (DECISIONS.md#d-274).
   const name = thread.channel
     ? thread.title
     : engine

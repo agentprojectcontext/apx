@@ -61,12 +61,14 @@ export function createAttention(deps: { store: Store; bus: Bus; now?: () => Date
           ? origin.name
           : origin?.kind === "delegation_results"
             ? origin.results.map((r) => r.name).join(", ")
-            : undefined;
+            : origin?.kind === "workflow_result"
+              ? origin.name
+              : undefined;
       store.notifications.add({
         kind: "run",
         // A turn that ended without a word or an action is not a finished one: the owner should look.
         level: failed ? "error" : silent(store, run) ? "warn" : "info",
-        // An engine session speaks as its engine, never as the agent that opened it (DECISIONS.md#d-272-engine-sessions).
+        // An engine session speaks as its engine, never as the agent that opened it (DECISIONS.md#d-274).
         title: now.engine ? engineLabel(store, now.engine) : (store.agents.get(run.agent_id)?.name ?? now.title),
         body: previewOf(
           failed ? (run.error ?? now.preview) : dropped && from ? droppedWords(store, from) : now.preview,

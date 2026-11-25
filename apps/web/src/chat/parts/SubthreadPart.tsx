@@ -53,7 +53,7 @@ export function SubthreadPart({
   const failed = failedLine(part.failed, t);
   // The owner's own question on a task keeps its answer in view (DECISIONS.md#d-220).
   const [open, setOpen] = useUnfolded(part.thread_id, part.asked_by === "owner");
-  // A session the caller opened on an outside engine is the engine's: the caller is only who asked (DECISIONS.md#d-272-engine-sessions).
+  // A session the caller opened on an outside engine is the engine's: the caller is only who asked (DECISIONS.md#d-274).
   const engine = useEngineLabel(part.engine);
   const name = engine ?? part.worker ?? target?.name ?? part.agent_id;
   // A consult on a task names who asked; a delegation's asker is the message's author.

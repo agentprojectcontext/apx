@@ -157,6 +157,9 @@ export const CallCard = lazy(
 export const SubthreadPart = lazy(() =>
   import("./chat/parts/SubthreadPart.tsx").then((m) => ({ default: m.SubthreadPart })),
 );
+export const WorkflowPart = lazy(() =>
+  import("./chat/parts/WorkflowPart.tsx").then((m) => ({ default: m.WorkflowPart })),
+);
 export const AgentEvent = lazy(() => import("./chat/AgentEvent.tsx").then((m) => ({ default: m.AgentEvent })));
 export const TaskDescription = lazy(() =>
   import("./chat/TaskDescription.tsx").then((m) => ({ default: m.TaskDescription })),

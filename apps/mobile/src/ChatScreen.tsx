@@ -89,7 +89,7 @@ export function ChatScreen({
   const thread = (live.thread as Thread | undefined) ?? base;
   const agent = data.agents.find((item) => item.id === thread.agent_ids[0]);
   const contact = channelIdentity(thread, data);
-  // An engine session speaks as its engine; the agent that opened it is only who started it (DECISIONS.md#d-272-engine-sessions).
+  // An engine session speaks as its engine; the agent that opened it is only who started it (DECISIONS.md#d-274).
   const name = thread.engine ? engineName(thread.engine) : (agent?.name ?? thread.title);
   const startedBy = thread.engine && thread.parent_id && agent ? { agent, from: thread.parent_id } : undefined;
   // A routine's chat is one of its runs: its header names the routine and which run, and switches to another.

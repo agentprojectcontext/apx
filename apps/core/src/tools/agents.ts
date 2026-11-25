@@ -26,7 +26,7 @@ const AT_WORK = new Set(["submitted", "working", "queued", "input-required"]);
  * help with this work (a search, a log, a first look at the diff), never another owner of it: always allowed. Working
  * for the owner, a teammate may be asked for a part too, recorded on the task (DECISIONS.md#d-271).
  */
-function midPlan(store: Store, taskId: string | undefined, agentId: string, runId: string): string | undefined {
+export function midPlan(store: Store, taskId: string | undefined, agentId: string, runId: string): string | undefined {
   const task = taskId ? store.tasks.get(taskId) : undefined;
   if (!task || task.state !== "open" || task.assignee !== agentId || ownerWordsOf(store, runId).length)
     return undefined;
@@ -221,27 +221,15 @@ export function agentTools(store: Store): Tool[] {
           if ("error" in found) return found.error;
           agent = found.agent;
         }
-        const named = a.project?.trim() ?? "";
-        const found = a.project ? projectOf(store, a.project, ctx.agent) : undefined;
-        // Working for the owner, a path in none of its projects (a worktree beside one) is the folder itself: where it
-        // may work is the delegation's to decide (DECISIONS.md#d-271).
-        const beside = typeof found === "string" && path.isAbsolute(named) && forOwner;
-        if (typeof found === "string" && !beside) return found;
-        const project = typeof found === "string" ? undefined : found;
-        // A path inside the project finds it and is the folder the session works in; an id or a name is no path.
-        const inner = project?.path && path.isAbsolute(named) ? path.relative(project.path, path.resolve(named)) : "";
-        const folder = beside
-          ? path.resolve(named)
-          : inner && !inner.startsWith("..") && !path.isAbsolute(inner)
-            ? inner
-            : undefined;
+        const place = placeOf(store, a.project, ctx.agent, forOwner);
+        if (typeof place === "string") return place;
         const answer = await ctx.delegate(
           {
             agent,
             session: a.session,
             worker: a.worker,
-            project: project?.id,
-            folder,
+            project: place.project,
+            folder: place.folder,
             write: a.write,
             independent: a.independent,
           },
@@ -302,6 +290,33 @@ function readableSession(store: Store, ctx: { agent: AgentRecord; thread: Thread
   const sub = store.threads.get(id);
   if (!sub?.parent_id || sub.id === ctx.thread.id || !worksForOwner(store, ctx.thread)) return undefined;
   return canReadChat(store, ctx.agent, sub) ? sub : undefined;
+}
+
+/**
+ * Where a delegation works from the `project` an agent gave: the project and a folder in it, or why not. Working for
+ * the owner, a path in none of its projects (a worktree beside one) is the folder itself: where it may work is the
+ * delegation's to decide (DECISIONS.md#d-271).
+ */
+export function placeOf(
+  store: Store,
+  ref: string | undefined,
+  agent: AgentRecord,
+  forOwner: boolean,
+): { project?: string | undefined; folder?: string | undefined } | string {
+  if (!ref) return {};
+  const named = ref.trim();
+  const found = projectOf(store, ref, agent);
+  const beside = typeof found === "string" && path.isAbsolute(named) && forOwner;
+  if (typeof found === "string" && !beside) return found;
+  const project = typeof found === "string" ? undefined : found;
+  // A path inside the project finds it and is the folder the session works in; an id or a name is no path.
+  const inner = project?.path && path.isAbsolute(named) ? path.relative(project.path, path.resolve(named)) : "";
+  const folder = beside
+    ? path.resolve(named)
+    : inner && !inner.startsWith("..") && !path.isAbsolute(inner)
+      ? inner
+      : undefined;
+  return { project: project?.id, folder };
 }
 
 /**
