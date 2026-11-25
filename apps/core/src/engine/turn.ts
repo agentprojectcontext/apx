@@ -150,7 +150,7 @@ export type TurnDeps = {
   /** How the agent acts and how far its files reach: every permission question goes here. */
   permissions: Permissions;
   delegate(caller: Caller, to: DelegateTo, task: string, waitMs: number, signal?: AbortSignal): Promise<string>;
-  /** Starts a workflow (or resumes one) from this turn and waits up to `waitMs` for its result (DECISIONS.md#d-272). */
+  /** Starts a workflow (or resumes one) from this turn and waits up to `waitMs` for its result (DECISIONS.md#d-273). */
   workflow?(caller: Caller, w: WorkflowAsk, waitMs: number, signal?: AbortSignal): Promise<string>;
 };
 

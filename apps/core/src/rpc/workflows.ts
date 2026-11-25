@@ -1,4 +1,4 @@
-// Workflows an agent started (DECISIONS.md#d-272): the owner reads, stops and resumes any; the owner's agents those of a
+// Workflows an agent started (DECISIONS.md#d-273): the owner reads, stops and resumes any; the owner's agents those of a
 // chat they can read; another agent only its own chat's.
 import { canReadChat } from "../domain/chat-access.ts";
 import { ownerAgentOf } from "../domain/owner-work.ts";

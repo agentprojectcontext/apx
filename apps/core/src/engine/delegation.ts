@@ -30,7 +30,7 @@ function teamAddsMidTurn(from: string, text: string): string {
 /** `display`: the answer the caller is writing; a workflow resumed by the owner has none (its card is updated in place). */
 export type Caller = { run: RunRecord; agent: AgentRecord; display?: Display | undefined };
 
-/** A session a workflow's step opened: its end goes to the workflow (DECISIONS.md#d-272). */
+/** A session a workflow's step opened: its end goes to the workflow (DECISIONS.md#d-273). */
 export type WorkflowMark = { id: string; key: string };
 
 /** A delegation that was opened: its session, its run and what the caller is told about where it works. */
@@ -286,7 +286,7 @@ export function createDelegations(deps: {
   windowMs(threadId: string): number;
   /** APX's home, never a session's folder; without it a session's folder keeps to its project. */
   home?: string | undefined;
-  /** A run in a workflow's session ended (DECISIONS.md#d-272). */
+  /** A run in a workflow's session ended (DECISIONS.md#d-273). */
   workflowEnded?(run: RunRecord): void;
   /**
    * Hands `framed` words to the running turn of `a.agent_id` in `a.thread_id` when its loop takes words mid-turn;
@@ -822,7 +822,7 @@ export function createDelegations(deps: {
      */
     childEnded(child: RunRecord): void {
       const from = TERMINAL.has(child.state) ? store.threads.get(child.thread_id)?.parent_id : undefined;
-      // A workflow's step reports to its workflow, which shows it on its own card (DECISIONS.md#d-272).
+      // A workflow's step reports to its workflow, which shows it on its own card (DECISIONS.md#d-273).
       if (store.threads.context(child.thread_id).workflow) {
         if (TERMINAL.has(child.state)) deps.workflowEnded?.(child);
         if (from) release(from);

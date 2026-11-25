@@ -599,7 +599,7 @@ export const appWorkspaceMethods = {
       }),
     effect: true,
   }),
-  /** A workflow an agent started: its phases and agents, and each step's output once done (DECISIONS.md#d-272). */
+  /** A workflow an agent started: its phases and agents, and each step's output once done (DECISIONS.md#d-273). */
   "workflows.get": deferMethod({
     params: () => z.object({ workflow: Id }).strict(),
     result: () =>

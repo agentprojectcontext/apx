@@ -275,7 +275,7 @@ export async function cancelJob(job: string): Promise<void> {
   }
 }
 
-/** Stops a workflow an agent started, or runs what did not finish again (DECISIONS.md#d-272). */
+/** Stops a workflow an agent started, or runs what did not finish again (DECISIONS.md#d-273). */
 export async function workflowAction(workflow: string, action: "stop" | "resume"): Promise<void> {
   try {
     await client.call(action === "stop" ? "workflows.stop" : "workflows.resume", { workflow });

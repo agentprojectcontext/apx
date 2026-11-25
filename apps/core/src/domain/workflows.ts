@@ -1,4 +1,4 @@
-// Workflows an agent started and each of their agent calls (DECISIONS.md#d-272). The plan is kept as the agent wrote
+// Workflows an agent started and each of their agent calls (DECISIONS.md#d-273). The plan is kept as the agent wrote
 // it; a step's output is what later stages and a resume read.
 import { newId, now, qb, type Sql } from "./sql.ts";
 import type { StepState, WorkflowPlan } from "./workflow-plan.ts";

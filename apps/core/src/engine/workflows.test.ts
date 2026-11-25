@@ -1,7 +1,7 @@
 // A workflow runs a plan of delegations by code: items fan out under a cap, each goes through its stages without
 // waiting for the others, a JSON answer is checked (and asked once more), `only_if` stops an item, the finish stage
 // reads every result, and the asking agent gets it. Stopped, it wakes nobody; resumed, done steps are kept.
-// See DECISIONS.md#d-272
+// See DECISIONS.md#d-273
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Part } from "@apx/protocol";

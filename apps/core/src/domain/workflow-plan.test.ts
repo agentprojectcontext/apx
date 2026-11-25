@@ -1,4 +1,4 @@
-// The rules a workflow runs by: which step may start, what it is told, and whether its JSON fits. DECISIONS.md#d-272
+// The rules a workflow runs by: which step may start, what it is told, and whether its JSON fits. DECISIONS.md#d-273
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {

@@ -30,6 +30,7 @@ import { EXTERNAL_SESSIONS_NEWS } from "./external-sessions.ts";
 import { GOOGLE_SHEETS_NEWS } from "./google-sheets.ts";
 import { GROUP_CHATS_NEWS } from "./group-chats.ts";
 import { HEADLINE_MODELS_NEWS } from "./headline-models.ts";
+import { HELPER_MODEL_NEWS } from "./helper-model.ts";
 import { HERMES_IMPORT_NEWS } from "./hermes-import.ts";
 import { HOME_CHANNEL_SWITCH_NEWS } from "./home-channel-switch.ts";
 import { LOCAL_MODELS_NEWS } from "./local-models.ts";
@@ -211,6 +212,7 @@ export const NEWS: readonly NewsEntry[] = [
   BROWSER_RECIPES_NEWS,
   SUPER_AGENT_SETUP_NEWS,
   AGENTS_REACH_NEWS,
+  HELPER_MODEL_NEWS,
   WORKFLOWS_NEWS,
   {
     id: "storage-screen",

@@ -60,8 +60,13 @@ export const MemorySettings = z.object(
     auto_capture: () => z.boolean().optional(),
     auto_dream: () => z.boolean().optional(),
     daily_memory_calls: () => z.number().int().min(0).max(200).optional(),
-    /** The auxiliary model for titles and summaries: a model ref, "off", or none (the agent's own API models). */
-    aux_model: () => z.string().max(200).optional(),
+    /**
+     * The helper model for background work (titles, summaries, memory, judging, images…): an ordered comma-separated
+     * chain of model refs, the first tried first; "off"; or none (the agent's own API models).
+     */
+    aux_model: () => z.string().max(1000).optional(),
+    /** The owner's chosen helper chain, kept while the helper is Automatic or Off so Chosen brings it back. */
+    aux_chain: () => z.string().max(1000).optional(),
   }),
 );
 export type MemorySettings = z.infer<typeof MemorySettings>;

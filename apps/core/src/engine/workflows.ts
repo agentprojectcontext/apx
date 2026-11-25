@@ -1,6 +1,6 @@
 // Runs workflows: a plan of delegations that code, not the model, moves forward. Each agent call is a delegation
 // (`open`), so the callee's mode, the caller's write ceiling, rules, budgets and depth apply as they do to `delegate`;
-// this module only decides which call starts when, keeps their outputs and shows one card. See DECISIONS.md#d-272
+// this module only decides which call starts when, keeps their outputs and shows one card. See DECISIONS.md#d-273
 import type { Part, WorkflowView } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import { worksForOwner } from "../domain/owner-work.ts";

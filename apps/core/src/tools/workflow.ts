@@ -1,4 +1,4 @@
-// The `workflow` tool: a plan of delegations that code runs, shown on one live card (DECISIONS.md#d-272).
+// The `workflow` tool: a plan of delegations that code runs, shown on one live card (DECISIONS.md#d-273).
 import { z } from "zod";
 import { worksForOwner } from "../domain/owner-work.ts";
 import type { Store } from "../domain/store.ts";

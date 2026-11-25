@@ -1320,7 +1320,7 @@ export const MIGRATIONS: readonly string[] = [
   CREATE INDEX extension_events_rate ON extension_events(extension, created_at);
   `,
   `
-  -- Workflows an agent started (DECISIONS.md#d-272): the plan, where it stands, and each agent call of it. A step's
+  -- Workflows an agent started (DECISIONS.md#d-273): the plan, where it stands, and each agent call of it. A step's
   -- output is what a later stage and a resume read; its session is the sub-thread its delegation opened.
   CREATE TABLE workflows (
     id TEXT PRIMARY KEY,

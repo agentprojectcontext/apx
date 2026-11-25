@@ -88,7 +88,7 @@ export type ToolContext = {
     /** The call's own signal: once it aborts, the caller stops waiting and the answer comes in a new turn. */
     signal?: AbortSignal,
   ): Promise<string>;
-  /** Starts a workflow, or resumes one, and waits up to `waitMs` for its result (DECISIONS.md#d-272). */
+  /** Starts a workflow, or resumes one, and waits up to `waitMs` for its result (DECISIONS.md#d-273). */
   workflow?(w: WorkflowAsk, waitMs: number, signal?: AbortSignal): Promise<string>;
   /**
    * Asks the owner and waits (durably) for the answer; the same machine confirmations use. Unless the agent can

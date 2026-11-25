@@ -90,7 +90,7 @@ export function createFanout(deps: {
       (r) =>
         r.id !== except &&
         r.trigger === "a2a" &&
-        // A workflow's steps answer the workflow, never this group (DECISIONS.md#d-272).
+        // A workflow's steps answer the workflow, never this group (DECISIONS.md#d-273).
         !store.threads.context(r.thread_id).workflow &&
         (!TERMINAL.has(r.state) || deps.running(r.id)) &&
         store.threads.get(r.thread_id)?.parent_id === parent.thread_id,

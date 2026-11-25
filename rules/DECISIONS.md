@@ -6262,7 +6262,13 @@ the relay stays for what is the super-agent's own: settings, agents, Flows).
 Not changed here: memory notes are still written only for the agent's own project.
 
 <a id="d-272"></a>
-## D-272 — 2026-11-25 — Workflows: a plan of delegations run by code, with a live card, not a model deciding each hand-off
+## D-272 — 2026-11-25 — Owner-approved public blog attribution
+The owner asked for a public author identity on every blog post and approved keeping it when the private-data gate flagged it. Rule 17 otherwise remains in force: the gate exempts only four approved literal matches in the exact reviewed author-data file bytes. A content edit invalidates the exception; a detected term then fails. New denylist matches, public path and phone shapes, and commit scans remain active. Without a local denylist, these personal terms are not detected. Updating the exemption requires renewed review, not a blanket allowlist. The published attribution and repository history are public; this exception is not a general privacy audit.
+
+Docs impact: updated GUARDRAILS_PROFILE.md to describe the scoped gate exception.
+
+<a id="d-273"></a>
+## D-273 — 2026-11-25 — Workflows: a plan of delegations run by code, with a live card, not a model deciding each hand-off
 The owner watched a coding agent run a workflow (a script that fanned five agents out, piped each result through a
 check, grouped them in phases, showed each agent's state live with a stop button, and resumed from cached results after
 a failure) and asked for it in APX: "just a group of agents, or something better?". What APX had: `delegate` (the

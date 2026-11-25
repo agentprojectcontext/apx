@@ -1,5 +1,5 @@
 // A workflow's plan and the pure rules that run it: which agent calls it makes, which may start, what each is told and
-// whether its JSON answer fits. The runner (engine/workflows.ts) only applies them. See DECISIONS.md#d-272
+// whether its JSON answer fits. The runner (engine/workflows.ts) only applies them. See DECISIONS.md#d-273
 import { WritePolicy } from "@apx/protocol";
 import { z } from "zod";
 

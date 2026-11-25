@@ -1,6 +1,6 @@
 import type { NewsEntry } from "./entries.ts";
 
-// Told once to an owner with a teammate for the super-agent to fan work out to (DECISIONS.md#d-272).
+// Told once to an owner with a teammate for the super-agent to fan work out to (DECISIONS.md#d-273).
 export const WORKFLOWS_NEWS: NewsEntry = {
   id: "workflows",
   since: "2.17.0",

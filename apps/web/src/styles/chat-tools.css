@@ -365,7 +365,7 @@ textarea.inputcard__detail {
   font-weight: var(--apx-weight-regular);
 }
 .plancard .apx-steps__row.is-done .apx-status,
-/* A workflow's card: the plan card's frame, a row per agent call grouped by phase (DECISIONS.md#d-272). */
+/* A workflow's card: the plan card's frame, a row per agent call grouped by phase (DECISIONS.md#d-273). */
 .wfcard {
   gap: 6px;
 }

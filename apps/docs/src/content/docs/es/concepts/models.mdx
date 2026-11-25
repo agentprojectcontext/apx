@@ -228,6 +228,31 @@ su propia CLI con su propio modelo, así que ahí no se usan los respaldos del a
 También podés pedirle a tu super-agente que cambie el modelo por defecto, el router o el modelo de un chat. Sólo guarda
 modelos de un motor encendido y con su clave o sesión, y nunca deja el router sin cadena; si no, no cambia nada.
 
+## El modelo ayudante
+
+Además del modelo que responde cada turno, APX tiene un **modelo ayudante** para el trabajo chico de fondo, así tus
+agentes no gastan su modelo principal en eso. Está en **Configuración › Modelo ayudante** (Memoria también lleva ahí).
+Se encarga de:
+
+- poner título a los chats y resumir los largos;
+- guardar lo que vale recordar de cada chat y ordenar las notas de tus agentes;
+- decidir qué mails merecen un aviso y qué mensajes de grupos merecen respuesta;
+- describir las imágenes y stickers que te mandan, si sabe leer imágenes;
+- elegir qué agente responde en un chat de grupo;
+- sugerir borradores de respuesta cuando el agente no tiene otro modelo para eso (un agente en Claude Code o Codex);
+- repasar la actividad para proponerte mejoras (**Revisión y mejoras**);
+- cubrir al modelo de un agente en avisos cortos y al leer chats que importás.
+
+Tiene tres modos:
+
+- **Automático**: el modelo por API del agente o, si no tiene, los del router. Funciona, pero gasta tu modelo principal.
+- **Elegido**: una lista en orden que elegís vos. Primero va el primero; si no responde, se prueba el siguiente.
+  Sumá hasta cinco, cambiales el orden o sacalos. Conviene uno chico y rápido, por ejemplo uno chico de ChatGPT de tu
+  plan con uno local de Ollama de respaldo. Pasar a Automático o Desactivado guarda la lista, así al volver a Elegido
+  vuelve como estaba.
+- **Desactivado**: los chats no reciben título, los largos no se resumen, la memoria no se guarda sola y no se revisan
+  mails ni mensajes de grupos.
+
 ## Consumo
 
 Cada turno anota su modelo y sus tokens, y si estaban **incluidos** en una suscripción o eran **medidos** (pagados por

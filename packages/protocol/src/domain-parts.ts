@@ -32,7 +32,7 @@ export type DocumentSource = z.infer<typeof DocumentSource>;
 export const WorkflowStepState = z.enum(["pending", "working", "done", "skipped", "failed", "canceled"]);
 export type WorkflowStepState = z.infer<typeof WorkflowStepState>;
 
-/** A workflow as the owner sees it: its phases, each agent's state, and how it ended (DECISIONS.md#d-272). */
+/** A workflow as the owner sees it: its phases, each agent's state, and how it ended (DECISIONS.md#d-273). */
 export const WorkflowView = z.object(
   schemaFields({
     name: () => z.string().max(80),
@@ -340,7 +340,7 @@ const KnownPart = z.discriminatedUnion("type", [
         ),
     }),
   ),
-  /** A workflow the agent started: its phases, each agent's state, and the result once it ends (DECISIONS.md#d-272). */
+  /** A workflow the agent started: its phases, each agent's state, and the result once it ends (DECISIONS.md#d-273). */
   z.object(
     schemaFields({
       type: () => z.literal("workflow"),
