@@ -84,7 +84,7 @@ export type McpDraft = {
   off_in?: string[];
 };
 
-/** Adds or replaces one of the owner's servers (or, with `project`, one in its .apc/mcps.json); null removes it. */
+/** Adds or replaces one of the owner's servers (or, with `project`, one in its .agent/mcps.json); null removes it. */
 export const setMcp = (name: string, server: McpDraft | null, project?: string) =>
   attempt(async () => (await client.call("mcp.set", { name, server, ...(project ? { project } : {}) })).servers);
 

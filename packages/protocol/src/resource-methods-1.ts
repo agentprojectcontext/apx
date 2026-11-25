@@ -111,7 +111,7 @@ export const resourceMethodsPart1 = {
     access: "human",
   }),
   /**
-   * Skills agents can load: APX's own, the owner's (APX home `skills/`), a project's `.apc/skills/` with `project`, and enabled
+   * Skills agents can load: APX's own, the owner's (APX home `skills/`), a project's `.agent/skills/` with `project`, and enabled
    * extensions'. Skills the owner turned off are listed with `on: false`; agents do not see them.
    */
   "skills.list": deferMethod({
@@ -233,7 +233,7 @@ export const resourceMethodsPart1 = {
     access: "human",
   }),
   /**
-   * Copies the picked skills (by candidate id) into APX's skills or a project's `.apc/skills/`: regular files only, no
+   * Copies the picked skills (by candidate id) into APX's skills or a project's `.agent/skills/`: regular files only, no
    * links, nothing run. A taken folder is kept unless `replace`.
    */
   "skills.import": deferMethod({

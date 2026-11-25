@@ -90,7 +90,7 @@ export const teamMethods = {
     access: "human",
   }),
   /**
-   * Writes the chosen templates as .apc/agents/<slug>.md in the project (no project: global agents of the base
+   * Writes the chosen templates as .agent/agents/<slug>.md in the project (no project: global agents of the base
    * project). A slug the project already has is skipped, never overwritten. `hang_under` (a slug in the project)
    * becomes the parent of every installed agent that has none inside what is installed, so a team brought into a
    * project with an orchestrator does not start a second tree. Members of a team with a kind (the executive team is

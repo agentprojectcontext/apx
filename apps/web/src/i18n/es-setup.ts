@@ -93,7 +93,7 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
   "setup.v1.projects": "Proyectos",
   "setup.v1.projectsCount": "{n} · {agents} agentes",
   "setup.v1.projectsBody":
-    "Sus carpetas y agentes (.apc/) vienen como están; los agentes de Default de v1 quedan como agentes globales, con su memoria",
+    "Sus carpetas y agentes vienen como están (copiados a .agent/, el .apc/ de v1 queda); los agentes de Default de v1 quedan como agentes globales, con su memoria",
   "setup.v1.skills": "Skills",
   "setup.v1.skillsBody": "Tus skills globales, copiadas a v2",
   "setup.v1.keys": "Motores",
@@ -234,7 +234,7 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
     "Sin elegir nada: tu crew trabaja en la carpeta de APX (~/.apx/v2/work). Podés sumar carpetas después.",
   "setup.project.plain": "Es una carpeta común: se escribe ahí un AGENTS.md con su nombre.",
   "setup.done.ready": "está listo.",
-  "setup.done.body": "Tu crew queda en {home} y en el .apc/ de cada proyecto. Todo se cambia después desde Config.",
+  "setup.done.body": "Tu crew queda en {home} y en el .agent/ de cada proyecto. Todo se cambia después desde Config.",
   "setup.done.opening": "Abriendo tu chat con {name}…",
   "setup.done.takeOverSkip": "Ahora no",
   "setup.done.takeOver": "Que apx sea esta versión",

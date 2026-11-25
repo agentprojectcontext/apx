@@ -28,7 +28,7 @@ Ask your super-agent to review an agent in its destination project, especially a
 Shared project facts belong in AGENTS.md, not in reusable instructions that carry another project's paths or people.
 
 APX groups changed agents into review notices. Internal creation, edits, clones and imports are covered, as are
-external changes to registered projects' `.apc/agents/*.md` files once the existing project watcher indexes them.
+external changes to registered projects' `.agent/agents/*.md` files once the existing project watcher indexes them.
 It does not scan arbitrary Markdown or unregistered folders. Existing agents are baselined when the detector first
 starts; later changes, including changes found after restarting, become pending reviews. An alert means the definition
 changed, not that APX found an error. No model is called for each save, and the notice never blocks work.
@@ -44,8 +44,8 @@ background semantic review runs merely because a file was saved.
 
 ## Keep project context with the work
 
-APX projects follow [APC (Agent Project Context)](/concepts/projects/): a root `AGENTS.md` and an `.apc/` folder.
-Project agent definitions live in individual Markdown files under `.apc/agents/`. Shared instructions, curated notes
+A [project](/concepts/projects/) has a root `AGENTS.md` and an `.agent/` folder.
+Project agent definitions live in individual Markdown files under `.agent/agents/`. Shared instructions, curated notes
 and project skills can be read and versioned alongside the work.
 
 APX keeps chats, runs, tasks, routines and notes in its local database. Project files are the source of truth for
@@ -74,7 +74,7 @@ Some agents work with you everywhere, some belong to one project, and some exist
     you to every channel. It knows who you are, does small and medium work itself, hands long project work to that project's agent and cannot be deleted.
   </Card>
   <Card title="Project agents" icon="document">
-    Live in a project's `.apc/agents/` folder, one markdown file each. They read the project's `AGENTS.md`, work in
+    Live in a project's `.agent/agents/` folder, one markdown file each. They read the project's `AGENTS.md`, work in
     its folder and travel with the repo.
   </Card>
   <Card title="Global agents" icon="puzzle">
@@ -94,13 +94,13 @@ write it in the agent's file as `icon:` or set it with `apx agents set <agent> b
 
 ## An agent is a markdown file
 
-A project agent is `.apc/agents/<slug>.md`: a frontmatter block with its fields, then a body with its instructions.
-The file is the source of truth. APX watches `.apc/`, so a saved edit shows up in the app right away, and changes you
+A project agent is `.agent/agents/<slug>.md`: a frontmatter block with its fields, then a body with its instructions.
+The file is the source of truth. APX watches `.agent/`, so a saved edit shows up in the app right away, and changes you
 make in the app are written back to the same file.
 
 Here is Lucía, the product manager of Acme Store:
 
-```markdown title=".apc/agents/lucia.md"
+```markdown title=".agent/agents/lucia.md"
 ---
 name: Lucía
 role: Product manager
@@ -165,7 +165,7 @@ its own whatever a list says.
 1. Open a project and go to the **Agents** tab.
 2. Click **Agent** to write a new one, or **Import** to install a template (more on templates below).
 3. Give it a name, a role, a description and its instructions, then **Create agent**. APX writes the file to the
-   project's `.apc/agents/`.
+   project's `.agent/agents/`.
 4. Click any agent's name in a chat header to open its side panel: role, who it reports to, autonomy, model,
    browser profile and its stats.
 5. Click the pencil to edit the whole agent: identity (pick an area and a role from the project or create one;
@@ -189,18 +189,18 @@ List the crew and the model each agent runs on (★ marks Home):
 3f9a1c0d7e21-lucia             Lucía            router                       Product manager
 3f9a1c0d7e21-tomas             Tomás            default                      Developer`}</Terminal>
 
-Create one. With `--project` it lands in that project's `.apc/agents/`; without it, it is a global agent:
+Create one. With `--project` it lands in that project's `.agent/agents/`; without it, it is a global agent:
 
-<Terminal command={'apx agents new vera "Vera" --project p_3f9a1c0d7e21 --role "Marketing"'}>{`Vera (3f9a1c0d7e21-vera) · written to .apc/agents/`}</Terminal>
+<Terminal command={'apx agents new vera "Vera" --project p_3f9a1c0d7e21 --role "Marketing"'}>{`Vera (3f9a1c0d7e21-vera) · written to .agent/agents/`}</Terminal>
 
 Change fields with `key=value` pairs (`name`, `role`, `slug`, `parent`, `blob`):
 
 <Terminal command="apx agents set 3f9a1c0d7e21-vera parent=lucia blob=cobalto">{`Vera (3f9a1c0d7e21-vera) · vera · Marketing`}</Terminal>
 
-Archive one. Its file moves to `.apc/agents/.archived/`, never erased, and its chats stay. An agent that answers a
+Archive one. Its file moves to `.agent/agents/.archived/`, never erased, and its chats stay. An agent that answers a
 channel is archived only once you choose who answers that channel instead:
 
-<Terminal command="apx agents archive 3f9a1c0d7e21-vera">{`archived; file moved to ~/work/acme-store/.apc/agents/.archived/vera.md`}</Terminal>
+<Terminal command="apx agents archive 3f9a1c0d7e21-vera">{`archived; file moved to ~/work/acme-store/.agent/agents/.archived/vera.md`}</Terminal>
 
 Pick its model (see [Models and engines](/concepts/models/)):
 
@@ -221,7 +221,7 @@ what it is good at, not what it refuses. QA still reports instead of fixing whil
 still apply.
 Installing templates does not rewrite the prompts or restrictions of agents you already have.
 
-Installing copies the file into `.apc/agents/` as written. Only `parent` may change, to hang a team's lead under the
+Installing copies the file into `.agent/agents/` as written. Only `parent` may change, to hang a team's lead under the
 project's existing orchestrator. A slug the project already has is skipped, never overwritten.
 
 ## The org chart
@@ -238,10 +238,10 @@ instructions": it tells you what it would change in each, and changes nothing un
 
 <Shot name="org" alt="The Areas and roles view: Product, Engineering and Growth areas with their roles and agents" caption="Agents › Areas and roles" />
 
-Areas and roles are for companies: they live in `.apc/organization.json` (up to 40 areas and 200 roles), and the
+Areas and roles are for companies: they live in `.agent/organization.json` (up to 40 areas and 200 roles), and the
 project's type becomes **Company** when you add them. Agents read them, so Lucía knows Growth is Vera's.
 
-```json title=".apc/organization.json"
+```json title=".agent/organization.json"
 {
   "areas": [
     { "slug": "product", "name": "Product", "goal": "Ship what customers ask for" },
@@ -353,7 +353,7 @@ Leave out `--agent` and you are talking to Home.
 ## Next
 
 <CardGrid>
-  <LinkCard title="Projects" description="The .apc/ folder agents live in." href="/concepts/projects/" />
+  <LinkCard title="Projects" description="The .agent/ folder agents live in." href="/concepts/projects/" />
   <LinkCard title="Autonomy and safety" description="What an agent may do without asking." href="/concepts/autonomy/" />
   <LinkCard title="Models and engines" description="Which model each agent thinks with." href="/concepts/models/" />
   <LinkCard title="Memory" description="What agents remember between chats." href="/concepts/memory/" />

@@ -34,7 +34,7 @@ WhatsApp turn's input is 265 chars before the message (600). Before the fixed in
 so every machine measures the same. Raising it is allowed with a reason in the commit and the numbers here updated;
 trimming something else first is better.
 
-A project's own files are not part of this budget. Its AGENTS.md and `.apc/memory.md` reach its agents whole
+A project's own files are not part of this budget. Its AGENTS.md and `.agent/memory.md` reach its agents whole
 ([D-158](DECISIONS.md#d-158)); they sit in the cached prefix, so a long one costs little after the first call.
 Past a safety limit of 200,000 characters both are cut, with a marker the agent and the owner see
 ([D-110](DECISIONS.md#d-110)).

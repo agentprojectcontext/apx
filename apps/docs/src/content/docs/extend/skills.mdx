@@ -38,14 +38,14 @@ only what it is. Names use letters, digits, dots, `-` and `_`.
 - ~/.apx/v2/skills/ global: every project inherits them
   - weekly-report/
     - SKILL.md
-- ~/work/acme-store/.apc/skills/ this project only
+- ~/work/acme-store/.agent/skills/ this project only
   - release-notes/
     - SKILL.md
 </FileTree>
 
 - **Global** skills live in APX's home (`~/.apx/v2/skills/`). Every project inherits them; a project can turn one off
   for itself, or stop using the global ones altogether.
-- **Project** skills live in the project's `.apc/skills/`, travel with the repository, and only its agents see them.
+- **Project** skills live in the project's `.agent/skills/`, travel with the repository, and only its agents see them.
 - Skills can also come from an [extension](/extend/extensions/).
 - **Other agent apps' skills** are there too, read where those apps keep them: `~/.claude/skills`, `~/.codex/skills`,
   `~/.cursor/skills` and `~/.agents/skills` (globals), and `.claude/skills`, `.codex/skills`… inside a project. Each
@@ -64,7 +64,7 @@ Claude, Codex, Cursor, Agents; pick several).
 takes only that folder). APX reads it first and runs nothing: you see each skill found, its files, the scripts it
 brings, settings only another app reads (like `allowed-tools`), and what was left out (links, oversized files). Tick
 the ones to copy; a name already taken is kept unless you choose to replace it. Inside a project they go to its
-`.apc/skills/`.
+`.agent/skills/`.
 
 <Shot name="resources-skills" alt="Resources, Skills tab: a list of global and project skills with one open, showing its description and where it is on" caption="Resources › Skills" />
 
@@ -93,14 +93,14 @@ daily-brief                      global   Writes a short morning brief from the 
 ```bash
 apx skills import https://github.com/acme/skills                 # list what is there; nothing is copied
 apx skills import https://github.com/acme/skills --only pdf --yes
-apx skills import ./pack.zip --project <project> --yes           # into that project's .apc/skills/
+apx skills import ./pack.zip --project <project> --yes           # into that project's .agent/skills/
 apx skills import ~/.claude/skills/pdf --yes                     # copy another app's skill into APX
 ```
 
 ## Teach other agent apps to use APX
 
 APX ships a few skills for **other** agent apps, so Claude Code, Codex, Cursor and anything that reads `~/.agents`
-know how to use APX (`apx`, `apx-mcp`, `apx-extensions`, `apc-context`). The core copies them into each app's skills
+know how to use APX (`apx`, `apx-mcp`, `apx-extensions`). The core copies them into each app's skills
 folder at every start, only for the apps you have installed. To refresh them now, or see what would change:
 
 ```bash

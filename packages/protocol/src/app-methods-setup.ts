@@ -118,7 +118,7 @@ export const appSetupMethods = {
   ...filesMethods,
   ...gitMethods,
   /**
-   * Read-only import from a local APX v1: registers the project folders it knows (their .apc/ is read from disk)
+   * Read-only import from a local APX v1: registers the project folders it knows (each one's .apc/ is copied to .agent/ and left as v1 has it)
    * and, when asked, copies once into v2's own home: its model API keys (`keys`), its skills (`skills`), and its image
    * engines and voices (`services`).
    */
@@ -406,7 +406,7 @@ export const appSetupMethods = {
     effect: false,
   }),
   /**
-   * Creates an agent. With a project it is written as .apc/agents/<slug>.md in that project's folder (the file is
+   * Creates an agent. With a project it is written as .agent/agents/<slug>.md in that project's folder (the file is
    * the definition); without one it is a global agent kept by APX.
    */
   "agents.create": deferMethod({
@@ -434,7 +434,7 @@ export const appSetupMethods = {
     effect: true,
     access: "human",
   }),
-  /** Removes an agent: a project agent's file moves to .apc/agents/.archived/ (never deleted); threads keep it. */
+  /** Removes an agent: a project agent's file moves to .agent/agents/.archived/ (never deleted); threads keep it. */
   "agents.archive": deferMethod({
     params: () =>
       z
@@ -465,7 +465,7 @@ export const appSetupMethods = {
     effect: false,
     access: "human",
   }),
-  /** Brings an archived agent back: a project agent's file returns to .apc/agents/ and it shows again. */
+  /** Brings an archived agent back: a project agent's file returns to .agent/agents/ and it shows again. */
   "agents.restore": deferMethod({
     params: () =>
       z

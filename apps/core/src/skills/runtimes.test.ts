@@ -12,7 +12,7 @@ const write = (file: string, text: string) => {
 };
 const skills: Skill[] = [
   { name: "apx", files: { "SKILL.md": "---\nname: apx\n---\nnew\n" } },
-  { name: "apc-context", files: { "SKILL.md": "---\nname: apc-context\n---\n", "notes/extra.md": "x" } },
+  { name: "apx-mcp", files: { "SKILL.md": "---\nname: apx-mcp\n---\n", "notes/extra.md": "x" } },
 ];
 const actions = (p: ReturnType<typeof plan>) => p.steps.map((s) => `${s.runtime.id}:${s.name}:${s.action}`).sort();
 
@@ -20,7 +20,7 @@ test("the shipped skills each have a SKILL.md with a matching name", () => {
   const shipped = readSkills(sourceDir());
   assert.deepEqual(
     shipped.map((s) => s.name),
-    ["apc-context", "apx", "apx-extensions", "apx-mcp"],
+    ["apx", "apx-extensions", "apx-mcp"],
   );
   for (const s of shipped) assert.match(s.files["SKILL.md"] ?? "", new RegExp(`^---\\nname: ${s.name}\\n`));
 });
@@ -33,9 +33,9 @@ test("only installed runtimes are planned; CODEX_HOME moves Codex", () => {
   const p = plan(skills, runtimes({ home, codex }));
   assert.deepEqual(p.missing.map((r) => r.id).sort(), ["agents", "cursor"]);
   assert.deepEqual(actions(p), [
-    "claude:apc-context:create",
+    "claude:apx-mcp:create",
     "claude:apx:create",
-    "codex:apc-context:create",
+    "codex:apx-mcp:create",
     "codex:apx:create",
   ]);
   assert.ok(p.steps.some((s) => s.dir === path.join(codex, "skills", "apx")));
@@ -47,20 +47,27 @@ test("install creates, updates, removes retired APX skills and leaves every othe
   write(path.join(dir, "apx", "SKILL.md"), "old v1 text");
   write(path.join(dir, "apx", "stale.md"), "from an older version");
   write(path.join(dir, "apx-runtime", "SKILL.md"), "retired");
+  write(path.join(dir, "apc-context", "SKILL.md"), "read .apc/ first");
   write(path.join(dir, "someone-else", "SKILL.md"), "not ours");
   const targets = runtimes({ home }).filter((r) => r.id === "claude");
 
   const first = plan(skills, targets);
-  assert.deepEqual(actions(first), ["claude:apc-context:create", "claude:apx-runtime:remove", "claude:apx:update"]);
+  assert.deepEqual(actions(first), [
+    "claude:apc-context:remove",
+    "claude:apx-mcp:create",
+    "claude:apx-runtime:remove",
+    "claude:apx:update",
+  ]);
   apply(first, skills);
 
   assert.equal(fs.readFileSync(path.join(dir, "apx", "SKILL.md"), "utf8"), skills[0]?.files["SKILL.md"]);
   assert.ok(!fs.existsSync(path.join(dir, "apx", "stale.md")), "an APX skill folder becomes an exact copy");
-  assert.equal(fs.readFileSync(path.join(dir, "apc-context", "notes", "extra.md"), "utf8"), "x");
+  assert.equal(fs.readFileSync(path.join(dir, "apx-mcp", "notes", "extra.md"), "utf8"), "x");
   assert.ok(!fs.existsSync(path.join(dir, "apx-runtime")));
+  assert.ok(!fs.existsSync(path.join(dir, "apc-context")), "the skill that read .apc/ is retired");
   assert.equal(fs.readFileSync(path.join(dir, "someone-else", "SKILL.md"), "utf8"), "not ours");
 
-  assert.deepEqual(actions(plan(skills, targets)), ["claude:apc-context:unchanged", "claude:apx:unchanged"]);
+  assert.deepEqual(actions(plan(skills, targets)), ["claude:apx-mcp:unchanged", "claude:apx:unchanged"]);
 });
 
 test("a link in place of a skill is left alone; a retired one is unlinked without touching its target", () => {
@@ -74,7 +81,7 @@ test("a link in place of a skill is left alone; a retired one is unlinked withou
   const targets = runtimes({ home }).filter((r) => r.id === "agents");
 
   const p = plan(skills, targets);
-  assert.deepEqual(actions(p), ["agents:apc-context:create", "agents:apx-task:remove", "agents:apx:skip-link"]);
+  assert.deepEqual(actions(p), ["agents:apx-mcp:create", "agents:apx-task:remove", "agents:apx:skip-link"]);
   apply(p, skills);
   assert.ok(fs.lstatSync(path.join(dir, "apx")).isSymbolicLink());
   assert.ok(!fs.existsSync(path.join(dir, "apx-task")));

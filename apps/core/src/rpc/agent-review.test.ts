@@ -21,7 +21,7 @@ test("real core detects internal and external agent edits, rejects stale reviews
     const queue = () => env.client.call("agents.review_queue", { project_id: project.id });
     await waitFor(async () => (await queue()).agents.length === 1, "creation review");
     const read = await env.client.call("agents.get", { agent: made.id });
-    const file = path.join(dir.path, ".apc", "agents", "research.md");
+    const file = path.join(dir.path, ".agent", "agents", "research.md");
     fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace("Original instructions", "External instructions"));
     // Applying immediately, before the watch debounce, must re-read the external file.
     await assert.rejects(

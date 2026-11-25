@@ -1,5 +1,6 @@
 import path from "node:path";
 import type { CallModel, RoutineAction, Schedule, TaskPriority } from "@apx/protocol";
+import { moveLegacyFolder, needsFolderMove } from "../apc/folder.ts";
 import type { ApcSync } from "../apc/sync.ts";
 import type { Channels } from "../channels/manager.ts";
 import { memorySettings, saveMemorySettings } from "../domain/memory-settings.ts";
@@ -191,6 +192,8 @@ export function importV1(deps: V1ImportDeps, groups: readonly V1Group[]) {
     let n = 0;
     for (const p of v1Projects(home))
       try {
+        // v1 still reads .apc/: its files are copied to .agent/ and left where they are (v1 stays untouched).
+        if (needsFolderMove(p.path)) moveLegacyFolder(p.path, { keep: true });
         deps.apc.register(p.path);
         n++;
       } catch {}

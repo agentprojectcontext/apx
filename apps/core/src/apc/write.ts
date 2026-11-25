@@ -1,9 +1,11 @@
-// Writing agent files in a project's .apc/agents/. Only the fields APX changes are rewritten; every other
+// Writing agent files in a project's .agent/agents/. Only the fields APX changes are rewritten; every other
 // frontmatter line and the layout of the file stay as the owner (or another tool) left them. Nothing is deleted:
-// removing an agent moves its file to .apc/agents/.archived/.
+// removing an agent moves its file to .agent/agents/.archived/.
+
 import fs from "node:fs";
 import path from "node:path";
 import { writeAtomic } from "../paths.ts";
+import { AGENT_DIR, agentDirFor } from "./folder.ts";
 import { listField, parseFrontmatter } from "./frontmatter.ts";
 import { SLUG_RE, withoutBom } from "./read.ts";
 
@@ -25,7 +27,7 @@ export type AgentFileFields = {
   aliases?: string[] | undefined;
 };
 
-const agentsDir = (root: string) => path.join(root, ".apc", "agents");
+const agentsDir = (root: string) => path.join(root, AGENT_DIR, "agents");
 const agentFile = (root: string, slug: string) => path.join(agentsDir(root), `${slug}.md`);
 
 const isLink = (p: string) => {
@@ -36,9 +38,10 @@ const isLink = (p: string) => {
   }
 };
 
-/** Refuses to write through a symlink: a repo must not be able to redirect APX's writes outside .apc/agents. */
+/** Refuses to write through a symlink: a repo must not be able to redirect APX's writes outside .agent/agents. */
 function guard(root: string, ...files: string[]): void {
-  for (const p of [path.join(root, ".apc"), agentsDir(root), ...files])
+  agentDirFor(root);
+  for (const p of [path.join(root, AGENT_DIR), agentsDir(root), ...files])
     if (isLink(p)) throw new Error(`refusing to write through a symlink: ${path.relative(root, p)}`);
 }
 
@@ -88,7 +91,7 @@ export function writeNewAgent(root: string, slug: string, fields: AgentFileField
   if (!SLUG_RE.test(slug)) throw new Error(`invalid slug "${slug}" (lowercase letters, digits, - and _)`);
   const file = agentFile(root, slug);
   guard(root, file);
-  if (fs.existsSync(file)) throw new Error(`an agent file already exists: .apc/agents/${slug}.md`);
+  if (fs.existsSync(file)) throw new Error(`an agent file already exists: .agent/agents/${slug}.md`);
   writeAtomic(
     file,
     join(
@@ -120,7 +123,7 @@ export function writeAgentFromTemplate(
   if (!SLUG_RE.test(slug)) throw new Error(`invalid slug "${slug}" (lowercase letters, digits, - and _)`);
   const file = agentFile(root, slug);
   guard(root, file);
-  if (fs.existsSync(file)) throw new Error(`an agent file already exists: .apc/agents/${slug}.md`);
+  if (fs.existsSync(file)) throw new Error(`an agent file already exists: .agent/agents/${slug}.md`);
   const { front, body } = split(text);
   writeAtomic(file, join(setFields(front, fields), body));
 }
@@ -157,7 +160,7 @@ export function updateAgentFile(
 export function renameAgentFile(root: string, from: string, to: string): void {
   if (!SLUG_RE.test(to)) throw new Error(`invalid slug "${to}"`);
   guard(root, agentFile(root, from), agentFile(root, to));
-  if (fs.existsSync(agentFile(root, to))) throw new Error(`an agent file already exists: .apc/agents/${to}.md`);
+  if (fs.existsSync(agentFile(root, to))) throw new Error(`an agent file already exists: .agent/agents/${to}.md`);
   const known = listField(parseFrontmatter(fs.readFileSync(agentFile(root, from), "utf8")).fields.aliases);
   updateAgentFile(root, from, { aliases: [...new Set([...known, from])] });
   fs.renameSync(agentFile(root, from), agentFile(root, to));
@@ -188,13 +191,13 @@ function archivedFiles(root: string, slug: string): string[] {
   }
 }
 
-/** Brings an archived agent's newest file back to .apc/agents/; refuses when that slug is taken again. */
+/** Brings an archived agent's newest file back to .agent/agents/; refuses when that slug is taken again. */
 export function restoreAgentFile(root: string, slug: string): string {
   const from = archivedFiles(root, slug)[0];
   if (!from) throw new Error(`no archived file for ${slug}`);
   const to = agentFile(root, slug);
   guard(root, to);
-  if (fs.existsSync(to)) throw new Error(`.apc/agents/${slug}.md exists: another agent took that slug`);
+  if (fs.existsSync(to)) throw new Error(`.agent/agents/${slug}.md exists: another agent took that slug`);
   fs.renameSync(from, to);
   return path.relative(root, to);
 }
@@ -212,18 +215,18 @@ export function deleteArchivedAgentFiles(root: string, slug: string): number {
 export type ProjectMeta = { name?: string | undefined; description?: string | null; kind?: string | null };
 
 /**
- * Changes .apc/project.json: given keys are set ("" or null removes one), every other key (apx_id, what other tools
- * keep there) stays. Refuses a symlinked .apc or file, like the agent files.
+ * Changes .agent/project.json: given keys are set ("" or null removes one), every other key (apx_id, what other tools
+ * keep there) stays. Refuses a symlinked .agent or file, like the agent files.
  */
 export function writeProjectMeta(root: string, meta: ProjectMeta): void {
-  const dir = path.join(root, ".apc");
+  const dir = agentDirFor(root);
   const file = path.join(dir, "project.json");
   for (const p of [dir, file])
     if (isLink(p)) throw new Error(`refusing to write through a symlink: ${path.relative(root, p)}`);
   let current: Record<string, unknown> = {};
   if (fs.existsSync(file)) {
     const raw = JSON.parse(withoutBom(fs.readFileSync(file, "utf8"))) as unknown;
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error(".apc/project.json is not an object");
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error(".agent/project.json is not an object");
     current = raw as Record<string, unknown>;
   }
   for (const [key, value] of Object.entries(meta)) {

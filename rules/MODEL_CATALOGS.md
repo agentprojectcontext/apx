@@ -133,7 +133,7 @@ replaces an already reported concrete model. See [Claude Code model configuratio
 The owner's APX runs a daily routine on the APX project that:
 
 1. Runs `node scripts/model-catalog-check.ts` (pre-command): it refreshes every list through `apx models --refresh
-   --json` and prints what appeared or left since the last run (kept in `.apc/model-catalog-last.json`), agent and
+   --json` and prints what appeared or left since the last run (kept in `.agent/model-catalog-last.json`), agent and
    router choices their provider no longer lists, and pinned ids missing from their provider's list.
 2. Reads the official model and deprecation pages: [Gemini models](https://ai.google.dev/gemini-api/docs/models),
    [Gemini deprecations](https://ai.google.dev/gemini-api/docs/deprecations),

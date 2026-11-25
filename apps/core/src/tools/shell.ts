@@ -8,7 +8,7 @@ import { z } from "zod";
 import { deleteApproval, nativeApproval, strictApproval } from "../domain/approvals.ts";
 import { placeName } from "../domain/owner-work.ts";
 import type { Store } from "../domain/store.ts";
-import { namesApc } from "../engine/paths.ts";
+import { namesAgentFiles } from "../engine/paths.ts";
 import { AGENT_WORKSPACE } from "../environments/worker.ts";
 import { insideReal } from "../paths.ts";
 import { commandShell } from "../processes.ts";
@@ -130,8 +130,8 @@ function riskBesides(command: string, apxPort?: number): Confirm {
   if (readsOnly(c)) return "never";
   // Anything else APX's own CLI does, which finds the port by itself, could act as the owner too.
   if (runsApxCli(code)) return "always";
-  // APC definitions and AGENTS.md set agents' modes: changed by a command as by file_write, the owner says yes first.
-  return mayChange(c, namesApc) ? "always" : "ask";
+  // Agent files (.agent/) and AGENTS.md set agents' modes: changed by a command as by file_write, the owner says yes first.
+  return mayChange(c, namesAgentFiles) ? "always" : "ask";
 }
 
 /** Programs that run the command after them: `env apx …`, `xargs apx`, `bash -c "apx …"`, `pnpm exec apx`. */

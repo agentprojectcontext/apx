@@ -56,7 +56,7 @@ You answer Acme Store's customers. Be brief and kind; never promise refunds with
 `,
 };
 
-/** A project folder like a real one: AGENTS.md, .apc/ with four agents, some code and a short git history. */
+/** A project folder like a real one: AGENTS.md, .agent/ with four agents, some code and a short git history. */
 export function writeDemoWorld(dir: string) {
   const repo = path.join(dir, "work", "acme-store");
   write(
@@ -64,16 +64,16 @@ export function writeDemoWorld(dir: string) {
     "# Acme Store\n\nA small online shop: catalog, cart and checkout (TypeScript, Vite).\n\n- `pnpm dev` runs it.\n- Deploys go out on Fridays.\n",
   );
   write(
-    path.join(repo, ".apc", "project.json"),
+    path.join(repo, ".agent", "project.json"),
     JSON.stringify({ name: "Acme Store", description: "Our online shop", kind: "company" }, null, 2),
   );
-  for (const [slug, text] of Object.entries(AGENTS)) write(path.join(repo, ".apc", "agents", `${slug}.md`), text);
+  for (const [slug, text] of Object.entries(AGENTS)) write(path.join(repo, ".agent", "agents", `${slug}.md`), text);
   write(
-    path.join(repo, ".apc", "skills", "release-notes", "SKILL.md"),
+    path.join(repo, ".agent", "skills", "release-notes", "SKILL.md"),
     "---\nname: release-notes\ndescription: Write the release notes for a storefront deploy from the merged changes.\n---\nList what changed for customers first, then fixes. Keep it under 120 words.\n",
   );
   write(
-    path.join(repo, ".apc", "mcps.json"),
+    path.join(repo, ".agent", "mcps.json"),
     JSON.stringify(
       {
         mcpServers: {

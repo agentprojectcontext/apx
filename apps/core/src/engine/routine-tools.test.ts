@@ -27,10 +27,10 @@ before(async () => {
   env = await startCore({ llm });
   folder = tempDir("apx-routine-tools-");
   root = folder.path;
-  fs.mkdirSync(path.join(root, ".apc"));
+  fs.mkdirSync(path.join(root, ".agent"));
   fs.writeFileSync(path.join(root, "AGENTS.md"), "# Northwind\n");
   fs.writeFileSync(
-    path.join(root, ".apc", "mcps.json"),
+    path.join(root, ".agent", "mcps.json"),
     JSON.stringify({ mcpServers: { notes: { command: process.execPath, args: [SERVER] } } }),
   );
   project = (await env.client.call("projects.register", { path: root })).project.id;

@@ -3,9 +3,9 @@ import type { Selectable } from "kysely";
 import type { ProjectsTable } from "../db/schema.ts";
 import { now, opt, qb, type Sql } from "./sql.ts";
 
-/** `context` is AGENTS.md and `memory` the owner's .apc/memory.md: both go to the agents, never to clients. */
+/** `context` is AGENTS.md and `memory` the owner's .agent/memory.md: both go to the agents, never to clients. */
 export type ProjectRecord = Project & { path?: string; context?: string; memory?: string };
-type ProjectWrite = Omit<ProjectRecord, "present" | "agents_md_chars" | "unreadable"> & {
+type ProjectWrite = Omit<ProjectRecord, "present" | "agents_md_chars" | "unreadable" | "legacy_folder"> & {
   present?: boolean;
   context_chars?: number;
 };
@@ -56,10 +56,11 @@ export function projectsRepo({ one, all, run }: Sql, changed: () => void) {
   };
   // Not stored: the next start reads every folder again (apc/sync.ts load).
   const unreadable = new Map<string, Unreadable>();
+  const legacy = new Set<string>();
   const shape = (r: Selectable<ProjectsTable>): ProjectRecord => {
     const p = toProject(r);
     const why = unreadable.get(p.id);
-    return why ? { ...p, unreadable: why } : p;
+    return { ...p, ...(why ? { unreadable: why } : {}), ...(legacy.has(p.id) ? { legacy_folder: true } : {}) };
   };
   /** Every record indexed at a folder, the one that holds it first: registered, then the oldest. */
   const atPath = (p: string): ProjectRecord[] =>
@@ -175,6 +176,13 @@ export function projectsRepo({ one, all, run }: Sql, changed: () => void) {
       if (unreadable.get(id) === why) return;
       if (why) unreadable.set(id, why);
       else unreadable.delete(id);
+      changed();
+    },
+    /** Its files are still only in .agent/ (the move to .agent/ is offered), while this core runs. */
+    setLegacyFolder(id: string, pending: boolean): void {
+      if (legacy.has(id) === pending) return;
+      if (pending) legacy.add(id);
+      else legacy.delete(id);
       changed();
     },
     /** How far its agents go on their own when they set nothing; undefined = standard. */

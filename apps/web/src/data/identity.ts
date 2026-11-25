@@ -108,6 +108,8 @@ export type ProjectEntry = {
   kind?: string | undefined;
   /** A subproject's parent (DEFAULT_PID for the base project): it works with the parent's agents and resources. */
   parent?: string | undefined;
+  /** Its agents and settings are still in .apc/: the overview offers the move to .agent/. */
+  legacyFolder?: boolean | undefined;
 };
 
 /** Sidebar order: the base space first, then the real projects as the core lists them. */
@@ -116,7 +118,15 @@ export function projectEntries(projects: Project[]): ProjectEntry[] {
     { id: DEFAULT_PID, name: baseName(), path: undefined, isDefault: true, kind: data.get().base.kind },
     ...projects
       .filter((p) => p.registered !== false)
-      .map((p) => ({ id: p.id, name: p.name, path: p.path, isDefault: false, kind: p.kind, parent: p.parent })),
+      .map((p) => ({
+        id: p.id,
+        name: p.name,
+        path: p.path,
+        isDefault: false,
+        kind: p.kind,
+        parent: p.parent,
+        legacyFolder: p.legacy_folder,
+      })),
   ];
 }
 

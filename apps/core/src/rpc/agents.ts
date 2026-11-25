@@ -1,4 +1,4 @@
-// Agents: list, create, edit, archive. A project agent's definition is its file (.apc/agents/<slug>.md): edits are
+// Agents: list, create, edit, archive. A project agent's definition is its file (.agent/agents/<slug>.md): edits are
 // written there and read back through the index; what only APX knows (model choice, browser profile) lives in the
 // database. Global agents (no project) live in the database.
 import { type Agent, type ModelChoice, names, parentIn, reportsOf } from "@apx/protocol";

@@ -93,7 +93,7 @@ export const enTeam = {
   "org.goalHint": "One line: what this area is for.",
   "team.new": "Agent",
   "team.new.global": "A global agent: it works in any project.",
-  "team.new.project": "It joins {project}: APX writes it to the project's .apc/agents/.",
+  "team.new.project": "It joins {project}: APX writes it to the project's .agent/agents/.",
   "team.new.create": "Create agent",
   "team.new.randomName": "Another name",
   "team.new.promptHint": "How it thinks and works. You can change it later.",
@@ -107,7 +107,7 @@ export const enTeam = {
   "team.delete.body":
     "It leaves the team and every list; its chats stay and agents that reported to it move up to its manager. You can bring it back or delete it for good in Config › Agents.",
   "team.delete.bodyFile":
-    "It leaves the team and every list; its file {file} is kept in .apc/agents/.archived/ and its chats stay. You can bring it back or delete it for good in Config › Agents.",
+    "It leaves the team and every list; its file {file} is kept in .agent/agents/.archived/ and its chats stay. You can bring it back or delete it for good in Config › Agents.",
   "archived.title": "Archived",
   "archived.note": "Agents you took off the team. Restore one to bring it back, or delete it for good.",
   "archived.restore": "Restore",
@@ -155,7 +155,7 @@ export const enTeam = {
   "team.file": "File",
   "team.import.title": "Import agents",
   "team.import.lead":
-    "Teams and single agents from APX and from your v1 vault (read only). They are written to this project's .apc/agents/.",
+    "Teams and single agents from APX and from your v1 vault (read only). They are written to this project's .agent/agents/.",
   "team.import.teams": "Teams",
   "team.import.singles": "Single agents",
   "team.import.fromV1": "V1 vault",
@@ -180,7 +180,7 @@ export const enTeam = {
   "team.import.fromTemplates": "Templates",
   "team.import.fromProjects": "Another project",
   "team.clone.lead":
-    "Copies of your other projects' agents, with their whole role and prompt. They are written to this project's .apc/agents/.",
+    "Copies of your other projects' agents, with their whole role and prompt. They are written to this project's .agent/agents/.",
   "team.clone.global": "Global agents",
   "team.clone.empty": "There are no agents in other projects to copy.",
   "team.clone.rename": "Give the copies new names",

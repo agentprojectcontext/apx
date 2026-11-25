@@ -11,6 +11,7 @@ export const sourceDir = () => path.resolve(import.meta.dirname, "../../../termi
  * the shipped set are ever touched; every other skill in a runtime's folder belongs to someone else.
  */
 const RETIRED = [
+  "apc-context",
   "apx-agency-agents",
   "apx-agent",
   "apx-mcp-builder",

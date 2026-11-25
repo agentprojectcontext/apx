@@ -1,6 +1,6 @@
 ---
 title: Projects
-description: A project is a folder with AGENTS.md and .apc/, the open APC standard; APX reads it, watches it and keeps its own side apart.
+description: A project is a folder with AGENTS.md and .agent/; APX reads it, watches it and keeps its own side apart.
 sidebar:
   order: 2
 ---
@@ -9,17 +9,17 @@ import { Aside, Steps, Tabs, TabItem, CardGrid, LinkCard, FileTree } from "@astr
 import Shot from "../../../components/Shot.astro";
 import Terminal from "../../../components/Terminal.astro";
 
-A project is a place where work happens: a repo, a company, your personal life admin. In APX it is a folder that
-follows **APC** (Agent Project Context), an open standard: an `AGENTS.md` at the root and a `.apc/` folder beside it.
-Your agents, their instructions, the project's skills and MCP servers all live in those files, so they travel with
-the folder, show up in `git diff`, and can be read by any tool that understands the standard.
+A project is a place where work happens: a repo, a company, your personal life admin. In APX it is a folder with an
+`AGENTS.md` at the root, the instructions file most coding agents read, and a `.agent/` folder beside it. Your agents,
+their instructions, the project's skills and MCP servers all live in those files, so they travel with the folder, show
+up in `git diff`, and any tool can read them.
 
 ## What is in a project
 
 <FileTree>
 - acme-store/
   - AGENTS.md what the project is and how to work in it
-  - .apc/
+  - .agent/
     - project.json name, description and type
     - memory.md your fixed notes for this project's agents
     - organization.json areas and roles (companies)
@@ -39,19 +39,41 @@ the folder, show up in `git diff`, and can be read by any tool that understands 
 | File | What APX does with it |
 |---|---|
 | `AGENTS.md` | Project context every agent here reads, whole: how long it is, is your choice. Only a file past 200,000 characters (a safety limit) is cut to its head and tail; agents are told which lines were left out and read them when they need them, and the project's settings in the panel (and `apx projects list`) say so. |
-| `.apc/project.json` | `name`, `description` and `kind`. A committed `apx_id` keeps the project's id stable; a clone or worktree next to the original gets its own. |
-| `.apc/agents/<slug>.md` | One agent each. See [Agents](/concepts/agents/). |
-| `.apc/memory.md` | Notes you write by hand; agents read them and never write them. Up to the same 200,000-character safety limit, they receive the whole file; above it, they receive its head, tail and an omission marker. The panel and CLI truncation notice covers `AGENTS.md` only, not these notes. |
-| `.apc/skills/<name>/SKILL.md` | Skills only this project's agents get. See [Skills](/extend/skills/). |
-| `.apc/mcps.json` | `{"mcpServers": …}` for this project, with no secrets in it. Each server must be trusted before it runs. See [MCP servers](/extend/mcp/). |
-| `.apc/organization.json` | Areas and roles for a company (up to 40 areas, 200 roles). |
+| `.agent/project.json` | `name`, `description` and `kind`. A committed `apx_id` keeps the project's id stable; a clone or worktree next to the original gets its own. |
+| `.agent/agents/<slug>.md` | One agent each. See [Agents](/concepts/agents/). |
+| `.agent/memory.md` | Notes you write by hand; agents read them and never write them. Up to the same 200,000-character safety limit, they receive the whole file; above it, they receive its head, tail and an omission marker. The panel and CLI truncation notice covers `AGENTS.md` only, not these notes. |
+| `.agent/skills/<name>/SKILL.md` | Skills only this project's agents get. See [Skills](/extend/skills/). |
+| `.agent/mcps.json` | `{"mcpServers": …}` for this project, with no secrets in it. Each server must be trusted before it runs. See [MCP servers](/extend/mcp/). |
+| `.agent/organization.json` | Areas and roles for a company (up to 40 areas, 200 roles). |
 
-APX watches `.apc/` and `AGENTS.md`. Edit a file in your editor, save it, and the app picks it up a moment later.
+APX watches `.agent/` and `AGENTS.md`. Edit a file in your editor, save it, and the app picks it up a moment later.
 
 <Aside type="caution">
-  APX refuses symlinks inside `.apc/`, both when reading and when writing. A repo can't pull another file from your
+  APX refuses symlinks inside `.agent/`, both when reading and when writing. A repo can't pull another file from your
   machine into an agent's prompt, or redirect APX's writes somewhere else.
 </Aside>
+
+## Projects from earlier versions (`.apc/`)
+
+Earlier versions of APX, and APX v1, kept the same files in a folder named `.apc/`. APX no longer reads it: a project
+that still has its files there shows an **Agents in the old folder** card on its overview, and its agents keep
+working as APX last read them, but changes you make in `.apc/` are not picked up and APX writes nothing new there.
+
+Move them once, from that card's **Move to .agent/** button, or for every project at once:
+
+<Terminal title="move every project to .agent/">
+
+```bash
+apx doctor --fix
+```
+
+</Terminal>
+
+The move copies each file to `.agent/`, checks every copy is identical, and only then removes it from `.apc/`. It is
+safe to run again. If `.agent/` already has a different version of a file, nothing is removed: keep the version you
+want in both places and run it again. Git worktrees inside `.apc/worktrees/` stay where they are (move one with
+`git worktree move`, or let it go when its branch is merged). `AGENTS.md` does not move. An APX v1 still installed
+keeps reading `.apc/`, so after the move it no longer sees that project's agents.
 
 ## Project types
 
@@ -80,11 +102,11 @@ Only a **Company** gets areas and roles. Importing the executive team makes a pr
 
 </Steps>
 
-If the folder has no `AGENTS.md`, APX writes a one-line one and creates `.apc/`. Nothing else in your folder is
+If the folder has no `AGENTS.md`, APX writes a one-line one and creates `.agent/`. Nothing else in your folder is
 touched.
   </TabItem>
   <TabItem label="Terminal">
-Register a folder that already has an `AGENTS.md` or a `.apc/`:
+Register a folder that already has an `AGENTS.md` or a `.agent/`:
 
 <Terminal command="apx projects register ~/work/acme-store">{`Acme Store (p_3f9a1c0d7e21): 4 agents`}</Terminal>
 
@@ -139,7 +161,7 @@ away.
 
 A read-only folder must exist and be a folder. It can't be APX's own folder, a folder inside it, or a folder that
 holds it, and it can't be inside the project's own folder (agents can already read and write there). APX keeps the
-list in its database, not in `.apc/`, so a repo can't widen what its agents read.
+list in its database, not in `.agent/`, so a repo can't widen what its agents read.
 
 How far an agent goes outside its folders depends on its [mode](/concepts/autonomy/). In Auto it reads any folder on
 the computer but APX's own and can change your other projects; changing any other folder shows a card first, so you
@@ -163,14 +185,14 @@ whatever you call it. When you want agents that work in a specific folder, make 
 A project can hold **subprojects**, one level deep: a subproject has none of its own. The base project can have
 them too, so ten clients, sites or shops can share the team you already have instead of each getting new agents.
 
-A subproject is a project like any other: its own folder with `AGENTS.md` and `.apc/`, its own chats, tasks,
+A subproject is a project like any other: its own folder with `AGENTS.md` and `.agent/`, its own chats, tasks,
 routines, apps, files and memory. What makes it a subproject is that it also takes from its parent:
 
 | From the parent | How |
 |---|---|
 | Agents | The parent's agents work in it: they chat, take its tasks and routines, and are delegated to there. Asked in the subproject, they work in the subproject's folder, with its `AGENTS.md` and its memory. A subproject can also have agents of its own. |
 | Variables | A `secret://NAME` the subproject has no value for uses the parent's own value, then the global one. |
-| Skills and MCP servers | The parent's `.apc/skills/` and `.apc/mcps.json` count in the subproject too. |
+| Skills and MCP servers | The parent's `.agent/skills/` and `.agent/mcps.json` count in the subproject too. |
 | Apps | The parent's apps are listed with the subproject's. |
 
 The subproject's own wins on a name both have. **Memory is never inherited**: the parent's notes stay the parent's.
@@ -222,7 +244,7 @@ it has one of its own, its **Git**.
 <Shot name="project" alt="Acme Store's Overview tab: a Board with a sales widget and a launch checklist, the team and recent chats" caption="Acme Store › Overview" />
 
 <CardGrid>
-  <LinkCard title="Agents" description="The team in .apc/agents/." href="/concepts/agents/" />
+  <LinkCard title="Agents" description="The team in .agent/agents/." href="/concepts/agents/" />
   <LinkCard title="Tasks" description="The project's work, assigned to agents." href="/office/tasks/" />
   <LinkCard title="Routines" description="Scheduled work for the project." href="/office/routines/" />
   <LinkCard title="Board and widgets" description="Live widgets pinned to the Overview." href="/office/board/" />

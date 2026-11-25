@@ -22,7 +22,7 @@ New here or reviewing? Read [`rules/HUMAN_MODEL.md`](rules/HUMAN_MODEL.md) first
 | **harness** | What runs an agent turn's loop: `native` (ours), `claude` (Agent SDK), `codex` (Codex SDK), `acp` (agents that speak the Agent Client Protocol). | A provider. "Engine" and "runtime" are not used for either. |
 | **channel / contact / room** | An app APX talks through (WhatsApp, Telegram, Discord…); a person on it; a shared place on it (a Discord #channel, a group). [D-049](rules/DECISIONS.md#d-049) | A **thread**: each contact chat and each room is kept in one. |
 | **thread / run / step** | A conversation; one agent turn in it (durable, with its input and origin); one tool call in a run. | v1's ledgers, sessions and conversations (all replaced by these). |
-| **APC** | The open standard: `AGENTS.md` + `.apc/` in a project. APX implements it. | APX itself. |
+| **agent folder** | `.agent/` in a project: its agents (`agents/<slug>.md`), `project.json`, `memory.md`, skills. `AGENTS.md` stays at the root. [D-273](rules/DECISIONS.md#d-273) | `.apc/`, its old name (moved by `apx doctor --fix`); code still says `apc` (`apps/core/src/apc`). |
 
 ## Dev loop
 

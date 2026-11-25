@@ -102,7 +102,7 @@ test("references outside the project, administrative, secret-looking or behind a
             path.join(outside.path, "elsewhere.md"),
             // Written on Windows: the file name after a backslash is not a file of the project.
             "C:\\Users\\owner\\Desktop\\elsewhere.md",
-            ".apc/memory.md AGENTS.md secrets.md api_key.txt notes.pdf ~/home.md",
+            ".agent/memory.md AGENTS.md secrets.md api_key.txt notes.pdf ~/home.md",
             "http://docs.google.com/document/d/plainhttp/edit",
             "https://docs.google.com.evil.example/document/d/lookalike/edit",
             "https://evil.example/document/d/foreign/edit",

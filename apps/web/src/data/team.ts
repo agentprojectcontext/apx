@@ -125,7 +125,7 @@ export async function updateAgent(agent: string, fields: Omit<Params<"agents.upd
   }
 }
 
-/** A new agent: in a project's `.apc/agents/` or, with no project, a global one. Undefined when the core refused. */
+/** A new agent: in a project's `.agent/agents/` or, with no project, a global one. Undefined when the core refused. */
 /** One of an extension's ready-made agents, added to the owner's team (removing the extension archives it). */
 export async function addExtensionAgent(id: string, agent: string): Promise<Agent | undefined> {
   try {
@@ -196,7 +196,7 @@ async function reloadAgents(): Promise<void> {
   data.set({ agents: Object.fromEntries(agents.map((a) => [a.id, a])) });
 }
 
-/** An archived agent back on its team (a project agent's file returns to .apc/agents/). */
+/** An archived agent back on its team (a project agent's file returns to .agent/agents/). */
 export async function restoreAgent(agent: Agent): Promise<boolean> {
   try {
     await client.call("agents.restore", { agent: agent.id });

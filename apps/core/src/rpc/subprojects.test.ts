@@ -21,18 +21,18 @@ let parentDir = "";
 
 /** A project folder with agents (slug → name), an AGENTS.md line and its memory notes. */
 function makeProject(root: string, name: string, agents: Record<string, string>, memo: string) {
-  fs.mkdirSync(path.join(root, ".apc", "agents"), { recursive: true });
+  fs.mkdirSync(path.join(root, ".agent", "agents"), { recursive: true });
   fs.writeFileSync(path.join(root, "AGENTS.md"), `# ${name}\n${name} rules.\n`);
-  fs.writeFileSync(path.join(root, ".apc", "memory.md"), `${memo}\n`);
+  fs.writeFileSync(path.join(root, ".agent", "memory.md"), `${memo}\n`);
   for (const [slug, agent] of Object.entries(agents))
     fs.writeFileSync(
-      path.join(root, ".apc", "agents", `${slug}.md`),
+      path.join(root, ".agent", "agents", `${slug}.md`),
       `---\nname: ${agent}\nrole: Helper\n---\n\nHelp.\n`,
     );
 }
 
 const skill = (root: string, name: string, description: string) => {
-  const dir = path.join(root, ".apc", "skills", name);
+  const dir = path.join(root, ".agent", "skills", name);
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, "SKILL.md"), `---\nname: ${name}\ndescription: ${description}\n---\n\nKnow-how.\n`);
 };
@@ -159,7 +159,7 @@ test("a subproject takes its parent's skills and MCP servers, its own of the sam
   skill(parentDir, "shared", "Parent version");
   skill(childDir, "shared", "Own version");
   fs.writeFileSync(
-    path.join(parentDir, ".apc", "mcps.json"),
+    path.join(parentDir, ".agent", "mcps.json"),
     JSON.stringify({ mcpServers: { notes: { command: process.execPath, args: ["--version"] } } }),
   );
   const child = (await env.client.call("projects.create", { path: childDir, parent })).project.id;

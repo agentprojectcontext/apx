@@ -1012,7 +1012,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "project.basePath": "Espacio base · carpeta de trabajo de APX",
   "project.settings": "Configuración del proyecto",
   "project.settings.title": "Configuración de {name}",
-  "project.settings.body": "Se guarda en el .apc/project.json del proyecto, así viaja con la carpeta.",
+  "project.settings.body": "Se guarda en el .agent/project.json del proyecto, así viaja con la carpeta.",
   "project.settings.baseBody":
     "El proyecto base no tiene carpeta: APX guarda su nombre y tipo, y sus agentes trabajan en cualquier lado. Para trabajar en una carpeta, hacé un proyecto con ella.",
   "project.settings.baseNameHint": "Sigue siendo el proyecto base aunque le cambies el nombre.",
@@ -1034,7 +1034,7 @@ export const es: Partial<Record<MessageKey, string>> = {
     "No te pregunta nada, en cualquier carpeta salvo la de APX. Solo para proyectos en los que confiás del todo.",
   "project.settings.folder": "Carpeta",
   "project.settings.folderHint":
-    "La usan los chats que trabajan en la carpeta, y su .apc/ guarda los agentes y la configuración.",
+    "La usan los chats que trabajan en la carpeta, y su .agent/ guarda los agentes y la configuración.",
   "project.settings.folderMissing": "La carpeta no está en el disco ahora (se movió, o es un disco sin montar).",
   "project.settings.folderWaiting":
     "Esta carpeta todavía no se abrió para APX. Si tu Mac pregunta si “node” puede acceder, elegí Permitir: APX la lee en cuanto pueda.",

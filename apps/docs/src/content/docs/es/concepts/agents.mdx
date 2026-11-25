@@ -30,7 +30,7 @@ otro equipo. Los datos compartidos del proyecto van en AGENTS.md, no en instrucc
 rutas o personas de otro proyecto.
 
 APX agrupa los agentes modificados en avisos de revisión. Cubre creación, edición, clonación e importación internas,
-y cambios externos en `.apc/agents/*.md` de proyectos registrados cuando el observador del proyecto los indexa.
+y cambios externos en `.agent/agents/*.md` de proyectos registrados cuando el observador del proyecto los indexa.
 No recorre cualquier Markdown ni carpetas sin registrar. Los agentes existentes se toman como punto de partida al
 iniciar el detector por primera vez; los cambios posteriores, incluidos los encontrados después de reiniciar,
 quedan pendientes de revisión. Un aviso significa que la definición cambió, no que APX encontró un error. No se
@@ -47,8 +47,8 @@ dispara una reescritura autónoma ni una revisión semántica en segundo plano.
 
 ## Conservá el contexto junto al trabajo
 
-Los proyectos de APX siguen [APC (Agent Project Context)](/es/concepts/projects/): un `AGENTS.md` en la raíz y una carpeta
-`.apc/`. Las definiciones de agentes son archivos Markdown individuales en `.apc/agents/`. Las instrucciones
+Un [proyecto](/es/concepts/projects/) tiene un `AGENTS.md` en la raíz y una carpeta
+`.agent/`. Las definiciones de agentes son archivos Markdown individuales en `.agent/agents/`. Las instrucciones
 compartidas, las notas seleccionadas y las habilidades del proyecto se pueden leer y versionar junto al trabajo.
 
 APX guarda los chats, ejecuciones, tareas, rutinas y notas en su base de datos local. Los archivos del proyecto son la
@@ -78,7 +78,7 @@ Algunos agentes trabajan con vos en todos lados, otros pertenecen a un proyecto 
     que te sigue a todos los canales. Sabe quién sos, hace él mismo el trabajo chico y mediano, le pasa el trabajo largo de un proyecto al agente de ese proyecto y no se puede borrar.
   </Card>
   <Card title="Agentes de proyecto" icon="document">
-    Viven en la carpeta `.apc/agents/` de un proyecto, un archivo markdown cada uno. Leen el `AGENTS.md` del proyecto,
+    Viven en la carpeta `.agent/agents/` de un proyecto, un archivo markdown cada uno. Leen el `AGENTS.md` del proyecto,
     trabajan en su carpeta y viajan con el repo.
   </Card>
   <Card title="Agentes globales" icon="puzzle">
@@ -98,13 +98,13 @@ escribís en su archivo como `icon:` o lo definís con `apx agents set <agent> b
 
 ## Un agente es un archivo markdown
 
-Un agente de proyecto es `.apc/agents/<slug>.md`: un bloque de frontmatter con sus campos y después un cuerpo con sus
-instrucciones. El archivo manda. APX vigila `.apc/`, así que un cambio guardado aparece en la app al toque, y lo que
+Un agente de proyecto es `.agent/agents/<slug>.md`: un bloque de frontmatter con sus campos y después un cuerpo con sus
+instrucciones. El archivo manda. APX vigila `.agent/`, así que un cambio guardado aparece en la app al toque, y lo que
 cambiás en la app se escribe en el mismo archivo.
 
 Esta es Lucía, la product manager de Acme Store:
 
-```markdown title=".apc/agents/lucia.md"
+```markdown title=".agent/agents/lucia.md"
 ---
 name: Lucía
 role: Product manager
@@ -172,7 +172,7 @@ super-agente siguen siendo suyas, diga lo que diga la lista.
 
 1. Abrí un proyecto y andá a la pestaña **Agentes**.
 2. Tocá **Agente** para escribir uno nuevo, o **Importar** para instalar una plantilla (más abajo).
-3. Ponele nombre, rol, descripción e instrucciones, y tocá **Crear agente**. APX escribe el archivo en `.apc/agents/` del
+3. Ponele nombre, rol, descripción e instrucciones, y tocá **Crear agente**. APX escribe el archivo en `.agent/agents/` del
    proyecto.
 4. Tocá el nombre de cualquier agente en la cabecera de un chat para abrir su panel lateral: rol, a quién reporta,
    autonomía, modelo, perfil del navegador y sus números.
@@ -197,18 +197,18 @@ Listá el equipo y el modelo de cada agente (★ marca a Home):
 3f9a1c0d7e21-lucia             Lucía            router                       Product manager
 3f9a1c0d7e21-tomas             Tomás            default                      Developer`}</Terminal>
 
-Creá uno. Con `--project` va a `.apc/agents/` de ese proyecto; sin eso, queda como agente global:
+Creá uno. Con `--project` va a `.agent/agents/` de ese proyecto; sin eso, queda como agente global:
 
-<Terminal command={'apx agents new vera "Vera" --project p_3f9a1c0d7e21 --role "Marketing"'}>{`Vera (3f9a1c0d7e21-vera) · written to .apc/agents/`}</Terminal>
+<Terminal command={'apx agents new vera "Vera" --project p_3f9a1c0d7e21 --role "Marketing"'}>{`Vera (3f9a1c0d7e21-vera) · written to .agent/agents/`}</Terminal>
 
 Cambiá campos con pares `clave=valor` (`name`, `role`, `slug`, `parent`, `blob`):
 
 <Terminal command="apx agents set 3f9a1c0d7e21-vera parent=lucia blob=cobalto">{`Vera (3f9a1c0d7e21-vera) · vera · Marketing`}</Terminal>
 
-Archivá uno. Su archivo pasa a `.apc/agents/.archived/` (nunca se borra) y sus chats quedan. Un agente que responde
+Archivá uno. Su archivo pasa a `.agent/agents/.archived/` (nunca se borra) y sus chats quedan. Un agente que responde
 un canal se archiva recién cuando elegís quién responde ese canal en su lugar:
 
-<Terminal command="apx agents archive 3f9a1c0d7e21-vera">{`archived; file moved to ~/work/acme-store/.apc/agents/.archived/vera.md`}</Terminal>
+<Terminal command="apx agents archive 3f9a1c0d7e21-vera">{`archived; file moved to ~/work/acme-store/.agent/agents/.archived/vera.md`}</Terminal>
 
 Elegí su modelo (mirá [Modelos y motores](/es/concepts/models/)):
 
@@ -228,7 +228,7 @@ pedidos directos: un ejecutivo te responde y hace el trabajo que le pedís, sin 
 dice en qué es bueno, no qué rechaza. QA sigue informando en vez de arreglar mientras revisa, y las confirmaciones
 siguen vigentes. Instalar plantillas no reescribe prompts ni restricciones de agentes existentes.
 
-Instalar copia el archivo tal cual en `.apc/agents/`. Sólo puede cambiar `parent`, para colgar al líder del equipo
+Instalar copia el archivo tal cual en `.agent/agents/`. Sólo puede cambiar `parent`, para colgar al líder del equipo
 debajo del orquestador que el proyecto ya tiene. Un slug que el proyecto ya usa se saltea, nunca se pisa.
 
 ## El organigrama
@@ -245,10 +245,10 @@ instrucciones de mis agentes": te dice qué cambiaría en cada uno y no cambia n
 
 <Shot name="org" alt="La vista Areas and roles: áreas Product, Engineering y Growth con sus roles y agentes" caption="Agentes › Áreas y roles" />
 
-Las áreas y roles son para empresas: viven en `.apc/organization.json` (hasta 40 áreas y 200 roles), y el tipo del
+Las áreas y roles son para empresas: viven en `.agent/organization.json` (hasta 40 áreas y 200 roles), y el tipo del
 proyecto pasa a **Empresa** cuando los agregás. Los agentes los leen, así Lucía sabe que Growth es de Vera.
 
-```json title=".apc/organization.json"
+```json title=".agent/organization.json"
 {
   "areas": [
     { "slug": "product", "name": "Product", "goal": "Ship what customers ask for" },
@@ -366,7 +366,7 @@ Sin `--agent`, le hablás a Home.
 ## Seguí por acá
 
 <CardGrid>
-  <LinkCard title="Proyectos" description="La carpeta .apc/ donde viven los agentes." href="/es/concepts/projects/" />
+  <LinkCard title="Proyectos" description="La carpeta .agent/ donde viven los agentes." href="/es/concepts/projects/" />
   <LinkCard title="Autonomía y seguridad" description="Qué puede hacer un agente sin preguntar." href="/es/concepts/autonomy/" />
   <LinkCard title="Modelos y motores" description="Con qué modelo piensa cada agente." href="/es/concepts/models/" />
   <LinkCard title="Memoria" description="Qué recuerdan los agentes entre chats." href="/es/concepts/memory/" />

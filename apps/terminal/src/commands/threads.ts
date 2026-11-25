@@ -218,6 +218,10 @@ export async function projects(client: ApxClient, [sub, arg, ...more]: string[],
     const { resolve } = await import("node:path");
     const r = await client.call("projects.register", { path: resolve(arg) });
     console.log(`${r.project.name} (${r.project.id}): ${r.agents} agents`);
+    if (r.project.legacy_folder)
+      console.log(
+        "Its agents and settings are still in .apc/, the folder older APX versions used. Move them to .agent/: apx doctor --fix",
+      );
     return;
   }
   if (sub === "create") {
@@ -527,5 +531,5 @@ export async function skills(
     console.log(
       `${s.name.padEnd(32)} ${placeOf(s).padEnd(8)} ${s.on ? "   " : "off"} ${s.description.slice(0, 90)}${s.copies.length ? ` (also in ${s.copies.map((c) => c.source).join(", ")})` : ""}`,
     );
-  if (!r.skills.length) console.log("(no skills: add folders with a SKILL.md under ~/.apx/v2/skills or .apc/skills)");
+  if (!r.skills.length) console.log("(no skills: add folders with a SKILL.md under ~/.apx/v2/skills or .agent/skills)");
 }

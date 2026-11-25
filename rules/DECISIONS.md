@@ -6266,3 +6266,35 @@ Not changed here: memory notes are still written only for the agent's own projec
 The owner asked for a public author identity on every blog post and approved keeping it when the private-data gate flagged it. Rule 17 otherwise remains in force: the gate exempts only four approved literal matches in the exact reviewed author-data file bytes. A content edit invalidates the exception; a detected term then fails. New denylist matches, public path and phone shapes, and commit scans remain active. Without a local denylist, these personal terms are not detected. Updating the exemption requires renewed review, not a blanket allowlist. The published attribution and repository history are public; this exception is not a general privacy audit.
 
 Docs impact: updated GUARDRAILS_PROFILE.md to describe the scoped gate exception.
+
+<a id="d-273"></a>
+## D-273 — 2026-11-25 — A project's APX files live in `.agent/`; `.apc/` is moved once, never read
+The owner no longer follows APC (the Agent Project Context standard APX v1 started) and wants a project's APX files
+under a name that says what they are. `AGENTS.md` stays at the root: it is the cross-tool standard other agents read.
+Everything that was in `.apc/` (agents, `project.json`, `memory.md`, `skills/`, `mcps.json`, `organization.json`,
+browser recipes) now lives in `.agent/`, named once in `apps/core/src/apc/folder.ts` (`AGENT_DIR`).
+
+Projects that still have `.apc/` are not read from both folders (rule 14). `.apc/` is only found, to offer the move:
+- While a project has `.apc/` and no `.agent/`, its index stays as it was last read (agents keep working, none is
+  archived), `legacy_folder` marks it in `projects.list`, and every write that would start `.agent/` beside it is
+  refused (`agentDirFor`): an empty `.agent/` would hide the files instead of moving them.
+- `projects.move_folder` (owner only) copies `.apc/` aside, checks each file arrived byte-equal, renames the copy to
+  `.agent/` at once (a reindex never sees half of it), then removes the files from `.apc/`. Run again, equal files
+  count as moved; a file `.agent/` holds with other content stops it before anything is removed. Git worktrees in
+  `.apc/worktree(s)` are checkouts: never copied, left in place, and `.apc/` goes once they are gone.
+- It is offered, never run on its own: the project's overview card, `apx init` / `apx projects register` naming
+  `apx doctor --fix` (which moves every marked project), and a news entry the super-agent tells while any project is
+  marked. The super-agent cannot move them itself (the method is human-only).
+- v1's import copies `.apc/` to `.agent/` and leaves it (`keep`), so a v1 still running is untouched; once the owner
+  stops using v1, `apx doctor --fix` clears it.
+
+Edits to `.apc/` (outside its worktrees) stay guarded like `.agent/`'s, since the move would carry them in. The
+bundled `apc-context` skill (it told other agents to always read `.apc/` and to delete `.apc/migrate.md`) is retired:
+the core removes its copies from the agent apps' skill folders at start, as with every retired runtime skill.
+
+Remove `LEGACY_DIR`, the move and the guard of `.apc/` together, once no supported install has one.
+
+Not decided here: renaming the code's own `apc` names (`apps/core/src/apc`, the agent source `apc`).
+
+Docs impact: updated concepts/projects (a section on moving), concepts/agents, start/from-v1, reference/cli and the
+other pages naming the folder, in English and Spanish; news entry `agent-folder` (2.17.0).

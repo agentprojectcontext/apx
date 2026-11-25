@@ -1,10 +1,12 @@
 // Keeps the core's index in step with the projects' files: on register, on start, on request and while running
-// (a watcher on each project's .apc/). Files are the truth; the database is the index the rest of the core reads.
+// (a watcher on each project's .agent/). Files are the truth; the database is the index the rest of the core reads.
+
 import fs from "node:fs";
 import path from "node:path";
 import type { ModelChoice } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
 import type { Log } from "../log.ts";
+import { AGENT_DIR } from "./folder.ts";
 import { listField, textField } from "./frontmatter.ts";
 import type { ProjectFiles, ReadProjectFiles } from "./project-reader.ts";
 import { type ApcAgent, type ApcProject, isApcProject, readAgents, readProject } from "./read.ts";
@@ -65,6 +67,7 @@ export function createApcSync(deps: {
 }) {
   const { store, log } = deps;
   const watchers = new Map<string, fs.FSWatcher[]>();
+  const watchingDir = new Set<string>();
   // Each folder's queued reindex, as its cancel.
   const queued = new Map<string, () => void>();
   // A folder still being read is not read a second time: one held read holds one thread.
@@ -86,7 +89,7 @@ export function createApcSync(deps: {
     return apply(abs, readProject(abs), readAgents(abs));
   }
 
-  function apply(abs: string, p: ApcProject, agents: ApcAgent[]): SyncResult {
+  function apply(abs: string, p: ApcProject, read: ApcAgent[]): SyncResult {
     // One folder is one project: the record registered here keeps its id, chats and tasks even when project.json's
     // apx_id changed (another tool rewrote it) or cannot be read. One removed from APX does not outrank the apx_id.
     const records = store.projects.atPath(abs);
@@ -100,9 +103,16 @@ export function createApcSync(deps: {
     const projectId = indexed?.id ?? projectIdOf(apcId);
     if (store.agentMigrationPending.list().some((move) => move.source === projectId || move.destination === projectId))
       return { project: projectId, agents: 0, archived: 0 };
+    store.projects.setLegacyFolder(projectId, p.legacy !== undefined);
+    // Files still only in .apc/: the index keeps what it had (agents keep working) until the owner moves them.
+    if (p.legacy === "move" && indexed) {
+      store.projects.setPresent(projectId, true);
+      return { project: projectId, agents: 0, archived: 0 };
+    }
+    const agents = p.legacy === "move" ? [] : read;
     // An unreadable project.json says nothing about the name or kind: keep what the index knew.
     const meta = p.metaError && indexed ? indexed : p;
-    if (p.metaError) log.warn({ root: abs, err: p.metaError }, "could not read .apc/project.json");
+    if (p.metaError) log.warn({ root: abs, err: p.metaError }, "could not read .agent/project.json");
     const present = new Set(agents.map((a) => a.slug));
     return store.tx(() => {
       // A second record an earlier apx_id change left at this folder stops being listed, and its agents with it;
@@ -214,9 +224,12 @@ export function createApcSync(deps: {
     });
   }
 
-  /** Watches .apc/ (recursively) and the project folder itself for AGENTS.md; changes reindex, debounced. */
+  /** Watches .agent/ (recursively) and the project folder itself for AGENTS.md and .agent; changes reindex, debounced. */
   function watch(root: string): void {
-    if (watchers.has(root)) return;
+    // A folder first watched without .agent/ is watched again once it has one (moved in, or made by hand).
+    if (watchers.has(root) && (watchingDir.has(root) || !fs.existsSync(path.join(root, AGENT_DIR)))) return;
+    for (const w of watchers.get(root) ?? []) w.close();
+    watchingDir.delete(root);
     const changed = () => {
       queued.get(root)?.();
       queued.set(
@@ -225,6 +238,7 @@ export function createApcSync(deps: {
           queued.delete(root);
           try {
             const r = syncRoot(root);
+            watch(root);
             log.info({ project: r.project, agents: r.agents }, "project files changed; reindexed");
           } catch (err) {
             log.warn({ root, err: String(err) }, "could not reindex project");
@@ -234,9 +248,11 @@ export function createApcSync(deps: {
     };
     const list: fs.FSWatcher[] = [];
     try {
-      if (fs.existsSync(path.join(root, ".apc")))
-        list.push(fs.watch(path.join(root, ".apc"), { recursive: true }, changed));
-      list.push(fs.watch(root, (_e, file) => file === "AGENTS.md" && changed()));
+      if (fs.existsSync(path.join(root, AGENT_DIR))) {
+        list.push(fs.watch(path.join(root, AGENT_DIR), { recursive: true }, changed));
+        watchingDir.add(root);
+      }
+      list.push(fs.watch(root, (_e, file) => (file === "AGENTS.md" || file === AGENT_DIR) && changed()));
     } catch {}
     for (const w of list) w.on("error", () => w.close());
     watchers.set(root, list);
@@ -255,11 +271,11 @@ export function createApcSync(deps: {
         queued.delete(abs);
       }
     },
-    /** Registers a folder as a project (it must have .apc/ or AGENTS.md) and indexes it. */
+    /** Registers a folder as a project (it must have .agent/, AGENTS.md or .apc/ to move) and indexes it. */
     register(root: string): SyncResult {
       const abs = path.resolve(root);
       if (!fs.existsSync(abs) || !fs.statSync(abs).isDirectory()) throw new Error(`not a folder: ${abs}`);
-      if (!isApcProject(abs)) throw new Error(`not an APC project (no .apc/ or AGENTS.md): ${abs}`);
+      if (!isApcProject(abs)) throw new Error(`not a project (no .agent/ or AGENTS.md): ${abs}`);
       const r = syncRoot(abs);
       watch(abs);
       return r;
@@ -271,6 +287,7 @@ export function createApcSync(deps: {
       if (project.path) {
         for (const watcher of watchers.get(project.path) ?? []) watcher.close();
         watchers.delete(project.path);
+        watchingDir.delete(project.path);
         queued.get(project.path)?.();
         queued.delete(project.path);
       }
@@ -317,6 +334,7 @@ export function createApcSync(deps: {
       for (const cancel of queued.values()) cancel();
       queued.clear();
       watchers.clear();
+      watchingDir.clear();
     },
   };
 }

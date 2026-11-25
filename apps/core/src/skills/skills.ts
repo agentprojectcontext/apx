@@ -1,9 +1,11 @@
 // Skills: folders with a SKILL.md (frontmatter `name`, `description`; the body is the know-how). APX's own come with the
-// core (`skills/apx/`), the owner's live in APX's home (`skills/`), a project's in `.apc/skills/`; the other agent
+// core (`skills/apx/`), the owner's live in APX's home (`skills/`), a project's in `.agent/skills/`; the other agent
 // apps' (Claude Code, Codex, Cursor, ~/.agents) are read where those apps keep them. Agents see a short catalog; the
 // body loads on demand.
+
 import fs from "node:fs";
 import path from "node:path";
+import { AGENT_DIR } from "../apc/folder.ts";
 import { parseFrontmatter, textField } from "../apc/frontmatter.ts";
 import type { AgentRecord } from "../domain/agents.ts";
 import { lineage, type ProjectRecord } from "../domain/projects.ts";
@@ -152,7 +154,7 @@ export function skillsFor(store: Store, roots: SkillRoots, projectId: string | u
  */
 export function allSkills(store: Store, roots: SkillRoots, projectId: string | undefined): Skill[] {
   const apx = scan(APX_SKILLS_DIR, false, { scope: "global", source: "apx", own: false });
-  // `top` is the repo's `.apc` or `.<app>`: a link there would read a folder outside the project.
+  // `top` is the repo's `.agent` or `.<app>`: a link there would read a folder outside the project.
   const inRepo = (project: ProjectRecord | undefined) => (top: string, source: Skill["source"]) => {
     const repo = project?.path && project.present ? project.path : undefined;
     return repo && project && !isLink(path.join(repo, top))
@@ -183,7 +185,7 @@ export function allSkills(store: Store, roots: SkillRoots, projectId: string | u
     );
   return firstPerName([
     ...apx,
-    ...repos.flatMap((inIt) => [...inIt(".apc", "project"), ...APPS.flatMap((app) => inIt(`.${app}`, app))]),
+    ...repos.flatMap((inIt) => [...inIt(AGENT_DIR, "project"), ...APPS.flatMap((app) => inIt(`.${app}`, app))]),
     ...scan(path.join(roots.home, "skills"), true, { scope: "global", source: "owner", own: true }),
     ...apps,
     ...extensions,

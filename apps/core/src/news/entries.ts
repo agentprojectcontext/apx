@@ -7,6 +7,7 @@ import { computerHost } from "../environments/host.ts";
 import { CATALOG } from "../integrations/catalog.ts";
 import { ACTIVITY_REVIEW_NEWS } from "./activity-review.ts";
 import { AGENT_FALLBACKS_NEWS } from "./agent-fallbacks.ts";
+import { AGENT_FOLDER_NEWS } from "./agent-folder.ts";
 import { AGENT_MIGRATION_NEWS } from "./agent-migration.ts";
 import { AGENT_PROMPTS_NEWS } from "./agent-prompts.ts";
 import { AGENT_REVIEW_NEWS } from "./agent-review.ts";
@@ -103,6 +104,8 @@ export type NewsFacts = {
   promptedAgents?: number;
   /** The chats' database is over 500 MB and keeps its free space until it is rewritten once (compacted). */
   bigStore?: boolean;
+  /** Projects that still keep their agents or settings in .apc/ (the move to .agent/ is offered). */
+  legacyFolders?: number;
   /** Projects the owner registered (the base project not counted). */
   projects?: number;
   /** A channel reads at least one room (a Discord channel, a group). */
@@ -138,6 +141,7 @@ export type NewsEntry = {
 };
 
 export const NEWS: readonly NewsEntry[] = [
+  AGENT_FOLDER_NEWS,
   SIGN_IN_CARDS_NEWS,
   CALL_SERVICES_NEWS,
   {
@@ -759,6 +763,7 @@ export const newsFacts = (store: Store, o: { hermes?: boolean; storeSize?: Store
   localModels: store.settings.read("local_models_seen").length > 0,
   ownModels: store.agents.list().filter((a) => a.model_choice?.model).length,
   projects: store.projects.list().length,
+  legacyFolders: store.projects.list().filter((p) => p.legacy_folder).length,
   routines: store.routines.list().filter((r) => r.action === "agent" || r.action === "watch").length,
   promptedAgents: store.agents.list().filter((a) => a.kind !== "secretary" && a.prompt.trim()).length,
   agents: store.agents.list().filter((a) => a.kind !== "secretary").length,

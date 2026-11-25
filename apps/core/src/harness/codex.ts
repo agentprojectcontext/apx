@@ -1,8 +1,10 @@
 // Codex in its own sessions: the owner's own `codex` (their ChatGPT login and config). APX tools reach it through a
 // per-run MCP proxy (`apx mcp --run <token>`) that calls back into this core. See DECISIONS.md#d-007
+
 import path from "node:path";
 import type { PlanStep } from "@apx/protocol/task-plan";
 import { Codex, type ModelReasoningEffort, type TodoListItem } from "@openai/codex-sdk";
+import { AGENT_DIR, CHECKOUTS as CHECKOUT_DIRS, LEGACY_DIR } from "../apc/folder.ts";
 import { worksInFolder } from "../domain/threads.ts";
 import { isInside, real, samePath } from "../paths.ts";
 import { codexImageDir, imagesIn } from "../services/codex-images.ts";
@@ -40,15 +42,16 @@ export function codexWrites(
   return place?.forOwner === true && place.reach !== "fenced";
 }
 
-/** Files only the owner changes, but in Total: as `guarded` and `namesApc` keep them for every agent. */
+/** Files only the owner changes, but in Total: as `guarded` and `namesAgentFiles` keep them for every agent. */
 const GUARDED = [
   "AGENTS.md",
-  ".apc",
+  AGENT_DIR,
+  LEGACY_DIR,
   path.join(".claude", "settings.json"),
   path.join(".claude", "settings.local.json"),
 ];
-/** Where agents keep git worktrees under `.apc`: code, not APC definitions. */
-const CHECKOUTS = [path.join(".apc", "worktree"), path.join(".apc", "worktrees")];
+/** Where agents keep git worktrees under `.agent` (or `.apc`, until it is moved): code, not agent files. */
+const CHECKOUTS = [AGENT_DIR, LEGACY_DIR].flatMap((d) => [...CHECKOUT_DIRS].map((c) => path.join(d, c)));
 const PROFILE = "apx_turn";
 type Access = "none" | "read" | "write";
 const RANK: Record<Access, number> = { none: 0, read: 1, write: 2 };
@@ -65,7 +68,7 @@ export type CodexSandbox = {
 /**
  * Codex's sandbox for a turn. With a place, a permission profile: everything readable but APX's home and the folders
  * closed to the agent, and writable only where it may write on its own (its folder, its project's and the owner's
- * other projects, its temp folders), with AGENTS.md, APC files and Claude's settings kept unless `guard` is off.
+ * other projects, its temp folders), with AGENTS.md, agent files and Claude's settings kept unless `guard` is off.
  * Codex picks the most specific path, so a folder inside APX's home it works in stays open. See DECISIONS.md#d-271
  */
 export function codexSandbox(o: {
