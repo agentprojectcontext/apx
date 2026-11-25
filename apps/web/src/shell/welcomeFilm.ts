@@ -3,6 +3,10 @@
  * (media/whats-new/<lang>/<key>.mp4), with the first release that has it. A new feature goes at the top.
  */
 export const WELCOME_SLIDES = [
+  { key: "free-agents", since: "2.17.0" },
+  { key: "workflows", since: "2.17.0" },
+  { key: "engine-sessions", since: "2.17.0" },
+  { key: "agent-folder", since: "2.17.0" },
   { key: "marketplace", since: "2.16.0" },
   { key: "contact-booking", since: "2.16.0" },
   { key: "apx-account", since: "2.16.0" },

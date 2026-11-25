@@ -9,6 +9,18 @@ export const enWelcome = {
   "welcome.cta": "Let's go",
   "welcome.soundOn": "Turn sound on",
   "welcome.soundOff": "Turn sound off",
+  "welcome.free-agents.title": "Agents without walls",
+  "welcome.free-agents.text":
+    "Your agents now work in all your projects, not only their own. Their role says what they're good at, and every result tells you which project it's in.",
+  "welcome.workflows.title": "One request, many agents",
+  "welcome.workflows.text":
+    "An agent can turn a request into a workflow: up to four agents work at once, and each step goes on as soon as the one before it ends. The card shows each one live, and you can stop it.",
+  "welcome.engine-sessions.title": "Claude Code, with its own face",
+  "welcome.engine-sessions.text":
+    "When an agent opens a Claude Code or Codex session, you see it under that app's face and name, with a chip saying who started it.",
+  "welcome.agent-folder.title": ".apc/ is now .apx/",
+  "welcome.agent-folder.text":
+    "APX moves each project's .apc/ folder to .apx/ by itself, after checking every file, and tells you once.",
   "welcome.marketplace.title": "The Marketplace",
   "welcome.marketplace.text":
     "Everything your agents can use, in one place, each labeled with where it comes from. You add and connect each extension in the same box, even pairing your TV.",
