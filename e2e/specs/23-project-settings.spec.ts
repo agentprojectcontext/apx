@@ -9,7 +9,10 @@ test("a project's tabs count its agents and chats, and its settings rename it an
   const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-e2e-settings-")));
   fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Acme\n");
   fs.mkdirSync(path.join(repo, ".agent", "agents"), { recursive: true });
-  fs.writeFileSync(path.join(repo, ".agent", "agents", "boss.md"), "---\nname: Boss\nrole: Orchestrator\n---\n\nLead.\n");
+  fs.writeFileSync(
+    path.join(repo, ".agent", "agents", "boss.md"),
+    "---\nname: Boss\nrole: Orchestrator\n---\n\nLead.\n",
+  );
   const project = (await rpc<{ project: { id: string } }>("projects.register", { path: repo })).project.id;
   await rpc("threads.create", { kind: "loose", agent_id: "scout", project_id: project, title: "Uno" });
 
