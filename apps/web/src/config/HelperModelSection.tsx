@@ -5,7 +5,7 @@ import { client } from "../data/client.ts";
 import { loadCatalog } from "../data/models.ts";
 import { notify } from "../data/notices.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
-import { type HelperMode, helperValue, readHelper } from "./helperModel.ts";
+import { chosenRefs, type HelperMode, helperPatch, readHelper } from "./helperModel.ts";
 import { ModelRefList } from "./models/ModelRefList.tsx";
 import { SectionHead, SubHead } from "./SectionHead.tsx";
 
@@ -47,10 +47,10 @@ export function HelperModelSection() {
     void load();
   }, [load]);
 
-  const save = async (aux: string | undefined) => {
+  const save = async (mode: HelperMode, chosen: ModelRef[]) => {
     if (!s) return;
-    const { aux_model: _was, ...rest } = s;
-    const next: MemorySettings = aux ? { ...rest, aux_model: aux } : rest;
+    const { aux_model: _was, aux_chain: _kept, ...rest } = s;
+    const next: MemorySettings = { ...rest, ...helperPatch(mode, chosen) };
     setS(next);
     const at = ++revision.current;
     const queued = saving.current.catch(() => undefined).then(() => client.call("memory.set_settings", next));
@@ -63,8 +63,8 @@ export function HelperModelSection() {
     }
   };
 
-  const saved = readHelper(s?.aux_model);
-  const mode: HelperMode = picking ? "pick" : saved.mode;
+  const mode: HelperMode = picking ? "pick" : readHelper(s?.aux_model).mode;
+  const chosen = s ? chosenRefs(s) : [];
   return (
     <>
       <SectionHead title={t("config.helperModel")} lead={t("helperModel.lead")} />
@@ -86,9 +86,10 @@ export function HelperModelSection() {
               label={t("config.helperModel")}
               value={mode}
               onValueChange={(v) => {
-                setPicking(v === "pick");
-                if (v === "auto") void save(undefined);
-                else if (v === "off") void save("off");
+                const to = v as HelperMode;
+                // Chosen with nothing picked yet shows the list before anything is saved.
+                setPicking(to === "pick");
+                if (to !== "pick" || chosen.length) void save(to, chosen);
               }}
               options={[
                 { value: "auto", label: t("helperModel.mode.auto") },
@@ -100,9 +101,9 @@ export function HelperModelSection() {
           {mode === "pick" && (
             <div className="router__block">
               <ModelRefList
-                refs={saved.refs}
-                onChange={(refs: ModelRef[]) => void save(helperValue(refs))}
-                addLabel={t(saved.refs.length ? "helperModel.addBackup" : "helperModel.pickOne")}
+                refs={chosen}
+                onChange={(refs: ModelRef[]) => void save("pick", refs)}
+                addLabel={t(chosen.length ? "helperModel.addBackup" : "helperModel.pickOne")}
                 removeLabel={t("helperModel.remove")}
                 max={5}
                 badge={(i) => (

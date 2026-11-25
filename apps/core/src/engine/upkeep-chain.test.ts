@@ -26,12 +26,21 @@ test("the helper chain the panel saves is tried in order, five long refs include
     assert.equal(await upkeep.judge("Is it worth it?", "A message", { purpose: "mail" }), "yes");
     assert.deepEqual(llm.calls.at(-1)?.models, refs);
 
-    // Saving with no helper model goes back to automatic; "off" turns background work off.
+    // Automatic and Off keep the chosen list apart, so Chosen can bring it back.
     const { aux_model: _a, ...auto } = settings;
-    await env.client.call("memory.set_settings", auto);
-    assert.equal((await env.client.call("memory.settings", {})).aux_model, undefined);
-    await env.client.call("memory.set_settings", { ...auto, aux_model: "off" });
+    await env.client.call("memory.set_settings", { ...auto, aux_chain: chain });
+    const kept = await env.client.call("memory.settings", {});
+    assert.equal(kept.aux_model, undefined);
+    assert.equal(kept.aux_chain, chain);
+    await env.client.call("memory.set_settings", { ...auto, aux_model: "off", aux_chain: chain });
     assert.deepEqual(upkeep.auxModels(), []);
+    assert.equal((await env.client.call("memory.settings", {})).aux_chain, chain);
+    // Another screen saving memory without the list leaves it as it was.
+    const { aux_chain: _c, ...other } = await env.client
+      .call("memory.settings", {})
+      .then(({ indexed: _i2, total: _t2, embedder: _e2, ...x }) => x);
+    await env.client.call("memory.set_settings", { ...other, auto_compact: false });
+    assert.equal((await env.client.call("memory.settings", {})).aux_chain, chain);
   } finally {
     await upkeep.stop();
     await env.core.close();
