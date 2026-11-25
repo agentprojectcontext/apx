@@ -29,6 +29,8 @@ for (const engine of ["codex", "acp:demo"]) {
                 thread_id: thread.id,
                 seq: 1,
                 author: { kind: "agent", id: "superagent" },
+                // An engine's answer comes from one of its runs; its caller's task has none (DECISIONS.md#d-274).
+                run_id: "run-unreported",
                 parts: [{ type: "text", text: "Response" }],
                 model: `${engine}/requested#high`,
                 created_at: new Date(0).toISOString(),
@@ -78,6 +80,7 @@ for (const language of ["en", "es"] as const) {
       thread_id: thread.id,
       seq: i + 1,
       author: { kind: "agent", id: "superagent" },
+      run_id: `run-session-model-${i}`,
       parts:
         i === 0
           ? [
