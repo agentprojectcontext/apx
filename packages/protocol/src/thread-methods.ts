@@ -18,9 +18,11 @@ export const threadMethods = {
           archived: z.boolean().optional(),
           /**
            * The chat works in its project's folder with this write policy, like a code session (its tools and engines
-           * follow it); null: it stops. A code session always keeps its folder.
+           * follow it); null: it stops. A code session always has a working folder.
            */
           write: WritePolicy.nullable().optional(),
+          /** Move an idle code session within its project, keeping its history and engine session. */
+          cwd: z.string().min(1).optional(),
         })
         .strict(),
     result: () => Thread,

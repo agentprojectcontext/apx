@@ -460,9 +460,18 @@ export function claudeHarness(opts: {
   return {
     id: "claude",
     async run(io: TurnIO): Promise<TurnOutcome> {
+      const cwd = opts.cwd(io);
+      let available = false;
+      try {
+        available = fs.statSync(cwd).isDirectory();
+      } catch {}
+      if (!available)
+        throw new Error(
+          "This session's working folder is not available. Choose an existing folder in its project before continuing.",
+        );
       const base = {
         claudePath: await opts.claudePath(),
-        cwd: opts.cwd,
+        cwd: () => cwd,
         readImage: opts.readImage,
         chosen: modelPart(io.models[0]),
         effort: effortPart(io.models[0]),

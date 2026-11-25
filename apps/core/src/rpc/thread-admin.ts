@@ -24,16 +24,25 @@ export function threadAdminHandlers(store: Store, home: string, beforeDelete?: (
   const isHome = (id: string, kind: string) => id === HOME_THREAD_ID || kind === "home";
 
   return {
-    "threads.update": ({ thread, title, pinned, archived, write }) => {
+    "threads.update": ({ thread, title, pinned, archived, write, cwd }) => {
       const t = store.threads.get(thread);
       if (!t) throw notFound(`thread ${thread}`);
       if (archived && isHome(t.id, t.kind)) throw badRequest("Home cannot be archived");
+      let folder: string | undefined;
+      if (cwd !== undefined) {
+        if (t.kind !== "code") throw badRequest("only a code session can change its working folder");
+        if (store.threads.busy([thread])) throw conflict("something is running in this chat: stop it first");
+        folder = codeFolder(store, t.project_id, cwd);
+      }
       if (write !== undefined) {
         if (!["loose", "agent", "code"].includes(t.kind)) throw badRequest("only a chat of yours can work in a folder");
         if (write === null && t.kind === "code") throw badRequest("a code session always works in its folder");
+      }
+      if (folder !== undefined || write !== undefined) {
+        const policy = write === undefined ? (t.write ?? "ask") : write;
         store.threads.workIn(
           thread,
-          write ? { cwd: t.cwd ?? codeFolder(store, t.project_id, undefined), write } : null,
+          policy ? { cwd: folder ?? t.cwd ?? codeFolder(store, t.project_id, undefined), write: policy } : null,
         );
       }
       return store.threads.arrange(thread, {

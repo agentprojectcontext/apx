@@ -1,8 +1,10 @@
+import assert from "node:assert/strict";
 import fs from "node:fs";
 import net, { type AddressInfo } from "node:net";
 import path from "node:path";
 import type { Page } from "@playwright/test";
 import { callTool, say, scriptedLlm, startCore } from "../../apps/core/src/engine/testkit.ts";
+import { tempDir } from "../../apps/core/src/testkit/platform.ts";
 import type { Tool } from "../../apps/core/src/tools/types.ts";
 import { expect, test } from "./kit.ts";
 
@@ -22,6 +24,7 @@ test("arrastrar MP4 5,3 MB y PDF grande permite enviar; rechazo muestra motivo c
   const port = (listener.address() as AddressInfo).port;
   await new Promise<void>((resolve) => listener.close(() => resolve()));
   const env = await startCore({ port, llm: scriptedLlm(() => say("Files received")) });
+  const files = tempDir("apx-attachments-");
   try {
     await env.client.call("setup.finish", {});
     await page.goto(env.core.url);
@@ -29,14 +32,9 @@ test("arrastrar MP4 5,3 MB y PDF grande permite enviar; rechazo muestra motivo c
     await expect(input).toBeVisible();
     await input.fill("Keep my attachments");
     const tooLargeName = "product-launch-reel-final-review-version-with-captions.mp4";
-    await page
-      .locator('input[type="file"]')
-      .first()
-      .setInputFiles({
-        name: tooLargeName,
-        mimeType: "video/mp4",
-        buffer: Buffer.alloc(20 * 1024 * 1024 + 1),
-      });
+    const tooLarge = path.join(files.path, tooLargeName);
+    fs.writeFileSync(tooLarge, Buffer.alloc(20 * 1024 * 1024 + 1));
+    await page.locator('input[type="file"]').first().setInputFiles(tooLarge);
     const error = page.getByRole("alert");
     await expect(error).toHaveText(`${tooLargeName} pasa los 20 MB`);
     expect(await error.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
@@ -83,12 +81,14 @@ test("arrastrar MP4 5,3 MB y PDF grande permite enviar; rechazo muestra motivo c
       .click();
     const downloaded = await (await download).path();
     expect(downloaded).toBeTruthy();
-    expect(fs.readFileSync(downloaded ?? "")).toEqual(video);
+    // Compare every byte without serializing megabytes into Playwright's assertion trace.
+    assert.deepEqual(fs.readFileSync(downloaded ?? ""), video);
     await expect(chip(page, "report.pdf")).toBeVisible();
   } finally {
     await page.goto("about:blank");
     await env.core.close();
     await env.cleanup();
+    await files.remove();
   }
 });
 
