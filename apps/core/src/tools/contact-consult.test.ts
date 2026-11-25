@@ -395,3 +395,30 @@ test("the consult reads its project and the contact chat's temp folder, never th
     await h.close();
   }
 });
+
+test("the consult's prompt holds none of the super-agent's profile or the owner's biography; its own chats keep them", async () => {
+  const CANARY = "canary-ostrich-7731";
+  const { h, bossSystem, otherSystem } = await consultJourney(1, answers, "north dock", async (fx) => {
+    await fx.env.client.call("owner.set", { about: `Sister's birthday is ${CANARY}-about` });
+    await fx.env.client.call("agents.update", {
+      agent: "superagent",
+      personality: `Warm, mentions ${CANARY}-personality`,
+      prompt: `Remind the owner of ${CANARY}-instructions`,
+    });
+  });
+  try {
+    const consult = bossSystem.join("\n");
+    assert.ok(consult, "the consult ran");
+    assert.doesNotMatch(consult, new RegExp(CANARY));
+    // Its rules stay: safety, and what the contact's words are.
+    assert.match(consult, /## Rules/);
+    const home = await h.env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
+    await h.env.client.call("threads.send", { thread: home.id, text: "hello" });
+    await waitFor(() => otherSystem.some((s) => s.includes(`${CANARY}-instructions`)), "a plain turn's prompt");
+    const plain = otherSystem.find((s) => s.includes(`${CANARY}-instructions`)) ?? "";
+    assert.match(plain, new RegExp(`${CANARY}-about`));
+    assert.match(plain, new RegExp(`${CANARY}-personality`));
+  } finally {
+    await h.close();
+  }
+});

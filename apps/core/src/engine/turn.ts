@@ -519,8 +519,10 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
         ? HOME_COMPUTER
         : undefined;
   // A worker delegates to no one: it needs no roster.
+  // Nor does the super-agent answering a contact's agent: the team is not that contact's business.
   const rosterChanged =
     !sealed &&
+    !isConsult(thread) &&
     !turn.worker &&
     (!step || step.delegate) &&
     (ctxState.roster_hash !== roster.hash || ctxState.roster_agent !== agent.id);
@@ -756,11 +758,16 @@ function systemFor(
       ]),
     };
   }
-  const role = turn.agent.kind === "secretary" ? profileBlock(store, roots) : "";
+  // Answering a contact's agent, the super-agent works from the project alone: none of its own profile, personality,
+  // instructions or place in the team, nor what the owner wrote about themselves (DECISIONS.md#d-269).
+  const consult = isConsult(turn.thread);
+  const agent = consult ? { ...turn.agent, personality: undefined, prompt: "" } : turn.agent;
+  const role = turn.agent.kind === "secretary" && !consult ? profileBlock(store, roots) : "";
   const project = projectBrief(store, projectId);
-  const owner = ownerIdentity(store);
+  const identity = ownerIdentity(store);
+  const owner = consult ? { ...identity, about: "" } : identity;
   const text = systemPrompt(
-    turn.agent,
+    agent,
     turn.thread,
     lang,
     project,
@@ -772,15 +779,15 @@ function systemFor(
     computerOff,
     channelsOn(store),
     told,
-    placeOf(store, turn.agent),
-    panelMode(store) === "simple",
+    consult ? "" : placeOf(store, turn.agent),
+    panelMode(store) === "simple" && !consult,
   );
   return {
     text,
     parts: systemParts(text, [
       ["profile", role],
-      ["personality", turn.agent.personality],
-      ["instructions", turn.agent.prompt],
+      ["personality", agent.personality],
+      ["instructions", agent.prompt],
       ["owner", owner.about],
       ["agents_md", project?.context && agentsMdOf(project)],
       ["org", project?.org ? orgText(project.org) : undefined],

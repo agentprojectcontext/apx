@@ -6171,8 +6171,11 @@ that project's only. Every call checks again that the contact's project reading 
 the owner withdrew it is dropped, inline or late. Drive search is left out: a file the project never used is the
 owner's to link.
 
-Not decided here: quotas beyond the chat's existing limits, and consults from contacts without project reading. The
-super-agent's system prompt (who the owner is, its team) is unchanged in the consult turn.
+Its system prompt is built from the project alone: none of the super-agent's profile, personality, instructions or place
+in the team, nor the owner's "about"; no roster. The base rules (safety, outside content, `ask_owner`) and the project's
+own context stay. The super-agent's agent record and profile are not changed: the consult turn filters them.
+
+Not decided here: quotas beyond the chat's existing limits, and consults from contacts without project reading.
 
 Docs impact: updated channels/overview in English and Spanish and the 2.17.0 project reading news entry.
 
