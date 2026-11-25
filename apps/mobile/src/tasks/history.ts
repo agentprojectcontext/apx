@@ -27,6 +27,10 @@ type HistoryKey =
   | "due"
   | "undue"
   | "project"
+  | "plan"
+  | "planStep"
+  | "note"
+  | "asked"
   | "edit";
 
 type Names = {
@@ -37,9 +41,28 @@ type Names = {
   when: (iso: string) => string;
 };
 
-/** Every event as one line; a move says where it came from by replaying the earlier ones. */
+/** A plan's lines without their checklist marks: "- [~] Fix it" reads "Fix it". */
+const planLines = (plan: string) =>
+  plan
+    .split("\n")
+    .map((l) => l.replace(/^\s*[-*]\s+(\[[ ~xX]\]\s+)?/, "").trim())
+    .filter(Boolean);
+
+/** A note an agent left: who it asked for what, or its own words. */
+function noteLine(note: string): { key: "asked" | "note"; vars: Record<string, string> } {
+  const asked = /^asked (.+?) for: ([\s\S]+)$/.exec(note);
+  return asked?.[1] && asked[2]
+    ? { key: "asked", vars: { agent: asked[1], what: asked[2] } }
+    : { key: "note", vars: { note } };
+}
+
+/**
+ * Every event as one line; a move says where it came from, and a plan change which step it wrote, by replaying the
+ * earlier ones.
+ */
 export function historyLines(events: readonly TaskEvent[], columns: readonly TaskColumn[], n: Names): HistoryLine[] {
   let status = columns[0]?.id ?? "";
+  let plan: string[] | undefined;
   return events.map((e) => {
     const d = e.data as Record<string, unknown>;
     const line = (key: HistoryKey, vars: Record<string, string> = {}): HistoryLine => ({
@@ -73,6 +96,16 @@ export function historyLines(events: readonly TaskEvent[], columns: readonly Tas
         if ("due_at" in d)
           return typeof d.due_at === "string" ? line("due", { when: n.when(d.due_at) }) : line("undue");
         if ("project_id" in d) return line("project", { project: n.project((d.project_id as string | null) ?? null) });
+        if (typeof d.plan === "string") {
+          const before = plan;
+          plan = planLines(d.plan);
+          const step = before && plan.find((l) => !before.includes(l));
+          return step ? line("planStep", { step }) : line("plan");
+        }
+        if (typeof d.note === "string" && d.note.trim()) {
+          const { key, vars } = noteLine(d.note.trim());
+          return line(key, vars);
+        }
         return line("edit");
     }
   });
