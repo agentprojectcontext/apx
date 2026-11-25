@@ -10,12 +10,14 @@ import { fakeLlm } from "../e2e/fake-llm.ts";
 import { bootFiles, bootProblems, bootReport, sumKb } from "./bundle.ts";
 import { compileCacheEnv } from "./compile-cache.ts";
 import { performanceProcess } from "./perf-process.ts";
+import { budgetAt, timeScale } from "./perf-scale.ts";
 
 const root = path.resolve(import.meta.dirname, "..");
-const budget = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, "perf-budget.json"), "utf8")) as Record<
-  string,
-  number
->;
+const scale = timeScale(process.env.APX_PERF_TIME_SCALE);
+const budget = budgetAt(
+  JSON.parse(fs.readFileSync(path.join(import.meta.dirname, "perf-budget.json"), "utf8")) as Record<string, number>,
+  scale,
+);
 const port = Number(process.env.PERF_PORT ?? 7470);
 const TURNS = Number(process.env.PERF_TURNS ?? 60);
 const diagnostics = process.env.PERF_DIAGNOSTICS === "1";
@@ -209,7 +211,8 @@ try {
   results.initial_bundle_gzip_kb = boot ? sumKb(dist, boot.initial) : Number.NaN;
   results.boot_gzip_kb = boot ? sumKb(dist, boot.files) : Number.NaN;
 
-  console.log(`\nAPX perf (${TURNS} turns, fake model)\n`);
+  const slower = scale === 1 ? "" : `, time budgets ×${scale} for this machine`;
+  console.log(`\nAPX perf (${TURNS} turns, fake model${slower})\n`);
   for (const [k, v] of Object.entries(results)) {
     const limit = budget[k];
     const over = limit !== undefined && v > limit;
@@ -234,6 +237,7 @@ try {
         at: new Date().toISOString(),
         results,
         budget,
+        time_scale: scale,
         turn_samples: turnSamples,
         core_pid: core.pid,
         core_epoch_ms: coreEpoch,
