@@ -1369,4 +1369,25 @@ export const MIGRATIONS: readonly string[] = [
   CREATE INDEX chat_continuations_state ON chat_continuations(state, created_at);
   CREATE INDEX chat_continuations_thread ON chat_continuations(thread_id, created_at);
   `,
+  `
+  -- Each activity review that read conversations: when, from when, how many chats and owner messages it read, and the
+  -- proposals it left as tasks (task id and title, kept so a deleted task still shows what was proposed). Proposals
+  -- made before this table get one row per minute they were made, with what was read unknown.
+  CREATE TABLE activity_review_runs (
+    id TEXT PRIMARY KEY,
+    at TEXT NOT NULL,
+    since TEXT,
+    state TEXT NOT NULL CHECK(state IN ('working', 'completed', 'failed', 'cancelled', 'uncertain')),
+    chats INTEGER,
+    messages INTEGER,
+    proposals TEXT NOT NULL DEFAULT '[]'
+  );
+  CREATE INDEX activity_review_runs_at ON activity_review_runs(at);
+  INSERT INTO activity_review_runs (id, at, state, proposals)
+    SELECT 'arv_' || lower(hex(randomblob(8))), min(created_at), 'completed',
+      json_group_array(json_object('task', id, 'title', title))
+    FROM tasks
+    WHERE EXISTS (SELECT 1 FROM json_each(tasks.tags) WHERE value = 'Activity review')
+    GROUP BY substr(created_at, 1, 16);
+  `,
 ];

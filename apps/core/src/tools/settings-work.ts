@@ -2,6 +2,7 @@
 // or off, media services and widgets. A project's autonomy and read-only folders and memory's model stay the owner's
 // (DECISIONS.md#d-060). An MCP server names its keys as secret://NAME, never their value (DECISIONS.md#d-141).
 import { BASE_PROJECT_ID } from "@apx/protocol";
+import { activityReviewHistory } from "../domain/activity-review-runs.ts";
 import { discoveryState } from "../domain/discovery-state.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
 import { panelMode } from "../domain/panel-mode.ts";
@@ -157,6 +158,25 @@ export const WORK: Readonly<Record<string, Setting>> = {
   "activity_review.settings": {
     does: "whether APX reviews new activity and proposes improvements; daily or weekly, extra details",
     read: (_p, { store }) => JSON.stringify(store.settings.read("activity_review")),
+  },
+  "activity_review.history": {
+    does: "past reviews, newest first: when each ran, how many chats it read, and each proposed improvement with what became of it (pending, accepted, done, dropped, deleted); tasks link as apx:tasks/<id> (limit, before)",
+    read: (p, { store }, caller) => {
+      if (caller?.agent.kind !== "secretary")
+        return "Activity review is the super-agent's; its proposals across projects are not available to project agents.";
+      const limit = Math.min(50, Math.max(1, Number(p.limit) || 10));
+      const { runs, next } = activityReviewHistory(store, { limit, before: str(p.before) || undefined });
+      if (!runs.length) return "No reviews have read conversations yet.";
+      return [
+        ...runs.flatMap((r) => [
+          `${r.at} · ${r.state}${r.chats === undefined ? "" : ` · ${r.chats} chats, ${r.messages ?? 0} owner messages since ${r.since}`}`,
+          ...(r.proposals.length
+            ? r.proposals.map((x) => `- ${x.outcome}: ${quoted(x.title, 140)} (apx:tasks/${x.task_id})`)
+            : ["- no proposals"]),
+        ]),
+        ...(next ? [`More: before=${next}`] : []),
+      ].join("\n");
+    },
   },
   "activity_review.configure": {
     does: "configure activity review (enabled, frequency daily or weekly, extra_details); always proposal-only",

@@ -613,3 +613,46 @@ test("a yes to appointments notes them and a no stays off, for each person and e
     cleanup();
   }
 });
+
+test("proposals activity review made before its history show as past reviews, one per minute they were made", () => {
+  const { db, cleanup } = upgradeFrom("CREATE TABLE activity_review_runs", (db) => {
+    const task = db.prepare(
+      "INSERT INTO tasks (id, title, status, thread_id, created_by, created_at, updated_at, activity_at, tags) VALUES (?, ?, 'backlog', ?, 'superagent', ?, ?, ?, ?)",
+    );
+    const add = (id: string, title: string, at: string, tags: string[]) =>
+      task.run(id, title, `th_${id}`, at, at, at, JSON.stringify(tags));
+    add("tsk_a", "Keep acceptance criteria visible", "2026-11-20T10:00:01.100Z", ["Activity review"]);
+    add("tsk_b", "Name the project in handoffs", "2026-11-20T10:00:01.300Z", ["Activity review"]);
+    add("tsk_c", "Shorter morning brief", "2026-11-24T09:30:00.000Z", ["Activity review", "Brief"]);
+    add("tsk_d", "Buy printer paper", "2026-11-24T09:30:00.000Z", ["Errands"]);
+  });
+  try {
+    const rows = db
+      .prepare("SELECT at, state, chats, since, proposals FROM activity_review_runs ORDER BY at")
+      .all() as Array<{
+      at: string;
+      state: string;
+      chats: number | null;
+      since: string | null;
+      proposals: string;
+    }>;
+    assert.deepEqual(
+      rows.map((r) => [
+        r.at,
+        r.state,
+        r.chats,
+        r.since,
+        JSON.parse(r.proposals)
+          .map((p: { task: string }) => p.task)
+          .sort(),
+      ]),
+      [
+        ["2026-11-20T10:00:01.100Z", "completed", null, null, ["tsk_a", "tsk_b"]],
+        ["2026-11-24T09:30:00.000Z", "completed", null, null, ["tsk_c"]],
+      ],
+    );
+  } finally {
+    db.close();
+    cleanup();
+  }
+});
