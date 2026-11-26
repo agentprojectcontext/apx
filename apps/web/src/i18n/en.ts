@@ -1,4 +1,4 @@
-import { noticeEn } from "@apx/protocol/notices-en";
+import type { noticeEn } from "@apx/protocol/notices-en";
 import type { enAccount } from "./account-en.ts";
 import type { enActivityReview } from "./activity-review-en.ts";
 import type { ApprovalKey } from "./approvals-en.ts";
@@ -72,7 +72,6 @@ export const en = {
   "desktopInstall.open": "Open desktop",
   "desktopInstall.minimize": "Minimize",
   "desktopInstall.restore": "Show notice",
-  ...noticeEn,
   ...enHelper,
   ...enOffice,
   ...enTeamShared,
@@ -2043,6 +2042,7 @@ export type MessageKey =
   | keyof typeof enGroup
   | keyof typeof enActivityReview
   | keyof typeof enDiscovery
+  | keyof typeof noticeEn
   | keyof typeof enCall
   | keyof typeof enCards
   | ApprovalKey

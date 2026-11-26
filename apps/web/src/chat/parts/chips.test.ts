@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Part } from "@apx/protocol";
-import { chipFold, chipItems } from "./chips.ts";
+import { chipItems } from "./chip-items.ts";
+import { chipFold } from "./chips.ts";
 
 const tool = (call_id: string, tool: string): Part => ({ type: "tool", call_id, tool, title: tool, status: "ok" });
 const memory = (call: string, detail: string): Part => ({

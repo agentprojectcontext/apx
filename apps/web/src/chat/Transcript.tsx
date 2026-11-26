@@ -1,6 +1,5 @@
 import type { Message as Msg, Thread } from "@apx/protocol";
 import { receivedMail } from "@apx/protocol/email-block";
-import { noticeText } from "@apx/protocol/notices";
 import {
   ActivityPill,
   AgentAvatar,
@@ -22,7 +21,7 @@ import { useEngineLabel } from "../common/useEngineLabel.ts";
 import { useChannels } from "../data/channels.ts";
 import { blobOf, isWorking, routineName, threadAgent } from "../data/identity.ts";
 import { useData, useShownAgents } from "../data/state.ts";
-import { useLanguage, useT } from "../i18n/index.ts";
+import { isKey, type MessageKey, useLanguage, useT } from "../i18n/index.ts";
 import { AgentEvent, EmailCard, GroupPart, MediaGroup, NoticePart, TaskDescription } from "../lazy.ts";
 import { nav, useNav } from "../shell/nav.ts";
 import { AgentTurn } from "./AgentTurn.tsx";
@@ -284,7 +283,7 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
 
 /** What APX itself says in a thread: notices (paused, summarized) and plain notes. */
 function SystemMessage({ message }: { message: Msg }) {
-  const lang = useLanguage();
+  const t = useT();
   const notices = message.parts.filter((p) => p.type === "notice");
   if (!notices.length) return <SystemNote>{textOf(message)}</SystemNote>;
   return (
@@ -292,7 +291,7 @@ function SystemMessage({ message }: { message: Msg }) {
       {notices.map((p, i) => (
         // Its words in the owner's language while the notice's own look loads.
         // biome-ignore lint/suspicious/noArrayIndexKey: a message's parts never reorder.
-        <Suspense key={i} fallback={noticeText(p, lang === "en" ? "en" : "es")}>
+        <Suspense key={i} fallback={isKey(`notice.${p.code}`) ? t(`notice.${p.code}` as MessageKey, p.vars) : p.text}>
           <NoticePart part={p} />
         </Suspense>
       ))}

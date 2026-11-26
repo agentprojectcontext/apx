@@ -39,7 +39,6 @@ import { go } from "../shell/nav.ts";
 import { copyableQuote } from "./CopyableQuote.tsx";
 import { replyBlock, runnableCode } from "./codeRunner.tsx";
 import { MessageActions } from "./MessageActions.tsx";
-import { ChipPart } from "./parts/ChipPart.tsx";
 import { chipFold, isChip } from "./parts/chips.ts";
 import { FilePart } from "./parts/FilePart.tsx";
 import { imageGenerationBlocks } from "./parts/imageGeneration.ts";
@@ -339,10 +338,10 @@ function renderCard(p: Part, agent: Agent | undefined, message: Msg, ended: bool
     case "audio":
       return <AudioPart part={p} />;
     case "notice":
-      if (isChip(p)) return <ChipPart code={p.code} parts={message.parts} />;
       return (
-        <Suspense fallback={p.text}>
-          <NoticePart part={p} />
+        // A chip's few words arrive with it; a notice's own text stands in for it while it loads.
+        <Suspense fallback={isChip(p) ? null : p.text}>
+          <NoticePart part={p} parts={message.parts} />
         </Suspense>
       );
     case "plan":

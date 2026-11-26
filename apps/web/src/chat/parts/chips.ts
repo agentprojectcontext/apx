@@ -9,25 +9,6 @@ const CHIP_CODES: ReadonlySet<string> = new Set(["memory.saved", "research.updat
 export const isChip = (p: Part): boolean => p.type === "notice" && CHIP_CODES.has(p.code);
 const chipOf = (p: Part): Notice | undefined => (p.type === "notice" && CHIP_CODES.has(p.code) ? p : undefined);
 
-/** The research fields a chip lists, in the order it lists them. */
-const RESEARCH_FIELDS = ["interests", "projects", "pages", "places", "location"] as const;
-export type ResearchField = (typeof RESEARCH_FIELDS)[number];
-
-/** What a message's chips of one kind saved, in order: a note's words, or a research field and its value. */
-export function chipItems(parts: readonly Part[], code: string): Array<{ field?: ResearchField; text: string }> {
-  return parts.flatMap((part) => {
-    const p = chipOf(part);
-    if (p?.code !== code) return [];
-    if (code === "memory.saved") return p.detail ? [{ text: p.detail }] : [];
-    return RESEARCH_FIELDS.flatMap((field) =>
-      String(p.vars?.[field] ?? "")
-        .split("\n")
-        .filter(Boolean)
-        .map((text) => ({ field, text })),
-    );
-  });
-}
-
 /** One chip per kind: the later ones of a kind fold into the first, and the steps they stand for leave the steps. */
 export function chipFold(parts: readonly Part[]): { later: ReadonlySet<Part>; calls: ReadonlySet<string> } {
   const first = new Set<string>();

@@ -41,8 +41,6 @@ export const esDiscovery: Record<keyof typeof enDiscovery, string> = {
   "discovery.sourcePages": "Direcciones de las páginas · una por línea",
   "discovery.searchTerms": "Qué buscar sobre esto · opcional",
   "discovery.removeSource": "Quitar",
-  "discovery.save": "Guardar cambios",
-  "discovery.saved": "Cambios guardados",
   "discovery.loadError": "No se pudo cargar esta página.",
   "discovery.saveError": "No se pudo guardar. Revisá lo que cambiaste e intentá de nuevo.",
   "discovery.retry": "Reintentar",
@@ -85,8 +83,6 @@ export const esDiscovery: Record<keyof typeof enDiscovery, string> = {
   "discovery.interestsHint":
     "Temas cortos, de una a cuatro palabras, que se buscan en buscadores públicos. Escribí uno y presioná Enter o Agregar.",
   "discovery.add": "Agregar",
-  "discovery.unsaved": "Tenés cambios sin guardar.",
-  "discovery.discardChanges": "Descartar",
   "discovery.searchTermsHint": "Se busca en buscadores públicos.",
   "discovery.automatic": "Automático",
   "discovery.inRoutine": "En una rutina",
