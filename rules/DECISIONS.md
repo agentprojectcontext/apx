@@ -6412,3 +6412,20 @@ out instead).
 
 Docs impact: updated office/contextual-research and office/chat in English and Spanish, rules/SUPER_AGENT_POWERS.md,
 rules/PROMPT_SIZE.md and news (`research-from-chat`, 2.17.2).
+
+<a id="d-277"></a>
+## D-277 — 2026-11-26 — Every release has its section on the docs' What's new page, or it is not tagged
+The docs gained a What's new page (`reference/whats-new.mdx`, English and Spanish) that keeps every release with a
+link to where each part is explained. A page like that goes stale the first release someone forgets it, and nothing
+in the release path read it.
+
+- **It keeps every release, newest first.** Older releases since v2.11.0 are filled in from their news entries,
+  welcome slides and release notes, so the page is a history, not just the latest.
+- **`release:check --tag` refuses a release without its section.** `check:since --release v2.x.y` also asks both pages
+  for a `## x.y.z` heading; a patch that only fixes says so in one line. It runs only when a tag is cut, not in
+  preflight, since a version's section is written when the version is decided.
+
+See [RELEASE.md › What's new page](RELEASE.md#whats-new-page).
+
+Docs impact: updated rules/RELEASE.md; the page itself is apps/docs/src/content/docs/reference/whats-new.mdx and its
+Spanish page.

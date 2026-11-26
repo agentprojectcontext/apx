@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { sinceProblems, type Told } from "./check-since.ts";
+import { sinceProblems, type Told, whatsNewProblems } from "./check-since.ts";
 
 const news = (id: string, since: string): Told => ({ kind: "news", id, since });
 const slide = (id: string, since: string): Told => ({ kind: "slide", id, since });
@@ -64,4 +64,15 @@ test("staging ships as the patch the owner declared, and the declaration lapses 
 test("a declaration that skips a release or is not a version is refused", () => {
   assert.match(sinceProblems([], line({ staging: true, declared: "2.14.6" }))[0] ?? "", /comes 2\.14\.4 or 2\.15\.0/);
   assert.match(sinceProblems([], line({ staging: true, declared: "soon" }))[0] ?? "", /not a version/);
+});
+
+test("a release is cut only when every What's new page has its own section", () => {
+  const page = (path: string, text: string) => ({ path, text });
+  const both = [page("en.mdx", "## 2.17.2\n\n- New\n\n## 2.17.1\n"), page("es.mdx", "## 2.17.2\n\n- Nuevo\n")];
+  assert.deepEqual(whatsNewProblems("2.17.2", both), []);
+  const missing = whatsNewProblems("2.17.3", both);
+  assert.equal(missing.length, 2);
+  assert.match(missing[0] ?? "", /en\.mdx has no "## 2\.17\.3" section/);
+  // A heading for another release that merely starts the same does not count.
+  assert.equal(whatsNewProblems("2.17.1", [page("es.mdx", "## 2.17.10\n")]).length, 1);
 });
