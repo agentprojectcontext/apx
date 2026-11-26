@@ -94,7 +94,9 @@ export function McpTab({ projectId, query, scope, adding, setAdding, res, ownOnl
       },
       {
         type: "submenu",
-        label: t("res.toolsMode"),
+        label: t(
+          inherited ? (s.values_of ? "res.permissionsProjectMenu" : "res.permissionsSharedMenu") : "res.toolsMode",
+        ),
         icon: <Icons.Shield size={14} />,
         disabled: permissionsBusy || !s.trusted || !s.enabled || s.off_here,
         items: [

@@ -6,7 +6,13 @@ import type { McpDef } from "./config.ts";
 export type OpenedBy = "owner" | "default";
 
 /** Owner-wide grants leave per-agent and per-chat grants alone. */
-export function setMcpToolMode(store: Store, d: McpDef, mode: "ask" | "all", by: OpenedBy = "owner"): void {
+export function setMcpToolMode(
+  store: Store,
+  d: McpDef,
+  mode: "ask" | "all",
+  by: OpenedBy = "owner",
+  known: readonly { key: string }[] = [],
+): void {
   const server = mcpServerApproval(d);
   if (mode === "all") {
     store.approvals.grant({ ...server, ...(by === "default" ? { byDefault: true as const } : {}) }, "always", "");
@@ -20,7 +26,9 @@ export function setMcpToolMode(store: Store, d: McpDef, mode: "ask" | "all", by:
         g.scope === "always" &&
         !g.agent_id &&
         !g.thread_id &&
-        (g.project_id ?? "") === (server.project_id ?? ""),
+        (g.credential_scope !== undefined
+          ? g.credential_scope === server.credential_scope
+          : g.key === server.key || known.some((t) => t.key === g.key)),
     );
   for (const g of ownerWide) store.approvals.revoke(g.key);
 }
@@ -28,11 +36,21 @@ export function setMcpToolMode(store: Store, d: McpDef, mode: "ask" | "all", by:
 type ServerId = Pick<McpDef, "scope" | "project_id" | "name">;
 
 /** Who gave the server an owner-wide "allow all", under this definition or an edit's old one; none: undefined. */
-export function allowsAll(store: Store, d: ServerId): OpenedBy | undefined {
-  const id = serverApprovalId(d);
+export function allowsAll(store: Store, d: McpDef): OpenedBy | undefined {
+  const target = mcpServerApproval(d);
   const all = store.approvals
     .list()
-    .filter((g) => g.server === id && g.tool === "*" && g.scope === "always" && !g.agent_id && !g.thread_id);
+    .filter(
+      (g) =>
+        g.server === target.server &&
+        g.tool === "*" &&
+        g.scope === "always" &&
+        !g.agent_id &&
+        !g.thread_id &&
+        (g.key === target.key ||
+          g.credential_scope === target.credential_scope ||
+          (g.credential_scope === undefined && !d.values_of && g.project_id === d.project_id)),
+    );
   if (!all.length) return undefined;
   return all.some((g) => !g.by_default) ? "owner" : "default";
 }

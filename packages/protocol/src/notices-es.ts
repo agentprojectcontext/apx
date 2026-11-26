@@ -27,6 +27,7 @@ export const noticeEs: Record<NoticeKey, string> = {
   "notice.continuation.cancelLabel": "Cancelar: {purpose}",
   "notice.continuation.cancelError": "No se pudo cancelar. Volvé a intentar.",
   "notice.continuation.view": "Ver ejecución",
+  "notice.run.partContinued": "Terminó un tramo. APX sigue con la tarea.",
   "notice.run.stepLimit":
     "Se quedó sin pasos en este turno: es un informe de lo hecho y lo que falta, no una respuesta final.",
   "notice.run.noModel": "Sin modelo disponible: ninguno de los modelos pudo responder (sin cupo, sin sesión o caído).",

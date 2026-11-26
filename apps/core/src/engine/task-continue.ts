@@ -1,11 +1,11 @@
 // A task turn that ends with the task still in progress goes on at once, part by part, instead of waiting for the
 // stall watch: an agent that ran out of steps or stopped at "I'll continue" picks up where it was (DECISIONS.md#d-162).
-// It stops when a part made no progress, after MAX_AUTO_PARTS in a row, or when something else is to come.
+// A native step cap ends a part, not a progressing task. Other unfinished answers have a bounded follow-up.
 import type { Origin, RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { agentTrip, tellStuck, trip } from "./breaker.ts";
 import type { AdmitFn } from "./engine.ts";
-import { MAX_AUTO_PARTS, stalled } from "./progress.ts";
+import { MAX_AUTO_PARTS, recordVerification, stalled, verifiedCheck } from "./progress.ts";
 
 type Continue = Extract<Origin, { kind: "task_continue" }>;
 
@@ -43,7 +43,7 @@ const worked = (t: { assignee?: string | null; proposed?: boolean | null }) => B
 /** Starts the next part of `run`'s task when its turn ended with the task in progress and nothing else to come. */
 export function continueTask(store: Store, admit: AdmitFn, run: RunRecord): RunRecord | undefined {
   // A stopped turn is the owner's word; a failed one is the provider's or APX's, told on its own.
-  if (run.state !== "completed") return undefined;
+  if (run.state !== "completed" || run.end_reason === "provider_limit") return undefined;
   const thread = store.threads.get(run.thread_id);
   const task = thread?.task_id ? store.tasks.get(thread.task_id) : undefined;
   if (!thread || !task || thread.agent_ids[0] !== run.agent_id || task.assignee !== run.agent_id) return undefined;
@@ -57,26 +57,39 @@ export function continueTask(store: Store, admit: AdmitFn, run: RunRecord): RunR
     agentTrip(store, thread.id, run.agent_id)
   )
     return undefined;
+  const recent = store.runs.list(thread.id, MAX_AUTO_PARTS + 2);
+  if (recent[0]?.id !== run.id) return undefined;
+  const ctx = store.threads.context(task.thread_id);
+  const steps = store.runs.steps(run.id);
+  const verified = Boolean(
+    run.ended_at && verifiedCheck(steps) && recordVerification(store, thread.id, run.agent_id, run.ended_at),
+  );
   // Getting nowhere stops it like a spent budget does, and the owner hears it.
   if (trip(store, thread.id)) {
     tellStuck(store, thread.id);
     return undefined;
   }
   const done = parts(store, thread.id);
-  if (done.length >= MAX_AUTO_PARTS) return undefined;
-  // A part after the first must have got somewhere; the first one may have stopped early, which is why it goes on.
-  // The part before it is the previous one, or the turn that started this stretch.
-  const before = done.length ? (done[1] ?? store.runs.list(thread.id, MAX_AUTO_PARTS + 2)[done.length]) : undefined;
-  if (done.length && stalled(store.runs.steps(run.id), before ? store.runs.steps(before.id) : [])) return undefined;
+  const capped = run.end_reason === "step_limit" && (run.harness ?? "native") === "native";
+  if (!capped && done.length >= MAX_AUTO_PARTS) return undefined;
+  const previous = recent.slice(1);
+  if (capped) {
+    const advancedPlan = !!run.started_at && !!ctx.progress_at && ctx.progress_at >= run.started_at;
+    const earlier = previous.flatMap((r) => store.runs.steps(r.id));
+    if (!advancedPlan && !verified && (stalled(steps) || stalled(steps, earlier))) return undefined;
+  } else if (done.length && !verified && stalled(steps, previous[0] ? store.runs.steps(previous[0].id) : [])) {
+    return undefined;
+  }
+  const last = run.input?.origin;
   const origin: Continue = {
     kind: "task_continue",
     from_run: run.id,
     task_id: task.id,
     title: task.title.slice(0, 120),
-    part: done.length + 2,
-    of: MAX_AUTO_PARTS + 1,
+    part: last?.kind === "task_continue" ? last.part + 1 : 2,
+    ...(!capped ? { of: MAX_AUTO_PARTS + 1 } : {}),
   };
-  return admit({
+  const next = admit({
     thread_id: thread.id,
     agent_id: run.agent_id,
     trigger: "system",
@@ -84,4 +97,15 @@ export function continueTask(store: Store, admit: AdmitFn, run: RunRecord): RunR
     text: `${task.title}: go on`,
     reply_to: run.input?.reply_to,
   });
+  const message = capped && run.message_id ? store.messages.get(run.message_id) : undefined;
+  if (message)
+    store.messages.update({
+      ...message,
+      parts: message.parts.map((p) =>
+        p.type === "notice" && p.code === "run.stepLimit"
+          ? { ...p, level: "info", code: "run.partContinued", text: "Part ended. APX is continuing this task." }
+          : p,
+      ),
+    });
+  return next;
 }

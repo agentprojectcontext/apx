@@ -29,6 +29,7 @@ export function mcpServerApproval(
   return {
     key,
     server: serverApprovalId(d),
+    credential_scope: d.values_of ?? null,
     tool: ALL_TOOLS,
     ...((d.project_id ?? d.values_of ?? d.only) ? { project_id: d.project_id ?? d.values_of ?? d.only } : {}),
     permanent: false,
@@ -43,6 +44,7 @@ export function mcpApproval(d: McpDef, t: McpTool): ApprovalTarget {
   return {
     key,
     server: serverApprovalId(d),
+    credential_scope: d.values_of ?? null,
     tool: t.name,
     ...((d.project_id ?? d.values_of ?? d.only) ? { project_id: d.project_id ?? d.values_of ?? d.only } : {}),
     permanent: t.annotations?.readOnlyHint === true && t.annotations?.destructiveHint !== true,

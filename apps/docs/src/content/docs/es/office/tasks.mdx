@@ -270,10 +270,16 @@ una pregunta anterior, la nueva abre una consulta propia, así que las preguntas
 
 ### Un agente trabaja una tarea hasta terminarla
 
-Cuando el turno de un agente en una tarea termina con la tarea todavía en curso (se quedó sin pasos, o frenó en "sigo
-después"), su parte siguiente arranca enseguida, numerada, hasta nueve. Para cuando el agente cierra la tarea, la marca
-esperándote con lo que tenés que hacer, dice qué lo bloquea, o cuando una parte no avanzó. Una parte que solo revisa lo
-que cambió la anterior cuenta como avance; dos partes seguidas que solo consultan, no. Para cerrar su trabajo como
+Si el agente integrado de APX llega al máximo de pasos de un turno mientras avanza, arranca otro tramo en la
+misma conversación. Eso no es una pausa por presupuesto ni el fin de la tarea. Si el agente solo dice «sigo
+después», la cantidad de intentos sigue teniendo tope. APX no retoma automáticamente un turno cancelado, que espera
+permiso o inicio de sesión, o que alcanzó un límite del proveedor. Los permisos temporales del navegador conservan
+su alcance: un turno nuevo no hereda el permiso del turno anterior.
+
+En **Configuración › Agentes**, **Pausar tareas estancadas** es independiente del presupuesto. Una comprobación
+exitosa puede contar como avance entre pasos del plan; repetir comprobaciones o consultas no vuelve a poner el
+contador en cero. Poné ambos umbrales en cero para desactivarla. Aun así, no se reintenta de inmediato un tramo
+sin evidencia de avance solo porque llegó al máximo de pasos. Para cerrar su trabajo como
 hecho, el agente tiene que decir qué verificó; si todo lo que hizo en la tarea fue escribir documentos (un plan, notas)
 sin correr ningún comando, se le pregunta una vez si un documento era lo que la tarea pedía, y vuelve a cerrar solo si
 lo era. Si deja cambios sin commitear en su propio worktree de git, se le pide una vez que los commitee en la rama y la

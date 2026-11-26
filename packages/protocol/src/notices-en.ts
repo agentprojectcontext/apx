@@ -24,6 +24,7 @@ export const noticeEn = {
   "notice.continuation.cancelLabel": "Cancel: {purpose}",
   "notice.continuation.cancelError": "Couldn't cancel. Try again.",
   "notice.continuation.view": "View run",
+  "notice.run.partContinued": "Part ended. APX is continuing this task.",
   "notice.run.stepLimit":
     "Ran out of steps for this turn: this is a report of what is done and left, not a final answer.",
   "notice.run.noModel": "No model available: none of the models could answer (out of quota, signed out or down).",

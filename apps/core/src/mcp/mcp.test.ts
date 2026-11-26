@@ -246,6 +246,35 @@ test("private availability can change without rewriting credentials or granting 
   await env.client.call("mcp.set", { name: "movable", server: null });
 });
 
+test("MCP permission writes and replies stay on the selected credential scope", async () => {
+  const server = "permissions";
+  const base = { scope: "global" as const, server };
+  const variant = { ...base, project, values_of: project };
+  await env.client.call("mcp.set", {
+    name: server,
+    server: { command: process.execPath, args: [SERVER], env: { NOTES_TOKEN: "secret://notes" } },
+  });
+  try {
+    await assert.rejects(
+      env.client.call("mcp.toolMode", { ...base, project, mode: "ask" }),
+      /shared server credentials/,
+    );
+    await env.client.call("secrets.set", { name: "notes", value: "project-credential", project });
+    assert.equal((await env.client.call("mcp.tools", variant)).mode, "ask");
+    const { server: changed } = await env.client.call("mcp.toolMode", { ...variant, mode: "all" });
+    assert.equal(changed.values_of, project);
+    assert.equal(changed.tool_permission_mode, "all");
+    await env.client.call("mcp.toolMode", { ...variant, mode: "ask" });
+    assert.equal((await env.client.call("mcp.tools", { ...base, values_of: null })).mode, "all");
+    await env.client.call("secrets.set", { name: "notes", value: null, project });
+    await assert.rejects(env.client.call("mcp.toolMode", { ...variant, mode: "ask" }), /credentials changed/);
+    assert.equal((await env.client.call("mcp.tools", base)).mode, "all");
+  } finally {
+    await env.client.call("secrets.set", { name: "notes", value: null, project });
+    await env.client.call("mcp.set", { name: server, server: null });
+  }
+});
+
 test("the owner edits a project's server: its file is written, approved as written, and secrets are refused", async () => {
   const { servers } = await env.client.call("mcp.list", { project });
   assert.deepEqual(servers.find((x) => x.name === "notes")?.definition?.args, [SERVER]);

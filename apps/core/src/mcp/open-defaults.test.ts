@@ -126,7 +126,10 @@ test("the super-agent lists what each tool may do and, at the owner's word, make
     { method: "mcp.toolMode", params: { scope: "global", server: "desk", mode: "all", ask: ["echo"] } },
     "deny",
   );
-  assert.match(card.detail, /^Let agents run the tools of the MCP server desk without asking, except echo/);
+  assert.match(
+    card.detail,
+    /^Let agents run the tools of the MCP server desk with shared credentials without asking, except echo/,
+  );
   assert.deepEqual(await allowed("desk"), [
     ["echo", true],
     ["token", false],

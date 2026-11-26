@@ -19,7 +19,8 @@ export function AgentLimitsBlock() {
   const t = useT();
   const [limits, setLimits] = useState<AgentLimits>();
   const [defaults, setDefaults] = useState<AgentLimits>({ runs: 100, tokens: 5_000_000 });
-  const [draft, setDraft] = useState<Partial<Record<Key, string>>>({});
+  const [draft, setDraft] = useState<Partial<Record<Key | "stuckRuns" | "stuckTokens", string>>>({});
+  const [stuck, setStuck] = useState<AgentLimits>();
   const [publish, setPublish] = useState<OwnerIdentity["publish"]>();
   useEffect(() => {
     void client
@@ -33,6 +34,7 @@ export function AgentLimitsBlock() {
       .then((r) => {
         setLimits({ runs: r.runs, tokens: r.tokens });
         setDefaults(r.defaults);
+        setStuck(r.stuck);
       })
       .catch(() => setLimits(undefined));
   }, []);
@@ -45,20 +47,29 @@ export function AgentLimitsBlock() {
       .catch(() => setLimits(limits));
   };
   const none = !limits.runs && !limits.tokens;
-  const row = (key: Key) => {
-    const shown = draft[key] ?? (limits[key] ? String(Math.round(limits[key] / SCALE[key])) : "");
+  const row = (key: Key, guard?: AgentLimits) => {
+    const field = guard ? (key === "runs" ? "stuckRuns" : "stuckTokens") : key;
+    const value = (guard ?? limits)[key];
+    const shown = draft[field] ?? (value ? String(Math.round(value / SCALE[key])) : "");
+    const label = t(`limits.${field}`);
     const commit = () => {
-      const typed = draft[key];
-      setDraft((d) => ({ ...d, [key]: undefined }));
+      const typed = draft[field];
+      setDraft((d) => ({ ...d, [field]: undefined }));
       if (typed === undefined) return;
       const n = Math.round(Number(typed) || 0);
-      save({ ...limits, [key]: n > 0 ? Math.min(MAX[key], n) * SCALE[key] : 0 });
+      const next = n > 0 ? Math.min(MAX[key], n) * SCALE[key] : 0;
+      if (!guard) return save({ ...limits, [key]: next });
+      setStuck({ ...guard, [key]: next });
+      void client
+        .call("agents.set_limits", { stuck: { [key]: next } })
+        .then((result) => setStuck(result.stuck ?? guard))
+        .catch(() => setStuck(guard));
     };
     return (
-      <SettingRow title={t(`limits.${key}`)} description={t(`limits.${key}Hint`)}>
+      <SettingRow title={label} description={guard ? undefined : t(`limits.${key}Hint`)}>
         <div className="tgquiet">
           <Input
-            aria-label={t(`limits.${key}`)}
+            aria-label={label}
             type="number"
             min={0}
             max={MAX[key]}
@@ -67,7 +78,7 @@ export function AgentLimitsBlock() {
             value={shown}
             onChange={(e) => {
               const typed = e.currentTarget.value;
-              setDraft((d) => ({ ...d, [key]: typed }));
+              setDraft((d) => ({ ...d, [field]: typed }));
             }}
             onBlur={commit}
             onKeyDown={(e) => e.key === "Enter" && commit()}
@@ -91,6 +102,27 @@ export function AgentLimitsBlock() {
       </SettingRow>
       {!none && row("runs")}
       {!none && row("tokens")}
+      {stuck && (
+        <>
+          <SettingRow title={t("limits.stuck")} description={t("limits.stuckHint")}>
+            <Switch
+              size="sm"
+              checked={Boolean(stuck.runs || stuck.tokens)}
+              aria-label={t("limits.stuck")}
+              onCheckedChange={(on) => {
+                const next = on ? { runs: 12, tokens: 2_000_000 } : { runs: 0, tokens: 0 };
+                setStuck(next);
+                void client
+                  .call("agents.set_limits", { stuck: next })
+                  .then((result) => setStuck(result.stuck ?? stuck))
+                  .catch(() => setStuck(stuck));
+              }}
+            />
+          </SettingRow>
+          {Boolean(stuck.runs || stuck.tokens) && row("runs", stuck)}
+          {Boolean(stuck.runs || stuck.tokens) && row("tokens", stuck)}
+        </>
+      )}
       {publish && (
         <SettingRow title={t("limits.publish")} description={t("limits.publishHint")}>
           <SegmentedControl

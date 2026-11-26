@@ -62,6 +62,20 @@ const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
       return afterTool ? say("Checked half of it.") : callTool("check", "task_list", {});
     return afterTool ? say("Wrote it, checking next.") : callTool("w", "task_update", { task, status: "doing" });
   }
+  if (said.includes("Native boundary")) {
+    if (said.includes("Part 2:"))
+      return afterTool
+        ? say("Finished.")
+        : callTool("finish", "task_close", { task: taskOf(said), state: "done", note: "Verified surviving work" });
+    if (!req.tools.length) return say("The first part is over.");
+    if (!afterTool && !said.includes("without progress"))
+      return callTool("write", "file_write", { path: "boundary.md", content: "Work persisted once." });
+    return callTool(`lookup-${req.messages.length}`, "memory_search", {
+      query: said.includes("without progress")
+        ? `boundary-${req.messages.length % 5}`
+        : `boundary-${req.messages.length}`,
+    });
+  }
   if (all.includes("Spin around")) return afterTool ? say("Still looking.") : callTool("look", "task_list", {});
   if (said.includes("Part 2 of at most")) {
     if (!afterTool) return callTool("close", "task_close", { task, state: "done", note: "both halves shipped" });
@@ -101,6 +115,42 @@ test("a task turn that ends with the task in progress goes on at once until the 
   );
   const cont = runs[1]?.input?.origin;
   assert.equal(cont?.kind === "task_continue" ? `${cont.part}/${cont.of}` : "", "2/9");
+});
+
+test("a native cap continues in the same task after progress, with no replay or stop notice", async () => {
+  const task = await env.client.call("tasks.create", {
+    title: "Native boundary",
+    description: "Save the work.",
+    assignee: "vera",
+  });
+  await waitFor(() => turnsOn(task.id)[1]?.ended_at, "capped task runs its next part");
+  const [first, second] = turnsOn(task.id);
+  assert.equal(first?.end_reason, "step_limit");
+  assert.equal(second?.input?.origin.kind, "task_continue");
+  assert.equal(second?.thread_id, first?.thread_id);
+  assert.ok(first?.message_id);
+  const parts = env.core.store.messages.get(first.message_id)?.parts ?? [];
+  assert.ok(parts.some((p) => p.type === "notice" && p.code === "run.partContinued"));
+  assert.ok(!parts.some((p) => p.type === "notice" && p.code === "run.stepLimit"));
+  assert.equal(
+    turnsOn(task.id)
+      .flatMap((r) => env.core.store.runs.steps(r.id))
+      .filter((s) => s.tool === "file_write").length,
+    1,
+  );
+});
+
+test("a native cap with only repeated lookups does not continue", async () => {
+  const task = await env.client.call("tasks.create", {
+    title: "Native boundary without progress",
+    description: "Native boundary without progress: repeat lookups.",
+    assignee: "vera",
+  });
+  await waitFor(() => turnsOn(task.id)[0]?.ended_at, "stalled part stops");
+  assert.deepEqual(
+    turnsOn(task.id).map((r) => r.end_reason),
+    ["step_limit"],
+  );
 });
 
 test("a part that gets nowhere is not followed by another: the stall watch has it", async () => {

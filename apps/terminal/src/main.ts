@@ -158,7 +158,7 @@ Usage:
                            Lists as a,b (tools= is all of them); orchestrator=true|false; rules='{"write":"ask"}';
                            autonomy= or rules= go back to the default
   apx agents set <agent> --prompt-file <file | ->   Its prompt from a file, or stdin with -
-  apx agents limits [<agent> runs=… tokens=… | <agent> clear | default runs=… tokens=…]
+  apx agents limits [<agent> runs=… tokens=… | <agent> clear | default runs=… tokens=… | stalled runs=… tokens=…]
                            How far agents go without you in one chat: the default, and an agent's own (0 = no limit)
   apx agents clone <agent…> [--project <id>] [--rename] [--under <slug>]
                            Copy agents (whole definition) into a project; --rename gives each a new free name

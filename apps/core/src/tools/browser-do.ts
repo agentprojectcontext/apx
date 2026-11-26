@@ -59,7 +59,7 @@ export function browserDoTool(
     effect: "external",
     // Typing sends words to a site: after reading outside content, the owner decides, as with browser_type.
     confirm: (a) => (a.recipe || a.steps?.some((s) => s.do === "type") ? "untrusted" : "never"),
-    untrustedWhy: "url_data",
+    untrustedWhy: "browser_steps",
     deadlineMs: 10 * 60_000,
     check(a, ctx) {
       if (!a.steps === !a.recipe) throw new Error("pass steps or recipe, not both");

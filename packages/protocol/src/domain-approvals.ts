@@ -17,6 +17,7 @@ export const ToolApproval = z.object(
     server: () => z.string(),
     project_id: () => Id.optional(),
     tool: () => z.string(),
+    credential_scope: () => Id.nullable().optional(),
     scope: () => z.enum(["session", "always", "tab", "turn"]),
     browser: () =>
       z

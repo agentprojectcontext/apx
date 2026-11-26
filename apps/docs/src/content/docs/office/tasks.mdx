@@ -257,10 +257,16 @@ new one opens a consult of its own, so questions asked together stay apart.
 
 ### An agent works a task until it is done
 
-When an agent's turn on a task ends with the task still in progress (it ran out of steps, or stopped at "I'll
-continue"), its next part starts at once, numbered, up to nine. It stops when the agent closes the task, marks it
-waiting on you with what you must do, says what blocks it, or when a part got nowhere. One part that only checks what
-the part before it changed counts as progress; two parts in a row that only look things up do not. Closing its own
+When APX's built-in agent reaches its per-turn step limit while making progress, it starts the next part in the same
+conversation. That is not a budget pause or the end of the task. A turn that simply stops at “I'll continue” still
+has bounded follow-ups. APX does not automatically continue a turn that was canceled, is waiting on permission or
+sign-in, or reached a provider limit. Temporary browser permissions keep their original scope; a new turn does not
+inherit permission for the previous turn.
+
+In **Settings › Agents**, **Pause stalled tasks** is separate from the unattended budget. One successful check can
+count as progress between completed plan steps; repeated checks and lookups cannot keep renewing that pause timer.
+Set both thresholds to zero to turn the guard off. Even then, a part with no evidence of progress is not retried
+immediately just because it reached the step limit. Closing its own
 work as done, an agent must say what it verified; if all its work on the task only wrote documents (a plan, notes) and
 ran no command, it is asked once whether a document was what the task wanted, and closes again only if it was. If it leaves changes uncommitted in its own git worktree, it is asked once to commit them on the branch and name it in the note. When another agent names a task's own agent again while it is not
 working on it, it goes on.

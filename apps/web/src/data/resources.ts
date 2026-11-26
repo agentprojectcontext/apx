@@ -127,24 +127,30 @@ export const revokeApproval = (key: string, thread?: string, agent?: string, opt
     () => client.call("tools.revoke", { key, ...(thread ? { thread } : {}), ...(agent ? { agent } : {}) }),
     options,
   );
+const permissionTarget = (s: McpServerStatus, project?: string) => ({
+  scope: s.scope,
+  server: s.name,
+  ...scoped(s.scope === "project" ? (s.project_id ?? project) : (s.values_of ?? s.project_id)),
+  ...(s.scope === "global" ? { values_of: s.values_of ?? null } : {}),
+});
+
 /** Its tools and their permissions, or why the server did not start (`error`). */
 export const mcpPermissions = (s: McpServerStatus, project?: string) =>
-  attempt(() => client.call("mcp.tools", { scope: s.scope, server: s.name, ...scoped(project) }));
+  attempt(() => client.call("mcp.tools", permissionTarget(s, project)));
 export const approveMcpTool = (s: McpServerStatus, tool: string, project?: string) =>
-  attempt(() => client.call("mcp.approveTool", { scope: s.scope, server: s.name, tool, ...scoped(project) }));
+  attempt(() => client.call("mcp.approveTool", { ...permissionTarget(s, project), tool }));
 
 /** "all": every tool, those the server adds later too; "ask": none. A server setting: it needs no running server. */
 export const setMcpToolMode = (s: McpServerStatus, mode: "ask" | "all", project?: string) =>
   attempt(async () => {
-    await client.call("mcp.toolMode", { scope: s.scope, server: s.name, mode, ...scoped(project) });
+    await client.call("mcp.toolMode", { ...permissionTarget(s, project), mode });
     return { ok: true };
   });
 
 /** Only these tools, picked one by one (new ones will ask); a failure stops the batch and shows a notice. */
 export const pickMcpTools = (s: McpServerStatus, tools: string[], project?: string) =>
   attempt(async () => {
-    await client.call("mcp.toolMode", { scope: s.scope, server: s.name, mode: "ask", ...scoped(project) });
-    for (const tool of tools)
-      await client.call("mcp.approveTool", { scope: s.scope, server: s.name, tool, ...scoped(project) });
+    await client.call("mcp.toolMode", { ...permissionTarget(s, project), mode: "ask" });
+    for (const tool of tools) await client.call("mcp.approveTool", { ...permissionTarget(s, project), tool });
     return { ok: true };
   });

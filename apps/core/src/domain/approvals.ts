@@ -14,6 +14,7 @@ export type ApprovalTarget = {
   /** Declared read-only: shown as such; any tool can be approved for good, the owner decides. */
   permanent: boolean;
   project_id?: string | undefined;
+  credential_scope?: string | null | undefined;
   browser?: BrowserConsentContext | undefined;
   /** A grant under this key covers the tool too: an MCP server's "allow all" (mcp/approval.ts). */
   group?: string | undefined;
@@ -220,6 +221,7 @@ export function approvalsRepo(q: Sql) {
       }
       const g: ToolApproval = {
         key: a.key,
+        ...(a.credential_scope !== undefined ? { credential_scope: a.credential_scope } : {}),
         server: a.server,
         tool: a.tool,
         ...(a.project_id ? { project_id: a.project_id } : {}),

@@ -65,6 +65,7 @@ export type McpStatus = {
   name: string;
   scope: "global" | "project";
   project_id?: string;
+  values_of?: string;
   only: boolean;
   transport: "stdio" | "http";
   target: string;
@@ -435,6 +436,7 @@ export function createMcp(deps: {
       effect,
       // Sending the owner's files out waits for them while outside content is in the turn, even for a read-only tool.
       confirm: (args) => (confirm === "never" && hasFileRefs(args) ? "untrusted" : confirm),
+      untrustedWhy: "mcp_outside",
       deadlineMs: CALL_MS + 5_000,
       parse(raw) {
         if (!check) return { ok: true, args: raw };
@@ -559,9 +561,9 @@ export function createMcp(deps: {
      * "all": every tool, new ones included, for every agent (one grant for the server). "ask": none; the server's
      * grant and each tool's own for every agent go (one agent's or one chat's stay).
      */
-    setToolMode: (d: McpDef, mode: "ask" | "all") => setMcpToolMode(deps.store, d, mode),
+    setToolMode: (d: McpDef, mode: "ask" | "all") => setMcpToolMode(deps.store, d, mode, "owner", seen(d)),
     /** Who let every agent use all its tools, under this definition or the one before an edit; none: undefined. */
-    allowsAll: (d: Pick<McpDef, "scope" | "project_id" | "name">) => allowsAll(deps.store, d),
+    allowsAll: (d: McpDef) => allowsAll(deps.store, d),
     /**
      * A server new to the owner lets agents use every tool; the owner blocks what they want (DECISIONS.md#d-279).
      * `again`: open it even if it was opened before (added anew after its removal).
@@ -624,6 +626,7 @@ export function createMcp(deps: {
           name: d.name,
           scope: d.scope,
           ...(d.project_id || d.only ? { project_id: d.project_id ?? d.only } : {}),
+          ...(d.values_of ? { values_of: d.values_of } : {}),
           only: Boolean(d.only),
           transport: d.url ? "http" : "stdio",
           target: d.url ?? [d.command, ...d.args].join(" "),
@@ -784,7 +787,7 @@ export function createMcp(deps: {
     find(scope: "global" | "project", name: string, projectId?: string): McpDef | undefined {
       if (scope === "project") return projectId ? config.project(projectId).find((d) => d.name === name) : undefined;
       const d = config.global().find((x) => x.name === name);
-      return d && inProject(d, projectId ?? d.only);
+      return d && (!d.only || !projectId || d.only === projectId) ? inProject(d, projectId ?? d.only) : undefined;
     },
     async close(): Promise<void> {
       clearInterval(idle);

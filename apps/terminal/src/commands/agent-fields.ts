@@ -66,7 +66,8 @@ export function agentPatch(agent: string, pairs: string[], extra: Record<string,
   return checked.data;
 }
 
-const LIMITS_USAGE = "usage: apx agents limits [<agent> runs=… tokens=… | <agent> clear | default runs=… tokens=…]";
+const LIMITS_USAGE =
+  "usage: apx agents limits [<agent> runs=… tokens=… | <agent> clear | default runs=… tokens=… | stalled runs=… tokens=…]";
 
 const budget = (b: { runs?: number | undefined; tokens?: number | undefined }) =>
   [b.runs ? `${b.runs} turns` : "", b.tokens ? `${b.tokens} tokens` : ""].filter(Boolean).join(" · ") || "no limit";
@@ -91,7 +92,13 @@ export async function agentLimits(client: ApxClient, [target, ...pairs]: string[
   if (!target) {
     const l = await client.call("agents.limits", {});
     console.log(`Default: ${budget(l)}`);
+    console.log(`Stalled tasks: ${budget(l.stuck)}`);
     for (const [agent, b] of Object.entries(l.agents)) console.log(`${agent}: ${budget(b)}`);
+    return;
+  }
+  if (target === "stalled" && pairs.length && pairs[0] !== "clear") {
+    const result = await client.call("agents.set_limits", { stuck: numbers(pairs) });
+    if (result.stuck) console.log(`Stalled tasks: ${budget(result.stuck)}`);
     return;
   }
   if (target === "default") {
