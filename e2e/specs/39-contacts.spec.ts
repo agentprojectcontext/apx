@@ -1,6 +1,7 @@
 // A channel's contacts (WhatsApp, linked by 10-whatsapp): a saved contact with no chat yet is listed and opens an empty
 // chat to ask the agent to write to them; what was sent shows how far it got and their reactions; who is online and what is set for each
 // contact show on their row.
+import type { Thread } from "../../packages/protocol/src/index.ts";
 import { expect, open, rpc, test, until, world } from "./kit.ts";
 
 const NORA = "5491100000011@s.whatsapp.net";
@@ -12,8 +13,9 @@ test("a saved contact with no chat: listed, an empty chat to ask the agent to wr
   await rpc("contacts.address", { channel: "whatsapp", address: "+54 9 11 0000-0011", person: nora.id });
 
   // A contact nobody wrote to has no chat yet: the channel's own screen lists them (as the account's Inbox list does).
+  // Rows start with the contact's name; the line's agent may draw "Nora" too and shows on every row ("Atiende Nora").
   await open(page, "#channel=whatsapp");
-  const row = page.locator(".chan__rows").getByRole("button", { name: /Nora/ });
+  const row = page.locator(".chan__rows").getByRole("button", { name: /^Nora/ });
   await expect(row).toContainText("+5491100000011");
   await row.click();
   await expect(page.getByText("Todavía no hay mensajes con Nora")).toBeVisible();
@@ -70,8 +72,8 @@ test("a saved contact with no chat: listed, an empty chat to ask the agent to wr
   await world.whatsapp.react({ phone: NORA, name: "Nora" }, "❤️");
   await expect(ticks.getByRole("img", { name: "Su reacción: ❤️" })).toBeVisible();
   // Opened from the Inbox it is the same chat as in its channel: their emoji on the answer and how far it got.
-  const { threads } = await rpc<{ threads: Array<{ id: string; title: string }> }>("threads.list");
-  const chat = threads.find((t) => t.title === "Nora");
+  const { threads } = await rpc<{ threads: Thread[] }>("threads.list");
+  const chat = threads.find((t) => t.channel?.id === "whatsapp" && t.channel.person_id === nora.id);
   await open(page, `#thread=${chat?.id}`);
   const answer = page.locator(".chan--single .chan__bubble.is-out").last();
   await expect(answer.getByRole("img", { name: "Su reacción: ❤️" })).toBeVisible();
@@ -91,7 +93,7 @@ test("who is online and what is set for a contact show on their row", async ({ p
 
   // A contact nobody wrote to has no chat in the Inbox: the channel's own screen lists them.
   await open(page, "#channel=whatsapp");
-  const row = page.locator(".chan__rows").getByRole("button", { name: /Nora/ });
+  const row = page.locator(".chan__rows").getByRole("button", { name: /^Nora/ });
   await expect(row.getByRole("img", { name: "Silenciado" })).toBeVisible();
   await expect(row.getByRole("img", { name: "Contestar desde mis notas" })).toBeVisible();
 
@@ -113,7 +115,7 @@ test("a muted, supervised contact: switches on their card, marks under their nam
 
   // A contact nobody wrote to has no chat in the Inbox: the channel's own screen lists them.
   await open(page, "#channel=whatsapp");
-  await page.locator(".chan__rows").getByRole("button", { name: /Nora/ }).click();
+  await page.locator(".chan__rows").getByRole("button", { name: /^Nora/ }).click();
   const header = page.getByRole("button", { name: "Abrir el contacto de Nora" });
   await expect(header.getByRole("img", { name: "Silenciado" })).toBeVisible();
   await expect(header.getByRole("img", { name: /^Supervisado/ })).toBeVisible();
