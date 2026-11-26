@@ -7,7 +7,8 @@ sidebar:
 
 When APX starts on a newer version, your super-agent opens a chat with what changed and offers the new things that
 fit how you use it (see [Updates](/start/install/#updates)). This page keeps that list for later, with a link to the page
-that explains each part. Fixes that only make something work as it already should are left out.
+that explains each part. Fixes that only make something work as it already should are left out, and a release that
+only fixed things says so in one line. 2.13.0 was never published: its work shipped in 2.13.1.
 
 ## 2.17.2
 
@@ -18,6 +19,9 @@ that explains each part. Fixes that only make something work as it already shoul
   **Chat summarized**. See [Talking to an agent](/office/chat/#talking-to-an-agent).
 - **Settings › Review and improvements** lists past reviews: when each ran, how many chats it read, and what became
   of every improvement it suggested. See [History](/office/secretary/#history).
+- Settings that save with a button (Review and improvements, the router, shared image defaults, email signatures)
+  keep your changes in a bar at the bottom of the screen, with **Discard** and **Save changes**; ⌘/Ctrl+S saves too.
+  See [The router](/concepts/models/#the-router).
 
 ## 2.17.1
 
@@ -89,3 +93,207 @@ that explains each part. Fixes that only make something work as it already shoul
 
 - **Tasks** lists what needs you first. A long press on **Chats**, **Tasks** or **Routines** marks that tab read, and on
   **Chats** it also offers **See archived**. A reply cut by a dropped connection fills in when the app reconnects. See [Navigate the Android app](/devices/phone/#navigate-the-android-app).
+
+## 2.16.1
+
+- Your agent can work with Google spreadsheets through your Drive connection: list tabs, read cells and create
+  spreadsheets, with cell changes following your confirmation preferences. See [Google](/extend/integrations/#google).
+- When a Google API is turned off, the message says which one and who can turn it on. The rest are fixes, mostly for
+  adding and updating extensions.
+
+## 2.16.0
+
+- The Marketplace: APX's catalog, the extensions that come with APX and your own catalogs in one place, each saying
+  what it brings, who makes it and what it can reach. Adding, connecting and pairing a device happen in one box. See
+  [Extensions](/extend/extensions/#find-them-in-the-marketplace).
+- Share a widget, app or page with a public link anyone can open without APX. You approve exactly what goes public
+  and can stop sharing it at any time. See [Publish a public copy](/office/artifacts/#publish-a-public-copy).
+- An optional APX account: sign in with Google in **Settings › Account** to get your APX ID. Your projects and chats
+  stay on your computer. See [Your APX account](/start/account/).
+- Contacts can book appointments on your Google Calendar, at a free time inside your attention hours. See
+  [Appointments](/channels/overview/#appointments).
+- Move an agent to another project with its tasks and chosen files, after a review, without making a copy. See
+  [Move an agent and its work to another project](/concepts/agent-moves/).
+- APX can run with `docker compose up`, from an image each release publishes. See [Install](/start/install/).
+
+## 2.15.3
+
+- Calls can use the speech and transcription services you choose (Gemini, ElevenLabs or an OpenAI-compatible
+  server), on Windows, Linux or macOS. See [Choose services for calls](/office/calls/#choose-services-for-calls).
+
+## 2.15.2
+
+Fixes only: GPT-6.2 models work with their full context window.
+
+## 2.15.1
+
+Fixes only: what fits in a turn is done in it instead of becoming a task, the agent's cursor leaves the screen when
+its turn ends, and a chat's size no longer counts hidden reasoning.
+
+## 2.15.0
+
+- APX has its own voice, in Spanish or English, and you can call any agent: work that takes time keeps going during
+  the call, and you hear the answer when it's ready. See [Calls and APX's voice](/office/calls/).
+- Group chats: you and two to five agents in one chat; @name asks one of them. See
+  [Group chats](/office/chat/#group-chats).
+- A simple panel for a personal assistant, with **Simple** and **Advanced** at the top to switch, and OpenRouter
+  connects by signing in, starting on its free models. See [Personal assistant](/start/first-steps/#personal-assistant).
+- Results to compare (stays, flights, products) can come as cards inside an answer, on the panel and the phone. See
+  [Tables, code, pages and diagrams in answers](/office/chat/#tables-code-pages-and-diagrams-in-answers).
+- The chat shows what the agent is thinking before it answers. See [Talking to an agent](/office/chat/#talking-to-an-agent).
+
+## 2.14.3
+
+- A routine runs where its agent works, with that agent's tools (your Chrome included), and each routine has its own
+  **Permissions**. See [Where it runs and what it may do](/office/routines/#where-it-runs-and-what-it-may-do).
+- Say "let's go on in Telegram" and your agent writes there and carries on; results of work it handed off reach you
+  where you last wrote. See [Where your messages land](/channels/overview/#where-your-messages-land).
+- Gemini 4 Argon and GPT-6 Astra show up in the model picker. See [Model launch notices](/concepts/models/#model-launch-notices).
+- The welcome shows what's new as short clips, one per feature.
+
+## 2.14.2
+
+Fixes only: updating from the 2.13.4 hotfix repairs the database it left behind.
+
+## 2.14.1
+
+Fixes only: updating from the 2.13.4 hotfix no longer stops on indexes added by hand. See
+[Updating from the v2.13.4 hotfix](/start/install/#updating-from-the-v2134-hotfix).
+
+## 2.14.0
+
+- Several accounts of the same chat app (two WhatsApp numbers, two bots), each with who answers you and who answers
+  your contacts, and an agent of its own for one contact or one room. See
+  [Who is on an account](/channels/overview/#who-is-on-an-account).
+- WhatsApp groups: pick which groups APX reads and when your agent answers in each. See [Groups](/channels/whatsapp/#groups).
+- Ask in a Discord room or a group for something that needs real work and your agent does it from Home; the result
+  reaches you in private. See [Server rooms](/channels/discord-slack/#server-rooms).
+- Received mail shows as mail, pictures hidden until you ask, and you can stop reading a sender or a domain. See
+  [Reading received mail](/channels/email/#reading-received-mail).
+- Subprojects: each has its own folder, chats and memory, and the project's team works in all of them. See
+  [Subprojects](/concepts/projects/#subprojects).
+- **Side question** in the composer's + menu asks your agent something about the chat without adding to it. See
+  [Side question](/office/chat/#side-question).
+- Review and improvements: APX reviews new activity and suggests small improvements as proposals. See
+  [Review and improvements](/office/secretary/#review-and-improvements).
+- A project's Memory lists each note in a short row, and your super-agent can go through them with you. See
+  [See, confirm and undo](/concepts/memory/#see-confirm-and-undo).
+- Changed agents leave a review notice, and the agent on a task carries it to the end. See
+  [Review agents after changes](/concepts/agents/#review-agents-after-changes).
+- An MCP connection can move between global and one project, **All allowed** covers tools a server adds later, and a
+  connection can be edited from a link in the chat. See [Global and project servers](/extend/mcp/#global-and-project-servers).
+- A calendar reminder you don't need can be turned off from the reminder itself, for that event and its series. See
+  [Google](/extend/integrations/#google).
+
+## 2.13.4
+
+Fixes only: shell commands refuse hidden null characters, and a command that fails to start no longer stays open.
+
+## 2.13.3
+
+- What you ask your super-agent for follows its permission mode. The rest are fixes: a ChatGPT plan no longer refuses
+  a chat after text cut mid-emoji, and APX waits for your Chrome's extension before giving up. See
+  [Autonomy and safety](/concepts/autonomy/).
+
+## 2.13.2
+
+- On the phone: messages waiting for the agent can be sent now, edited, moved or taken back, tasks show what you
+  asked in your words, and More warns when the computer's disk is almost full. See
+  [Navigate the Android app](/devices/phone/#navigate-the-android-app).
+
+## 2.13.1
+
+- Tasks have a goal, keep what you asked as you wrote it, and show the agent's plan step by step; agents comment
+  less and you can group related tasks under one parent. See [Goal, what you asked and the plan](/office/tasks/#goal-what-you-asked-and-the-plan).
+- Write while your agent works: it reads you at its next step, or waits in line until it finishes. See
+  [Writing while it works](/office/chat/#writing-while-it-works).
+- Agents can work in your own Chrome, where you are already signed in, from APX's side panel in Chrome. See
+  [In your own Chrome](/office/browser/#in-your-own-chrome).
+- Agents fill a saved password, username or authenticator code into a sign-in form without seeing it. See
+  [Signing in with your saved passwords](/office/browser/#signing-in-with-your-saved-passwords).
+- Ask for a web page and it shows as one, with **Edit** to point at a part and change it. See
+  [Web pages](/office/artifacts/#web-pages).
+- Each agent can have up to five fallback models. See [An agent's own fallbacks](/concepts/models/#an-agents-own-fallbacks).
+- Models from an app running on this computer (Ollama, LM Studio) are ready to pick. See
+  [Models on this computer](/concepts/models/#models-on-this-computer).
+- Ask your agent to open a Claude Code or Codex session in a project. See
+  [Sessions your agent starts](/office/code/#sessions-your-agent-starts).
+- **Settings › Move or back up** saves your setup as one file to bring to another computer, and a Hermes setup can
+  come in too. See [Move or back up](/start/move-or-back-up/) and [Moving from Hermes](/start/from-hermes/).
+- **Settings › Storage** shows what APX keeps on disk and frees space, and compacts the chats' file. See
+  [The disk is almost full](/reference/troubleshooting/#the-disk-is-almost-full).
+- Emails your agent writes show as cards you send from Gmail or an Email channel. See
+  [Send a draft from the chat](/office/email/#send-a-draft-from-the-chat).
+- A small cursor shows what each agent is about to do on your Mac, and quick chat can start with any agent. See
+  [Native agent cursor](/devices/desktop/#native-agent-cursor).
+
+## 2.12.5
+
+Fixes only: closing a tab in APX's browser no longer crashes the app and clears its private session, and Flows read
+one clock for deadlines, webhooks and schedules.
+
+## 2.12.4
+
+Fixes only: the core starts when macOS holds a project folder behind a privacy prompt.
+
+## 2.12.3
+
+Fixes only: `apx doctor` and `apx update` work when the core can't start, and running the install script again
+makes the new version current.
+
+## 2.12.2
+
+Fixes only: the installed core starts again, and restarting into a new version says why when it can't.
+
+## 2.12.1
+
+Fixes only: a Flow's message shows as the channel agent's, and a routine that already wrote to you doesn't send its
+report as well.
+
+## 2.12.0
+
+- Flows: draw on a canvas what happens on a schedule or when a webhook arrives, with branches, code, SQL, command and
+  AI model steps, project tables, and a test with one real event. Your super-agent can draw them for you. See
+  [Flows](/office/routines/#flows).
+- A public address for Flows, LINE, Teams and the widgets you publish, while your panel and files stay private. See
+  [A public address for Teams and LINE](/channels/overview/#a-public-address-for-teams-and-line).
+- Agents can run a script in APX's browser after you approve it, once, for a tab or for one turn. See
+  [Approved JavaScript execution](/office/browser/#approved-javascript-execution).
+- Google Calendar can remind you before each event, and Gmail's mail check runs as often as you choose. See
+  [Google](/extend/integrations/#google).
+- The **?** at the foot of the sidebar keeps what each release brought. See [What's new and help](/start/first-steps/#whats-new-and-help).
+- Agents keep going until they finish what you asked, with no turn or token limit by default. See
+  [Delegation](/concepts/agents/#delegation).
+- **Files** lists everything shared in chats and leads back to its message. See
+  [Everything shared, in Files](/office/chat/#everything-shared-in-files).
+- Several mailboxes, each with its own signature, and a text size you choose in **Settings › Appearance**. See
+  [Several mailboxes and signatures](/channels/email/#several-mailboxes-and-signatures) and
+  [Languages and themes](/reference/configuration/#languages-and-themes).
+
+## 2.11.3
+
+Fixes only: a machine missing what the agents' computer needs shows it as a step, with its command and a retry.
+
+## 2.11.2
+
+- Your agents' computer runs on Linux and Windows machines too, not only on Apple Silicon Macs. See
+  [Isolated Linux VM](/office/computers/).
+
+## 2.11.1
+
+- Attach screenshots and files to a task; they stay with it even if the chat is deleted. See
+  [Attachments and task chat actions](/office/tasks/#attachments-and-task-chat-actions).
+- Move, close, reopen or archive a task from its chat group.
+- Each mailbox and sender can have its own email signature, and your super-agent can change one after you approve.
+  See [One signature per sender](/office/email/#one-signature-per-sender).
+- The top bar shows how much of your Claude and Codex plans is left and when it resets. See [Account limits are not chat tokens](/concepts/models/#account-limits-are-not-chat-tokens).
+- When your server runs on another computer, the desktop app updates it first and then itself. See
+  [Updates](/devices/desktop/#updates).
+
+## 2.11.0
+
+- APX v2 becomes the release, with a one-time welcome and its launch film. See [Coming from v1](/start/from-v1/).
+- A Linux computer your agents share, each with its own screen, desktop and browser; allow it per agent and watch
+  every screen in **Computers**. See [Isolated Linux VM](/office/computers/).
+- Your Mac stays awake while agents work; turn it off in **Settings › Desktop**. See
+  [Settings › Desktop](/devices/desktop/#settings--desktop).
