@@ -54,4 +54,8 @@ writeFileSync("dist/disclosure.css", readFileSync("src/styles/components/disclos
 writeFileSync("dist/catalog-row.css", readFileSync("src/styles/components/catalog-row.css", "utf8"));
 // Adding and connecting (signal, steps, summary card) is on the Marketplace only.
 writeFileSync("dist/summary.css", readFileSync("src/styles/components/summary.css", "utf8"));
-console.log("built dist/ (index.js, index.d.ts, styles.css, flow.css, disclosure.css, catalog-row.css, summary.css)");
+// The unsaved-changes bar is only on screens that load late (Settings).
+writeFileSync("dist/unsaved-bar.css", readFileSync("src/styles/components/unsaved-bar.css", "utf8"));
+console.log(
+  "built dist/ (index.js, index.d.ts, styles.css, flow.css, disclosure.css, catalog-row.css, summary.css, unsaved-bar.css)",
+);

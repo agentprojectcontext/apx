@@ -1368,9 +1368,6 @@
   align-items: center;
   margin-top: 12px;
 }
-.sig__grow {
-  flex: 1;
-}
 
 /* A phone: the nav is a row of sections over the content, so the open section gets the whole width. */
 @media (max-width: 640px) {

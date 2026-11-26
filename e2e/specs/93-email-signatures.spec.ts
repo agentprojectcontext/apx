@@ -15,7 +15,7 @@ test("the personal default signature can be edited without connecting an account
     await dialog.getByRole("radio", { name: "Con formato", exact: true }).click();
     await dialog.getByLabel("Firma HTML (opcional)", { exact: true }).fill("<b>Global signature</b>");
     await expect(dialog.getByTitle("Vista previa de la firma")).toBeVisible();
-    await dialog.getByRole("button", { name: "Guardar firma", exact: true }).click();
+    await dialog.getByRole("button", { name: "Guardar cambios", exact: true }).click();
     const read = async () =>
       (await rpc<Result<"email.signature_default_get">>("email.signature_default_get")).signature;
     await expect.poll(async () => (await read())?.text).toBe("Global signature");
@@ -26,7 +26,7 @@ test("the personal default signature can be edited without connecting an account
     await expect(dialog.getByLabel("Firma en texto plano", { exact: true })).toHaveValue("Global signature");
     await dialog.getByLabel("Agregar la firma automáticamente").click();
     await dialog.getByLabel("Firma en texto plano", { exact: true }).fill("");
-    await dialog.getByRole("button", { name: "Guardar firma", exact: true }).click();
+    await dialog.getByRole("button", { name: "Guardar cambios", exact: true }).click();
     await expect.poll(async () => (await read())?.enabled).toBe(false);
     await dialog.getByRole("button", { name: "Quitar firma", exact: true }).click();
     await expect.poll(read).toBeNull();
@@ -130,7 +130,7 @@ test("SMTP account signatures stay isolated across mailbox selection and reload"
     await dialog
       .getByLabel("Firma HTML (opcional)", { exact: true })
       .fill('<b>Acme</b><a href="https://example.com">Support</a>');
-    await dialog.getByRole("button", { name: "Guardar firma", exact: true }).click();
+    await dialog.getByRole("button", { name: "Guardar cambios", exact: true }).click();
     const read = async () => (await rpc<{ signatures: EmailSignatureEntry[] }>("email.signatures_get")).signatures;
     await expect
       .poll(async () => (await read()).find((e) => e.account === "signature-mail")?.text)
@@ -140,7 +140,7 @@ test("SMTP account signatures stay isolated across mailbox selection and reload"
     await expect(page.getByRole("dialog", { name: "Second mailbox" })).toBeVisible();
     await expect(dialog.getByLabel("Firma en texto plano", { exact: true })).toHaveValue("");
     await dialog.getByLabel("Firma en texto plano", { exact: true }).fill("Second account signature");
-    await dialog.getByRole("button", { name: "Guardar firma", exact: true }).click();
+    await dialog.getByRole("button", { name: "Guardar cambios", exact: true }).click();
     await expect
       .poll(async () => (await read()).find((e) => e.account === "signature-mail-two")?.text)
       .toBe("Second account signature");
@@ -181,7 +181,7 @@ test("SMTP account signatures stay isolated across mailbox selection and reload"
     await dialog.getByRole("radio", { name: "Texto plano", exact: true }).click();
     await expect(dialog.getByLabel("Firma en texto plano", { exact: true })).toHaveValue("Acme support");
     await dialog.getByLabel("Agregar la firma automáticamente").click();
-    await dialog.getByRole("button", { name: "Guardar firma", exact: true }).click();
+    await dialog.getByRole("button", { name: "Guardar cambios", exact: true }).click();
     await expect.poll(async () => (await read()).find((e) => e.account === "signature-mail")?.enabled).toBe(false);
     await dialog.getByRole("button", { name: "Usar firma por defecto", exact: true }).click();
     await expect.poll(async () => (await read()).some((e) => e.account === "signature-mail")).toBe(false);

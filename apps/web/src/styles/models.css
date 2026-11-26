@@ -52,13 +52,6 @@
   padding: 0;
   list-style: none;
 }
-.router__foot {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  padding-top: 4px;
-}
 .router__warn,
 .chain__warn {
   display: inline-flex;

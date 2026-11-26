@@ -19,6 +19,7 @@ import {
   TemplateField,
 } from "../dist/index.js";
 import { LifecycleFixture } from "./lifecycle.test-support.ts";
+import { UnsavedFixture } from "./unsaved.test-support.ts";
 
 function Fixture() {
   const [tags, setTags] = useState<string[]>([]);
@@ -163,6 +164,7 @@ function Fixture() {
         h("input", { "aria-label": "Project name", defaultValue: "Acme" }),
       ),
       h(LifecycleFixture),
+      h(UnsavedFixture),
       h(AgentGrid, {
         label: "Agent",
         value: agent,
