@@ -8,7 +8,8 @@ sidebar:
 Cuando APX arranca en una versión nueva, tu super-agente abre un chat con lo que cambió y te ofrece lo nuevo que le
 sirve a cómo lo usás (ver [Actualizaciones](/es/start/install/#actualizaciones)). Esta página guarda esa lista para
 después, con un enlace a la página que explica cada parte. Quedan afuera los arreglos que solo hacen que algo funcione
-como ya debía.
+como ya debía, y una versión que solo trajo arreglos lo dice en una línea. La 2.13.0 nunca se publicó: lo suyo salió en
+la 2.13.1.
 
 ## 2.17.2
 
@@ -19,6 +20,9 @@ como ya debía.
   la investigación** y **Se resumió la charla**. Ver [Hablar con un agente](/es/office/chat/#hablar-con-un-agente).
 - **Configuración › Revisión y mejoras** lista las revisiones pasadas: cuándo corrió cada una, cuántos chats leyó y qué pasó
   con cada mejora que sugirió. Ver [Historial](/es/office/secretary/#historial).
+- Los ajustes que se guardan con un botón (Revisión y mejoras, el router, los valores compartidos de imágenes, las
+  firmas de correo) guardan tus cambios en una barra abajo de la pantalla, con **Descartar** y **Guardar cambios**;
+  ⌘/Ctrl+S también guarda. Ver [El router](/es/concepts/models/#el-router).
 
 ## 2.17.1
 
@@ -97,3 +101,218 @@ como ya debía.
 - **Tareas** lista primero lo que te necesita. Mantener apretado **Chats**, **Tareas** o **Rutinas** marca esa pestaña
   como leída, y en **Chats** también ofrece **Ver archivados**. Una respuesta cortada por una conexión caída se completa
   cuando la app se reconecta. Ver [Navegá la app Android](/es/devices/phone/#navegá-la-app-android).
+
+## 2.16.1
+
+- Tu agente puede trabajar con planillas de Google a través de tu conexión con Drive: listar pestañas, leer celdas y
+  crear planillas; los cambios en celdas siguen tus preferencias de confirmación. Ver [Google](/es/extend/integrations/#google).
+- Cuando una API de Google está apagada, el mensaje dice cuál es y quién la puede prender. El resto son arreglos, sobre
+  todo al agregar y actualizar extensiones.
+
+## 2.16.0
+
+- El Marketplace: el catálogo de APX, las extensiones que vienen con APX y tus propios catálogos en un solo lugar, cada
+  una con lo que trae, quién la hace y a qué puede llegar. Agregar, conectar y vincular un dispositivo pasa en un solo
+  cuadro. Ver [Extensiones](/es/extend/extensions/#encontralas-en-el-marketplace).
+- Compartí un widget, una app o una página con un link público que cualquiera abre sin APX. Aprobás exactamente lo que
+  se publica y podés dejar de compartirlo cuando quieras. Ver [Publicar una copia pública](/es/office/artifacts/#publicar-una-copia-pública).
+- Una cuenta de APX opcional: iniciá sesión con Google en **Configuración › Cuenta** para tener tu APX ID. Tus proyectos
+  y chats siguen en tu computadora. Ver [Tu cuenta APX](/es/start/account/).
+- Tus contactos pueden agendar turnos en tu Google Calendar, en un horario libre dentro de tus horas de atención. Ver
+  [Citas](/es/channels/overview/#citas).
+- Mové un agente a otro proyecto con sus tareas y los archivos que elijas, después de revisarlo, sin hacer una copia.
+  Ver [Mover un agente y su trabajo a otro proyecto](/es/concepts/agent-moves/).
+- APX puede correr con `docker compose up`, desde una imagen que publica cada versión. Ver [Instalar](/es/start/install/).
+
+## 2.15.3
+
+- Las llamadas pueden usar los servicios de voz y transcripción que elijas (Gemini, ElevenLabs o un servidor
+  compatible con OpenAI), en Windows, Linux o macOS. Ver
+  [Elegir servicios para las llamadas](/es/office/calls/#elegir-servicios-para-las-llamadas).
+
+## 2.15.2
+
+Solo arreglos: los modelos GPT-6.2 funcionan con su ventana de contexto completa.
+
+## 2.15.1
+
+Solo arreglos: lo que entra en un turno se hace en él en vez de volverse una tarea, el cursor del agente sale de la
+pantalla cuando termina su turno, y el tamaño de un chat ya no cuenta el razonamiento oculto.
+
+## 2.15.0
+
+- APX tiene voz propia, en español o inglés, y podés llamar a cualquier agente: el trabajo que lleva tiempo sigue
+  durante la llamada y escuchás la respuesta cuando está lista. Ver [Llamadas y la voz de APX](/es/office/calls/).
+- Chats grupales: vos y de dos a cinco agentes en un chat; @nombre le pregunta a uno. Ver
+  [Chats grupales](/es/office/chat/#chats-grupales).
+- Un panel simple para un asistente personal, con **Simple** y **Avanzado** arriba para cambiar, y OpenRouter se conecta
+  iniciando sesión, empezando por sus modelos gratis. Ver [Asistente personal](/es/start/first-steps/#asistente-personal).
+- Los resultados para comparar (alojamientos, vuelos, productos) pueden llegar como tarjetas dentro de una respuesta, en
+  el panel y en el teléfono. Ver
+  [Tablas, código, páginas y diagramas en las respuestas](/es/office/chat/#tablas-código-páginas-y-diagramas-en-las-respuestas).
+- El chat muestra lo que el agente está pensando antes de responder. Ver [Hablar con un agente](/es/office/chat/#hablar-con-un-agente).
+
+## 2.14.3
+
+- Una rutina corre donde trabaja su agente, con las herramientas de ese agente (tu Chrome incluido), y cada rutina tiene
+  sus propios **Permisos**. Ver [Dónde corre y qué puede hacer](/es/office/routines/#dónde-corre-y-qué-puede-hacer).
+- Decí "sigamos por Telegram" y tu agente escribe ahí y sigue; los resultados del trabajo que delegó te llegan donde
+  escribiste por última vez. Ver [Adónde van tus mensajes](/es/channels/overview/#adónde-van-tus-mensajes).
+- Gemini 4 Argon y GPT-6 Astra aparecen en el selector de modelos. Ver
+  [Avisos de lanzamientos de modelos](/es/concepts/models/#avisos-de-lanzamientos-de-modelos).
+- La bienvenida muestra lo nuevo en clips cortos, uno por función.
+
+## 2.14.2
+
+Solo arreglos: actualizar desde el hotfix 2.13.4 repara la base de datos que dejó.
+
+## 2.14.1
+
+Solo arreglos: actualizar desde el hotfix 2.13.4 ya no se frena por índices agregados a mano. Ver
+[Actualizar desde el hotfix v2.13.4](/es/start/install/#actualizar-desde-el-hotfix-v2134).
+
+## 2.14.0
+
+- Varias cuentas de la misma app de chat (dos números de WhatsApp, dos bots), cada una con quién te responde a vos y
+  quién a tus contactos, y un agente propio para un contacto o una sala. Ver
+  [Quién está en una cuenta](/es/channels/overview/#quién-está-en-una-cuenta).
+- Grupos de WhatsApp: elegí qué grupos lee APX y cuándo responde tu agente en cada uno. Ver [Grupos](/es/channels/whatsapp/#grupos).
+- Pedí en una sala de Discord o un grupo algo que necesita trabajo de verdad y tu agente lo hace desde Home; el
+  resultado te llega en privado. Ver [Salas del servidor](/es/channels/discord-slack/#salas-del-servidor).
+- El correo recibido se ve como correo, con las imágenes ocultas hasta que las pidas, y podés dejar de leer a un
+  remitente o un dominio. Ver [Leer el correo recibido](/es/channels/email/#leer-el-correo-recibido).
+- Subproyectos: cada uno tiene su carpeta, sus chats y su memoria, y el equipo del proyecto trabaja en todos. Ver
+  [Subproyectos](/es/concepts/projects/#subproyectos).
+- **Pregunta aparte** en el menú + del compositor le pregunta algo a tu agente sobre el chat sin sumarlo. Ver
+  [Pregunta aparte](/es/office/chat/#pregunta-aparte).
+- Revisión y mejoras: APX revisa la actividad nueva y sugiere mejoras chicas como propuestas. Ver
+  [Revisión y mejoras](/es/office/secretary/#revisión-y-mejoras).
+- La Memoria de un proyecto lista cada nota en una fila corta, y tu super-agente puede repasarlas con vos. Ver
+  [Ver, confirmar y deshacer](/es/concepts/memory/#ver-confirmar-y-deshacer).
+- Los agentes cambiados dejan un aviso para revisar, y el agente de una tarea la lleva hasta el final. Ver
+  [Revisá los agentes después de un cambio](/es/concepts/agents/#revisá-los-agentes-después-de-un-cambio).
+- Una conexión MCP puede pasar de global a un proyecto, **Todas permitidas** cubre las herramientas que un servidor sume
+  después, y una conexión se edita desde un link en el chat. Ver
+  [Servidores globales y de proyecto](/es/extend/mcp/#servidores-globales-y-de-proyecto).
+- Un recordatorio del calendario que no necesitás se apaga desde el mismo recordatorio, para ese evento y su serie. Ver
+  [Google](/es/extend/integrations/#google).
+
+## 2.13.4
+
+Solo arreglos: los comandos de terminal rechazan caracteres nulos ocultos, y un comando que no llega a arrancar ya no
+queda abierto.
+
+## 2.13.3
+
+- Lo que le pedís a tu super-agente sigue su modo de permisos. El resto son arreglos: un plan de ChatGPT ya no rechaza
+  un chat por un texto cortado a mitad de un emoji, y APX espera la extensión de tu Chrome antes de rendirse. Ver
+  [Autonomía y seguridad](/es/concepts/autonomy/).
+
+## 2.13.2
+
+- En el teléfono: los mensajes que esperan al agente se pueden mandar ya, editar, mover o retirar, las tareas muestran
+  lo que pediste con tus palabras, y Más avisa cuando el disco de la computadora está casi lleno. Ver
+  [Navegá la app Android](/es/devices/phone/#navegá-la-app-android).
+
+## 2.13.1
+
+- Las tareas tienen un objetivo, guardan lo que pediste tal como lo escribiste y muestran el plan del agente paso a
+  paso; los agentes comentan menos y podés agrupar tareas relacionadas bajo una principal. Ver
+  [Objetivo, lo que pediste y el plan](/es/office/tasks/#objetivo-lo-que-pediste-y-el-plan).
+- Escribí mientras tu agente trabaja: te lee en su paso siguiente, o tu mensaje espera en fila hasta que termine. Ver
+  [Escribir mientras trabaja](/es/office/chat/#escribir-mientras-trabaja).
+- Los agentes pueden trabajar en tu propio Chrome, donde ya iniciaste sesión, desde el panel lateral de APX en Chrome.
+  Ver [En tu propio Chrome](/es/office/browser/#en-tu-propio-chrome).
+- Los agentes completan una contraseña, un usuario o un código de autenticación guardados en un formulario de inicio de
+  sesión sin verlos. Ver [Iniciar sesión con tus claves guardadas](/es/office/browser/#iniciar-sesión-con-tus-claves-guardadas).
+- Pedí una página web y se ve como página, con **Editar** para señalar una parte y cambiarla. Ver
+  [Páginas web](/es/office/artifacts/#páginas-web).
+- Cada agente puede tener hasta cinco modelos de respaldo. Ver
+  [Los respaldos propios de un agente](/es/concepts/models/#los-respaldos-propios-de-un-agente).
+- Los modelos de una app que corre en esta computadora (Ollama, LM Studio) están listos para elegir. Ver
+  [Modelos en esta computadora](/es/concepts/models/#modelos-en-esta-computadora).
+- Pedile a tu agente que abra una sesión de Claude Code o Codex en un proyecto. Ver
+  [Sesiones que abre tu agente](/es/office/code/#sesiones-que-abre-tu-agente).
+- **Configuración › Mover o respaldar** guarda tu configuración en un archivo para llevarla a otra computadora, y también
+  puede entrar una configuración de Hermes. Ver [Mover o respaldar](/es/start/move-or-back-up/) y
+  [Mudarse desde Hermes](/es/start/from-hermes/).
+- **Configuración › Almacenamiento** muestra lo que APX guarda en disco, libera espacio y compacta el archivo de los
+  chats. Ver [El disco está casi lleno](/es/reference/troubleshooting/#el-disco-está-casi-lleno).
+- Los correos que escribe tu agente se ven como tarjetas que mandás desde Gmail o un canal de Email. Ver
+  [Enviá un borrador desde el chat](/es/office/email/#enviá-un-borrador-desde-el-chat).
+- Un cursor chico muestra lo que cada agente está por hacer en tu Mac, y el chat rápido puede empezar con cualquier
+  agente. Ver [Cursor nativo del agente](/es/devices/desktop/#cursor-nativo-del-agente).
+
+## 2.12.5
+
+Solo arreglos: cerrar una pestaña del navegador de APX ya no cierra la app y borra su sesión privada, y los Flows usan un
+solo reloj para plazos, webhooks y horarios.
+
+## 2.12.4
+
+Solo arreglos: el core arranca cuando macOS retiene una carpeta de proyecto detrás de un aviso de privacidad.
+
+## 2.12.3
+
+Solo arreglos: `apx doctor` y `apx update` funcionan cuando el core no puede arrancar, y volver a correr el script de
+instalación deja activa la versión nueva.
+
+## 2.12.2
+
+Solo arreglos: el core instalado vuelve a arrancar, y reiniciar en una versión nueva dice por qué cuando no puede.
+
+## 2.12.1
+
+Solo arreglos: el mensaje de un Flow se ve como del agente del canal, y una rutina que ya te escribió no manda además su
+informe.
+
+## 2.12.0
+
+- Flows: dibujá en un lienzo lo que pasa con un horario o cuando llega un webhook, con ramas, pasos de código, SQL,
+  comandos y modelo de IA, tablas del proyecto y una prueba con un evento real. Tu super-agente te los puede dibujar. Ver
+  [Flows](/es/office/routines/#flows).
+- Una dirección pública para Flows, LINE, Teams y los widgets que publiques, mientras tu panel y tus archivos siguen
+  privados. Ver [Una dirección pública para Teams y LINE](/es/channels/overview/#una-dirección-pública-para-teams-y-line).
+- Los agentes pueden correr un script en el navegador de APX después de que lo apruebes, una vez, para una pestaña o
+  para un turno. Ver [Ejecución de JavaScript aprobada](/es/office/browser/#ejecución-de-javascript-aprobada).
+- Google Calendar te puede recordar antes de cada evento, y la revisión del correo de Gmail corre cada cuánto elijas.
+  Ver [Google](/es/extend/integrations/#google).
+- El **?** al pie de la barra lateral guarda lo que trajo cada versión. Ver [Novedades y ayuda](/es/start/first-steps/#novedades-y-ayuda).
+- Los agentes siguen hasta terminar lo que pediste, sin límite de turnos ni de tokens por defecto. Ver
+  [Delegar](/es/concepts/agents/#delegar).
+- **Archivos** lista todo lo compartido en los chats y te lleva a su mensaje. Ver
+  [Todo lo compartido, en Archivos](/es/office/chat/#todo-lo-compartido-en-archivos).
+- Varias casillas, cada una con su firma, y un tamaño de texto que elegís en **Configuración › Apariencia**. Ver
+  [Varias casillas y firmas](/es/channels/email/#varias-casillas-y-firmas) e
+  [Idiomas y temas](/es/reference/configuration/#idiomas-y-temas).
+
+## 2.11.3
+
+Solo arreglos: una máquina a la que le falta algo para la computadora de los agentes lo muestra como un paso, con su
+comando y un reintento.
+
+## 2.11.2
+
+- La computadora de tus agentes corre también en máquinas con Linux y Windows, no solo en Macs con Apple Silicon. Ver
+  [VM Linux aislada](/es/office/computers/).
+
+## 2.11.1
+
+- Adjuntá capturas y archivos a una tarea; quedan con ella aunque se borre el chat. Ver
+  [Adjuntos y acciones de los chats de una tarea](/es/office/tasks/#adjuntos-y-acciones-de-los-chats-de-una-tarea).
+- Mové, cerrá, reabrí o archivá una tarea desde el grupo de sus chats.
+- Cada casilla y cada remitente pueden tener su propia firma de correo, y tu super-agente puede cambiar una después de
+  que lo apruebes. Ver [Una firma por remitente](/es/office/email/#una-firma-por-remitente).
+- La barra de arriba muestra cuánto te queda de tus planes de Claude y Codex y cuándo se renuevan. Ver
+  [Los límites de la cuenta no son los tokens del chat](/es/concepts/models/#los-límites-de-la-cuenta-no-son-los-tokens-del-chat).
+- Cuando tu servidor corre en otra computadora, la app de escritorio lo actualiza primero y después se actualiza ella.
+  Ver [Actualizaciones](/es/devices/desktop/#actualizaciones).
+
+## 2.11.0
+
+- APX v2 pasa a ser la versión principal, con una bienvenida única y su película de lanzamiento. Ver
+  [Si venís de v1](/es/start/from-v1/).
+- Una computadora Linux que comparten tus agentes, cada uno con su pantalla, su escritorio y su navegador; la habilitás
+  por agente y ves todas las pantallas en **Computadoras**. Ver [VM Linux aislada](/es/office/computers/).
+- Tu Mac no se duerme mientras trabajan los agentes; lo apagás en **Configuración › Escritorio**. Ver
+  [Configuración › Escritorio](/es/devices/desktop/#configuración--escritorio).
