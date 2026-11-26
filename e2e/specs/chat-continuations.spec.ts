@@ -33,7 +33,7 @@ test("expired and revoked follow-ups explain why they did not start, without inv
     await expect(receipts).toHaveCount(2);
     await expect(receipts.first()).toContainText("Venció la espera");
     await expect(receipts.last()).toContainText("No pude continuar");
-    await expect(receipts.last()).toContainText("Cambió el chat");
+    await expect(receipts.last()).toContainText("Cambió el acceso");
     await expect(receipts.getByRole("button")).toHaveCount(0);
     expect(llm.calls.length).toBe(0);
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, "continuation-blocked-desktop.png") });
@@ -97,6 +97,8 @@ test("a chat follow-up keeps its receipt through reload, cancels by keyboard, an
     await expect(receipts.first()).toContainText("Programado");
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, "continuation-scheduled-desktop.png") });
     await page.setViewportSize({ width: 390, height: 844 });
+    await page.reload();
+    await expect(receipts.first()).toContainText("Programado");
     const cancel = receipts.first().getByRole("button", { name: "Cancelar: Comprobar el informe" });
     await expect(cancel).toBeVisible();
     await cancel.focus();
@@ -104,6 +106,7 @@ test("a chat follow-up keeps its receipt through reload, cancels by keyboard, an
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, "continuation-scheduled-phone.png") });
     await cancel.press("Enter");
     await expect(receipts.first()).toContainText("Cancelado");
+    await expect(receipts.first().locator("strong")).toBeFocused();
     await expect(cancel).toHaveCount(0);
     await page.reload();
     await expect(receipts.first()).toContainText("Cancelado");
@@ -128,8 +131,9 @@ test("a chat follow-up keeps its receipt through reload, cancels by keyboard, an
     await expect(result).toBeVisible();
     const view = receipts.last().getByRole("button", { name: "Ver ejecución", exact: true });
     await view.scrollIntoViewIfNeeded();
-    await view.click();
+    await view.press("Enter");
     await expect(result).toBeVisible();
+    await expect(result.locator("xpath=ancestor::*[@data-msg][1]")).toBeFocused();
     await expect(receipts).toHaveCount(2);
     if (SHOTS) {
       await page.screenshot({ path: path.join(SHOTS, "continuation-result-phone.png") });

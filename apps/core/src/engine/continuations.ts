@@ -24,12 +24,24 @@ export function tickContinuations(store: Store, admit: AdmitFn, at: Date): void 
       continue;
     }
     if (Date.parse(item.expires_at) <= at.getTime()) {
-      finish(item, "expired", "The request expired before I could return. I did not start it.");
+      const task = item.condition.kind === "task_done" ? store.tasks.get(item.condition.task) : undefined;
+      const ready = task?.project_id === item.project_id && task?.state === "done";
+      finish(
+        item,
+        "expired",
+        "The request expired before I could return. I did not start it.",
+        ready ? "ready_expired" : "expired",
+      );
       continue;
     }
     const saved = store.continuations.get(item.id);
     if (!saved || continuationAuthority(store, item.thread_id, item.agent_id) !== saved.authority) {
-      finish(item, "blocked", "The chat, agent or project settings changed. Ask again if you still want this check.");
+      finish(
+        item,
+        "blocked",
+        "The chat, agent or project settings changed. Ask again if you still want this check.",
+        "access",
+      );
       continue;
     }
     const condition = item.condition;
@@ -118,14 +130,19 @@ export function continuationCanStart(store: Store, run: RunRecord, at: Date): bo
     continuationAuthority(store, run.thread_id, run.agent_id) === saved?.authority
   )
     return true;
-  if (item?.state === "admitted") {
-    store.continuations.change(item.id, "admitted", "blocked", {
+  if (item?.state === "admitted" && item.run_id === run.id) {
+    const expired =
+      Date.parse(item.expires_at) <= at.getTime() ||
+      (condition?.kind === "time" && at.getTime() - Date.parse(condition.at) > CATCH_UP_MS);
+    const state = expired ? "expired" : "blocked";
+    const code = expired ? "ready_expired" : !ready ? "task" : "access";
+    store.continuations.change(item.id, "admitted", state, {
       reason: "No longer authorized or expired before execution",
     });
     continuationNotice(
       store,
-      { ...item, state: "blocked" },
-      "blocked",
+      { ...item, state },
+      code,
       "This check expired or its access changed before it could start. Nothing was started.",
     );
   }

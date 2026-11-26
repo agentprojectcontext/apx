@@ -9,24 +9,23 @@ export const noticeEs: Record<NoticeKey, string> = {
   "notice.continuation.expired": "Venció la espera",
   "notice.continuation.blocked": "No pude continuar",
   "notice.continuation.failed": "La comprobación se detuvo",
-  "notice.continuation.at": "El {when}",
+  "notice.continuation.at": "El {date} a las {time}",
   "notice.continuation.whenTask": "Cuando termine «{when}»",
-  "notice.continuation.until": "Hasta {when}",
-  "notice.continuation.expiredDetail":
-    "No empezó antes de vencer el plazo o dentro de los 15 minutos de la hora pedida. No se inició nada.",
-  "notice.continuation.blockedDetail":
-    "Cambió el chat, el agente, el proyecto o la tarea. Pedilo de nuevo si todavía querés esta comprobación.",
+  "notice.continuation.until": "Hasta el {date} a las {time}",
+  "notice.continuation.expiredDetail": "No empezó antes de que venciera el plazo.",
+  "notice.continuation.expiredEvent": "No terminó «{when}» antes del plazo.",
+  "notice.continuation.expiredEventUnknown": "La tarea no terminó antes del plazo.",
+  "notice.continuation.accessDetail": "Cambió el acceso. Pedilo de nuevo si todavía querés esta comprobación.",
+  "notice.continuation.blockedDetail": "No pude iniciar esta comprobación. Pedila de nuevo si todavía la querés.",
   "notice.continuation.unavailableDetail":
     "El agente no pudo iniciar esta comprobación. Pedila de nuevo cuando esté disponible.",
-  "notice.continuation.taskDetail":
-    "La tarea se eliminó, cambió de proyecto o se descartó. No pude confirmar que terminara.",
+  "notice.continuation.taskDetail": "No pude confirmar que terminara. Elegí una tarea disponible y pedilo de nuevo.",
   "notice.continuation.failedDetail":
     "No pudo terminar la comprobación. Mirá el resultado acá. No se reintentará automáticamente.",
-  "notice.continuation.alreadyStarted": "Ya empezó. Cancelar no puede deshacer sus acciones.",
+  "notice.continuation.alreadyStarted": "Ya empezó.",
   "notice.continuation.cancel": "Cancelar",
   "notice.continuation.cancelLabel": "Cancelar: {purpose}",
-  "notice.continuation.cancelError":
-    "No se pudo cancelar. Puede que ya haya empezado. Revisá el estado o volvé a intentar.",
+  "notice.continuation.cancelError": "No se pudo cancelar. Volvé a intentar.",
   "notice.continuation.view": "Ver ejecución",
   "notice.run.stepLimit":
     "Se quedó sin pasos en este turno: es un informe de lo hecho y lo que falta, no una respuesta final.",

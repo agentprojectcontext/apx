@@ -704,7 +704,8 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
     },
     setReplyTo(id: string, replyTo: RunInput["reply_to"]): void {
       const input = repo.get(id)?.input;
-      if (input)
+      // A bounded follow-up keeps the destination approved at admission.
+      if (input && input.origin.kind !== "continuation")
         run(
           qb
             .updateTable("runs")

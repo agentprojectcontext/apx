@@ -1,7 +1,7 @@
 import type { Part } from "@apx/protocol";
 import { ApxError } from "@apx/protocol/client";
 import { Button, Icons } from "@apx/ui";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { client } from "../../data/client.ts";
 import { usePrefs } from "../../data/prefs.ts";
 import { useData } from "../../data/state.ts";
@@ -10,12 +10,24 @@ import { go } from "../../shell/nav.ts";
 
 type NoticeData = Extract<Part, { type: "notice" }>;
 
+function dateParts(value: string | number | undefined, locale: string) {
+  const parsed = new Date(String(value));
+  if (Number.isNaN(parsed.getTime())) return { date: String(value ?? ""), time: "" };
+  return {
+    date: new Intl.DateTimeFormat(locale, { year: "numeric", month: "short", day: "numeric" }).format(parsed),
+    time: new Intl.DateTimeFormat(locale, { hour: "numeric", minute: "2-digit", timeZoneName: "short" }).format(parsed),
+  };
+}
+
 export function ContinuationNotice({ part }: { part: NoticeData }) {
   const t = useT();
   const locale = LOCALES[usePrefs((p) => p.language)];
   const online = useData((s) => s.connection === "online");
   const [pending, setPending] = useState(false);
   const busy = useRef(false);
+  const localFocus = useRef(false);
+  const status = useRef<HTMLElement>(null);
+  const cancelButton = useRef<HTMLButtonElement>(null);
   const [error, setError] = useState(false);
   const [observed, setObserved] = useState<string>();
   const v = part.vars ?? {};
@@ -23,26 +35,22 @@ export function ContinuationNotice({ part }: { part: NoticeData }) {
   const id = String(v.id ?? "");
   const thread = String(v.thread ?? "");
   const purpose = String(v.purpose ?? "");
-  const date = (value: string | number | undefined) => {
-    const parsed = new Date(String(value));
-    return Number.isNaN(parsed.getTime())
-      ? String(value ?? "")
-      : new Intl.DateTimeFormat(locale, {
-          year: "numeric",
-          month: "short",
-          day: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-          timeZoneName: "short",
-        }).format(parsed);
-  };
+  useEffect(() => {
+    if (!localFocus.current || pending) return;
+    if (state !== "pending") status.current?.focus();
+    else if (error) cancelButton.current?.focus();
+    else return;
+    localFocus.current = false;
+  }, [state, pending, error]);
   const cancel = async () => {
     if (busy.current || !online) return;
     busy.current = true;
+    localFocus.current = true;
     setPending(true);
     setError(false);
     try {
-      await client.call("continuations.cancel", { thread, id });
+      const saved = await client.call("continuations.cancel", { thread, id });
+      setObserved(saved.state);
     } catch (err) {
       if (
         err instanceof ApxError &&
@@ -79,26 +87,38 @@ export function ContinuationNotice({ part }: { part: NoticeData }) {
     <div className="noticeline continuation-notice" role="status">
       <Icons.Clock size={14} />
       <div className="noticeline__text">
-        <strong>{title}</strong>
+        <strong ref={status} className="continuation-notice__status" tabIndex={-1}>
+          {title}
+        </strong>
         <p>{purpose}</p>
         {state === "pending" && (
           <>
             <p>
               {v.condition === "time"
-                ? t("notice.continuation.at", { when: date(v.when) })
+                ? t("notice.continuation.at", dateParts(v.when, locale))
                 : t("notice.continuation.whenTask", { when: String(v.when ?? "") })}
             </p>
-            <p>{t("notice.continuation.until", { when: date(v.expires) })}</p>
+            <p>{t("notice.continuation.until", dateParts(v.expires, locale))}</p>
           </>
         )}
-        {state === "expired" && <p>{t("notice.continuation.expiredDetail")}</p>}
+        {state === "expired" && (
+          <p>
+            {v.condition === "task_done" && v.reason !== "ready_expired"
+              ? v.when
+                ? t("notice.continuation.expiredEvent", { when: String(v.when) })
+                : t("notice.continuation.expiredEventUnknown")
+              : t("notice.continuation.expiredDetail")}
+          </p>
+        )}
         {state === "blocked" && (
           <p>
             {v.reason === "task"
               ? t("notice.continuation.taskDetail")
               : v.reason === "unavailable"
                 ? t("notice.continuation.unavailableDetail")
-                : t("notice.continuation.blockedDetail")}
+                : v.reason === "access"
+                  ? t("notice.continuation.accessDetail")
+                  : t("notice.continuation.blockedDetail")}
           </p>
         )}
         {state === "failed" && <p>{t("notice.continuation.failedDetail")}</p>}
@@ -109,25 +129,26 @@ export function ContinuationNotice({ part }: { part: NoticeData }) {
               : t("notice.continuation.cancelError")}
           </p>
         )}
-        <span className="noticeline__actions">
-          {state === "pending" && (
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={pending || !online}
-              aria-label={t("notice.continuation.cancelLabel", { purpose })}
-              onClick={() => void cancel()}
-            >
-              {t("notice.continuation.cancel")}
-            </Button>
-          )}
-          {v.target && (
-            <Button size="sm" variant="ghost" onClick={() => go.message(thread, String(v.target))}>
-              {t("notice.continuation.view")}
-            </Button>
-          )}
-        </span>
       </div>
+      <span className="noticeline__actions">
+        {state === "pending" && (
+          <Button
+            ref={cancelButton}
+            size="sm"
+            variant="ghost"
+            disabled={pending || !online}
+            aria-label={t("notice.continuation.cancelLabel", { purpose })}
+            onClick={() => void cancel()}
+          >
+            {t("notice.continuation.cancel")}
+          </Button>
+        )}
+        {v.target && (
+          <Button size="sm" variant="ghost" onClick={() => go.message(thread, String(v.target))}>
+            {t("notice.continuation.view")}
+          </Button>
+        )}
+      </span>
     </div>
   );
 }

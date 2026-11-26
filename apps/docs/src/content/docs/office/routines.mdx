@@ -31,7 +31,9 @@ canceling cannot undo its actions. An interrupted execution is not retried autom
 
 The result or blocker remains in the same chat even when push notifications are muted. **View run** points to
 the actual execution. Changes to the chat, agent or project settings can block a saved request; ask again to
-confirm that you still want it. The agent uses its current permissions and still asks for effects that need approval.
+confirm that you still want it. Changing a code chat's working folder also blocks its saved requests. Once admitted,
+a follow-up keeps its destination even if you move Home or send another message during the turn. A provider limit
+leaves a failed result, not an automatic retry. The agent uses its current permissions and still asks for effects that need approval.
 
 The supported event is an open task in the chat's project being marked completed, not an appliance sensor or an
 arbitrary webhook. A task's completion is not evidence that a device finished. Ask for a timed read-only check if

@@ -34,8 +34,10 @@ reintenta automáticamente.
 
 El resultado o bloqueo queda en el mismo chat aunque los avisos push estén silenciados. **Ver ejecución** lleva
 al turno real. Cambiar el chat, el agente o la configuración del proyecto puede bloquear un pedido guardado;
-pedilo de nuevo para confirmar que todavía lo querés. El agente usa sus permisos actuales y sigue pidiendo
-aprobación para los efectos que la necesitan.
+pedilo de nuevo para confirmar que todavía lo querés. Cambiar la carpeta de una sesión de código también bloquea
+sus pedidos guardados. Una vez admitido, el seguimiento conserva su destino aunque muevas Home o mandes otro
+mensaje durante el turno. Un límite del proveedor deja un resultado fallido, sin reintento automático. El agente
+usa sus permisos actuales y sigue pidiendo aprobación para los efectos que la necesitan.
 
 El evento admitido es que una tarea abierta del proyecto del chat se marque completada, no un sensor de un
 electrodoméstico ni un webhook arbitrario. Completar una tarea no demuestra que un aparato haya terminado.

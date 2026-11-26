@@ -27,6 +27,7 @@ export function continuationAuthority(store: Store, threadId: string, agentId: s
         reply_to: context.reply_to,
         project_id: thread.project_id,
         write: thread.write,
+        cwd: thread.cwd,
         flow: context.flow_step,
         routine: context.routine_autonomy,
       }),
@@ -43,6 +44,13 @@ export function continuationNotice(
 ): void {
   const saved = store.continuations.get(item.id)?.value ?? item;
   const target = saved.run_id ? store.messages.ofRun(item.thread_id, saved.run_id)[0]?.id : undefined;
+  const task = saved.condition.kind === "task_done" ? store.tasks.get(saved.condition.task) : undefined;
+  const when =
+    saved.condition.kind === "time"
+      ? saved.condition.at
+      : task?.project_id === saved.project_id
+        ? (task?.title ?? "")
+        : "";
   const part = {
     type: "notice" as const,
     code: "continuation.receipt",
@@ -55,7 +63,7 @@ export function continuationNotice(
       purpose: saved.purpose,
       state: saved.state,
       condition: saved.condition.kind,
-      when: saved.condition.kind === "time" ? saved.condition.at : (store.tasks.get(saved.condition.task)?.title ?? ""),
+      when,
       expires: saved.expires_at,
       reason: code,
       ...(target ? { target } : {}),

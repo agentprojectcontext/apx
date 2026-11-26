@@ -7,22 +7,22 @@ export const noticeEn = {
   "notice.continuation.expired": "The wait expired",
   "notice.continuation.blocked": "Couldn't continue",
   "notice.continuation.failed": "The check stopped",
-  "notice.continuation.at": "On {when}",
+  "notice.continuation.at": "{date} at {time}",
   "notice.continuation.whenTask": "When “{when}” is completed",
-  "notice.continuation.until": "Until {when}",
-  "notice.continuation.expiredDetail":
-    "It didn't start before the deadline or within 15 minutes of the requested time. Nothing was started.",
-  "notice.continuation.blockedDetail":
-    "The chat, agent, project or task changed. Ask again if you still want this check.",
+  "notice.continuation.until": "Until {date} at {time}",
+  "notice.continuation.expiredDetail": "It didn't start before the deadline.",
+  "notice.continuation.expiredEvent": "“{when}” didn't finish before the deadline.",
+  "notice.continuation.expiredEventUnknown": "The task didn't finish before the deadline.",
+  "notice.continuation.accessDetail": "Access changed. Ask again if you still want this check.",
+  "notice.continuation.blockedDetail": "I couldn't start this check. Ask again if you still want it.",
   "notice.continuation.unavailableDetail": "The agent couldn't start this check. Ask again when it is available.",
-  "notice.continuation.taskDetail":
-    "The task was removed, moved to another project or dropped. I couldn't confirm completion.",
+  "notice.continuation.taskDetail": "I couldn't confirm completion. Choose an available task and ask again.",
   "notice.continuation.failedDetail":
     "The check couldn't finish. See its result here. It won't be retried automatically.",
-  "notice.continuation.alreadyStarted": "Already started. Canceling cannot undo its actions.",
+  "notice.continuation.alreadyStarted": "It already started.",
   "notice.continuation.cancel": "Cancel",
   "notice.continuation.cancelLabel": "Cancel: {purpose}",
-  "notice.continuation.cancelError": "Couldn't cancel. It may already have started. Check the status or try again.",
+  "notice.continuation.cancelError": "Couldn't cancel. Try again.",
   "notice.continuation.view": "View run",
   "notice.run.stepLimit":
     "Ran out of steps for this turn: this is a report of what is done and left, not a final answer.",
