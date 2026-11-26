@@ -109,8 +109,9 @@ export const noticeEn = {
   "notice.warn": "Warning",
   "notice.engine.fallback": "{model} did not answer ({why}); went on with {to}.",
   "notice.engine.fallback.title": "Switched model",
-  "notice.thread.compacted":
-    "Earlier turns were summarized to keep this chat's context small. Nothing new was started.",
+  "notice.thread.compacted": "Chat summarized",
+  "notice.memory.saved": "Saved to memory",
+  "notice.research.updated": "Research updated",
   "notice.task.stalled": "Nothing was running on this task: APX asked the agent to go on or say what it waits for.",
   "notice.pairing.request": "Someone new wants to talk on a channel: approve them in Channels.",
 };

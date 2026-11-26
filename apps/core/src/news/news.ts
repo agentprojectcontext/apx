@@ -17,6 +17,8 @@ import { NEWS, type NewsEntry, newsFacts } from "./entries.ts";
 
 /** The entries already told (or known from the start), as a JSON list of ids. */
 const SEEN_KEY = "news_seen";
+/** Entries offered when what they are about was turned on (offer), as a JSON list of ids: each once. */
+const OFFERED_KEY = "news_offered";
 /** Buttons under one message: more would be a menu, not a suggestion. */
 const MAX_ACTIONS = 3;
 /** A few sentences: the deadline and the cap keep a slow or chatty model from holding the boot's work. */
@@ -71,8 +73,8 @@ export function createNews(deps: {
   const ac = new AbortController();
   let running: Promise<unknown> = Promise.resolve();
 
-  const seenIds = (): Set<string> | undefined => {
-    const raw = store.settings.get(SEEN_KEY);
+  const idsOf = (key: string): Set<string> | undefined => {
+    const raw = store.settings.get(key);
     if (raw === undefined) return undefined;
     try {
       const ids: unknown = JSON.parse(raw);
@@ -81,8 +83,10 @@ export function createNews(deps: {
       return new Set();
     }
   };
-  const markSeen = (ids: Iterable<string>) =>
-    store.settings.set(SEEN_KEY, JSON.stringify([...new Set([...(seenIds() ?? []), ...ids])]));
+  const seenIds = () => idsOf(SEEN_KEY);
+  const mark = (key: string, ids: Iterable<string>) =>
+    store.settings.set(key, JSON.stringify([...new Set([...(idsOf(key) ?? []), ...ids])]));
+  const markSeen = (ids: Iterable<string>) => mark(SEEN_KEY, ids);
 
   function list(): NewsItem[] {
     const seen = seenIds() ?? new Set();
@@ -140,7 +144,20 @@ export function createNews(deps: {
     });
   }
 
-  async function deliver(told: NewsEntry[]): Promise<NewsTold> {
+  /**
+   * Offers one entry once, when the owner turns on what it is about (research): a fresh install knows every entry
+   * from the start, so the seen list alone would never tell it. Told already at a start, it is not offered again.
+   */
+  function offer(id: string): Promise<NewsTold> {
+    return serial(async () => {
+      const entry = entries.find((e) => e.id === id);
+      if (!entry || idsOf(OFFERED_KEY)?.has(id)) return { told: [], sent: false, voiced: false };
+      return deliver([entry], true);
+    });
+  }
+
+  /** `offered`: told because the owner just turned it on, not because APX was updated. */
+  async function deliver(told: NewsEntry[], offered = false): Promise<NewsTold> {
     if (!told.length) return { told: [], sent: false, voiced: false };
     const boss = store.agents.list().find((a) => a.kind === "secretary");
     const home = store.threads.get(HOME_THREAD_ID);
@@ -149,7 +166,7 @@ export function createNews(deps: {
     const actions = told.length === 1 ? (told[0]?.actions ?? []) : told.flatMap((e) => e.actions.slice(0, 1));
     const shown = actions.slice(0, MAX_ACTIONS);
     const talk = lastTalk(store, home, new Date(), ownerTimeZone(store));
-    const voiced = await voice(boss, told, lang, actions.length - shown.length, talk);
+    const voiced = await voice(boss, told, lang, actions.length - shown.length, talk, offered);
     const text =
       voiced ??
       plainText(
@@ -160,7 +177,7 @@ export function createNews(deps: {
       thread_id: home.id,
       agent_id: boss.id,
       text,
-      note: `<system_note>\nAPX was updated; you told the owner what is new for them.\n</system_note>`,
+      note: `<system_note>\n${offered ? "The owner just turned this on; you offered what you can do with it now" : "APX was updated; you told the owner what is new for them"}.\n</system_note>`,
       unread: true,
     });
     const buttons = shown.map((a) => {
@@ -170,6 +187,10 @@ export function createNews(deps: {
     const sent = deps.notifyOwner({ text, ...(buttons.length ? { buttons } : {}) }, home.id, messageId);
     // Posted in the app either way: the owner has it, so it is not told again.
     markSeen(told.map((e) => e.id));
+    mark(
+      OFFERED_KEY,
+      told.map((e) => e.id),
+    );
     log.info({ news: told.map((e) => e.id), sent, voiced: voiced !== undefined }, "release news told");
     return { told: told.map((e) => e.id), thread: home.id, sent, voiced: voiced !== undefined };
   }
@@ -184,6 +205,7 @@ export function createNews(deps: {
     lang: string,
     moreActions: number,
     talk: string | undefined,
+    offered: boolean,
   ): Promise<string | undefined> {
     const models = deps.models(boss.id);
     if (!models.length) return undefined;
@@ -192,7 +214,7 @@ export function createNews(deps: {
       models,
       messages: [
         { role: "system", content: voicePrompt(boss) },
-        { role: "user", content: newsInput(told, lang, moreActions, talk) },
+        { role: "user", content: newsInput(told, lang, moreActions, talk, offered) },
       ],
       tools: [],
       maxOutputTokens: MAX_OUTPUT_TOKENS,
@@ -208,6 +230,7 @@ export function createNews(deps: {
     list,
     atBoot,
     tell,
+    offer,
     stop: async () => {
       ac.abort(new Error("shutting down"));
       await running.catch(() => {});
@@ -223,7 +246,7 @@ const voicePrompt = (boss: { name: string; personality?: string | undefined }) =
   `You are ${boss.name}, the owner's assistant in APX, the app you run in.${boss.personality ? ` Your personality: ${boss.personality}` : ""}`;
 
 /** A few hundred characters: what is new for this owner, and how the message should read. */
-function newsInput(told: NewsEntry[], lang: string, moreActions: number, talk?: string): string {
+function newsInput(told: NewsEntry[], lang: string, moreActions: number, talk?: string, offered = false): string {
   const items = told.map((e) => `- ${e.text}`).join("\n");
   const offers = told
     .flatMap((e) => (told.length === 1 ? e.actions : e.actions.slice(0, 1)))
@@ -232,7 +255,9 @@ function newsInput(told: NewsEntry[], lang: string, moreActions: number, talk?: 
     .map((a) => `"${labelOf(a, lang)}"`)
     .join(", ");
   return [
-    "APX was updated. What is new that you can now do for the owner:",
+    offered
+      ? "The owner just turned this on. What you can now do for them:"
+      : "APX was updated. What is new that you can now do for the owner:",
     items,
     `Write them one or two short sentences in your voice, in their language (${lang}): the one thing that matters most to them in **bold** (the only Markdown), then offer: ${offers}.${told.length > 1 ? " Do not list the rest: say the whole list is in Help › What's new." : ""}${moreActions > 0 ? ` Mention there are ${moreActions} more things you can show them.` : ""} They can pick one or just answer you. Write only the message.`,
     talk ? `[last talk] ${talk}` : "",

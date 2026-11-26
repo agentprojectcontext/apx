@@ -54,7 +54,8 @@ export function useDiscovery() {
     try {
       const value = await client.call("discovery.configure", { ...(patch ?? draft), expected: baseline });
       setStatus(value);
-      setDraft(patch ? { ...draft, ...patch } : value.settings);
+      // The switch keeps the draft, but takes what turning it on filled in (time zone, report).
+      setDraft(patch ? { ...draft, ...patch, ...filledIn(baseline, value.settings) } : value.settings);
       setBaseline(value.settings);
       if (!patch) setSaved(true);
     } catch (err) {
@@ -97,4 +98,14 @@ export function useDiscovery() {
     discard: () => baseline && setDraft(baseline),
     dirty: JSON.stringify(draft) !== JSON.stringify(baseline),
   };
+}
+
+/** The fields the core changed beyond what was asked: what it filled in on its own. */
+function filledIn(before: DiscoverySettings | undefined, after: DiscoverySettings): Partial<DiscoverySettings> {
+  if (!before) return {};
+  return Object.fromEntries(
+    Object.entries(after).filter(
+      ([k, v]) => JSON.stringify(before[k as keyof DiscoverySettings]) !== JSON.stringify(v),
+    ),
+  ) as Partial<DiscoverySettings>;
 }

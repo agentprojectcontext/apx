@@ -43,18 +43,40 @@ after(async () => {
   await removeDir(temp);
 });
 
-test("a default turn's system prompt and tools stay within the prompt budget", async () => {
+/** A default turn's system prompt and tools, in characters. */
+async function defaultTurn() {
   const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: t.id, text: "hola" });
   await env.settle(t.id);
-  const call = llm.calls.at(-1);
+  // The turn's own call: turning research on may have the super-agent offer something in another chat.
+  const call = llm.calls.findLast((c) => String(c.messages.at(-1)?.content).endsWith("hola"));
   const prompt = String(call?.messages[0]?.content ?? "");
   const scratch = scratchDir(env.core.store, env.home, t);
   assert.ok(prompt.includes(scratch), "the captured prompt names the real chat temp folder");
-  const system = prompt.replace(scratch, `/tmp/apx-scratch-01234567/${t.id}`).length;
-  const tools = JSON.stringify(call?.tools ?? []).length;
-  assert.ok(system <= BUDGET.system, `system prompt: ${system} chars, budget ${BUDGET.system} (rules/PROMPT_SIZE.md)`);
-  assert.ok(tools <= BUDGET.tools, `tools: ${tools} chars, budget ${BUDGET.tools} (rules/PROMPT_SIZE.md)`);
+  return {
+    system: prompt.replace(scratch, `/tmp/apx-scratch-01234567/${t.id}`).length,
+    tools: JSON.stringify(call?.tools ?? []).length,
+  };
+}
+
+test("a default turn's system prompt and tools stay within the prompt budget, research on too", async (t) => {
+  const off = await defaultTurn();
+  // The largest default turn: research on adds its line, and no tool (DECISIONS.md#d-276).
+  await env.client.call("discovery.configure", { enabled: true });
+  const on = await defaultTurn();
+  await env.client.call("discovery.configure", { enabled: false });
+  assert.equal(on.tools, off.tools, "research adds no tool");
+  assert.ok(on.system > off.system, "research on tells the super-agent how to add to it");
+  for (const { system, tools } of [off, on]) {
+    assert.ok(
+      system <= BUDGET.system,
+      `system prompt: ${system} chars, budget ${BUDGET.system} (rules/PROMPT_SIZE.md)`,
+    );
+    assert.ok(tools <= BUDGET.tools, `tools: ${tools} chars, budget ${BUDGET.tools} (rules/PROMPT_SIZE.md)`);
+  }
+  t.diagnostic(
+    `default turn: ${off.system} chars, research on: ${on.system} (+${on.system - off.system}); tools ${on.tools}`,
+  );
 });
 
 const INSTRUCTIONS = [

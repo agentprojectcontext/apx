@@ -5,13 +5,28 @@ description: Investigá tus proyectos e intereses e incluí un hallazgo útil en
 
 La investigación contextual es independiente de la revisión de actividad. La revisión propone mejoras desde conversaciones recientes; la investigación contextual lee fuentes públicas y busca una conexión útil con tus proyectos o intereses. Ninguna ejecuta sus sugerencias.
 
-## Configurá antes de activar
+## Activala
 
-Pedile a tu superagente que te ayude a configurar la investigación. Puede proponer cambios mediante `apx_settings`, con `discovery.configure`; cambiar la configuración siempre tiene una tarjeta de aprobación. Instalar la función no activa la investigación ni cambia rutinas existentes.
+La investigación empieza apagada. Instalar o actualizar APX no la activa ni cambia tus rutinas; solo completa lo que va a usar al empezar, así que activarla no te pregunta nada:
+
+- todos tus proyectos registrados y legibles;
+- la zona horaria de tu perfil;
+- el informe diario de tu superagente, cuando hay una opción clara (su único informe, o su resumen de la mañana); si no, ninguno, y lo elegís vos;
+- los límites por defecto.
+
+Cuando la activás, tu superagente te ofrece una vez cargar tus intereses, páginas y ciudad o región con lo que ya sabe de vos. Te hace como mucho una pregunta si falta algo importante.
+
+## Se completa mientras charlan
+
+Con la investigación activa, tu superagente suma lo que aparece en la charla: un interés, un proyecto a seguir, una página pública oficial, tu ciudad o región. Lo hace sin cortar la charla ni pedir aprobación. La respuesta muestra una línea chica, **Se actualizó la investigación**; abrila para ver qué se sumó. Solo cuenta lo que decís vos: una rutina, un contacto u otro agente no pueden sumar nada, y una página encontrada en la web se suma solo cuando la das en un mensaje tuyo. Sumar nunca descarta lo que la investigación ya encontró.
+
+Activarla o apagarla, su alcance y sus límites siguen pasando por una tarjeta de aprobación cuando los cambia tu superagente (`discovery.configure`). Con la investigación apagada, tu superagente no sabe nada de ella y no suma nada.
+
+## Revisá y editá
 
 En **Configuración › Investigación**, el interruptor de arriba la activa o la apaga al instante. Mientras está apagada, APX no busca nada y tu informe sale como siempre; al activarla aparece la configuración. Los cambios en la configuración quedan pendientes hasta que elegís **Guardar cambios**, que reinicia la investigación con lo nuevo; **Descartar** vuelve a lo guardado.
 
-Elegí:
+Podés revisar y cambiar:
 
 - Todos los proyectos registrados y legibles, o una selección explícita.
 - Páginas públicas oficiales para cada proyecto. Incluí secciones relevantes como precios, novedades o documentación. Los términos públicos de búsqueda son opcionales. APX no manda fragmentos privados de conversaciones ni hipótesis generadas a los buscadores.

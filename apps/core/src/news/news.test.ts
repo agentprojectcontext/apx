@@ -505,3 +505,24 @@ test("agents working across projects is told to an owner with a teammate of the 
     done();
   }
 });
+
+test("research's offer reaches a fresh install when research is turned on, and only once", async () => {
+  const entry = NEWS.find((item) => item.id === "research-from-chat");
+  assert.ok(entry);
+  const { store, news, notices, done } = setup({ entries: [entry] });
+  try {
+    assert.deepEqual((await news.atBoot()).told, [], "a fresh install is told nothing at start");
+    assert.equal(entry.applies(newsFacts(store)), false, "it is about research, which is off");
+    store.settings.write("discovery", { ...store.settings.read("discovery"), enabled: true });
+    assert.equal(newsFacts(store).research, true);
+    assert.deepEqual((await news.offer(entry.id)).told, [entry.id], "seen at start, still offered once turned on");
+    assert.deepEqual((await news.offer(entry.id)).told, [], "never offered twice");
+    assert.equal(notices.length, 1);
+    assert.deepEqual(
+      notices[0]?.body.buttons?.map((b) => b.label),
+      ["Cargar mi información para la investigación"],
+    );
+  } finally {
+    done();
+  }
+});

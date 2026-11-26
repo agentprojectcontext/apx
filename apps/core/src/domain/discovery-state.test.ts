@@ -72,3 +72,112 @@ test("authorization revocation purges evidence but retains cooldown and muted to
     await dir.remove();
   }
 });
+
+const routine = (store: ReturnType<typeof createStore>, name: string, origin?: string) =>
+  store.routines.create({
+    name,
+    action: "agent",
+    call_model: "always",
+    next_run_at: undefined,
+    agent_id: "superagent",
+    enabled: true,
+    schedule: { kind: "cron", cron: "0 9 * * *" },
+    prompt: name,
+    ...(origin ? { origin } : {}),
+  });
+
+test("turning research on fills the owner's time zone and their one daily report, keeping what they chose", async () => {
+  const dir = tempDir("apx-discovery-");
+  const db = openDb(dir.path);
+  const store = createStore(db, createBus());
+  seed(store, "Nova");
+  const state = discoveryState(store, () => new Date(AT));
+  try {
+    store.settings.write("owner_profile", {
+      ...store.settings.read("owner_profile"),
+      timezone: "America/Argentina/Cordoba",
+    });
+    const brief = routine(store, "Morning brief");
+    state.prefill();
+    const off = store.settings.read("discovery");
+    assert.equal(off.enabled, false, "pre-filled, never turned on");
+    assert.equal(off.timezone, "America/Argentina/Cordoba");
+    assert.equal(off.report_routine, brief.id);
+    assert.equal(off.projects, "all");
+
+    state.configure({ report_routine: null, timezone: "UTC" });
+    const evening = routine(store, "Evening wrap-up");
+    state.configure({ enabled: true });
+    assert.equal(store.settings.read("discovery").report_routine, null, "two reports and none the morning brief: none");
+    assert.equal(store.settings.read("discovery").timezone, "America/Argentina/Cordoba");
+
+    state.configure({ enabled: false, report_routine: null });
+    const morning = routine(store, "Day open", "secretary:day-open");
+    state.configure({ enabled: true });
+    assert.equal(store.settings.read("discovery").report_routine, morning.id, "the profile's morning brief");
+
+    state.configure({ enabled: false, report_routine: null });
+    state.configure({ enabled: true, report_routine: evening.id });
+    assert.equal(store.settings.read("discovery").report_routine, evening.id, "what the owner chose wins");
+  } finally {
+    db.close();
+    await dir.remove();
+  }
+});
+
+test("adding to research keeps what it found and its schedule, and only adds what is new", async () => {
+  const dir = tempDir("apx-discovery-");
+  const db = openDb(dir.path);
+  const store = createStore(db, createBus());
+  seed(store, "Nova");
+  const state = discoveryState(store, () => new Date(AT));
+  try {
+    store.projects.upsert({ id: "acme", name: "Acme" });
+    assert.throws(() => state.add({ interests: ["Jazz"] }), /off/);
+    state.configure({ enabled: true, projects: "selected", project_ids: [], interests: ["Jazz"] });
+    const finding = {
+      id: "kept",
+      topic: "topic",
+      title: "Kept",
+      summary: "A kept finding.",
+      action: "Read it.",
+      uncertainty: "None.",
+      evidence: [{ url: "https://example.com/", title: "Example", quote: "A quote long enough.", read_at: AT }],
+      found_at: AT,
+      expires_at: "2026-05-08T12:00:00.000Z",
+    };
+    state.write({ ...state.read(), findings: [finding], next: "2026-05-02T12:00:00.000Z" });
+    const added = state.add({
+      interests: ["jazz", "Cine"],
+      projects: ["acme"],
+      pages: [{ url: "https://example.com/news", label: "Acme news", project: "acme" }],
+      location: "Córdoba",
+    });
+    assert.deepEqual(added, {
+      interests: ["Cine"],
+      projects: ["acme"],
+      pages: [{ url: "https://example.com/news", label: "Acme news" }],
+      location: "Córdoba",
+    });
+    const settings = store.settings.read("discovery");
+    assert.deepEqual(settings.interests, ["Jazz", "Cine"]);
+    assert.deepEqual(settings.project_ids, ["acme"]);
+    assert.deepEqual(settings.sources, [
+      { label: "Acme news", public_terms: "", pages: ["https://example.com/news"], project: "acme" },
+    ]);
+    assert.deepEqual(
+      state.read().findings.map((f) => f.id),
+      ["kept"],
+    );
+    assert.equal(state.read().next, "2026-05-02T12:00:00.000Z");
+    assert.deepEqual(state.add({ pages: [{ url: "https://example.com/news", label: "Again" }], location: "Córdoba" }), {
+      interests: [],
+      projects: [],
+      pages: [],
+    });
+    assert.throws(() => state.add({ projects: ["missing"] }), /not found/);
+  } finally {
+    db.close();
+    await dir.remove();
+  }
+});

@@ -113,8 +113,9 @@ export const noticeEs: Record<NoticeKey, string> = {
   "notice.warn": "Aviso",
   "notice.engine.fallback": "{model} no respondió ({why}); siguió con {to}.",
   "notice.engine.fallback.title": "Cambió de modelo",
-  "notice.thread.compacted":
-    "Se resumieron los turnos anteriores para que el contexto de este chat sea más chico. No se empezó nada nuevo.",
+  "notice.thread.compacted": "Se resumió la charla",
+  "notice.memory.saved": "Se guardó en memoria",
+  "notice.research.updated": "Se actualizó la investigación",
   "notice.task.stalled": "No había nada corriendo en esta tarea: APX le pidió al agente que siga o diga qué espera.",
   "notice.pairing.request": "Alguien nuevo quiere hablar por un canal: aprobalo en Canales.",
 };
