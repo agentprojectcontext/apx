@@ -8,6 +8,7 @@ import { NOISY_COMMENTS } from "../domain/tasks.ts";
 import { computerHost } from "../environments/host.ts";
 import { CATALOG } from "../integrations/catalog.ts";
 import { ACTIVITY_REVIEW_NEWS } from "./activity-review.ts";
+import { ACTIVITY_REVIEW_HISTORY_NEWS } from "./activity-review-history.ts";
 import { AGENT_FALLBACKS_NEWS } from "./agent-fallbacks.ts";
 import { AGENT_FOLDER_NEWS } from "./agent-folder.ts";
 import { AGENT_MIGRATION_NEWS } from "./agent-migration.ts";
@@ -181,6 +182,7 @@ export const NEWS: readonly NewsEntry[] = [
   ROOM_HANDOFF_NEWS,
   HOME_CHANNEL_SWITCH_NEWS,
   ACTIVITY_REVIEW_NEWS,
+  ACTIVITY_REVIEW_HISTORY_NEWS,
   CONTEXTUAL_RESEARCH_NEWS,
   AGENT_PROMPTS_NEWS,
   AGENT_REVIEW_NEWS,

@@ -182,6 +182,9 @@ test("valid evidence creates only an unassigned proposal and one notice, never a
     assert.match(tasks[0]?.description ?? "", /Acceptance|aceptación/);
     assert.equal(f.store.runs.list(tasks[0]?.thread_id ?? "").length, 0);
     assert.equal(f.store.notifications.list({ unreadOnly: false, limit: 20 }).length, 1);
+    assert.deepEqual(review.history({ limit: 10 }).runs[0]?.proposals, [
+      { task_id: tasks[0]?.id, title: tasks[0]?.title, outcome: "pending" },
+    ]);
     await review.check.run(new Date(END));
     await review.check.run(new Date("2026-05-03T12:00:00.000Z"));
     assert.equal(llm.calls.length, 1);
@@ -284,6 +287,10 @@ test("disable during a held analysis invalidates its answer and preserves detail
     await running;
     assert.equal(f.store.tasks.list({ limit: 20 }).length, 0);
     assert.equal(review.status().settings.extra_details, "Keep these details");
+    assert.deepEqual(
+      review.history({ limit: 10 }).runs.map((r) => [r.state, r.chats, r.messages, r.proposals]),
+      [["cancelled", 1, 1, []]],
+    );
   } finally {
     release?.();
     await review.close();
@@ -313,6 +320,10 @@ test("an interrupted analysis is uncertain, not replayed; malformed model output
     f.add();
     await review.check.run(new Date(END));
     assert.equal(review.status().state, "failed");
+    assert.deepEqual(
+      review.history({ limit: 10 }).runs.map((r) => r.state),
+      ["failed"],
+    );
     await review.check.run(new Date(END));
     assert.equal(llm.calls.length, 1);
     assert.equal(f.store.tasks.list({ limit: 20 }).length, 0);
@@ -463,6 +474,30 @@ test("weekly waits seven days and a completed proposal title is not emitted agai
     assert.equal(llm.calls.length, 2);
     assert.equal(f.store.tasks.list({ state: "open", limit: 20 }).length, 0);
     assert.equal(f.store.notifications.list({ unreadOnly: false, limit: 20 }).length, 1);
+  } finally {
+    await review.close();
+    await f.close();
+  }
+});
+
+test("a review still reading when APX stopped shows as interrupted, and an empty window leaves no history", async () => {
+  const f = fixture();
+  const llm = scriptedLlm(() => say('{"proposals":[]}'));
+  f.store.activityReviewRuns.start({ at: START, since: START, chats: 2, messages: 3 });
+  const review = createActivityReview({
+    store: f.store,
+    llm,
+    models: () => ["fake/model"],
+    now: () => new Date(START),
+  });
+  try {
+    assert.deepEqual(
+      review.history({ limit: 10 }).runs.map((r) => r.state),
+      ["uncertain"],
+    );
+    await review.check.run(new Date(END));
+    assert.equal(llm.calls.length, 0);
+    assert.equal(review.history({ limit: 10 }).runs.length, 1);
   } finally {
     await review.close();
     await f.close();

@@ -4,6 +4,7 @@ import { Button, SegmentedControl, SettingRow, Skeleton, Switch, Textarea } from
 import { useEffect, useState } from "react";
 import { client } from "../data/client.ts";
 import { usePack, useT } from "../i18n/index.ts";
+import { ActivityReviewHistory } from "./ActivityReviewHistory.tsx";
 import { SectionHead } from "./SectionHead.tsx";
 
 export function ActivityReviewSection() {
@@ -114,6 +115,7 @@ function ActivityReview() {
           >
             {t("review.save")}
           </Button>
+          {status && <ActivityReviewHistory status={status} />}
         </>
       )}
     </>

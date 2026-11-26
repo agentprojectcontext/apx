@@ -1,5 +1,6 @@
 import type { ActivityReviewSettings, ActivityReviewStatus } from "@apx/protocol";
 import { commitReviewProposals, ReviewAnswer } from "../domain/activity-review-proposals.ts";
+import { activityReviewHistory } from "../domain/activity-review-runs.ts";
 import { activityReviewState, REVIEW_DAY, type ReviewRuntime, reviewPeriod } from "../domain/activity-review-state.ts";
 import type { Store } from "../domain/store.ts";
 import { redactedJson } from "../log.ts";
@@ -13,6 +14,7 @@ export function createActivityReview(deps: { store: Store; llm: Llm; models: () 
   const state = activityReviewState(store, deps.now ?? (() => new Date()));
   const recovered = state.read();
   if (recovered.state === "working") state.write({ ...recovered, state: "uncertain" });
+  store.activityReviewRuns.interrupted("uncertain");
   let generation = 0;
   let stopped = false;
   let controller: AbortController | undefined;
@@ -31,6 +33,7 @@ export function createActivityReview(deps: { store: Store; llm: Llm; models: () 
   }
   function configure(patch: Partial<ActivityReviewSettings>, expected?: ActivityReviewSettings): ActivityReviewStatus {
     state.configure(patch, expected);
+    store.activityReviewRuns.interrupted("cancelled");
     generation++;
     controller?.abort();
     return status();
@@ -54,12 +57,21 @@ export function createActivityReview(deps: { store: Store; llm: Llm; models: () 
       last: until,
       state: sources.length ? "working" : "completed",
     };
-    state.write(snapshot);
-    if (!sources.length) return;
+    if (!sources.length) return state.write(snapshot);
+    const batches = activityReviewBatches(sources);
+    const read = batches.flat();
+    const run = store.tx(() => {
+      state.write(snapshot);
+      return store.activityReviewRuns.start({
+        at: until,
+        since: from,
+        chats: new Set(read.map((s) => s.thread)).size,
+        messages: read.length,
+      });
+    });
     const ac = new AbortController();
     controller = ac;
     try {
-      const batches = activityReviewBatches(sources);
       const proposals: ReturnType<typeof ReviewAnswer.parse>["proposals"] = [];
       const signal = AbortSignal.any([ac.signal, AbortSignal.timeout(60_000)]);
       for (const batch of batches) {
@@ -85,7 +97,10 @@ export function createActivityReview(deps: { store: Store; llm: Llm; models: () 
         if (stopped || stamp !== generation || ac.signal.aborted) return;
         signal.throwIfAborted();
         if (!deps.models().includes(models[0] ?? "")) {
-          state.write({ ...snapshot, state: "cancelled" });
+          store.tx(() => {
+            state.write({ ...snapshot, state: "cancelled" });
+            store.activityReviewRuns.finish(run, "cancelled");
+          });
           return;
         }
         const parsed = ReviewAnswer.parse(JSON.parse(String(answer.message.content)));
@@ -108,11 +123,17 @@ export function createActivityReview(deps: { store: Store; llm: Llm; models: () 
         sources: live,
         snapshot,
         boss: boss.id,
+        run,
         finish: state.write,
       });
     } catch {
-      if (stamp === generation && !stopped)
-        state.write({ ...snapshot, state: ac.signal.aborted ? "cancelled" : "failed" });
+      if (stamp === generation && !stopped) {
+        const ended = ac.signal.aborted ? "cancelled" : "failed";
+        store.tx(() => {
+          state.write({ ...snapshot, state: ended });
+          store.activityReviewRuns.finish(run, ended);
+        });
+      }
     } finally {
       controller = undefined;
     }
@@ -131,6 +152,7 @@ export function createActivityReview(deps: { store: Store; llm: Llm; models: () 
   return {
     status,
     configure,
+    history: (p: { limit: number; before?: string | undefined }) => activityReviewHistory(store, p),
     check,
     async close() {
       stopped = true;
@@ -138,6 +160,7 @@ export function createActivityReview(deps: { store: Store; llm: Llm; models: () 
       controller?.abort();
       const r = state.read();
       if (r.state === "working") state.write({ ...r, state: "cancelled" });
+      store.activityReviewRuns.interrupted("cancelled");
       await running;
     },
   };

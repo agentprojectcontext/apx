@@ -80,12 +80,15 @@ export function commitReviewProposals(deps: {
   sources: ReviewSource[];
   snapshot: ReviewRuntime;
   boss: string;
+  /** The history row of this review, finished with the proposals it left. */
+  run: string;
   finish: (state: ReviewRuntime) => void;
 }): void {
   const { store, proposals, sources, snapshot, boss } = deps;
   store.tx(() => {
     const seen = new Set(snapshot.seen);
     const used = new Set<string>();
+    const made: { task: string; title: string }[] = [];
     for (const p of proposals) {
       const key = fingerprint(p.project, p.title);
       if (
@@ -113,9 +116,11 @@ export function commitReviewProposals(deps: {
         by: boss,
       });
       noticeTaskProposed(store, task);
+      made.push({ task: task.id, title: task.title });
       seen.add(key);
       for (const e of p.evidence) used.add(e.message);
     }
     deps.finish({ ...snapshot, seen: [...seen].slice(-200), state: "completed" });
+    store.activityReviewRuns.finish(deps.run, "completed", made);
   });
 }

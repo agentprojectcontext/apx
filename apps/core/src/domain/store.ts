@@ -2,6 +2,7 @@
 // shows emits one event on the bus.
 import type { Bus } from "../bus.ts";
 import type { Db } from "../db/db.ts";
+import { activityReviewRunsRepo } from "./activity-review-runs.ts";
 import { agentMigrationReceipt, commitAgentMigration } from "./agent-migration-data.ts";
 import { agentMigrationInventory } from "./agent-migration-inventory.ts";
 import { pendingMigrationsRepo } from "./agent-migration-pending.ts";
@@ -117,6 +118,7 @@ export function createStore(db: Db, bus: Bus) {
     taskAttachments: taskAttachmentsRepo(q),
     persons: personsRepo(q),
     suggestions: suggestionsRepo(q),
+    activityReviewRuns: activityReviewRunsRepo(q),
     channels: channelsRepo(q),
     stickers: stickersRepo(q),
     surfaces: surfacesRepo(q, bus),
