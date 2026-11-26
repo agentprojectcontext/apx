@@ -6500,5 +6500,5 @@ Rejected: opening servers the owner already had (they chose, or never looked; th
 a per-server "open" flag read by the approval check (D-219 rejected a second place to revoke); setting new agents'
 mode explicitly to Auto (a project the owner made stricter would no longer reach them).
 
-Docs impact: updated concepts/autonomy and extend/mcp in English and Spanish, rules/SUPER_AGENT_POWERS.md, the
-apx-agents and apx-mcps skills, and news (`mcp-open`, 2.17.2).
+Docs impact: updated concepts/autonomy, extend/mcp and reference/whats-new in English and Spanish,
+rules/SUPER_AGENT_POWERS.md, the apx-agents and apx-mcps skills, and news (`mcp-open`, 2.17.2).
