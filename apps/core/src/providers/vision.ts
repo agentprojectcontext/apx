@@ -28,6 +28,7 @@ export function imageLimit(model: string): number | undefined {
 
 /** True when a model ref ("provider/model") is known to read images, false when known not to, else undefined. */
 export function readsImages(model: string): boolean | undefined {
+  if (/^groq\/allam-2-7b(?:#|$)/i.test(model)) return false;
   const name = (model.split("/").at(-1) ?? model).toLowerCase();
   if (TEXT_ONLY.some((re) => re.test(name))) return false;
   if (READS_IMAGES.some((re) => re.test(name))) return true;
