@@ -183,6 +183,13 @@ function extensionDefs(store: Store): McpDef[] {
   );
 }
 
+/** A server switched on or off drops another app's `disabled` key, which would keep it off whatever `enabled` says. */
+function withoutDisabled(kept: Record<string, unknown>, server: Record<string, unknown>): Record<string, unknown> {
+  if (server.enabled === undefined) return kept;
+  const { disabled: _d, ...rest } = kept;
+  return rest;
+}
+
 export function mcpConfig(store: Store) {
   const trustKey = (project: string, name: string) => `mcp_trust:${project}:${name}`;
   const cfg = {
@@ -271,7 +278,7 @@ export function mcpConfig(store: Store) {
           type: _t,
           ...rest
         } = (servers[name] ?? {}) as Record<string, unknown>;
-        servers[name] = { ...rest, ...server };
+        servers[name] = { ...withoutDisabled(rest, server), ...server };
       } else delete servers[name];
       fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(file, `${JSON.stringify({ ...doc, mcpServers: servers }, null, 2)}\n`);
@@ -291,7 +298,7 @@ export function mcpConfig(store: Store) {
           enabled: _o,
           ...rest
         } = all[name] ?? {};
-        all[name] = { ...rest, ...server } as Raw;
+        all[name] = { ...withoutDisabled(rest, server), ...server } as Raw;
       } else delete all[name];
       store.settings.set("mcp_servers", JSON.stringify({ mcpServers: all }));
     },

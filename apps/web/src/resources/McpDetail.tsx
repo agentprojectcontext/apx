@@ -2,7 +2,7 @@ import type { McpServerStatus } from "@apx/protocol";
 import { Badge, Button, Icons, Switch, Tag, Tooltip } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { projectName } from "../data/identity.ts";
-import { signInMcp, testMcp, toggleMcp, trustMcp } from "../data/resources.ts";
+import { setMcpOn, signInMcp, testMcp, toggleMcp, trustMcp } from "../data/resources.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
@@ -88,6 +88,16 @@ export function McpDetail({
             onCheckedChange={(on) => void toggleMcp(projectId, s.name, on).then(() => onChanged())}
           />
         )}
+        {!inherited && s.definition && (
+          <Switch
+            checked={s.enabled}
+            label={t("res.serverOn")}
+            onCheckedChange={(on) => {
+              setTest(undefined);
+              void setMcpOn(s, on).then(() => onChanged());
+            }}
+          />
+        )}
       </header>
       <p className={`resd__status is-${s.off_here ? "off" : s.status} is-dot-${mcpDot(s)}`}>
         <span className="resd__dot" />
@@ -105,7 +115,7 @@ export function McpDetail({
           variant="secondary"
           leadingIcon={<Icons.FlaskConical size={14} />}
           loading={testing}
-          disabled={s.status === "needs-approval" || s.status === "needs-sign-in"}
+          disabled={s.status === "disabled" || s.status === "needs-approval" || s.status === "needs-sign-in"}
           onClick={() => void run()}
         >
           {t("res.test")}

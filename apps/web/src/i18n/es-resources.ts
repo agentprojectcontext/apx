@@ -154,6 +154,7 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "res.skillStub": "Escribí acá los pasos, las reglas y los ejemplos.",
   "res.create": "Crear",
   "res.onHere": "Prendido acá",
+  "res.serverOn": "Activado",
   "res.offHere": "Apagado en este proyecto",
   "res.offHereLong": "Apagado en {name}",
   "res.connected": "Conectado · {n} tools · {ms} ms",

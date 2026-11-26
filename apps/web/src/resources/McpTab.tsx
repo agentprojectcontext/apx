@@ -13,7 +13,7 @@ import {
 } from "@apx/ui";
 import { useState } from "react";
 import { projectName } from "../data/identity.ts";
-import { setMcp, setMcpToolMode, toggleMcp, trustMcp } from "../data/resources.ts";
+import { setMcp, setMcpOn, setMcpToolMode, toggleMcp, trustMcp } from "../data/resources.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { OriginChip } from "./ByProject.tsx";
@@ -86,7 +86,7 @@ export function McpTab({ projectId, query, scope, adding, setAdding, res, ownOnl
       {
         label: t("res.test"),
         icon: <Icons.FlaskConical size={14} />,
-        disabled: s.status === "needs-approval" || s.status === "needs-sign-in",
+        disabled: s.status === "disabled" || s.status === "needs-approval" || s.status === "needs-sign-in",
         onSelect: () => {
           setPicked(keyOf(s));
           setTestRequest((n) => n + 1);
@@ -130,6 +130,15 @@ export function McpTab({ projectId, query, scope, adding, setAdding, res, ownOnl
             void trustMcp(s.scope === "project" ? s.project_id : undefined, s.name, !s.trusted).then(changed),
         },
       ],
+      ...(!inherited && s.definition
+        ? [
+            {
+              label: s.enabled ? t("res.turnOff") : t("res.turnOn"),
+              icon: <Icons.Power size={14} />,
+              onSelect: () => void setMcpOn(s, !s.enabled).then(changed),
+            },
+          ]
+        : []),
       ...(inherited && projectId
         ? [
             {
