@@ -74,6 +74,12 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
   search_chats: (a) => `Buscó «${str(a.query, 60)}» en los chats`,
   read_chat: (a) => `Leyó el chat ${str(a.chat)}`,
   channel_list: () => "Revisó los canales",
+  chat_followup: (a) =>
+    a.action === "create"
+      ? "Programó una continuación"
+      : a.action === "cancel"
+        ? "Canceló una continuación"
+        : "Revisó las continuaciones",
   routine_list: (a) => (a.routine ? `Revisó la rutina ${str(a.routine)}` : "Revisó las rutinas"),
   routine_set: (a) => (a.routine ? `Cambió la rutina ${str(a.routine)}` : `Creó la rutina ${str(a.name)}`),
   agent_limits: (a) =>
