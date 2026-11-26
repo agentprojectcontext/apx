@@ -12,6 +12,7 @@ import { USAGE } from "./plan-usage.ts";
 import { CONTACT_SOURCES } from "./settings-contact-sources.ts";
 import { EMAIL } from "./settings-email.ts";
 import type { Asks, Params, Setting, SettingsDeps } from "./settings-kit.ts";
+import { MCP } from "./settings-mcp.ts";
 import { MEDIA } from "./settings-media.ts";
 import { MODELS } from "./settings-models.ts";
 import { PEOPLE } from "./settings-people.ts";
@@ -28,6 +29,7 @@ export const SETTINGS: Readonly<Record<string, Setting>> = {
   ...WORK,
   ...MEDIA,
   ...MODELS,
+  ...MCP,
   ...EMAIL,
   ...USAGE,
   ...PUBLIC_ARTIFACTS,

@@ -56,12 +56,14 @@ export const resourceMethodsPart2 = {
   }),
   /**
    * Every agent may use all of a server's tools without asking, tools it adds later included ("all"), or none of them
-   * ("ask": its grants for every agent go). Picking some is approving tools one by one (mcp.approveTool).
+   * ("ask": its grants for every agent go). Picking some is approving tools one by one (mcp.approveTool); "all" with
+   * `ask` approves every tool it lists now but those, which ask first, as do tools it adds later.
    */
   "mcp.toolMode": deferMethod({
     params: () =>
       McpTarget.extend({
         mode: z.enum(["ask", "all"]),
+        ask: z.array(z.string().min(1).max(128)).max(200).optional(),
       }).strict(),
     result: () =>
       z.object({

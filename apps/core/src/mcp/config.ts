@@ -209,6 +209,10 @@ export function mcpConfig(store: Store) {
       const stored = store.settings.get(trustKey(d.project_id ?? "global", d.name));
       return d.scope === "global" ? stored === undefined || stored === d.hash : stored === d.hash;
     },
+    /** Whether the owner never approved nor withdrew this server, in any version of its file. */
+    trustUnset(d: McpDef): boolean {
+      return store.settings.get(trustKey(d.project_id ?? "global", d.name)) === undefined;
+    },
     setTrust(d: McpDef, trusted: boolean): void {
       store.settings.set(trustKey(d.project_id ?? "global", d.name), trusted ? d.hash : "");
     },

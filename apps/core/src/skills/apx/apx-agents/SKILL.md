@@ -30,6 +30,8 @@ description: Create, edit, clone, import and review APX agents in their destinat
 
 ## Tools and grants
 
+- A new agent works in Auto, as its project does: never ask for or suggest a stricter mode on your own. Only when the
+  owner asks for one in this conversation, tell them it is in the agent's settings (Manual, Accept edits or Plan).
 - An agent's `tools` list is its focus: those are sent first, and the rest stay reachable through `tool_search` under
   the same mode and rules (a rule set to off removes a tool). A role or list is never a reason to refuse work the
   owner asked for. When the owner asks to give or

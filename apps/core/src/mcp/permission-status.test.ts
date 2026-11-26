@@ -11,6 +11,9 @@ test("permission status reports only current owner-wide grants without starting 
   const status = async () => (await env.client.call("mcp.list", {})).servers.find((s) => s.name === target.server);
   try {
     await env.client.call("mcp.set", { name: target.server, server: { command: process.execPath, args: [SERVER] } });
+    // A new server allows every tool (DECISIONS.md#d-279); the owner makes it ask, which is what is measured here.
+    assert.equal((await status())?.tool_permission_mode, "all");
+    await env.client.call("mcp.toolMode", { ...target, mode: "ask" });
     assert.equal((await status())?.tool_permission_mode, "unknown");
     assert.equal((await status())?.status, "off");
     const { tools } = await env.client.call("mcp.tools", target);

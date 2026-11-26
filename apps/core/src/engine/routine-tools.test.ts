@@ -35,6 +35,8 @@ before(async () => {
   );
   project = (await env.client.call("projects.register", { path: root })).project.id;
   await env.client.call("mcp.trust", { project, server: "notes", trusted: true });
+  // A new server allows every tool (DECISIONS.md#d-279): here the owner made it ask.
+  await env.client.call("mcp.toolMode", { scope: "project", project, server: "notes", mode: "ask" });
 });
 after(async () => {
   await env.core.close();

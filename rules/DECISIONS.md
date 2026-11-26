@@ -1450,6 +1450,7 @@ Codex sessions keep their own folder rule (their side folder or code thread), un
 
 <a id="d-109"></a>
 ## D-109 — 2026-10-19 — Fewer "outside content" cards: a look at the screen, a local URL, a build's output, and chat grants that last
+*Amended by [D-279](#d-279) (2026-11-26): a new MCP server's tools run without asking until the owner makes one ask.*
 After D-106 and D-108, what still stopped an agent in Auto came from rule 10's "outside content in the turn". A look
 at the screen (`screen_snapshot`) asked in every mode but total (D-056): it changes nothing and sends nothing out, so
 it is now `never` with effect `external` — Auto and Accept edits take it, Manual still asks, Plan still refuses. A URL
@@ -4616,6 +4617,7 @@ more cached).
 
 <a id="d-219"></a>
 ## D-219 — 2026-11-11 — An MCP server's "All allowed" is one grant for the server, not one per tool
+*Amended by [D-279](#d-279) (2026-11-26): a server new to the owner starts with "allow all", and the owner's own edit keeps it.*
 "All allowed" on a server used to approve each tool it listed then, so a tool the server added later asked again and
 the server read "Some". The owner wants "all" to stay all. It is now one owner-wide grant for the server
 (`mcpServerApproval` in `mcp/approval.ts`, tool `*`), bound like a tool's grant to the server's definition and the
@@ -6461,3 +6463,42 @@ The settings migration is one SQL step (rule 14); nothing reads `location` or `d
 
 Docs impact: updated office/contextual-research in English and Spanish, rules/PROMPT_SIZE.md, news texts
 (`contextual-research`, `research-from-chat`).
+
+<a id="d-279"></a>
+## D-279 — 2026-11-26 — Open by default: new agents in Auto, a new super-agent on Total, new MCP servers allow every tool
+The owner wants APX to start open, like a chat assistant: they go to Settings to restrict, not to unlock. Nothing they
+already have changes; only what is new gets these defaults.
+
+- **Agents.** An agent made with no mode (panel, `apx agents`, a template, `agent_set`, an import) stores none and
+  works in its project's mode, Auto by default (D-106); a project the owner set stricter keeps its agents so.
+  `agent_set` has no mode field (D-060), and the `apx-agents` skill tells agents never to ask for a stricter one on their
+  own. A fresh install's super-agent is made on Total (`superAgentAutonomy` in the core's config, set by `seed`): it
+  runs what the owner asks without cards, while D-267's `card` changes and D-106's always-asking calls still ask. An
+  install that already has its super-agent keeps its mode; v1's import still brings v1's. Test cores leave it unset,
+  so tests keep starting from Auto.
+- **MCP servers** (amends D-109's "MCP tools that act still ask" and D-219 for new servers). A server new to the owner
+  gets D-219's "allow all" grant when it first appears: added with `mcp.set` (panel, `apx mcps add`, the super-agent's
+  card), written into a project's file by the owner, a project's file approved with `mcp.trust` for the first time
+  (that approval itself is unchanged: someone else's command still waits for the owner), an integration connected, or
+  an extension turned on for the first time. A mark per server (`mcp_opened:<server>`) makes it once: an owner who then
+  sets "ask" or picks tools is never undone by a restart or turning the extension off and on. The owner's own change
+  to a server that allowed all (its command, an extension's settings or update, connecting again, a project file they
+  approve again after it changed) keeps "allow all" for the new definition instead of dropping to "ask"; one set to ask
+  stays asking. Servers saved before this have no mark and are never opened. Removing a server clears its mark.
+- **The super-agent reviews them.** `apx_settings` `mcp.list` now also lists each server's tools as allowed or asking
+  first, from what it listed last (`mcp_tools_seen`, D-219), without starting it. `mcp.toolMode` takes `ask: [tools]`
+  with `mode: "all"`: those ask first and every other tool listed now is allowed one by one (D-219's "Some": tools the
+  server adds later ask). Like D-268's MCP changes, it runs in Auto at the owner's word unless outside content is in
+  the turn; a server's approval (`mcp.trust`) keeps its card.
+
+Kept on purpose: the four super-agent tools (`agent_set`, `apx_settings`, `apx_flow`, `task_tidy`, D-060, D-138,
+D-184, D-202, walls under D-271) stay out of project agents' turns; a check of every other tool found no difference
+by kind except reach that D-271, D-269 and D-276 decide (outsider chats, consults, research). "Ask first" is not a
+hard block: an agent can still ask the owner on a card.
+
+Rejected: opening servers the owner already had (they chose, or never looked; the news entry offers a review instead);
+a per-server "open" flag read by the approval check (D-219 rejected a second place to revoke); setting new agents'
+mode explicitly to Auto (a project the owner made stricter would no longer reach them).
+
+Docs impact: updated concepts/autonomy and extend/mcp in English and Spanish, rules/SUPER_AGENT_POWERS.md, the
+apx-agents and apx-mcps skills, and news (`mcp-open`, 2.17.2).
