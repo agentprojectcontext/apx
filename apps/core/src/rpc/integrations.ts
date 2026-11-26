@@ -199,12 +199,12 @@ export function integrationHandlers(deps: {
             )
           : false;
       const before = mcp.find("global", e.id);
-      const wasOpen = !!before && mcp.allowsAll(before);
+      const opened = before && mcp.allowsAll(before);
       mcp.config.setGlobal(e.id, serverFor(e, plain, refused));
       await mcp.drop({ scope: "global", name: e.id });
       // A new connection allows every tool; connecting again keeps "allow all" (DECISIONS.md#d-279).
       const after = mcp.find("global", e.id);
-      if (after && (!before || wasOpen)) mcp.openNew(after, true);
+      if (after && (!before || opened)) mcp.openNew(after, true, opened || "default");
       return { connected: true as const };
     },
     "integrations.oauth_start": ({ id, values, also }) => {

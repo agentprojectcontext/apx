@@ -20,13 +20,17 @@ function permissionLine(key: string, seen: Seen, { store }: SettingsDeps): strin
     hash: seen.hash,
   });
   const all = store.approvals.allows(server);
+  // Allowed as a new server, not by the owner: while outside content is in a turn its tools still ask.
+  const byDefault = all && !store.approvals.allows(server, undefined, undefined, undefined, true);
   const allowed = seen.tools.filter(
     (t) => all || store.approvals.allows({ key: t.key, server: server.server, tool: t.name, permanent: false }),
   );
   const asking = seen.tools.filter((t) => !allowed.includes(t));
   const where = project ? `, project ${project}` : valuesOf ? ` (with project ${valuesOf}'s values)` : "";
   const state = all
-    ? "every tool allowed, new ones too"
+    ? byDefault
+      ? "every tool allowed as a new server (asks while outside content is in the turn; mode all makes it the owner's)"
+      : "every tool allowed, new ones too"
     : !allowed.length
       ? "every tool asks first"
       : `allowed: ${allowed.map((t) => t.name).join(", ")}; new ones ask first`;

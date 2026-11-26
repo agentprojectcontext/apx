@@ -124,7 +124,8 @@ by someone else needs the owner's approval before it runs: that approval is thei
 ## What its tools may do
 
 A server new to the owner lets every agent use all its tools without asking; the owner makes the ones they want ask
-first. Servers they already had keep what they chose. When the owner asks to review or change that ("pasá todas las
+first; until they allow all themselves, its tools still ask while outside content is in the turn. Servers they
+already had keep what they chose. When the owner asks to review or change that ("pasá todas las
 tools a permitidas", "que pregunte antes de borrar"), the super-agent reads `apx_settings` `mcp.list` (each server's
 tools, allowed or asking first) and sets `mcp.toolMode`: `mode: all` for every tool, `mode: all` with `ask: [tools]`
 for all but those, `mode: ask` for none. Another agent asks the super-agent.

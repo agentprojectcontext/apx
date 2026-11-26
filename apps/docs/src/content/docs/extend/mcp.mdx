@@ -155,7 +155,9 @@ Each server has **Tool permissions**:
 - **Some**: click a tool to allow it (green) or to make it ask again. Tools the server adds later ask first, even when
   you had picked every tool; leaving one tool out of **All allowed** turns it into **Some**.
 
-A connection you add starts on **All allowed**: you choose which tools ask first. That holds for one you add here or
+A connection you add starts on **All allowed**: you choose which tools ask first. Until you pick **All allowed**
+yourself, its tools still ask while a web page, someone's message or another agent's answer is in the chat, so outside
+text cannot make an agent act through it in your name. That holds for one you add here or
 with `apx mcps add`, one an extension brings when you turn it on, a project's `.apx/mcps.json` once you approve it,
 and an account you connect. Approving a project's file is still up to you. Connections you already had keep their
 permissions, and changing a connection that was on **All allowed** (its command, an extension's settings) keeps it so.
