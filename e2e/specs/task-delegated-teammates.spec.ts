@@ -9,7 +9,6 @@ test("teammates asked from a task's working chat nest under its row, and their l
   page,
 }) => {
   const env = await startCore({
-    port: Number(process.env.E2E_PORT ?? 7460) + 5,
     llm: scriptedLlm(async () => say("Done.")),
   });
   try {
