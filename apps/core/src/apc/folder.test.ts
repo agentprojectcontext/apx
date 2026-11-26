@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
-import { removeDir, tempDir } from "../testkit/platform.ts";
+import { assertPath, removeDir, tempDir } from "../testkit/platform.ts";
 import { hasLegacyFolder, moveIfLegacy, moveLegacyFolder, needsFolderMove, ownDir, projectDir } from "./folder.ts";
 
 const write = (file: string, text: string) => {
@@ -86,7 +86,8 @@ test("a file .apx/ already has with other content stops the move before anything
     write(path.join(root, ".apx", "notes.md"), "mine\n");
     const before = tree(path.join(root, ".apc"));
     const r = moveLegacyFolder(root);
-    assert.deepEqual(r.conflicts, ["agents/arch.md"]);
+    assert.equal(r.conflicts.length, 1);
+    assertPath(r.conflicts[0], path.join("agents", "arch.md"));
     assert.equal(r.done, false);
     assert.deepEqual(tree(path.join(root, ".apc")), before, ".apc/ is untouched");
     assert.equal(
