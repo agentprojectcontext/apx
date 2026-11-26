@@ -43,7 +43,7 @@ async function prepareResearch() {
 
 async function undoAfterCacheClear(page: Page, en: boolean) {
   expect((await rpc<DiscoveryStatus>("discovery.settings")).muted_topics).toHaveLength(1);
-  await page.getByRole("button", { name: en ? "Refresh findings" : "Actualizar hallazgos", exact: true }).click();
+  await page.getByRole("button", { name: en ? "Refresh" : "Actualizar", exact: true }).click();
   await page.getByText(en ? "Muted topics" : "Temas silenciados", { exact: true }).click();
   await page.getByRole("button", { name: en ? /^Unmute topic:/ : /^Dejar de silenciar:/ }).click();
   await expect.poll(async () => (await rpc<DiscoveryStatus>("discovery.settings")).muted_topics.length).toBe(0);
@@ -75,7 +75,7 @@ async function checkInterestControl(page: Page, en: boolean) {
 }
 async function recoverConflict(page: Page, en: boolean) {
   const reload = en ? "Reload" : "Recargar";
-  const discard = en ? "Reload and discard your unsaved changes?" : "¿Recargar y descartar tus cambios sin guardar?";
+  const discard = en ? "Reload and lose your unsaved changes?" : "¿Recargar y perder tus cambios sin guardar?";
   await page.getByRole("button", { name: reload, exact: true }).click();
   const dialog = page.getByRole("dialog", { name: discard, exact: true });
   await dialog
@@ -155,16 +155,12 @@ for (const language of ["en", "es"] as const)
         await checkInterestControl(page, en);
         await page.locator(".config__content").evaluate((element) => element.scrollTo(0, 0));
         await page.screenshot({ path: info.outputPath("on.png"), fullPage: true });
-        await page
-          .getByText(en ? "Additional public sources" : "Fuentes públicas adicionales", { exact: true })
-          .click();
-        await page.getByRole("button", { name: en ? "Add a source" : "Agregar fuente", exact: true }).click();
-        await page
-          .getByRole("textbox", { name: en ? "Source name" : "Nombre de la fuente", exact: true })
-          .fill("Acme release notes");
+        await page.getByText(en ? "More pages to read" : "Otras páginas para leer", { exact: true }).click();
+        await page.getByRole("button", { name: en ? "Add pages" : "Agregar páginas", exact: true }).click();
+        await page.getByRole("textbox", { name: en ? "Name" : "Nombre", exact: true }).fill("Acme release notes");
         await page
           .getByRole("textbox", {
-            name: en ? "Public HTTPS pages · one per line" : "Páginas HTTPS públicas · una por línea",
+            name: en ? "Page addresses · one per line" : "Direcciones de las páginas · una por línea",
             exact: true,
           })
           .fill("https://research.example/news");
@@ -195,7 +191,7 @@ for (const language of ["en", "es"] as const)
           })
           .toMatchObject({ available: true, state: "completed", count: 1 });
         const finding = (await rpc<DiscoveryStatus>("discovery.settings")).findings[0]?.id;
-        await page.getByRole("button", { name: en ? "Refresh findings" : "Actualizar hallazgos", exact: true }).click();
+        await page.getByRole("button", { name: en ? "Refresh" : "Actualizar", exact: true }).click();
         const findings = page.getByRole("region", { name: en ? "Worth a look" : "Para tener en cuenta" });
         await expect(findings.getByRole("link", { name: "Acme release notes" })).toHaveAttribute(
           "href",
@@ -238,7 +234,7 @@ for (const language of ["en", "es"] as const)
           await route.fulfill({ response, status: 200 });
         });
         await page.getByRole("button", { name: save, exact: true }).click();
-        await expect(page.getByRole("alert")).toContainText(en ? "changed elsewhere" : "cambió en otro lugar");
+        await expect(page.getByRole("alert")).toContainText(en ? "changed somewhere else" : "cambió desde otro lugar");
         await expect(page.getByRole("alert")).toBeInViewport({ ratio: 1 });
         await expect(place).toHaveValue("Unsaved region");
         await page.screenshot({ path: info.outputPath("conflict.png"), fullPage: true });
