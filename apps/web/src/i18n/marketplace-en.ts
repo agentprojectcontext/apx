@@ -82,6 +82,7 @@ export const enMarketplace = {
   "mkt.auth.signIn": "You sign in to the service",
   "mkt.auth.key": "A key of yours",
   "mkt.auth.pairing": "A code the device shows",
+  "mkt.auth.local": "Credentials or permissions set up on this computer",
   "mkt.auth.none": "Not needed",
   "mkt.place.here": "On your computer",
   "mkt.conn.address": "Address",

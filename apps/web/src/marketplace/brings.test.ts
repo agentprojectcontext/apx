@@ -77,6 +77,49 @@ test("before adding it, its page shows each connector's address, its skills and 
   assert.deepEqual([b.keys, b.settings], [["API key"], ["Workspace"]]);
 });
 
+test("connector authorization keeps local access distinct from none and OAuth", () => {
+  for (const [connection, expected] of [
+    ["local", "local"],
+    ["none", "none"],
+    ["oauth", "signIn"],
+  ] as const) {
+    const available = item({
+      connection,
+      entry: entry(contents({ connectors: [{ name: "service", runs_here: true }] })),
+    });
+    assert.equal(bringsOf(available, [], "en").connectors[0]?.auth, expected);
+    const installed = item({
+      connection,
+      state: "on",
+      ext: {
+        id: "acme",
+        name: "Acme",
+        version: "1.0.0",
+        description: "",
+        hash: "0123456789abcdef",
+        source: "~/work/acme",
+        installed_at: "2026-01-01T00:00:00Z",
+        provenance: "third_party",
+        brings: [],
+        needs: [],
+        pages: [],
+        events: [],
+        enabled: true,
+        secrets: [],
+        settings: [],
+        skills: [],
+        mcp: ["acme-service"],
+        agents: [],
+        routines: [],
+        apps: [],
+        hosts: [],
+        runs_code: true,
+      } as ExtensionInfo,
+    });
+    assert.equal(bringsOf(installed, [], "es").connectors[0]?.auth, expected);
+  }
+});
+
 test("the tools its listing names show before connecting; several connectors go by their own names", () => {
   const listing = { tools: [{ name: "list_deals" }, { name: "get_deal" }] } as unknown as Item["listing"];
   const one = bringsOf(item({ listing, entry: entry(contents()) }), [], "en");

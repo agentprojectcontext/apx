@@ -93,6 +93,24 @@ test("a connector with skills is a connector; what it reaches and how it signs i
   assert.equal(authText(account({ transport: "stdio", target: "npx" }), t), "mkt.auth.signIn");
 });
 
+test("local access is not no authorization, before and after installation", () => {
+  const local = item({ connection: "local" });
+  assert.equal(authText(local, t), "mkt.auth.local");
+  assert.equal(authText({ ...local, state: "on", ext: ext({ mcp: ["service"] }) }, t), "mkt.auth.local");
+  const listing = { connection: "local" } as Item["listing"];
+  assert.equal(authText(item({ listing }), t), "mkt.auth.local");
+  assert.equal(authText(item({ connection: "none" }), t), "mkt.auth.none");
+  assert.equal(authText(item({ connection: "oauth" }), t), "mkt.auth.signIn");
+  assert.equal(
+    authText(item({ connection: "local", ext: ext({ secrets: [{ name: "key", label: "Key", set: true }] }) }), t),
+    "mkt.auth.key",
+  );
+  assert.equal(
+    authText(item({ connection: "local", server: { status: "needs-sign-in" } as McpServerStatus }), t),
+    "mkt.auth.signIn",
+  );
+});
+
 test("new ones stand out only while most of the catalog is not new", () => {
   const now = Date.parse("2026-11-18T12:00:00Z");
   const at = (id: string, published: string) => item({ id, key: id, published });
