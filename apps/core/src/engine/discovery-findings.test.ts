@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { DiscoveryRuntime } from "../domain/discovery-state.ts";
-import { type DiscoveryProposal, findingScore, validateFinding } from "./discovery-findings.ts";
+import { DiscoveryAnswer, type DiscoveryProposal, findingScore, validateFinding } from "./discovery-findings.ts";
 
 const at = new Date("2026-05-01T12:00:00.000Z");
 const page = {
@@ -109,4 +109,15 @@ test("thresholds, persistent cooldown and feedback affect selection without forc
   state.muted = [];
   state.seen.push({ topic: candidate.topic, at: at.toISOString() });
   assert.equal(findingScore(proposal, candidate, state, at, 14, ""), undefined);
+});
+
+test("a finding quoting more than four excerpts keeps four instead of being dropped", () => {
+  const quotes = ["Acme announced", "a new export", "export format", "new export format", "Acme announced a new"];
+  const answer = DiscoveryAnswer.parse({
+    findings: [{ ...proposal, evidence: quotes.map((quote) => ({ page: 0, quote })) }],
+  });
+  const [kept] = answer.findings;
+  assert.ok(kept);
+  assert.equal(kept.evidence.length, 4);
+  assert.equal(validateFinding(kept, "acme", [page], at)?.evidence.length, 4);
 });
