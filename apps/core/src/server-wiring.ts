@@ -363,7 +363,6 @@ type HandlerDeps = {
   storage: Parameters<typeof storageHandlers>[0];
   activityReview: Parameters<typeof activityReviewHandlers>[0];
   discovery: Parameters<typeof discoveryHandlers>[0];
-  clock?: () => Date;
 };
 
 /** The handler table the router serves: one entry per protocol method. */
