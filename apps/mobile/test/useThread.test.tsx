@@ -269,6 +269,83 @@ test("a full live message restores parts after a gap and unmount cancels its que
   expect(net.calls).toEqual([]);
 });
 
+test("batched parts and a full live message keep event order while an older snapshot is pending", async () => {
+  const initial = message("msg_batch", 1, "First");
+  net.responses["threads.get"] = snapshot([initial]);
+  const hook = await mount();
+  const pending = deferred<ReturnType<typeof snapshot>>();
+  net.responses["runs.respond"] = { accepted: true };
+  net.responses["threads.get"] = () => pending.promise;
+  let responding: Promise<void> | undefined;
+  await act(async () => {
+    responding = hook.result.current.respond("inp_one", { decision: "approve", scope: "once" });
+  });
+  const full = {
+    ...initial,
+    parts: [
+      { type: "text" as const, text: "Full first" },
+      { type: "text" as const, text: "Full second" },
+      { type: "text" as const, text: "Full third" },
+      { type: "text" as const, text: "Full fourth" },
+    ],
+  };
+  const part = (index: number, text: string) =>
+    net.sockets[0]?.event({
+      type: "message.part",
+      thread_id: thread.id,
+      message_id: initial.id,
+      index,
+      part: { type: "text", text },
+    });
+  await act(async () => {
+    part(1, "Append");
+    part(3, "Gap");
+    net.sockets[0]?.event({ type: "message.updated", message: full });
+    part(4, "Final append");
+  });
+  const expected = { ...full, parts: [...full.parts, { type: "text", text: "Final append" }] };
+  expect(hook.result.current.messages).toEqual([expected]);
+  await act(async () => {
+    pending.resolve(snapshot([initial]));
+    await responding;
+  });
+  expect(hook.result.current.messages).toEqual([expected]);
+  net.responses["threads.get"] = new Error("Recovery offline");
+  await act(() => jest.advanceTimersByTimeAsync(300));
+  expect(hook.result.current.messages).toEqual([expected]);
+  await hook.unmount();
+});
+
+test("an obsolete request failure cannot replace a newer successful recovery with an error", async () => {
+  net.responses["threads.get"] = snapshot([message("msg_old_error", 1, "First")]);
+  const hook = await mount();
+  const pending = deferred<ReturnType<typeof snapshot>>();
+  net.responses["runs.respond"] = { accepted: true };
+  net.responses["threads.get"] = () => pending.promise;
+  let responding: Promise<void> | undefined;
+  await act(async () => {
+    responding = hook.result.current.respond("inp_one", { decision: "approve", scope: "once" });
+  });
+  net.responses["threads.get"] = snapshot([message("msg_new_success", 2, "Recovered")]);
+  await act(async () =>
+    net.sockets[0]?.event({
+      type: "message.part",
+      thread_id: thread.id,
+      message_id: "msg_old_error",
+      index: 2,
+      part: { type: "text", text: "Gap" },
+    }),
+  );
+  await act(() => jest.advanceTimersByTimeAsync(300));
+  await act(async () => {
+    pending.reject(new Error("Old failure"));
+    await responding;
+  });
+  expect(hook.result.current.error).toBe("");
+  expect(hook.result.current.messages).toEqual([message("msg_new_success", 2, "Recovered")]);
+  await hook.unmount();
+});
+
 test("a missing event sequence refetches once and another thread's messages never enter this feed", async () => {
   const hook = await mount();
   net.calls.length = 0;

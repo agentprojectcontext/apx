@@ -57,7 +57,14 @@ function remember(threadId: string, entry: { messages: Message[]; thread?: Threa
 
 /** Subscribe before loading, fold streamed messages, and reconnect after interruptions. */
 function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, showMessages] = useState<Message[]>([]);
+  const messagesNow = useRef<Message[]>([]);
+  // Fold events immediately: React may batch rendering, but recovery must follow wire order.
+  const setMessages = useCallback((update: Message[] | ((current: Message[]) => Message[])) => {
+    const next = typeof update === "function" ? update(messagesNow.current) : update;
+    messagesNow.current = next;
+    showMessages(next);
+  }, []);
   const [online, setOnline] = useState(false);
   const [state, setState] = useState("idle");
   const [error, setError] = useState("");
@@ -107,7 +114,7 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
         });
         setError("");
       } catch (err) {
-        if (stopped) return;
+        if (stopped || requestVersion < appliedVersion) return;
         if (err instanceof ApxError && err.code === "unauthorized") {
           stopped = true;
           socket?.close();
@@ -224,7 +231,7 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
       if (refetch) clearTimeout(refetch);
       if (readyShown) clearTimeout(readyShown);
     };
-  }, [client, threadId, onUnpair]);
+  }, [client, threadId, onUnpair, setMessages]);
 
   return {
     messages,
