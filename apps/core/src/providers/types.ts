@@ -63,11 +63,14 @@ export type ErrorKind =
 export class ProviderError extends Error {
   readonly kind: ErrorKind;
   readonly resetsAt: string | undefined;
-  constructor(kind: ErrorKind, message: string, resetsAt?: string) {
+  /** A limit of the chain while some model in it failed for a passing reason (an empty stream, an overload). */
+  readonly passing: boolean;
+  constructor(kind: ErrorKind, message: string, resetsAt?: string, passing = false) {
     super(message);
     this.name = "ProviderError";
     this.kind = kind;
     this.resetsAt = resetsAt;
+    this.passing = passing;
   }
   /** Worth one more try on the same model. */
   get retryable(): boolean {

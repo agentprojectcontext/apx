@@ -205,6 +205,8 @@ a different model for one chat in the composer, the agent's fallbacks still stan
 If every model in the list fails for a passing reason (an empty or dropped stream, an overloaded provider, no
 connection), the turn waits and asks the whole list again, up to three more times over about a minute, inside the
 turn's time limit. The tool work already done stays in the chat. Only then does the turn end, with the reason.
+This also holds when one model failed in passing and the rest are at their usage limit: the turn asks again first,
+and only then waits for the limit to lift.
 
 Under each reply, the line with the agent's name shows which model answered and adds **Fallback** when it was not the
 agent's own. The notice above it says which model did not answer and why.

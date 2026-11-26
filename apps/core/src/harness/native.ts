@@ -66,8 +66,12 @@ function canonical(value: unknown): string {
  */
 const STEP_PATIENCE_MS = [5_000, 15_000, 45_000] as const;
 
-/** A failure worth asking the whole chain again for: the provider, not the request or the account. */
-const passes = (err: unknown): err is ProviderError => err instanceof ProviderError && err.retryable && !err.limit;
+/**
+ * A failure worth asking the whole chain again for: the provider, not the request or the account. A limit counts when
+ * another model of the chain only failed in passing: it may answer now, instead of the turn waiting for the reset.
+ */
+const passes = (err: unknown): err is ProviderError =>
+  err instanceof ProviderError && ((err.retryable && !err.limit) || err.passing);
 
 export function nativeHarness(
   llm: Llm,
