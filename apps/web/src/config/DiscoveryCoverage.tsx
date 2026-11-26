@@ -11,20 +11,26 @@ const REASONS: Record<DiscoveryStatus["inaccessible"][number]["kind"], MessageKe
 
 export function DiscoveryCoverage({
   status,
+  zone,
   busy,
   refresh,
 }: {
   status: DiscoveryStatus;
+  /** The time zone research runs in, for the dates shown. */
+  zone: string;
   busy: boolean;
   refresh: () => Promise<void>;
 }) {
   const t = useT();
   const date = (value: string) =>
     new Date(value).toLocaleString(currentLocale(), {
-      timeZone: status.settings.timezone,
+      timeZone: zone,
       dateStyle: "medium",
       timeStyle: "short",
     });
+  // Stages nothing has reached yet stay out: a row of zeros reads as a fault.
+  const planned = status.last_at ? status.coverage.filter((p) => p.planned_at).length : 0;
+  const researched = status.last_at ? status.coverage.filter((p) => p.researched_at).length : 0;
   const scheduled = status.settings.enabled && status.available && status.state !== "uncertain";
   return (
     <>
@@ -40,12 +46,8 @@ export function DiscoveryCoverage({
               })
             : t("discovery.notYet")}
         </p>
-        {status.last_at && (
-          <>
-            <p>{t("discovery.planned", { count: status.coverage.filter((p) => p.planned_at).length })}</p>
-            <p>{t("discovery.researched", { count: status.coverage.filter((p) => p.researched_at).length })}</p>
-          </>
-        )}
+        {!!planned && <p>{t("discovery.planned", { count: planned })}</p>}
+        {!!researched && <p>{t("discovery.researched", { count: researched })}</p>}
         {status.state === "working" && <p role="status">{t("discovery.working")}</p>}
         {scheduled && status.next_at && <p>{t("discovery.nextReview", { date: date(status.next_at) })}</p>}
         {scheduled && status.deep_next_at && <p>{t("discovery.nextResearch", { date: date(status.deep_next_at) })}</p>}

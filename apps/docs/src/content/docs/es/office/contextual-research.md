@@ -9,19 +9,23 @@ La investigación contextual es independiente de la revisión de actividad. La r
 
 Pedile a tu superagente que te ayude a configurar la investigación. Puede proponer cambios mediante `apx_settings`, con `discovery.configure`; cambiar la configuración siempre tiene una tarjeta de aprobación. Instalar la función no activa la investigación ni cambia rutinas existentes.
 
+En **Configuración › Investigación**, el interruptor de arriba la activa o la apaga al instante. Mientras está apagada, APX no busca nada y tu informe sale como siempre; al activarla aparece la configuración. Los cambios en la configuración quedan pendientes hasta que elegís **Guardar cambios**, que reinicia la investigación con lo nuevo; **Descartar** vuelve a lo guardado.
+
 Elegí:
 
 - Todos los proyectos registrados y legibles, o una selección explícita.
 - Páginas públicas oficiales para cada proyecto. Incluí secciones relevantes como precios, novedades o documentación. Los términos públicos de búsqueda son opcionales. APX no manda fragmentos privados de conversaciones ni hipótesis generadas a los buscadores.
-- Intereses opcionales, expresados como términos que autorizás a buscar públicamente. Una ciudad o región opcional puede acotar esas búsquedas. APX no determina ni rastrea tu ubicación.
+- Intereses opcionales, expresados como términos que autorizás a buscar públicamente. Escribí un tema y presioná Enter, una coma o **Agregar**. Una sola ciudad o región opcional puede acotar esas búsquedas. APX no determina ni rastrea tu ubicación.
 - Un intervalo de investigación profunda, inicialmente de dos días; límites de llamadas al modelo, operaciones web y tiempo; y un período para no repetir temas.
-- Un informe global existente a cargo de tu superagente y tu zona horaria. El horario de entrega lo determina la rutina del informe: elegirla no la mueve a las 9:00. Pedí cambiar esa rutina si querés otra hora u otros días.
+- Un informe global existente a cargo de tu superagente. El horario de entrega lo determina la rutina del informe: elegirla no la mueve a las 9:00. Pedí cambiar esa rutina si querés otra hora u otros días. Si tu superagente todavía no tiene un informe, creá uno primero en Rutinas.
+
+La investigación usa la zona horaria de tu perfil (**Configuración › Cuenta**) para decidir qué cuenta como un día. Si tu perfil no tiene una, usa la zona propia de la investigación, UTC salvo que tu superagente la haya cambiado.
 
 Podés permitir por separado conversaciones y decisiones autorizadas, sitios públicos mencionados en el contexto de los proyectos y noticias sobre intereses. La opción de sitios parte de los orígenes HTTPS ya referenciados en los proyectos elegidos; no publica sus preguntas privadas como búsquedas. También podés agregar secciones oficiales concretas. Que un sitio esté mencionado no lo convierte automáticamente en una fuente oficial.
 
 Cada pasada diaria explora el contexto de todos los proyectos elegibles. Después, consultas privadas acotadas al modelo descubren preguntas concretas, rotando entre proyectos en lugar de mirar únicamente tareas recientes. Cada pregunta se elige para que puedan responderla las páginas oficiales que indicaste para ese proyecto. La investigación pública tiene su propia cobertura progresiva: la configuración distingue proyectos explorados, preguntas analizadas y fuentes consultadas. Una lista grande puede requerir varias pasadas dentro de tus límites.
 
-La investigación usa el modelo auxiliar. No agrega dependencias, sesiones privilegiadas de navegador, acciones sobre dispositivos ni cambios automáticos en proyectos. Las páginas públicas usan las mismas protecciones de red que la lectura web. Cada redirección se comprueba antes de conectar: las páginas de un proyecto permanecen en los orígenes autorizados y no pueden redirigir a URLs con parámetros de consulta. Una operación de búsqueda puede intentar hasta tres buscadores; sus fragmentos de resultados nunca se usan como evidencia.
+La investigación usa el modelo ayudante (**Configuración › Modelo ayudante**). No agrega dependencias, sesiones privilegiadas de navegador, acciones sobre dispositivos ni cambios automáticos en proyectos. Las páginas públicas usan las mismas protecciones de red que la lectura web. Cada redirección se comprueba antes de conectar: las páginas de un proyecto permanecen en los orígenes autorizados y no pueden redirigir a URLs con parámetros de consulta. Una operación de búsqueda puede intentar hasta tres buscadores; sus fragmentos de resultados nunca se usan como evidencia.
 
 ## Qué llega al informe
 

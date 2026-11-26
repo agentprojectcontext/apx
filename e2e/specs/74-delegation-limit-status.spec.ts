@@ -6,7 +6,6 @@ test("a limit notice follows live work, continues only a stopped session, and st
 }) => {
   let release = Promise.withResolvers<void>();
   const env = await startCore({
-    port: Number(process.env.E2E_PORT ?? 7460) + 4,
     llm: scriptedLlm(async (req, { said }) => {
       if (said.includes("trabajo pendiente")) {
         await Promise.race([

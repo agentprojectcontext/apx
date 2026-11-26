@@ -163,6 +163,23 @@
   min-width: 80px;
   height: 22px;
 }
+.apx-taginput__add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--apx-radius-pill);
+  background: var(--apx-fill-strong);
+  color: var(--apx-fg);
+  font: inherit;
+  font-size: var(--apx-text-xs);
+  cursor: pointer;
+}
+.apx-taginput__add:hover {
+  background: var(--apx-fill-hover);
+}
 
 /* DatePicker */
 .apx-datewrap {

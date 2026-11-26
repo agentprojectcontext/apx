@@ -84,7 +84,7 @@ export function DiscoverySources({
                   />
                 )}
               </Field>
-              <Field label={t("discovery.searchTerms")} hint={t("discovery.publicTerms")}>
+              <Field label={t("discovery.searchTerms")} hint={t("discovery.searchTermsHint")}>
                 {(id) => (
                   <Input
                     id={id}
