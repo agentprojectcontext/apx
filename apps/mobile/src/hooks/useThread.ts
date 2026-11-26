@@ -57,7 +57,14 @@ function remember(threadId: string, entry: { messages: Message[]; thread?: Threa
 
 /** Subscribe before loading, fold streamed messages, and reconnect after interruptions. */
 function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, showMessages] = useState<Message[]>([]);
+  const messagesNow = useRef<Message[]>([]);
+  // Fold events immediately: React may batch rendering, but recovery must follow wire order.
+  const setMessages = useCallback((update: Message[] | ((current: Message[]) => Message[])) => {
+    const next = typeof update === "function" ? update(messagesNow.current) : update;
+    messagesNow.current = next;
+    showMessages(next);
+  }, []);
   const [online, setOnline] = useState(false);
   const [state, setState] = useState("idle");
   const [error, setError] = useState("");
@@ -73,6 +80,7 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
     let readyShown: ReturnType<typeof setTimeout> | undefined;
     let attempt = 0;
     const changes = new Map<string, Message>();
+    const incomplete = new Map<string, number>();
     const lastSeq = new Map<string, number>();
     const deleted = new Set<string>();
     let loadVersion = 0;
@@ -94,6 +102,10 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
         }
         setUsage(usageOf(result.runs));
         setMessages((current) => {
+          for (const message of result.messages) {
+            const requiredVersion = incomplete.get(message.id);
+            if (requiredVersion !== undefined && requestVersion >= requiredVersion) incomplete.delete(message.id);
+          }
           let merged = [...result.messages, ...current.filter((message) => message.id.startsWith("local_"))];
           for (const message of changes.values()) merged = upsert(merged, message);
           const next = merged.filter((message) => !deleted.has(message.id)).sort((a, b) => a.seq - b.seq);
@@ -102,7 +114,7 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
         });
         setError("");
       } catch (err) {
-        if (stopped) return;
+        if (stopped || requestVersion < appliedVersion) return;
         if (err instanceof ApxError && err.code === "unauthorized") {
           stopped = true;
           socket?.close();
@@ -147,12 +159,16 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
             (event.type === "message.created" || event.type === "message.updated") &&
             event.message.thread_id === threadId
           ) {
+            incomplete.delete(event.message.id);
             changes.set(event.message.id, event.message);
             setMessages((current) => upsert(current, event.message));
           } else if (event.type === "message.part" && event.thread_id === threadId) {
             setMessages((current) => {
               const message = current.find((item) => item.id === event.message_id);
-              if (!message) {
+              if (incomplete.has(event.message_id) || !message || event.index > message.parts.length) {
+                // Only a full snapshot requested after the gap can make partial updates safe again.
+                incomplete.set(event.message_id, loadVersion + 1);
+                changes.delete(event.message_id);
                 scheduleLoad();
                 return current;
               }
@@ -172,6 +188,7 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
             for (const id of event.message_ids) {
               deleted.add(id);
               changes.delete(id);
+              incomplete.delete(id);
             }
             setMessages((current) => current.filter((message) => !deleted.has(message.id)));
           }
@@ -214,7 +231,7 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
       if (refetch) clearTimeout(refetch);
       if (readyShown) clearTimeout(readyShown);
     };
-  }, [client, threadId, onUnpair]);
+  }, [client, threadId, onUnpair, setMessages]);
 
   return {
     messages,
