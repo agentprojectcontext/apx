@@ -673,6 +673,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   });
   const sleep = opts.sleptSince ? undefined : sleepWatch(opts.runTimers);
   const engine = createEngine({
+    officeClock: opts.clock,
     sleptSince: opts.sleptSince ?? ((since) => sleep?.sleptSince(since) ?? false),
     vm,
     store,
@@ -901,6 +902,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       channels,
       services,
       scheduler,
+      clock: opts.clock,
       nudges: scheduler.nudges,
       extensions,
       mcp,

@@ -41,6 +41,7 @@ export function followsOwner(origin: Origin | undefined): boolean {
     case "agent":
     case "surface":
     case "hours_began":
+    case "continuation":
     case "routine":
     case "mail":
     case "job":

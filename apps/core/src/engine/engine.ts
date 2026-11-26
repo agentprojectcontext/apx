@@ -13,6 +13,7 @@ import type { RuntimeHomes } from "../skills/runtimes.ts";
 import type { Tool } from "../tools/types.ts";
 import { agentTrip, trip } from "./breaker.ts";
 import { frameInput } from "./context.ts";
+import { continuationCanStart } from "./continuations.ts";
 import { createDelegations } from "./delegation.ts";
 import type { Display } from "./display.ts";
 import { createFanout, deliverResults } from "./fanout.ts";
@@ -223,6 +224,7 @@ export function createEngine(deps: {
   a2aCapMs?: number;
   /** Timer source for run deadlines, independent of transports and background work. */
   runTimers?: RunTimers;
+  officeClock?: (() => Date) | undefined;
   /** Timer source for how long answers of teammates asked together wait for each other (tests drive it). */
   fanoutTimers?: RunTimers;
   /** Whether the Mac slept since a moment (engine/awake.ts): a turn it cut short gets one more window. */
@@ -403,6 +405,12 @@ export function createEngine(deps: {
   }
 
   async function execute(run: RunRecord): Promise<void> {
+    if (!continuationCanStart(store, run, deps.officeClock?.() ?? new Date())) {
+      const done = store.runs.setState(run, "failed", "The follow-up expired or its access changed before execution");
+      ended(done);
+      deps.afterRun?.(done);
+      return;
+    }
     // Before any await: from here its message is no longer in line, and edits to it are refused.
     const asked = askedIn(run);
     if (asked && store.messages.get(asked)?.waiting) {

@@ -11,6 +11,7 @@ export * from "./chrome.ts";
 export * from "./composer-methods.ts";
 export * from "./constants.ts";
 export * from "./contact-sources.ts";
+export * from "./continuations.ts";
 export * from "./core-env.ts";
 export { DesktopInstallStatus } from "./desktop-install.ts";
 export * from "./device-methods.ts";

@@ -19,6 +19,30 @@ por próxima ejecución, última ejecución o nombre.
 
 <Shot name="routines" alt="La pestaña Rutinas de un proyecto: cada rutina con su flujo, una fila de 14 barras de activación y su próxima corrida" caption="Rutinas, con sus últimas activaciones" />
 
+## Volver a este chat una vez
+
+Para un seguimiento puntual, pedí en Home o en el chat de un agente: «Volvé en diez minutos y comprobá el
+informe» o «Cuando termine esta tarea, revisá el resultado». El agente puede guardar una vuelta acá en vez de
+abrir la conversación separada de una rutina. El comprobante muestra el propósito, la hora o condición, el
+vencimiento y **Cancelar**. Aparece solo después de guardar el pedido. También podés pedirle que liste o cancele
+los seguimientos pendientes de este chat.
+
+La espera no mantiene un turno de modelo abierto. Los pedidos pendientes sobreviven un reinicio. Un pedido por
+hora solo empieza antes de vencer y dentro de los 15 minutos de la hora pedida; el vencimiento puede estar como
+máximo a siete días. Una vez iniciado, cancelar no deshace sus acciones. Una ejecución interrumpida no se
+reintenta automáticamente.
+
+El resultado o bloqueo queda en el mismo chat aunque los avisos push estén silenciados. **Ver ejecución** lleva
+al turno real. Cambiar el chat, el agente o la configuración del proyecto puede bloquear un pedido guardado;
+pedilo de nuevo para confirmar que todavía lo querés. El agente usa sus permisos actuales y sigue pidiendo
+aprobación para los efectos que la necesitan.
+
+El evento admitido es que una tarea abierta del proyecto del chat se marque completada, no un sensor de un
+electrodoméstico ni un webhook arbitrario. Completar una tarea no demuestra que un aparato haya terminado.
+Pedí una comprobación de solo lectura por hora si no se puede observar el evento real. Los grupos y las
+conversaciones de contactos no admiten estos seguimientos. Para trabajo repetido o eventos externos, usá una
+rutina o un Flow publicado.
+
 ## Acciones
 
 Cada rutina hace una de cuatro cosas:

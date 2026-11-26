@@ -74,6 +74,21 @@ export interface ChannelInboxTable {
   created_at: string;
 }
 
+export interface ChatContinuationsTable {
+  id: string;
+  thread_id: string;
+  agent_id: string;
+  project_id: string | null;
+  purpose: string;
+  condition: string;
+  expires_at: string;
+  created_at: string;
+  state: string;
+  run_id: string | null;
+  reason: string | null;
+  authority: string;
+}
+
 export interface DevicesTable {
   id: string;
   name: string;
@@ -810,6 +825,7 @@ export interface Database {
   aux_calls: AuxCallsTable;
   channel_held: ChannelHeldTable;
   channel_inbox: ChannelInboxTable;
+  chat_continuations: ChatContinuationsTable;
   devices: DevicesTable;
   extension_catalogs: ExtensionCatalogsTable;
   extension_event_configs: ExtensionEventConfigsTable;

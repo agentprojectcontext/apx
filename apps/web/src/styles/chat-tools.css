@@ -277,6 +277,30 @@ textarea.inputcard__detail {
   gap: 2px;
   margin-left: auto;
 }
+.continuation-notice {
+  align-items: flex-start;
+}
+.continuation-notice > svg {
+  margin-top: 3px;
+}
+.continuation-notice .noticeline__text {
+  display: grid;
+  gap: 4px;
+}
+.continuation-notice p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.continuation-notice .noticeline__actions {
+  justify-content: flex-start;
+  margin-left: 0;
+}
+@media (max-width: 600px) {
+  .continuation-notice .noticeline__actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
 .noticeline__done {
   padding: 0 8px;
   color: var(--apx-fg-subtle);

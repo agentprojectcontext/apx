@@ -1351,4 +1351,22 @@ export const MIGRATIONS: readonly string[] = [
     PRIMARY KEY (workflow_id, key)
   );
   `,
+  `
+  CREATE TABLE chat_continuations (
+    id TEXT PRIMARY KEY,
+    thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+    agent_id TEXT NOT NULL,
+    project_id TEXT,
+    purpose TEXT NOT NULL,
+    condition TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    state TEXT NOT NULL CHECK(state IN ('pending','admitted','completed','canceled','expired','blocked','failed')),
+    run_id TEXT UNIQUE,
+    reason TEXT,
+    authority TEXT NOT NULL
+  );
+  CREATE INDEX chat_continuations_state ON chat_continuations(state, created_at);
+  CREATE INDEX chat_continuations_thread ON chat_continuations(thread_id, created_at);
+  `,
 ];

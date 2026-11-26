@@ -18,6 +18,26 @@ agent, narrow them to one project, show only the active or paused ones, and orde
 
 <Shot name="routines" alt="A project's Routines tab: each routine with its flow, a row of 14 activation bars and its next run" caption="Routines, with their last activations" />
 
+## Return to this chat once
+
+For a single follow-up, ask in Home or an agent chat: “Come back in ten minutes and check the report” or “When
+this task finishes, check its result.” The agent can save a one-time return here instead of opening a routine's
+separate conversation. The receipt shows the purpose, time or task condition, expiry and **Cancel**. It appears
+only after the request was saved. You can also ask the agent to list or cancel this chat's pending follow-ups.
+
+Waiting keeps no model turn open. Pending requests survive a restart. A timed request starts only before its
+expiry and within 15 minutes of its requested time; expiry can be at most seven days away. Once it has started,
+canceling cannot undo its actions. An interrupted execution is not retried automatically.
+
+The result or blocker remains in the same chat even when push notifications are muted. **View run** points to
+the actual execution. Changes to the chat, agent or project settings can block a saved request; ask again to
+confirm that you still want it. The agent uses its current permissions and still asks for effects that need approval.
+
+The supported event is an open task in the chat's project being marked completed, not an appliance sensor or an
+arbitrary webhook. A task's completion is not evidence that a device finished. Ask for a timed read-only check if
+the actual event cannot be observed. Group chats and contacts' conversations do not support these follow-ups.
+For repeated work or external events, use a routine or published Flow instead.
+
 ## Actions
 
 Each routine does one of four things:

@@ -29,6 +29,7 @@ export type Origin =
       on_task?: string;
     }
   | { kind: "surface"; id: string; title: string }
+  | { kind: "continuation"; id: string }
   /** A message on a channel (Telegram…): from the owner, or from a contact (then it is a third party's text). */
   | {
       kind: "channel";

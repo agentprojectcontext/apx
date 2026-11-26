@@ -131,6 +131,8 @@ type StartCoreOptions = {
   tailscale?: TailscaleRun;
   ngrok?: NgrokStart;
   clock?: () => Date;
+  /** Serve a built panel for isolated browser verification. */
+  webDist?: string;
   unseenAfterMs?: number;
   /** Where push notices go (a stand-in Expo push service). */
   expoPushUrl?: string;
@@ -176,6 +178,7 @@ export async function startCore(opts: StartCoreOptions) {
       ...(opts.accountClient ? { accountClient: opts.accountClient } : {}),
       ...(opts.expoPushUrl ? { expoPushUrl: opts.expoPushUrl } : {}),
       ...(opts.flowHttpAllow ? { flowHttpAllow: opts.flowHttpAllow } : {}),
+      ...(opts.webDist ? { webDist: opts.webDist } : {}),
       ...(opts.marketplaceIndex ? { marketplaceIndex: opts.marketplaceIndex } : {}),
     }),
     {

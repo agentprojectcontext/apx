@@ -53,6 +53,7 @@ import { composerHandlers } from "./rpc/composer.ts";
 import { computerHandlers } from "./rpc/computer.ts";
 import { contactSourceHandlers } from "./rpc/contact-sources.ts";
 import type { CallContext } from "./rpc/context.ts";
+import { continuationHandlers } from "./rpc/continuations.ts";
 import { desktopInstallHandlers } from "./rpc/desktop-install.ts";
 import { deviceHandlers } from "./rpc/devices.ts";
 import { emailSignatureHandlers } from "./rpc/email-signatures.ts";
@@ -116,6 +117,7 @@ import { chatTools } from "./tools/chats.ts";
 import { computerTools } from "./tools/computer.ts";
 import { connectionTools } from "./tools/connections.ts";
 import { contactTools } from "./tools/contact.ts";
+import { continuationTools } from "./tools/continuations.ts";
 import { directoryTools } from "./tools/directory.ts";
 import { externalSessionTools } from "./tools/external-sessions.ts";
 import { fileTools } from "./tools/files.ts";
@@ -254,6 +256,7 @@ export function builtinTools(
     ...messageTools(store, home),
     ...directoryTools(store),
     ...routineTools(store),
+    ...continuationTools(),
     ...limitTools(store),
     ...skillTools(store, { home, apps: skillApps }),
     ...memoryTools(store),
@@ -301,6 +304,7 @@ type HandlerDeps = {
   channels: Parameters<typeof channelHandlers>[1];
   services: Parameters<typeof mediaHandlers>[0];
   scheduler: Parameters<typeof routineHandlers>[1];
+  clock?: (() => Date) | undefined;
   flows: Parameters<typeof flowHandlers>[1];
   /** Which model references a Flow's model step may name. */
   flowModel: Parameters<typeof flowHandlers>[3];
@@ -442,6 +446,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     }),
     ...taskHandlers(d.store, d.engine, d.app.home, d.vm?.beforeDelete),
     ...routineHandlers(d.store, d.scheduler, d.profileRoots),
+    ...continuationHandlers(d.store, d.clock),
     ...flowHandlers(d.store, d.flows, d.publicCredentials, d.flowModel, d.bus),
     ...noticeHandlers(d.store, d.nudges),
     ...notificationHandlers(d.store),

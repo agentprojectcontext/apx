@@ -36,6 +36,8 @@ function fromOf(origin: Origin): JobFrom {
     // The owner's own step on a card the agent showed, as answering it.
     case "connected":
       return { kind: "input_answer" };
+    case "continuation":
+      return { kind: "job", name: "Follow-up" };
     // A contact's messages answered once the channel's hours began: shown as theirs.
     case "hours_began":
       return { kind: "channel", name: origin.name };
