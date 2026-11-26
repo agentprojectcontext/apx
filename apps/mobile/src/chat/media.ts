@@ -106,7 +106,7 @@ export function mediaRows(
   const rows: Row[] = [];
   const seen = new Map<string, number>();
   for (const part of parts) {
-    if (part.type === "tool") continue;
+    if (!part || part.type === "tool") continue;
     const base =
       part.type === "input" ? part.input_id : "media_id" in part && part.media_id ? part.media_id : part.type;
     const n = seen.get(base) ?? 0;

@@ -79,6 +79,196 @@ test("streamed parts, deletions and newer thread state survive an older pending 
   await hook.unmount();
 });
 
+test("contiguous parts update and append without reloading", async () => {
+  net.responses["threads.get"] = snapshot([message("msg_parts", 1, "First")]);
+  const hook = await mount();
+  net.calls.length = 0;
+  await act(async () => {
+    for (const [index, text] of ["Updated", "Appended"].entries())
+      net.sockets[0]?.event({
+        type: "message.part",
+        thread_id: thread.id,
+        message_id: "msg_parts",
+        index,
+        part: { type: "text", text },
+      });
+  });
+  expect(hook.result.current.messages[0]?.parts).toEqual([
+    { type: "text", text: "Updated" },
+    { type: "text", text: "Appended" },
+  ]);
+  await act(() => jest.advanceTimersByTimeAsync(300));
+  expect(net.calls).toEqual([]);
+  await hook.unmount();
+});
+
+test("a part beyond the end keeps dense state and recovers the full message instead of a local overlay", async () => {
+  const initial = message("msg_gap", 1, "First");
+  net.responses["threads.get"] = snapshot([initial]);
+  const hook = await mount();
+  const recovered = {
+    ...initial,
+    parts: [
+      { type: "text" as const, text: "Complete" },
+      { type: "text" as const, text: "Missing" },
+      { type: "text" as const, text: "Last" },
+    ],
+  };
+  const pending = deferred<ReturnType<typeof snapshot>>();
+  net.responses["threads.get"] = () => pending.promise;
+  const part = (index: number, text: string) =>
+    net.sockets[0]?.event({
+      type: "message.part",
+      thread_id: thread.id,
+      message_id: initial.id,
+      index,
+      part: { type: "text", text },
+    });
+  await act(async () => part(0, "Local"));
+  await act(async () => part(2, "Last"));
+  expect(hook.result.current.messages[0]?.parts).toEqual([{ type: "text", text: "Local" }]);
+  await act(() => jest.advanceTimersByTimeAsync(300));
+  // Further partial updates cannot turn the incomplete message into an overlay of the full snapshot.
+  await act(async () => part(0, "Still incomplete"));
+  await act(() => jest.advanceTimersByTimeAsync(300));
+  await act(async () => pending.resolve(snapshot([recovered])));
+  expect(hook.result.current.messages).toEqual([recovered]);
+  await act(async () => part(2, "Continues"));
+  expect(hook.result.current.messages[0]?.parts[2]).toEqual({ type: "text", text: "Continues" });
+  await hook.unmount();
+});
+
+test("a snapshot started before a gap cannot re-enable partial updates, but a later recovery can", async () => {
+  const initial = message("msg_race", 1, "First");
+  net.responses["threads.get"] = snapshot([initial]);
+  const hook = await mount();
+  const older = deferred<ReturnType<typeof snapshot>>();
+  const recovery = deferred<ReturnType<typeof snapshot>>();
+  net.responses["runs.respond"] = { accepted: true };
+  net.responses["threads.get"] = () => older.promise;
+  let responding: Promise<void> | undefined;
+  await act(async () => {
+    responding = hook.result.current.respond("inp_one", { decision: "approve", scope: "once" });
+  });
+  const part = (index: number, text: string) =>
+    net.sockets[0]?.event({
+      type: "message.part",
+      thread_id: thread.id,
+      message_id: initial.id,
+      index,
+      part: { type: "text", text },
+    });
+  await act(async () => part(2, "Gap"));
+  net.responses["threads.get"] = () => recovery.promise;
+  await act(() => jest.advanceTimersByTimeAsync(300));
+  await act(async () => {
+    older.resolve(snapshot([initial]));
+    await responding;
+  });
+  await act(async () => part(0, "Not authoritative"));
+  expect(hook.result.current.messages).toEqual([initial]);
+  await act(() => jest.advanceTimersByTimeAsync(300));
+  const full = {
+    ...initial,
+    parts: [
+      { type: "text" as const, text: "First" },
+      { type: "text" as const, text: "Second" },
+      { type: "text" as const, text: "Third" },
+    ],
+  };
+  await act(async () => recovery.resolve(snapshot([full])));
+  expect(hook.result.current.messages).toEqual([full]);
+  await hook.unmount();
+});
+
+test("parts arriving during recovery request a fresher snapshot before partial updates resume", async () => {
+  const initial = message("msg_fresh", 1, "First");
+  net.responses["threads.get"] = snapshot([initial]);
+  const hook = await mount();
+  const pending = deferred<ReturnType<typeof snapshot>>();
+  net.responses["threads.get"] = () => pending.promise;
+  const part = (index: number, text: string) =>
+    net.sockets[0]?.event({
+      type: "message.part",
+      thread_id: thread.id,
+      message_id: initial.id,
+      index,
+      part: { type: "text", text },
+    });
+  await act(async () => part(2, "Gap"));
+  await act(() => jest.advanceTimersByTimeAsync(300));
+  await act(async () => part(0, "Newer than snapshot"));
+  await act(async () => pending.resolve(snapshot([initial])));
+  const fresh = message(initial.id, 1, "Newer than snapshot");
+  net.responses["threads.get"] = snapshot([fresh]);
+  await act(() => jest.advanceTimersByTimeAsync(300));
+  expect(hook.result.current.messages).toEqual([fresh]);
+  await act(async () => part(1, "Append"));
+  expect(hook.result.current.messages[0]?.parts).toEqual([
+    { type: "text", text: "Newer than snapshot" },
+    { type: "text", text: "Append" },
+  ]);
+  await hook.unmount();
+});
+
+test("failed gap recovery preserves the safe message and reconnect recovers without reviving a deleted message", async () => {
+  const initial = message("msg_retry", 1, "First");
+  net.responses["threads.get"] = snapshot([initial]);
+  const hook = await mount();
+  net.responses["threads.get"] = new Error("Offline");
+  await act(async () =>
+    net.sockets[0]?.event({
+      type: "message.part",
+      thread_id: thread.id,
+      message_id: initial.id,
+      index: 3,
+      part: { type: "text", text: "Gap" },
+    }),
+  );
+  await act(() => jest.advanceTimersByTimeAsync(300));
+  expect(hook.result.current.error).toBe("Offline");
+  expect(hook.result.current.messages).toEqual([initial]);
+  await act(async () =>
+    net.sockets[0]?.event({ type: "message.deleted", thread_id: thread.id, message_ids: [initial.id] }),
+  );
+  net.responses["threads.get"] = snapshot([initial, message("msg_reconnected", 2, "Recovered")]);
+  await act(async () => net.sockets[0]?.close());
+  await act(() => jest.advanceTimersByTimeAsync(1000));
+  expect(hook.result.current.messages).toEqual([message("msg_reconnected", 2, "Recovered")]);
+  expect(hook.result.current.error).toBe("");
+  await hook.unmount();
+});
+
+test("a full live message restores parts after a gap and unmount cancels its queued refetch", async () => {
+  const initial = message("msg_full", 1, "First");
+  net.responses["threads.get"] = snapshot([initial]);
+  const hook = await mount();
+  net.calls.length = 0;
+  await act(async () =>
+    net.sockets[0]?.event({
+      type: "message.part",
+      thread_id: thread.id,
+      message_id: initial.id,
+      index: 2,
+      part: { type: "text", text: "Gap" },
+    }),
+  );
+  await act(async () => net.sockets[0]?.event({ type: "message.updated", message: initial }));
+  await act(async () =>
+    net.sockets[0]?.event({
+      type: "message.part",
+      thread_id: thread.id,
+      message_id: initial.id,
+      index: 1,
+      part: { type: "text", text: "Append" },
+    }),
+  );
+  expect(hook.result.current.messages[0]?.parts).toHaveLength(2);
+  await hook.unmount();
+  await act(() => jest.advanceTimersByTimeAsync(1000));
+  expect(net.calls).toEqual([]);
+});
+
 test("a missing event sequence refetches once and another thread's messages never enter this feed", async () => {
   const hook = await mount();
   net.calls.length = 0;

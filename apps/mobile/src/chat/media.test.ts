@@ -14,6 +14,15 @@ const video = (n: number): Part => ({
 });
 const image = (n: number): Part => ({ type: "image", media_id: `med_i${n}`, mime: "image/jpeg", alt: `${n}.jpg` });
 
+test("a missing live fragment does not crash media layout or discard the available rows", () => {
+  const parts: Part[] = [{ type: "text", text: "Here" }];
+  parts[2] = image(1);
+  assert.deepEqual(
+    mediaRows(parts).map((row) => row.kind),
+    ["part", "images"],
+  );
+});
+
 test("videos side by side become one carousel, and a tool call between them does not split it", () => {
   const tool = { type: "tool", call_id: "c1", tool: "send_file", title: "Send", status: "ok" } as Part;
   const rows = mediaRows([{ type: "text", text: "Here" }, video(1), tool, video(2), video(3)]);
