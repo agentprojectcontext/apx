@@ -8,6 +8,7 @@ import { NOISY_COMMENTS } from "../domain/tasks.ts";
 import { computerHost } from "../environments/host.ts";
 import { CATALOG } from "../integrations/catalog.ts";
 import { ACTIVITY_REVIEW_NEWS } from "./activity-review.ts";
+import { ACTIVITY_REVIEW_HISTORY_NEWS } from "./activity-review-history.ts";
 import { AGENT_FALLBACKS_NEWS } from "./agent-fallbacks.ts";
 import { AGENT_FOLDER_NEWS } from "./agent-folder.ts";
 import { AGENT_MIGRATION_NEWS } from "./agent-migration.ts";
@@ -48,6 +49,7 @@ import { OLDER_NEWS } from "./older-entries.ts";
 import { PUBLIC_ARTIFACTS_NEWS } from "./public-artifacts.ts";
 import { QUEUED_MESSAGES_NEWS } from "./queued-messages.ts";
 import { QUICK_CHAT_NEWS } from "./quick-chat.ts";
+import { RESEARCH_FROM_CHAT_NEWS } from "./research-from-chat.ts";
 import { ROOM_AGENT_NEWS } from "./room-agent.ts";
 import { ROOM_HANDOFF_NEWS } from "./room-handoff.ts";
 import { ROUTINE_PERMISSIONS_NEWS } from "./routine-permissions.ts";
@@ -121,6 +123,8 @@ export type NewsFacts = {
   routines?: number;
   /** Agents besides the super-agent (a group chat needs two in all). */
   agents?: number;
+  /** Contextual research is on. */
+  research?: boolean;
 };
 
 export type NewsAction = {
@@ -181,7 +185,9 @@ export const NEWS: readonly NewsEntry[] = [
   ROOM_HANDOFF_NEWS,
   HOME_CHANNEL_SWITCH_NEWS,
   ACTIVITY_REVIEW_NEWS,
+  ACTIVITY_REVIEW_HISTORY_NEWS,
   CONTEXTUAL_RESEARCH_NEWS,
+  RESEARCH_FROM_CHAT_NEWS,
   AGENT_PROMPTS_NEWS,
   AGENT_REVIEW_NEWS,
   AGENT_MIGRATION_NEWS,
@@ -775,6 +781,7 @@ export const newsFacts = (store: Store, o: { hermes?: boolean; storeSize?: Store
   routines: store.routines.list().filter((r) => r.action === "agent" || r.action === "watch").length,
   promptedAgents: store.agents.list().filter((a) => a.kind !== "secretary" && a.prompt.trim()).length,
   agents: store.agents.list().filter((a) => a.kind !== "secretary").length,
+  research: store.settings.read("discovery").enabled,
 });
 
 /** The action a channel button stands for. */

@@ -3,7 +3,7 @@ import { createDiscovery } from "./discovery.ts";
 import type { DiscoveryWeb } from "./discovery-research.ts";
 
 export function contextualServices(
-  deps: Parameters<typeof createActivityReview>[0] & { web?: DiscoveryWeb | undefined },
+  deps: Parameters<typeof createActivityReview>[0] & { web?: DiscoveryWeb | undefined; onEnabled?: () => void },
 ) {
   const activityReview = createActivityReview(deps);
   const discovery = createDiscovery(deps);

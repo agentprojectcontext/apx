@@ -5,13 +5,28 @@ description: Research your projects and interests and include one useful finding
 
 Contextual research is separate from activity review. Activity review proposes improvements from recent conversations; contextual research reads public sources and looks for an actionable connection with your projects or interests. Neither feature executes its suggestions.
 
-## Configure before enabling
+## Turn it on
 
-Ask your super-agent to help configure research. It can propose changes through `apx_settings` using `discovery.configure`; changing the configuration always has an approval card. Installation does not enable research or change existing routines.
+Research starts off. Installing or updating APX does not turn it on or change your routines; it only fills in what research would start with, so turning it on asks you nothing:
+
+- all your registered, readable projects;
+- the time zone in your profile;
+- your super-agent's daily report, when there is one obvious choice (its only report, or its morning brief); otherwise none, and you pick one;
+- the default limits.
+
+When you turn it on, your super-agent offers once to fill in your interests, pages and city or region from what it already knows about you. It asks at most one question if something important is missing.
+
+## It fills in as you chat
+
+While research is on, your super-agent adds what comes up in conversation: an interest, a project to follow, an official public page, your city or region. It does it without stopping the chat or asking for approval. The answer shows a small **Research updated** line; open it to see what was added. Only what you say yourself counts: a routine, a contact or another agent cannot add to it, and a page found on the web is added only when you give it in a message of your own. Adding never discards what research already found.
+
+Turning research on or off, its scope and its limits still go through an approval card when your super-agent changes them (`discovery.configure`). While research is off, your super-agent is not told about it and adds nothing.
+
+## Review and edit
 
 In **Settings › Research**, the switch at the top turns research on or off at once. While it is off, APX looks nothing up and your report goes out as usual; turning it on shows the setup. Changes to the setup are kept until you choose **Save changes**, which restarts research with the new choices; **Discard** puts back what was saved.
 
-Choose:
+You can review and change:
 
 - All registered, readable projects, or an explicit selection.
 - Public official pages for each project. Include relevant sections such as pricing, release notes or documentation. Public search terms are optional. APX does not send private conversation excerpts or generated hypotheses to search engines.

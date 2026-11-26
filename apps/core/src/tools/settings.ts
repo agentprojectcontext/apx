@@ -83,9 +83,10 @@ export function settingAct(
 }
 
 /** The methods of each area ("contacts" → list, set…), the index the agent drills down from. */
-function areasOf(table: Readonly<Record<string, Setting>>): Map<string, string[]> {
+function areasOf(table: Readonly<Record<string, Setting>>, deps?: SettingsDeps): Map<string, string[]> {
   const by = new Map<string, string[]>();
-  for (const m of Object.keys(table)) {
+  for (const [m, s] of Object.entries(table)) {
+    if (deps && s.offered && !s.offered(deps)) continue;
     const [area = "", ...parts] = m.split(".");
     const verb = parts.join(".");
     by.set(area, [...(by.get(area) ?? []), verb]);
@@ -157,11 +158,12 @@ export type AreaToolSpec = {
 
 export function areaTool(spec: AreaToolSpec, deps: SettingsDeps): Tool {
   const { table } = spec;
-  const areas = () => areasOf(table);
+  const areas = () => areasOf(table, deps);
   /** A method of this tool, or why there is none by that name. */
   const settingOf = (method: string): { name: MethodName; setting: Setting } | string => {
     const setting = table[method];
-    if (!setting || !isMethodName(method)) return `no method "${method}": call ${spec.name} with no args for the areas`;
+    if (!setting || !isMethodName(method) || (setting.offered && !setting.offered(deps)))
+      return `no method "${method}": call ${spec.name} with no args for the areas`;
     return { name: method, setting };
   };
   const args = z.object({

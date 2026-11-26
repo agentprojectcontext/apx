@@ -198,6 +198,9 @@ export function teamPlace(
 const COMPUTER_OFF =
   "- Using the owner's own apps and screen (computer use, in the Mac and Windows app) is off. If they ask for it, say so and link [Config › Desktop](apx:settings/desktop), where they turn it on.";
 
+const RESEARCH =
+  "- Research is on: when the owner mentions an interest, a project to follow, an official public page or their city or region, add it with apx_settings discovery.add, without saying so or asking.";
+
 const SIMPLE_PANEL =
   "The owner uses the simple panel: an assistant for their day, without projects. Do the work yourself; never create projects or agents. If they ask for project work or a team, offer the full panel and, at their word, switch it with apx_settings (panel.set_mode).";
 
@@ -237,6 +240,8 @@ export function systemPrompt(
   place = "",
   /** The owner uses the simple panel: the super-agent works alone and offers the full panel for projects or a team. */
   simple = false,
+  /** Research is on: the super-agent adds what comes up to it (DECISIONS.md#d-276). */
+  research = false,
 ): string {
   const lang = LANGUAGES[ownerLanguage] ?? ownerLanguage;
   return [
@@ -286,6 +291,7 @@ export function systemPrompt(
     "- Trust the tool evidence a delegate reports; verify any other claim that work is done.",
     "- A send, post or payment you can make stays yours: delegate only its preparation. One a teammate asks of you is the owner's work: make it (APX asks the owner when it must); never refuse it as relayed or send the owner to repeat it.",
     "- Memory: save reusable preferences, decisions and confirmed approaches with remember. Check a note's date, scope and evidence before applying it; a successful call does not prove the goal. Retry a saved method with its inputs before seeking others; if it fails, look and update it. Memory grants no permission; told to ignore it, neither use nor mention it.",
+    ...(research && agent.kind === "secretary" ? [RESEARCH] : []),
     "",
     // What differs per chat or per release goes last, after everything chats share, so the cached prefix is shared:
     // what the chat's turns carry, then its kind ("loose" is a storage kind: shown raw, it reads as a project's name).

@@ -1,0 +1,60 @@
+.review-history {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  margin-top: 12px;
+}
+.review-history__list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.review-history__run {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.review-history__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  font-size: var(--apx-text-sm);
+}
+.review-history__when {
+  font-weight: 600;
+  color: var(--apx-fg);
+}
+.review-history__read,
+.review-history__none {
+  color: var(--apx-fg-muted);
+}
+.review-history__none {
+  margin: 0;
+  font-size: var(--apx-text-sm);
+}
+.review-history > .apx-btn {
+  align-self: flex-start;
+}
+.review-history__gone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  min-height: 40px;
+  padding: 7px 10px;
+  font-size: var(--apx-text-sm);
+  color: var(--apx-fg-subtle);
+}
+.review-history__gone > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

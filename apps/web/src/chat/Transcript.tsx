@@ -1,5 +1,6 @@
 import type { Message as Msg, Thread } from "@apx/protocol";
 import { receivedMail } from "@apx/protocol/email-block";
+import { noticeText } from "@apx/protocol/notices";
 import {
   ActivityPill,
   AgentAvatar,
@@ -283,13 +284,15 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
 
 /** What APX itself says in a thread: notices (paused, summarized) and plain notes. */
 function SystemMessage({ message }: { message: Msg }) {
+  const lang = useLanguage();
   const notices = message.parts.filter((p) => p.type === "notice");
   if (!notices.length) return <SystemNote>{textOf(message)}</SystemNote>;
   return (
     <>
       {notices.map((p, i) => (
+        // Its words in the owner's language while the notice's own look loads.
         // biome-ignore lint/suspicious/noArrayIndexKey: a message's parts never reorder.
-        <Suspense key={i} fallback={p.text}>
+        <Suspense key={i} fallback={noticeText(p, lang === "en" ? "en" : "es")}>
           <NoticePart part={p} />
         </Suspense>
       ))}

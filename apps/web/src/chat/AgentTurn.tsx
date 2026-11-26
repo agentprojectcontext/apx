@@ -39,6 +39,8 @@ import { go } from "../shell/nav.ts";
 import { copyableQuote } from "./CopyableQuote.tsx";
 import { replyBlock, runnableCode } from "./codeRunner.tsx";
 import { MessageActions } from "./MessageActions.tsx";
+import { ChipPart } from "./parts/ChipPart.tsx";
+import { chipFold, isChip } from "./parts/chips.ts";
 import { FilePart } from "./parts/FilePart.tsx";
 import { imageGenerationBlocks } from "./parts/imageGeneration.ts";
 import { AudioPart } from "./parts/lazyAudio.tsx";
@@ -98,7 +100,11 @@ export function AgentTurn({
 }) {
   const t = useT();
   const mdLabels = useMarkdownLabels();
-  const tools = showTools ? message.parts.filter((p): p is ToolPart => p.type === "tool") : [];
+  // A note saved or research updated is a chip of its own, not a step (chips.ts).
+  const chips = chipFold(message.parts);
+  const tools = showTools
+    ? message.parts.filter((p): p is ToolPart => p.type === "tool" && !chips.calls.has(p.call_id))
+    : [];
   const runState = useData((s) => (message.run_id ? s.runs[message.run_id]?.state : undefined));
   const waiting = runState === "input-required";
   const ended = runEnded(runState);
@@ -113,7 +119,7 @@ export function AgentTurn({
   }[] = imageGenerationBlocks(
     message.parts,
     runState,
-    (p) => p.type === "skills" || (p.type === "text" && (!p.text.trim() || isSignal(p.text))),
+    (p) => p.type === "skills" || chips.later.has(p) || (p.type === "text" && (!p.text.trim() || isSignal(p.text))),
     generationImages,
   ).map((b) =>
     b.kind === "generation"
@@ -333,6 +339,7 @@ function renderCard(p: Part, agent: Agent | undefined, message: Msg, ended: bool
     case "audio":
       return <AudioPart part={p} />;
     case "notice":
+      if (isChip(p)) return <ChipPart code={p.code} parts={message.parts} />;
       return (
         <Suspense fallback={p.text}>
           <NoticePart part={p} />

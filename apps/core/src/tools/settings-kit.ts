@@ -66,8 +66,14 @@ export type Setting = {
     reads?: true;
     confirm: "never" | "untrusted";
     args: z.ZodType;
-    run: (p: Params, d: SettingsDeps, ctx: Pick<ToolContext, "call" | "upsertPart">) => Promise<string>;
+    run: (
+      p: Params,
+      d: SettingsDeps,
+      ctx: Pick<ToolContext, "call" | "upsertPart" | "run" | "untrusted" | "callId">,
+    ) => Promise<string>;
   };
+  /** Offered only while this holds (research on): otherwise not listed and not run. */
+  offered?: (d: SettingsDeps) => boolean;
 };
 
 export const str = (v: unknown) => (typeof v === "string" ? v : "");

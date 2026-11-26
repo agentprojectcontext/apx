@@ -86,7 +86,8 @@ export function NoticePart({ part }: { part: NoticeData }) {
           ))}
       </div>
     );
-  const Icon = part.level === "warn" ? Icons.TriangleAlert : Icons.Info;
+  const Icon =
+    part.level === "warn" ? Icons.TriangleAlert : part.code === "thread.compacted" ? Icons.Archive : Icons.Info;
   const titleKey = `notice.${part.code}.title`;
   if (!isKey(titleKey) && !part.detail)
     return (

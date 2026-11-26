@@ -48,6 +48,12 @@ Still out of reach and not asked for: `voice.install` and `profiles.install` (`s
 `engines.set_usage`, the owner's opt-in to query account limits (reading quotas is `engines.usage` for the
 super-agent and `plan_usage` for every agent already).
 
+Without asking, and without the owner asking for it ([D-276](DECISIONS.md#d-276)): while contextual research is on,
+`apx_settings` `discovery.add` adds an interest, a project to follow, an official public page or the owner's city or
+region that came up in the owner's own conversation. It only widens what research reads in public, so it shows a chip
+instead of a card; a page is dropped when outside content is in the turn. Turning research on or off, its scope and
+limits stay `discovery.configure`, on a card.
+
 `apx_settings`, `agent_set`, `apx_flow` and `task_tidy` stay the super-agent's (`policy.ts:102`): another agent asks
 it, so a project agent never changes the owner's setup on someone else's word.
 
