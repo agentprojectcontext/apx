@@ -4,15 +4,52 @@ import { t } from "../../i18n";
 import type { PlanStep } from "../../protocol";
 import { Icon } from "../Icon";
 import { makeStyles, useTheme } from "../theme";
+import { CompactRow } from "./CompactRow";
 
 /**
  * An agent's plan as a checklist: each step pending, under way or done, with how many are done. The chat shows it at
  * the end of the agent's message, the task on its page; a plan that is not steps shows as written (`children`).
  */
-export function PlanCard({ label, steps, children }: { label: string; steps?: PlanStep[]; children?: ReactNode }) {
+export function PlanCard({
+  label,
+  steps,
+  children,
+  collapsible = false,
+}: {
+  label: string;
+  steps?: PlanStep[];
+  children?: ReactNode;
+  collapsible?: boolean;
+}) {
   const theme = useTheme();
   const s = useStyles();
   const done = steps?.filter((step) => step.state === "done").length ?? 0;
+  const list = (
+    <View style={s.list}>
+      {steps
+        ? steps.map((step, i) => (
+            <View
+              // biome-ignore lint/suspicious/noArrayIndexKey: a plan may repeat a step's words; its place is its identity
+              key={i}
+              style={s.step}
+              accessible
+              accessibilityLabel={`${step.step}, ${t(step.state === "done" ? "runDone" : step.state === "doing" ? "runWorking" : "planPending")}`}
+            >
+              <Mark state={step.state} />
+              <Text style={[s.text, step.state === "done" && s.done, step.state === "doing" && s.doing]}>
+                {step.step}
+              </Text>
+            </View>
+          ))
+        : children}
+    </View>
+  );
+  if (collapsible)
+    return (
+      <CompactRow title={label} summary={t("planDone", { done, count: steps?.length ?? 0 })} icon="ListChecks">
+        {list}
+      </CompactRow>
+    );
   return (
     <View style={s.card} accessibilityLabel={label}>
       <View style={s.head}>
@@ -20,19 +57,7 @@ export function PlanCard({ label, steps, children }: { label: string; steps?: Pl
         <Text style={s.title}>{label}</Text>
         {steps ? <Text style={s.count}>{t("planDone", { done, count: steps.length })}</Text> : null}
       </View>
-      <View style={s.list}>
-        {steps
-          ? steps.map((step, i) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: a plan may repeat a step's words; its place is its identity
-              <View key={i} style={s.step}>
-                <Mark state={step.state} />
-                <Text style={[s.text, step.state === "done" && s.done, step.state === "doing" && s.doing]}>
-                  {step.step}
-                </Text>
-              </View>
-            ))
-          : children}
-      </View>
+      {list}
     </View>
   );
 }
