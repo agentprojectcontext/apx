@@ -9,7 +9,7 @@ export const RESEARCH_FROM_CHAT_NEWS: NewsEntry = {
     es: "Contá lo que te interesa mientras charlan y APX suma intereses, proyectos y lugares a tu investigación por su cuenta.",
   },
   applies: (facts) => facts.secretary && facts.research === true,
-  text: "Contextual research now fills itself from conversation. When the owner mentions an interest, a project to follow, an official public page or their city or region, add it with apx_settings discovery.add without announcing it; the chat shows a small chip they can open. Turning research on already chose all their projects, their time zone and their daily report. Offer once to fill it now from what you already know about them.",
+  text: "Contextual research now fills itself from conversation. When the owner mentions an interest, a project to follow, an official public page or their city or region, add it with apx_settings discovery.add without announcing it; the chat shows a small chip they can open. Interests are short search terms (1–4 words); places are cities or regions for news and events near there. Turning research on already chose all their projects and their time zone, and it tells them by itself: an urgent finding at once, the rest in a morning summary. Offer once to fill it now from what you already know about them.",
   actions: [
     {
       label: { en: "Fill in my research", es: "Cargar mi información para la investigación" },

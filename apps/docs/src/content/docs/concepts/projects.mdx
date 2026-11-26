@@ -65,13 +65,7 @@ If a project cannot be moved (say `.apx/` already has a different version of a f
 project keeps working from `.apc/`, its overview shows **Agents still in .apc/** with **Try again**, the notice says
 why, and APX tries again at the next start. To retry every such project at once:
 
-<Terminal title="retry moving projects to .apx/">
-
-```bash
-apx doctor --fix
-```
-
-</Terminal>
+<Terminal command="apx doctor --fix" title="retry moving projects to .apx/" />
 
 An APX v1 still installed reads `.apc/`, so after the move it no longer sees that project's agents.
 

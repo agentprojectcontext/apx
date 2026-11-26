@@ -241,3 +241,46 @@ test("a one-line template field keeps one line and offers a group's action when 
     await page.getByRole("option", { name: "Save a secret" }).click();
     await expect(page.getByTestId("events")).toContainText("save secret");
   }));
+
+test("the unsaved bar shows only with changes, discards, saves by button or Cmd/Ctrl+S and keeps changes on failure", async () =>
+  mounted(async (page) => {
+    const bar = page.locator(".fixture-bar");
+    const name = page.getByRole("textbox", { name: "Draft name", exact: true });
+    const save = bar.getByRole("button", { name: "Save changes", exact: true });
+    await expect(bar).toHaveCount(0);
+    await name.fill("Acme 2");
+    await expect(bar).toContainText("You have unsaved changes.");
+    await bar.getByRole("button", { name: "Discard", exact: true }).click();
+    await expect(name).toHaveValue("Acme");
+    await expect(bar).toHaveCount(0);
+
+    await name.fill("Globex");
+    await save.click();
+    await expect(save).toBeDisabled();
+    await expect(bar.getByRole("button", { name: "Discard", exact: true })).toBeDisabled();
+    await page.getByRole("button", { name: "Finish save", exact: true }).click();
+    await expect(page.getByTestId("saved")).toHaveText("Globex");
+    await expect(bar.getByRole("status")).toHaveText("Changes saved");
+
+    await page.getByRole("button", { name: "Fail next save", exact: true }).click();
+    await name.fill("Initech");
+    await name.press("ControlOrMeta+s");
+    await page.getByRole("button", { name: "Finish save", exact: true }).click();
+    await expect(bar.getByRole("alert")).toHaveText("Couldn't save.");
+    await expect(name).toHaveValue("Initech");
+    await expect(page.getByTestId("saved")).toHaveText("Globex");
+    await name.press("Control+s");
+    await page.getByRole("button", { name: "Finish save", exact: true }).click();
+    await expect(page.getByTestId("saved")).toHaveText("Initech");
+
+    // Inside a form, Save submits it: an empty required field stops the save.
+    const form = page.getByRole("form", { name: "Form draft" });
+    const field = form.getByRole("textbox", { name: "Form name", exact: true });
+    await field.fill("");
+    await form.getByRole("button", { name: "Save changes", exact: true }).click();
+    await expect(page.getByTestId("form-saved")).toHaveText('"Northwind"');
+    await field.fill("Umbrella");
+    await field.press("ControlOrMeta+s");
+    await expect(page.getByTestId("form-saved")).toHaveText('"Umbrella"');
+    await expect(form.getByRole("button", { name: "Save changes", exact: true })).toHaveCount(0);
+  }));

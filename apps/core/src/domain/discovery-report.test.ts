@@ -28,7 +28,12 @@ test("one finding is reserved atomically and composed only once on its chosen ru
       schedule: { kind: "cron", cron: "0 9 * * *" },
       prompt: "Summarize the day",
     });
-    state.configure({ enabled: true, timezone: "America/Argentina/Buenos_Aires", report_routine: report.id });
+    state.configure({
+      enabled: true,
+      timezone: "America/Argentina/Buenos_Aires",
+      delivery: "routine",
+      report_routine: report.id,
+    });
     state.write({
       ...state.read(),
       findings: [0, 1].map((index) => ({
@@ -122,7 +127,7 @@ test("a report's day follows the owner's profile time zone, not the research set
       schedule: { kind: "cron", cron: "0 9 * * *" },
       prompt: "Summarize the day",
     });
-    state.configure({ enabled: true, timezone: "UTC", report_routine: report.id });
+    state.configure({ enabled: true, timezone: "UTC", delivery: "routine", report_routine: report.id });
     saveOwnerIdentity(store, { timezone: "Pacific/Auckland" });
     state.write({
       ...state.read(),

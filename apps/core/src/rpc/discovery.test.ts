@@ -24,6 +24,7 @@ test("running core exposes opt-in settings and folds one finding into an existin
     });
     const saved = await client.call("discovery.configure", {
       enabled: true,
+      delivery: "routine",
       report_routine: report.id,
       expected: initial.settings,
     });

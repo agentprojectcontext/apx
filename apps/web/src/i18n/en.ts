@@ -1475,8 +1475,6 @@ export const en = {
   "router.addToChain": "Add a model",
   "router.removeFromChain": "Remove from the chain",
   "router.unknownRefs": "{count} not in the catalog",
-  "router.revert": "Discard changes",
-  "router.save": "Save router",
   "mem.continuity": "Memory between chats",
   "mem.auto_recall": "Recall own chats automatically",
   "mem.auto_recall.hint": "Relevant owner statements from this agent’s chats in the same project, with their source.",
@@ -2038,6 +2036,7 @@ export const en = {
 export type MessageKey =
   | keyof typeof import("./telemetry-settings-en.ts").enTelemetrySettings
   | keyof typeof import("./cloud-account-en.ts").enCloudAccount
+  | keyof typeof import("./unsaved-en.ts").enUnsaved
   | keyof typeof en
   | keyof typeof enPublicCopies
   | keyof typeof enAccount

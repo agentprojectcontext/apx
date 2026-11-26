@@ -27,7 +27,7 @@ export async function addToResearch(
     interests: added?.interests ?? [],
     projects,
     pages: (added?.pages ?? []).map((p) => p.label),
-    location: added?.location ? [added.location] : [],
+    places: added?.places ?? [],
   };
   if (!Object.values(lines).some((l) => l.length)) return `nothing new: research already had it.${skipped}`;
   const vars: Record<string, string> = Object.fromEntries(

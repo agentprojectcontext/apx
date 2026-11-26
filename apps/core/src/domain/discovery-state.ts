@@ -9,9 +9,15 @@ import {
 import { z } from "zod";
 import { conflict, notFound } from "../errors.ts";
 import { ownerTimeZone } from "./owner.ts";
+import { shortInterests } from "./research-terms.ts";
 import type { Store } from "./store.ts";
 
 export const DISCOVERY_DAY = 86_400_000;
+/**
+ * Public pages are read in depth every other day: projects are still looked at daily, and two days keep the web reads
+ * and model calls a finding costs low while news is still fresh (DECISIONS.md#d-278).
+ */
+export const DEEP_EVERY_DAYS = 2;
 const Runtime = z.object({
   next: z.string().datetime(),
   last: z.string().datetime().optional(),
@@ -36,6 +42,8 @@ const Runtime = z.object({
     .max(500),
   inaccessible: z.array(DiscoverySourceFailure).max(40),
   delivered_days: z.array(z.string()).max(100),
+  /** The owner's days whose morning summary was already looked at (automatic delivery). */
+  digest_days: z.array(z.string()).max(100).default([]),
   claims: z
     .array(z.object({ run: z.string(), routine: z.string(), finding: z.string(), composed: z.boolean() }))
     .max(100),
@@ -102,6 +110,7 @@ export function discoveryState(store: Store, now: () => Date) {
       muted_topics: [],
       inaccessible: [],
       delivered_days: [],
+      digest_days: [],
       claims: [],
       seen: [],
     };
@@ -145,6 +154,8 @@ export function discoveryState(store: Store, now: () => Date) {
       for (const source of settings.sources)
         if (source.project && !allowed(source.project, settings))
           throw conflict("A source belongs to an excluded project");
+      if (settings.enabled && settings.delivery === "routine" && !settings.report_routine)
+        throw conflict("Choose the routine that tells the findings");
       if (settings.report_routine) {
         const routine = store.routines.get(settings.report_routine);
         const agent = routine && store.agents.get(routine.agent_id);
@@ -179,9 +190,8 @@ export function discoveryState(store: Store, now: () => Date) {
       const before = store.settings.read("discovery");
       if (!before.enabled) throw conflict("Research is off");
       const has = new Set(before.interests.map((i) => i.toLowerCase()));
-      const interests = [...new Set((items.interests ?? []).map((i) => i.trim()))].filter(
-        (i) => !has.has(i.toLowerCase()),
-      );
+      // Search terms, not sentences: what the agent heard comes in short (DECISIONS.md#d-278).
+      const interests = shortInterests(items.interests ?? []).filter((i) => !has.has(i.toLowerCase()));
       if (before.interests.length + interests.length > 30) throw conflict("Research already has 30 interests");
       for (const id of items.projects ?? [])
         if (!allowed(id, { ...before, projects: "all" })) throw notFound(`project ${id}`);
@@ -196,7 +206,9 @@ export function discoveryState(store: Store, now: () => Date) {
       for (const page of pages)
         if (page.project && !allowed(page.project, { ...before, project_ids: [...before.project_ids, ...projects] }))
           throw notFound(`project ${page.project}`);
-      const location = items.location && items.location !== before.location ? items.location : undefined;
+      const near = new Set(before.places.map((p) => p.toLowerCase()));
+      const places = [...new Set((items.places ?? []).map((p) => p.trim()))].filter((p) => !near.has(p.toLowerCase()));
+      if (before.places.length + places.length > 10) throw conflict("Research already has 10 places");
       const settings = DiscoverySettings.parse({
         ...before,
         interests: [...before.interests, ...interests],
@@ -210,14 +222,14 @@ export function discoveryState(store: Store, now: () => Date) {
             ...(p.project ? { project: p.project } : {}),
           })),
         ],
-        ...(location ? { location } : {}),
+        places: [...before.places, ...places],
       });
       if (!isDeepStrictEqual(settings, before)) store.settings.write("discovery", settings);
       return {
         interests,
         projects,
         pages: pages.map(({ url, label }) => ({ url, label })),
-        ...(location ? { location } : {}),
+        places,
       };
     },
     feedback(id: string, feedback: "useful" | "not_useful" | "mute" | "unmute") {

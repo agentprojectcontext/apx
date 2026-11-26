@@ -786,6 +786,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     models: () => upkeep.auxModels(),
     ...(opts.clock ? { now: opts.clock } : {}),
     onEnabled: () => void news.offer(RESEARCH_FROM_CHAT_NEWS.id).catch(() => {}),
+    notifyOwner: (body, threadId, messageId) => channels.notifyOwner(body, "notice", threadId, { messageId }),
   });
   const extensionEvents = createExtensionEvents({
     store,

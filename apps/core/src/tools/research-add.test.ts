@@ -15,7 +15,7 @@ test("the super-agent adds an interest from the chat on its own, and the chat sh
     if (said.includes("fotografía analógica"))
       return callTool("add", "apx_settings", {
         method: "discovery.add",
-        params: { interests: ["Fotografía analógica"], location: "Córdoba" },
+        params: { interests: ["Fotografía analógica"], places: ["Córdoba"] },
       });
     return say("ok");
   });
@@ -38,12 +38,12 @@ test("the super-agent adds an interest from the chat on its own, and the chat sh
 
     const settings = (await env.client.call("discovery.settings", {})).settings;
     assert.deepEqual(settings.interests, ["Fotografía analógica"]);
-    assert.equal(settings.location, "Córdoba");
+    assert.deepEqual(settings.places, ["Córdoba"]);
     const answer = messages.findLast((m) => m.author.kind === "agent");
     assert.ok(answer);
     const [chip] = notices(answer.parts, "research.updated");
     assert.equal(chip?.vars?.interests, "Fotografía analógica");
-    assert.equal(chip?.vars?.location, "Córdoba");
+    assert.equal(chip?.vars?.places, "Córdoba");
     const step = answer.parts.find((p) => p.type === "tool" && p.tool === "apx_settings");
     assert.ok(step?.type === "tool" && step.status === "ok", "it ran without a card");
     assert.equal(chip?.vars?.call, step.call_id, "the chip names its step, which the chat folds into it");
@@ -102,6 +102,12 @@ test("the owner's panel may add to research, and an interest it has is not added
     assert.deepEqual(added.interests, ["Ajedrez"], "the owner's panel may add");
     const again = await env.client.call("discovery.add", { interests: ["ajedrez"] });
     assert.deepEqual(again.interests, [], "an interest it has is not added twice");
+    const said = await env.client.call("discovery.add", {
+      interests: ["Agentes de IA para programar, en particular novedades de Claude Code y Codex"],
+      places: ["Bariloche", "Buenos Aires"],
+    });
+    assert.deepEqual(said.interests, ["Agentes de IA para programar", "Claude Code", "Codex"], "short search terms");
+    assert.deepEqual((await env.client.call("discovery.settings", {})).settings.places, ["Bariloche", "Buenos Aires"]);
   } finally {
     await env.core.close();
     await env.cleanup();

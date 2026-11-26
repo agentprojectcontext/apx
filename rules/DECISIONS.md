@@ -6391,7 +6391,7 @@ report to choose.
   refuses every agent but the super-agent and every outside app (no agent named). Turning research on or off, its
   scope and its limits keep `discovery.configure`'s card.
 - **Only while research is on.** The method is offered (`Setting.offered`) and the system prompt carries one line
-  about it (`RESEARCH` in `engine/context.ts`, 194 characters, no new tool) only while `discovery.enabled` is true. Off:
+  about it (`RESEARCH` in `engine/context.ts`, 194 characters then, no new tool) only while `discovery.enabled` is true. Off:
   no line, no method, nothing said. `prompt-budget.test.ts` measures the default turn with research on as well.
 - **Defaults instead of questions.** While research is off, APX keeps the values it would start with filled in at each
   start (`discoveryState.prefill`): the profile's time zone and the super-agent's one enabled global report, or its
@@ -6412,3 +6412,52 @@ out instead).
 
 Docs impact: updated office/contextual-research and office/chat in English and Spanish, rules/SUPER_AGENT_POWERS.md,
 rules/PROMPT_SIZE.md and news (`research-from-chat`, 2.17.2).
+
+<a id="d-277"></a>
+## D-277 — 2026-11-26 — Every release has its section on the docs' What's new page, or it is not tagged
+The docs gained a What's new page (`reference/whats-new.mdx`, English and Spanish) that keeps every release with a
+link to where each part is explained. A page like that goes stale the first release someone forgets it, and nothing
+in the release path read it.
+
+- **It keeps every release, newest first.** Older releases since v2.11.0 are filled in from their news entries,
+  welcome slides and release notes, so the page is a history, not just the latest.
+- **`release:check --tag` refuses a release without its section.** `check:since --release v2.x.y` also asks both pages
+  for a `## x.y.z` heading; a patch that only fixes says so in one line. It runs only when a tag is cut, not in
+  preflight, since a version's section is written when the version is decided.
+
+See [RELEASE.md › What's new page](RELEASE.md#whats-new-page).
+
+Docs impact: updated rules/RELEASE.md; the page itself is apps/docs/src/content/docs/reference/whats-new.mdx and its
+Spanish page.
+
+<a id="d-278"></a>
+## D-278 — 2026-11-26 — Research tells findings by itself, keeps several places and short interests
+The owner tried D-276 on their own install. An interest saved from chat was a whole sentence; the one free-text
+place did not say what it was for and held only one; the project list was every project as a checkbox; "search the
+web every 2 days" was not understood; and findings only reached them inside a chosen routine ("usual report"), so an
+owner with none heard nothing.
+
+- **Delivery** (`delivery`): `automatic` by default. A finding the research model and its independent check both mark
+  urgent (`urgency: "now"`: act within a day or two, such as a wrong price on the owner's own site or a breaking
+  change in something they use; when unsure, not) is told at once. The rest go together in one short summary on the
+  first check after 8:00 in the owner's profile time zone, at most three, once a day. Both are the super-agent's words
+  in its home chat, sent on through the same owner-notification path routines use (quiet hours included), with no
+  model call of their own. It runs inside research's existing background check (`discovery.check`, D-171), so tests
+  drive it with the injected clock. `routine` keeps D-276's behaviour: one finding joins the chosen global super-agent
+  routine. There is no "don't tell me": turning research off is how to stop. The migration keeps `routine` for an
+  owner who had research on with a report and gives everyone else `automatic`.
+- **Places** (`places`): a list of cities or regions (up to ten), each searched for news and events there, instead
+  of one `location` appended to every interest. The migration moves a saved `location` into the list.
+- **Short interests.** The prompt line and `discovery.add` say 1–4 words; `discovery.add` also cuts what it is given:
+  lead-in words ("en particular novedades de", "news about") go, commas split, "A y B" splits when the whole is longer
+  than three words ("Ciencia y tecnología" stays), and each term keeps at most five words.
+- **Deep research every other day, not a setting.** Projects are still looked at daily; public pages are read in
+  depth every two days (`DEEP_EVERY_DAYS`), which keeps web reads and model calls low while news is fresh. The
+  screen says so in one line; `deep_every_days` leaves the settings.
+- **Projects** are picked in the shared menu with ticks (`Menu` `checked`/`keepOpen`, as MCP availability does) and
+  shown under it as chips; "All my projects" stays the default.
+
+The settings migration is one SQL step (rule 14); nothing reads `location` or `deep_every_days` afterwards.
+
+Docs impact: updated office/contextual-research in English and Spanish, rules/PROMPT_SIZE.md, news texts
+(`contextual-research`, `research-from-chat`).

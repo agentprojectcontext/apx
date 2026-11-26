@@ -141,7 +141,7 @@ export const WORK: Readonly<Record<string, Setting>> = {
     },
   },
   "discovery.configure": {
-    does: "configure contextual research (enabled, projects all or selected, project_ids, project_context, project_websites, interest_news, sources with public pages and public_terms, interests, optional location, deep_every_days, timezone (only if the owner profile has none), report_routine, max_model_calls, max_pages, max_seconds, cooldown_days)",
+    does: "configure contextual research (enabled, projects all or selected, project_ids, project_context, project_websites, interest_news, sources with public pages and public_terms, interests, places, delivery (automatic: urgent findings at once, the rest in a morning summary; routine: added to report_routine's report), timezone (only if the owner profile has none), report_routine, max_model_calls, max_pages, max_seconds, cooldown_days)",
     says: () => "Change contextual research",
     whole: true,
     now: (_p, { store }) => store.settings.read("discovery"),
@@ -152,7 +152,7 @@ export const WORK: Readonly<Record<string, Setting>> = {
     asks: "card",
   },
   "discovery.add": {
-    does: "add to research what came up with the owner, without telling them or asking: interests, projects (ids) to follow, official public pages ({url, label, project?}), their city or region (location)",
+    does: "add to research what came up with the owner, without telling them or asking: interests (search terms of 1–4 words, one topic each), projects (ids) to follow, official public pages ({url, label, project?}), places (cities or regions, for news and events near there)",
     offered: ({ store }) => store.settings.read("discovery").enabled,
     own: {
       // Low risk: it only widens what research reads in public (DECISIONS.md#d-276).

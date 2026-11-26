@@ -21,7 +21,8 @@
     "./flow.css": "./dist/flow.css",
     "./disclosure.css": "./dist/disclosure.css",
     "./catalog-row.css": "./dist/catalog-row.css",
-    "./summary.css": "./dist/summary.css"
+    "./summary.css": "./dist/summary.css",
+    "./unsaved-bar.css": "./dist/unsaved-bar.css"
   },
   "sideEffects": [
     "*.css"

@@ -1,0 +1,28 @@
+/* UnsavedBar: kept at the bottom of the scrolling pane while a draft has unsaved changes. */
+.apx-unsaved {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+  border-top: 1px solid var(--apx-border);
+  background: var(--apx-surface-raised);
+  font-size: var(--apx-text-sm);
+  color: var(--apx-fg-muted);
+}
+.apx-unsaved__text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* The buttons wrap together, to the right, under the line on a narrow screen. */
+.apx-unsaved__actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+.apx-unsaved--error .apx-unsaved__text {
+  color: var(--apx-danger);
+}

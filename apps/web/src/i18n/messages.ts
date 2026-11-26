@@ -136,6 +136,11 @@ const PACKS = {
     en: () => import("./widget-chat-en.ts").then((m) => m.enWidgetChat),
     es: () => import("./widget-chat-es.ts").then((m) => m.esWidgetChat),
   },
+  // The unsaved-changes bar of Settings screens that save with a button.
+  unsaved: {
+    en: () => import("./unsaved-en.ts").then((m) => m.enUnsaved),
+    es: () => import("./unsaved-es.ts").then((m) => m.esUnsaved),
+  },
 } satisfies Record<string, Record<Language, () => Promise<Messages>>>;
 export type Pack = keyof typeof PACKS;
 

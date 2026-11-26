@@ -1458,8 +1458,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "router.addToChain": "Agregar un modelo",
   "router.removeFromChain": "Quitar de la cadena",
   "router.unknownRefs": "{count} fuera del catálogo",
-  "router.revert": "Descartar cambios",
-  "router.save": "Guardar router",
   "mem.continuity": "Memoria entre chats",
   "mem.auto_recall": "Recuperar chats propios automáticamente",
   "mem.auto_recall.hint": "Frases relevantes del dueño en chats de este agente y mismo proyecto, con su fuente.",

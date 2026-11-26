@@ -33,8 +33,13 @@ export const DiscoverySettings = z
       project_websites: () => z.boolean(),
       interest_news: () => z.boolean(),
       interests: () => z.array(z.string().trim().min(1).max(120)).max(30),
-      location: () => z.string().trim().max(120),
-      deep_every_days: () => z.number().int().min(1).max(14),
+      /** Cities or regions: news and events near there. */
+      places: () => z.array(z.string().trim().min(1).max(80)).max(10),
+      /**
+       * How findings reach the owner: `automatic` tells an urgent one at once and the rest in one summary at the start
+       * of their day; `routine` adds one to `report_routine`'s report (DECISIONS.md#d-278).
+       */
+      delivery: () => z.enum(["automatic", "routine"]),
       timezone: () =>
         z
           .string()
@@ -82,6 +87,8 @@ export const DiscoveryFinding = z.object(
     included_at: () => z.string().datetime().optional(),
     reserved_at: () => z.string().datetime().optional(),
     feedback: () => z.enum(["useful", "not_useful", "mute"]).optional(),
+    /** `now`: the owner should act within a day or two, told at once in automatic delivery; otherwise the summary. */
+    urgency: () => z.enum(["now", "digest"]).optional(),
   }),
 );
 export type DiscoveryFinding = z.infer<typeof DiscoveryFinding>;
@@ -137,7 +144,7 @@ export const DiscoveryAdd = z
           .min(1)
           .max(8)
           .optional(),
-      location: () => z.string().trim().min(1).max(120).optional(),
+      places: () => z.array(z.string().trim().min(1).max(80)).min(1).max(5).optional(),
     }),
   )
   .strict();
@@ -149,7 +156,7 @@ export const DiscoveryAdded = z.object(
     interests: () => z.array(z.string()),
     projects: () => z.array(z.string()),
     pages: () => z.array(z.object({ url: z.string(), label: z.string() })),
-    location: () => z.string().optional(),
+    places: () => z.array(z.string()),
   }),
 );
 export type DiscoveryAdded = z.infer<typeof DiscoveryAdded>;

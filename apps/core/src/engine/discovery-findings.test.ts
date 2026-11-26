@@ -23,6 +23,7 @@ const proposal: DiscoveryProposal = {
   actionable: 4,
   timely: 3,
   local: 0,
+  urgency: "digest",
   evidence: [{ page: 0, quote: page.text }],
 };
 const runtime = (): DiscoveryRuntime => ({
@@ -39,6 +40,7 @@ const runtime = (): DiscoveryRuntime => ({
   muted_topics: [],
   inaccessible: [],
   delivered_days: [],
+  digest_days: [],
   claims: [],
   seen: [],
   feedback: {},
@@ -58,7 +60,7 @@ test("validation rejects fabricated evidence and expiry, and deduplicates the sa
   assert.equal(validateFinding({ ...proposal, expires_at: "2026-07-01T12:00:00.000Z" }, "acme", [page], at), undefined);
   const state = runtime();
   state.findings.push(valid);
-  assert.equal(findingScore(proposal, same, state, at, 14, ""), undefined);
+  assert.equal(findingScore(proposal, same, state, at, 14, false), undefined);
 });
 
 test("quotation checks normalize layout whitespace but never accept stitched or changed words", () => {
@@ -97,18 +99,18 @@ test("thresholds, persistent cooldown and feedback affect selection without forc
   const candidate = validateFinding(proposal, "acme", [page], at);
   assert.ok(candidate);
   const state = runtime();
-  const normal = findingScore(proposal, candidate, state, at, 14, "");
+  const normal = findingScore(proposal, candidate, state, at, 14, false);
   assert.equal(typeof normal, "number");
-  assert.equal(findingScore({ ...proposal, novelty: 1 }, candidate, state, at, 14, ""), undefined);
+  assert.equal(findingScore({ ...proposal, novelty: 1 }, candidate, state, at, 14, false), undefined);
   state.feedback[candidate.topic] = "useful";
-  assert.equal(findingScore(proposal, candidate, state, at, 14, ""), (normal ?? 0) + 2);
+  assert.equal(findingScore(proposal, candidate, state, at, 14, false), (normal ?? 0) + 2);
   state.feedback[candidate.topic] = "not_useful";
-  assert.equal(findingScore(proposal, candidate, state, at, 14, ""), (normal ?? 0) - 10);
+  assert.equal(findingScore(proposal, candidate, state, at, 14, false), (normal ?? 0) - 10);
   state.muted.push(candidate.topic);
-  assert.equal(findingScore(proposal, candidate, state, at, 14, ""), undefined);
+  assert.equal(findingScore(proposal, candidate, state, at, 14, false), undefined);
   state.muted = [];
   state.seen.push({ topic: candidate.topic, at: at.toISOString() });
-  assert.equal(findingScore(proposal, candidate, state, at, 14, ""), undefined);
+  assert.equal(findingScore(proposal, candidate, state, at, 14, false), undefined);
 });
 
 test("a finding quoting more than four excerpts keeps four instead of being dropped", () => {
