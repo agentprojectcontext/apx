@@ -8,6 +8,8 @@ const FIELD: Record<ResearchField, { icon: ReactNode; key: MessageKey }> = {
   interests: { icon: <Icons.Tag />, key: "chip.research.interest" },
   projects: { icon: <Icons.Folder />, key: "chip.research.project" },
   pages: { icon: <Icons.Globe />, key: "chip.research.page" },
+  places: { icon: <Icons.MapPin />, key: "chip.research.place" },
+  // A chip saved before places were a list.
   location: { icon: <Icons.MapPin />, key: "chip.research.place" },
 };
 

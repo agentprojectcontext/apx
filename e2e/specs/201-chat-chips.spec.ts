@@ -18,7 +18,7 @@ for (const width of [1280, 390]) {
                 ...(callTool("m", "remember", { text: "Le gusta la fotografía analógica." }).message.tool_calls ?? []),
                 ...(callTool("r", "apx_settings", {
                   method: "discovery.add",
-                  params: { interests: ["Fotografía analógica"], location: "Córdoba" },
+                  params: { interests: ["Fotografía analógica"], places: ["Córdoba"] },
                 }).message.tool_calls ?? []),
               ],
             },

@@ -25,6 +25,18 @@
   align-items: center;
   gap: 8px;
 }
+/* The projects menu, with what it picked side by side under it. */
+.discovery__picker {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.discovery__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
 .discovery__inline .apx-select {
   flex: 1 1 240px;
 }

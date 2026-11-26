@@ -18,10 +18,10 @@ test("discovery is opt-in, validates public sources and protects stale settings"
   try {
     const initial = store.settings.read("discovery");
     assert.equal(initial.enabled, false);
-    assert.equal(initial.deep_every_days, 2);
+    assert.equal(initial.delivery, "automatic");
     assert.equal(initial.report_routine, null);
     assert.deepEqual(initial.interests, []);
-    assert.equal(initial.location, "");
+    assert.deepEqual(initial.places, []);
     state.configure({ interests: ["Open-source software"] }, initial);
     assert.throws(() => state.configure({ enabled: true }, initial), /changed/);
     for (const url of [
@@ -151,13 +151,13 @@ test("adding to research keeps what it found and its schedule, and only adds wha
       interests: ["jazz", "Cine"],
       projects: ["acme"],
       pages: [{ url: "https://example.com/news", label: "Acme news", project: "acme" }],
-      location: "Córdoba",
+      places: ["Córdoba"],
     });
     assert.deepEqual(added, {
       interests: ["Cine"],
       projects: ["acme"],
       pages: [{ url: "https://example.com/news", label: "Acme news" }],
-      location: "Córdoba",
+      places: ["Córdoba"],
     });
     const settings = store.settings.read("discovery");
     assert.deepEqual(settings.interests, ["Jazz", "Cine"]);
@@ -170,10 +170,11 @@ test("adding to research keeps what it found and its schedule, and only adds wha
       ["kept"],
     );
     assert.equal(state.read().next, "2026-05-02T12:00:00.000Z");
-    assert.deepEqual(state.add({ pages: [{ url: "https://example.com/news", label: "Again" }], location: "Córdoba" }), {
+    assert.deepEqual(state.add({ pages: [{ url: "https://example.com/news", label: "Again" }], places: ["córdoba"] }), {
       interests: [],
       projects: [],
       pages: [],
+      places: [],
     });
     assert.throws(() => state.add({ projects: ["missing"] }), /not found/);
   } finally {

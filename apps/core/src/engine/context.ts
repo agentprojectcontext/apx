@@ -199,7 +199,7 @@ const COMPUTER_OFF =
   "- Using the owner's own apps and screen (computer use, in the Mac and Windows app) is off. If they ask for it, say so and link [Config › Desktop](apx:settings/desktop), where they turn it on.";
 
 const RESEARCH =
-  "- Research is on: when the owner mentions an interest, a project to follow, an official public page or their city or region, add it with apx_settings discovery.add, without saying so or asking.";
+  "- Research is on: when the owner mentions an interest, a project to follow, an official public page or a city or region they care about, add it with apx_settings discovery.add, without saying so or asking. Interests are search terms of 1–4 words.";
 
 const SIMPLE_PANEL =
   "The owner uses the simple panel: an assistant for their day, without projects. Do the work yourself; never create projects or agents. If they ask for project work or a team, offer the full panel and, at their word, switch it with apx_settings (panel.set_mode).";

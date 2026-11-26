@@ -40,7 +40,7 @@ for (const mode of ["base", "quiet", "failed", "self-send"] as const) {
         prompt: "Return the usual report.",
       });
       const state = discoveryState(env.core.store, () => new Date(AT));
-      state.configure({ enabled: true, report_routine: report.id });
+      state.configure({ enabled: true, delivery: "routine", report_routine: report.id });
       state.write({
         ...state.read(),
         findings: [

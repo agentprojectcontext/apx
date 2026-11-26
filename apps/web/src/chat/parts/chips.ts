@@ -10,7 +10,7 @@ export const isChip = (p: Part): boolean => p.type === "notice" && CHIP_CODES.ha
 const chipOf = (p: Part): Notice | undefined => (p.type === "notice" && CHIP_CODES.has(p.code) ? p : undefined);
 
 /** The research fields a chip lists, in the order it lists them. */
-const RESEARCH_FIELDS = ["interests", "projects", "pages", "location"] as const;
+const RESEARCH_FIELDS = ["interests", "projects", "pages", "places", "location"] as const;
 export type ResearchField = (typeof RESEARCH_FIELDS)[number];
 
 /** What a message's chips of one kind saved, in order: a note's words, or a research field and its value. */

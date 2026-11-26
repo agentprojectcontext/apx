@@ -1,8 +1,9 @@
 import type { DiscoveryAdd, DiscoverySettings, DiscoveryStatus } from "@apx/protocol";
-import { DISCOVERY_DAY, discoveryState } from "../domain/discovery-state.ts";
+import { DEEP_EVERY_DAYS, DISCOVERY_DAY, discoveryState } from "../domain/discovery-state.ts";
 import { unauthorized } from "../errors.ts";
 import type { BackgroundCheck } from "./background.ts";
 import { type DiscoveryCycleDeps, runDiscoveryCycle } from "./discovery-cycle.ts";
+import { deliverDiscovery, type NotifyOwner } from "./discovery-deliver.ts";
 
 export function createDiscovery(
   deps: DiscoveryCycleDeps & {
@@ -10,6 +11,8 @@ export function createDiscovery(
     deadline?: (ms: number) => AbortSignal;
     /** Research was just turned on: the super-agent offers, once, to fill it from what it knows. */
     onEnabled?: () => void;
+    /** How a finding told on its own reaches the owner beyond the app (automatic delivery). */
+    notifyOwner?: NotifyOwner;
   },
 ) {
   const { store } = deps;
@@ -80,12 +83,13 @@ export function createDiscovery(
           findings: live.findings,
           seen: live.seen,
           delivered_days: live.delivered_days,
+          digest_days: live.digest_days,
           claims: live.claims,
           muted: live.muted,
           muted_topics: live.muted_topics,
           feedback: live.feedback,
           state: signal.aborted ? "cancelled" : "failed",
-          deep_next: new Date(+at + settings.deep_every_days * DISCOVERY_DAY).toISOString(),
+          deep_next: new Date(+at + DEEP_EVERY_DAYS * DISCOVERY_DAY).toISOString(),
         });
       }
     } finally {
@@ -96,6 +100,7 @@ export function createDiscovery(
     id: "contextual-discovery",
     everyMs: 60_000,
     run(at) {
+      if (!stopped) deliverDiscovery(store, deps.notifyOwner, at);
       if (running) return running;
       running = review(at).finally(() => {
         running = undefined;
