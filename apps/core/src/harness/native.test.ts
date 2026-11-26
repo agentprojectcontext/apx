@@ -240,10 +240,13 @@ test("after a step that only worked the screen, the next call reasons lighter; o
 });
 
 /** The native loop over a provider that fails on some calls; waits are recorded, never slept. */
-async function flaky(fail: (call: number, tools: number) => boolean) {
+async function flaky(
+  fail: (call: number, tools: number) => boolean,
+  error = () => new ProviderError("empty", "fake/fake-1: empty stream"),
+) {
   let call = 0;
   const llm = scriptedLlm((req) => {
-    if (fail(call++, toolResults(req.messages))) throw new ProviderError("empty", "fake/fake-1: empty stream");
+    if (fail(call++, toolResults(req.messages))) throw error();
     return toolResults(req.messages) < 2 ? callTool(`c${call}`, "any", {}) : say("all done");
   });
   const waits: number[] = [];
@@ -288,6 +291,36 @@ test("a provider that stays empty fails after bounded tries, the tool results so
   assert.deepEqual(waits, [10, 20, 40]);
   assert.equal(ran.length, 2);
   assert.equal(logged.filter((m) => m.role === "tool").length, 2, "the finished tool calls stay in the log");
+});
+
+test("a limit of the fallbacks while the first model only failed in passing is asked again", async () => {
+  // The first model's stream came back empty and the models after it are out of quota: the first may answer now.
+  const limited = () =>
+    new ProviderError(
+      "quota",
+      "fake/fake-1: empty stream\nfake/fake-2: its usage limit has not lifted yet",
+      new Date(Date.now() + 4 * 3600_000).toISOString(),
+      true,
+    );
+  const { run, waits, ran } = await flaky((call) => call === 1, limited);
+  assert.equal((await run).text, "all done");
+  assert.deepEqual(waits, [10]);
+  assert.equal(ran.length, 2);
+});
+
+test("that limit still ends the turn as a limit once the asks run out, so it resumes at the reset", async () => {
+  const reset = new Date(Date.now() + 4 * 3600_000).toISOString();
+  const { run, waits } = await flaky(
+    (call) => call >= 1,
+    () => new ProviderError("quota", "fake/fake-1: empty stream\nfake/fake-2: out of credit", reset, true),
+  );
+  await assert.rejects(run, (err: unknown) => {
+    assert.ok(err instanceof ProviderError);
+    assert.ok(err.limit);
+    assert.equal(err.resetsAt, reset);
+    return true;
+  });
+  assert.deepEqual(waits, [10, 20, 40]);
 });
 
 test("a usage limit or a rejected request is not asked again by the turn", async () => {

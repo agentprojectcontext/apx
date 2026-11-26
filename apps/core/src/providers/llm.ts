@@ -171,6 +171,8 @@ export function createLlm(opts: {
       let refused: ProviderError | undefined;
       const skipped = new Set<string>();
       const failed: ModelFailure[] = [];
+      // A model that failed for a passing reason may answer when asked again, even while the others are limited.
+      let passing = false;
       const need = tokensOf(req);
       const messages = await withImageBytes(req.messages, opts.media);
       // A model known not to read images refuses a call carrying any: it gets the words alone.
@@ -299,6 +301,7 @@ export function createLlm(opts: {
           const until = last.resetsAt ? Date.parse(last.resetsAt) : now() + UNSAID_HOLD_MS;
           held.set(ref, { until, error: new ProviderError(last.kind, last.message, last.resetsAt) });
         }
+        if (last?.retryable && !last.limit) passing = true;
         if (last && (last.kind === "auth" || last.kind === "model_gone")) broken ??= last;
         if (last?.kind === "bad_request") refused ??= last;
         if (streamed) {
@@ -308,7 +311,7 @@ export function createLlm(opts: {
       }
       // Every model's reason, not only the last one's: the owner needs to see why the first choice failed.
       const reasons = failed.map((f) => `${f.model}: ${f.why}`).join("\n");
-      if (limited.length && !broken) throw limitError(limited, reasons);
+      if (limited.length && !broken) throw limitError(limited, reasons, passing);
       // Every model passed over because the chat no longer fits it: the chat must shrink, no key is at fault.
       const tooLong = failed.length > 0 && failed.every((f) => f.why.startsWith("its context ("));
       throw new ProviderError(
@@ -323,10 +326,10 @@ export function createLlm(opts: {
  * Some model of the chain hit its provider's limit, none answered and nothing needs the owner's fix: the work waits
  * for a limit to lift. It can go on at the earliest reset any of them gave.
  */
-function limitError(limited: ProviderError[], reasons: string): ProviderError {
+function limitError(limited: ProviderError[], reasons: string, passing: boolean): ProviderError {
   const kind = limited.some((e) => e.kind === "quota") ? "quota" : "rate_limit";
   const resets = limited.flatMap((e) => (e.resetsAt ? [e.resetsAt] : [])).sort();
-  return new ProviderError(kind, reasons, resets[0]);
+  return new ProviderError(kind, reasons, resets[0], passing);
 }
 
 /**

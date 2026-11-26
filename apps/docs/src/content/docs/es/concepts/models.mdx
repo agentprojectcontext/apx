@@ -218,6 +218,8 @@ Si todos los modelos de la lista fallan por algo pasajero (una respuesta vacía 
 sin conexión), el turno espera y vuelve a pedir a toda la lista, hasta tres veces más en alrededor de un minuto, dentro
 del límite de tiempo del turno. El trabajo con herramientas que ya se hizo queda en el chat. Recién entonces el turno
 termina, con el motivo.
+Lo mismo pasa cuando un modelo falló por algo pasajero y los demás están en su límite de uso: el turno vuelve a pedir
+primero, y recién después espera a que se libere el límite.
 
 Debajo de cada respuesta, la línea con el nombre del agente muestra qué modelo respondió y agrega **Con respaldo**
 cuando no fue el suyo. El aviso de arriba dice qué modelo no respondió y por qué.
