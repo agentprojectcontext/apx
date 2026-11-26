@@ -127,3 +127,55 @@ test("all registered projects are scanned, private questions progress fairly and
     await dir.remove();
   }
 });
+
+test("a project's private question is planned against the public sources the owner authorized for it", async () => {
+  const dir = tempDir("apx-discovery-plan-sources-");
+  const db = openDb(dir.path);
+  const store = createStore(db, createBus());
+  seed(store, "Nova");
+  store.projects.upsert({ id: "alpha", name: "Acme", context: "ALPHA_ONLY: export integration pending." });
+  store.projects.upsert({ id: "beta", name: "Northwind", context: "BETA_ONLY: scheduling decisions." });
+  const plans: string[] = [];
+  const llm = scriptedLlm((request) => {
+    const planning = String(request.messages[0]?.content).startsWith("Discover one worthwhile");
+    if (planning) plans.push(String(request.messages[1]?.content));
+    return say(JSON.stringify(planning ? { question: "", rationale: "" } : { findings: [] }));
+  });
+  const discovery = createDiscovery({
+    store,
+    llm,
+    models: () => ["fake/model"],
+    now: () => new Date(AT),
+    web: {
+      async search() {
+        return [];
+      },
+      async read(url) {
+        return { url, title: "Public page", text: "Public product documentation.", read_at: AT };
+      },
+    },
+  });
+  try {
+    discovery.configure({
+      enabled: true,
+      projects: "selected",
+      project_ids: ["alpha", "beta"],
+      project_websites: false,
+      sources: [
+        { project: "alpha", label: "Acme API", public_terms: "", pages: ["https://acme.example/docs/auth"] },
+        { project: "beta", label: "Northwind blog", public_terms: "", pages: ["https://northwind.example/blog"] },
+      ],
+    });
+    await discovery.check.run(new Date(AT));
+    const alpha = plans.find((p) => p.includes("ALPHA_ONLY"));
+    assert.ok(alpha, "the project's question was planned");
+    assert.deepEqual(JSON.parse(alpha).public_sources, [
+      { label: "Acme API", pages: ["https://acme.example/docs/auth"] },
+    ]);
+    assert.doesNotMatch(alpha, /Northwind blog|northwind\.example/, "another project's sources never reach it");
+  } finally {
+    await discovery.close();
+    db.close();
+    await dir.remove();
+  }
+});

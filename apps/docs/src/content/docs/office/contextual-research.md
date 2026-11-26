@@ -19,7 +19,7 @@ Choose:
 
 You can allow authorized conversations and decisions, public websites mentioned in project context, and interest news independently. The website option starts from HTTPS origins already referenced in the selected projects; it does not publish their private questions as searches. You can add specific official sections separately. A referenced website is not automatically treated as an official authority.
 
-Every daily pass scans all eligible project contexts. Bounded private model requests then discover concrete questions, rotating through projects rather than only looking at recent tasks. Public research has its own progressive coverage; the settings distinguish scanned projects, questions explored and sources checked. A large project list may take several passes within your limits.
+Every daily pass scans all eligible project contexts. Bounded private model requests then discover concrete questions, rotating through projects rather than only looking at recent tasks. Each question is chosen so the official pages you listed for that project could answer it. Public research has its own progressive coverage; the settings distinguish scanned projects, questions explored and sources checked. A large project list may take several passes within your limits.
 
 Research uses the auxiliary model. There are no new dependencies, privileged browser sessions, device actions or automatic project changes. Public pages use the same network protections as web reading. Every redirect is checked before connecting: project pages stay on their approved origins and cannot redirect into URLs carrying query parameters. A search operation can try up to three search engines; its returned snippets are never evidence.
 

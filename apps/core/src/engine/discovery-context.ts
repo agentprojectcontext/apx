@@ -29,6 +29,10 @@ export function discoveryContext(
     context: memorySensitive(text) ? "" : text.slice(0, 8000),
     tasks,
     activity: sources,
+    // The question is planned against what may be read for it; only this project's own sources.
+    public_sources: project
+      ? settings.sources.filter((s) => s.project === project).map((s) => ({ label: s.label, pages: s.pages }))
+      : [],
     interests: settings.interests,
     location: settings.location || null,
     language: ownerIdentity(store).language,
