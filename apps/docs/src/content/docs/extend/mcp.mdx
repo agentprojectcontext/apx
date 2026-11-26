@@ -150,10 +150,18 @@ credentials at the service and update their values in APX.
 Each server has **Tool permissions**:
 
 - **Ask first**: each agent asks you before using a tool that changes something.
-- **All allowed**: no agent asks for its tools, ones the server adds later included. If the server's definition
-  changes, they ask again.
+- **All allowed**: no agent asks for its tools, ones the server adds later included. If a project's file changes, it
+  waits for your approval again and keeps **All allowed** once you approve it.
 - **Some**: click a tool to allow it (green) or to make it ask again. Tools the server adds later ask first, even when
   you had picked every tool; leaving one tool out of **All allowed** turns it into **Some**.
+
+A connection you add starts on **All allowed**: you choose which tools ask first. That holds for one you add here or
+with `apx mcps add`, one an extension brings when you turn it on, a project's `.apx/mcps.json` once you approve it,
+and an account you connect. Approving a project's file is still up to you. Connections you already had keep their
+permissions, and changing a connection that was on **All allowed** (its command, an extension's settings) keeps it so.
+
+You can also ask your super-agent in the chat: "review my MCP tools", "allow all of them", or "allow everything but
+the ones that delete". It lists each connection's tools and changes them when you ask.
 
 The list shows each server's tools and permissions as they were the last time it ran, so you see them without
 opening it. Hover a server's dot for what it means: filled, running now; ring, ready (it starts when an agent uses

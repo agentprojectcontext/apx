@@ -154,9 +154,18 @@ Cada servidor tiene **Permisos de tools**:
 
 - **Preguntar**: cada agente te pide permiso antes de usar una tool que cambia algo.
 - **Todas permitidas**: ningún agente pide permiso para sus tools, tampoco para las que el servidor agregue después.
-  Si cambia la definición del servidor, se vuelve a preguntar.
+  Si cambia el archivo de un proyecto, espera de nuevo tu aprobación y sigue en **Todas permitidas** cuando lo aprobás.
 - **Algunas**: tocá una tool para permitirla (verde) o para que vuelva a preguntar. Las tools que el servidor agregue
   después preguntan primero, aunque hayas elegido todas; sacar una tool de **Todas permitidas** la pasa a **Algunas**.
+
+Una conexión que agregás arranca en **Todas permitidas**: vos elegís qué tools preguntan antes. Vale para la que
+agregás acá o con `apx mcps add`, la que trae una extensión cuando la prendés, el `.apx/mcps.json` de un proyecto
+cuando lo aprobás y una cuenta que conectás. Aprobar el archivo de un proyecto sigue siendo cosa tuya. Las conexiones
+que ya tenías conservan sus permisos, y cambiar una que estaba en **Todas permitidas** (su comando, la configuración de
+una extensión) la deja así.
+
+También podés pedírselo a tu super-agente en el chat: "revisá las tools de mis MCP", "pasalas todas a permitidas" o
+"permití todo menos las que borran". Te muestra las tools de cada conexión y las cambia cuando se lo pedís.
 
 La lista muestra las tools y los permisos de cada servidor como estaban la última vez que corrió, sin tener que
 abrirlo. Pasá el mouse sobre su punto para ver qué significa: lleno, corriendo ahora; anillo, listo (arranca cuando un

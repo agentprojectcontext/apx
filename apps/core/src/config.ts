@@ -2,7 +2,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { CORE_ENV_FILE, coreEnvDefaults, parseCoreEnv, RELEASE_FEED } from "@apx/protocol";
+import { type Autonomy, CORE_ENV_FILE, coreEnvDefaults, parseCoreEnv, RELEASE_FEED } from "@apx/protocol";
 import { browserDataDirs } from "./nodes/chrome-host.ts";
 import { samePath } from "./paths.ts";
 import { type SecretsBackend, systemBackend } from "./secrets-stores.ts";
@@ -134,6 +134,8 @@ export type CoreConfig = {
   llmTimeoutMs: number;
   /** The super-agent's name on a fresh install (APX_AGENT_NAME); none = one picked at random. */
   agentName: string | undefined;
+  /** How freely the super-agent acts on a fresh install: the most open mode; the owner restricts it in Settings. */
+  superAgentAutonomy: Autonomy | undefined;
   /** Look for a newer APX now and then (APX_UPDATES): on; app = only say so, the desktop app installs it; off. */
   updates: "on" | "app" | "off";
   /** The super-agent tells what an update brought, on the first start of a newer release (APX_WHATS_NEW=off: never). */
@@ -302,6 +304,7 @@ export function loadConfig(processEnv: NodeJS.ProcessEnv = process.env, readCore
     secrets: env.APX_SECRETS === "file" ? "file" : systemBackend(),
     llmTimeoutMs: Number(env.APX_LLM_TIMEOUT_MS ?? 45_000),
     agentName: env.APX_AGENT_NAME?.trim() || undefined,
+    superAgentAutonomy: "total",
     updates: env.APX_UPDATES === "off" ? "off" : env.APX_UPDATES === "app" ? "app" : "on",
     whatsNew: env.APX_WHATS_NEW !== "off",
     news: env.APX_NEWS !== "off",
@@ -352,6 +355,8 @@ export function testConfig(over: Partial<CoreConfig> & { home: string }): CoreCo
     chromeHost: [],
     localModels: [],
     agentName: "Roby",
+    // Tests start from the default mode: one that wants a fresh install's super-agent passes it.
+    superAgentAutonomy: undefined,
     marketplaceIndex: undefined,
     ...over,
   };

@@ -1,6 +1,6 @@
 // apx_settings, which models run and how APX talks and listens: the router, a chat's model, APX's voice, local
-// transcription, and the tools of an MCP server already added. Opened to the super-agent at the owner's word
-// (DECISIONS.md#d-268, over D-060); each change is checked against the connected engines before it is written.
+// transcription. Opened to the super-agent at the owner's word (DECISIONS.md#d-268, over D-060); each change is
+// checked against the connected engines before it is written.
 import type { ModelChoice, RouterConfig } from "@apx/protocol";
 import { modelSettings } from "../models/choice.ts";
 import { LOCAL_MODELS, machine, recommend } from "../services/local-whisper.ts";
@@ -151,28 +151,5 @@ export const MODELS: Readonly<Record<string, Setting>> = {
       if (s.download) return "downloading; transcription switches to it once it is here";
       return `transcription runs on ${s.active ?? "the model"} now`;
     },
-  },
-  "mcp.approveTool": {
-    does: "let agents run one tool of an MCP server already added without asking each time (scope global or project, server, project, tool)",
-    named: ["scope", "server", "project", "tool"],
-    says: (p) => `Let agents run ${str(p.tool)} of the MCP server ${str(p.server)} without asking`,
-  },
-  "mcp.toolMode": {
-    does: "whether agents ask before each tool of an MCP server already added and approved (scope, server, project, mode: ask or all)",
-    named: ["scope", "server", "project", "mode"],
-    says: (p) =>
-      p.mode === "all"
-        ? `Let agents run every tool of the MCP server ${str(p.server)} without asking`
-        : `Make agents ask before each tool of the MCP server ${str(p.server)}`,
-  },
-  "mcp.trust": {
-    does: "approve a project's MCP server from its .apx/mcps.json so it runs (project, server, trusted), or stop it (trusted false)",
-    named: ["project", "server", "trusted"],
-    says: (p) =>
-      p.trusted
-        ? `Run the MCP server ${str(p.server)} from the project's file`
-        : `Stop the MCP server ${str(p.server)}`,
-    // Running a new command on this computer is adding a server: the owner's card (DECISIONS.md#d-267).
-    asks: (p) => (p.trusted ? "card" : undefined),
   },
 };

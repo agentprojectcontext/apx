@@ -20,7 +20,9 @@ const ALL_TOOLS = "*";
  * "Allow all" for one server: bound to its definition and credential scope like a tool's grant, but to no tool
  * contract, so tools the server adds later are covered too. DECISIONS.md#d-219
  */
-export function mcpServerApproval(d: McpDef): ApprovalTarget {
+export function mcpServerApproval(
+  d: Pick<McpDef, "scope" | "project_id" | "name" | "hash" | "values_of" | "only">,
+): ApprovalTarget {
   const key = createHash("sha256")
     .update(JSON.stringify([serverApprovalId(d), d.hash, d.values_of ?? "", ALL_TOOLS]))
     .digest("hex");

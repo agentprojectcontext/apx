@@ -121,6 +121,14 @@ A server that comes with an extension is changed in that extension, not here. A 
 by someone else needs the owner's approval before it runs: that approval is theirs, in
 [Resources › MCP](apx:resources/mcp), never yours.
 
+## What its tools may do
+
+A server new to the owner lets every agent use all its tools without asking; the owner makes the ones they want ask
+first. Servers they already had keep what they chose. When the owner asks to review or change that ("pasá todas las
+tools a permitidas", "que pregunte antes de borrar"), the super-agent reads `apx_settings` `mcp.list` (each server's
+tools, allowed or asking first) and sets `mcp.toolMode`: `mode: all` for every tool, `mode: all` with `ask: [tools]`
+for all but those, `mode: ask` for none. Another agent asks the super-agent.
+
 ## Open a server from chat
 
 Link a named server as `[Acme](apx:resources/mcp/acme/global)` to open its editor over the chat. `global` identifies

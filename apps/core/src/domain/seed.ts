@@ -1,10 +1,11 @@
 // First-run defaults: a secretary, a small team and the Home thread. Idempotent.
-import { randomAgentName, SUPER_AGENT_ID } from "@apx/protocol";
+import { type Autonomy, randomAgentName, SUPER_AGENT_ID } from "@apx/protocol";
 import type { Store } from "./store.ts";
 
 export const HOME_THREAD_ID = "home";
 
-export function seed(store: Store, agentName?: string): void {
+/** `autonomy`: the new super-agent's mode (DECISIONS.md#d-279); its team inherits the project's. */
+export function seed(store: Store, agentName?: string, autonomy?: Autonomy): void {
   if (store.agents.list().length === 0) {
     store.agents.upsert({
       id: SUPER_AGENT_ID,
@@ -13,6 +14,7 @@ export function seed(store: Store, agentName?: string): void {
       kind: "secretary",
       blob: "menta",
       browser_profile: "shared",
+      ...(autonomy ? { autonomy } : {}),
     });
     store.agents.upsert({
       id: "scout",

@@ -270,7 +270,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const secrets = createSecrets(config.home, config.secrets);
   // Who may sign in where with a stored secret: shared by the agents' tool and the method it calls.
   const signIn = createSignIn(secrets);
-  seed(store, config.agentName);
+  seed(store, config.agentName, config.superAgentAutonomy);
   const releases =
     opts.releases ?? (config.whatsNew ? localReleases(path.resolve(import.meta.dirname, "../../..")) : undefined);
   // The release this install was on before this start: news it already had are not told as new.

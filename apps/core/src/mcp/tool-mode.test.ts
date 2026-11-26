@@ -16,6 +16,8 @@ async function setup() {
     name: target.server,
     server: { command: process.execPath, args: [SERVER], env: { EXTRA_TOOL_FILE: extra } },
   });
+  // A new server allows every tool (DECISIONS.md#d-279): these tests start from the owner having made it ask.
+  await env.client.call("mcp.toolMode", { ...target, mode: "ask" });
   const status = async () => (await env.client.call("mcp.list", {})).servers.find((s) => s.name === target.server);
   /** The server comes back with one more tool, as a real one does after an update. */
   const addTool = async (name: string) => {
@@ -107,7 +109,8 @@ test("the list tells a server's tools and permissions before it starts again", a
       server: { command: process.execPath, args: [SERVER], env: { MODE: "changed" } },
     });
     assert.deepEqual((await status())?.tool_names, []);
-    assert.equal((await status())?.tool_permission_mode, "unknown");
+    // The owner's own edit keeps "allow all" for the new definition (DECISIONS.md#d-279).
+    assert.equal((await status())?.tool_permission_mode, "all");
   } finally {
     await clean();
   }
