@@ -866,6 +866,7 @@ export interface TasksTable {
   goal: string | null;
   asked: string | null;
   place: string | null;
+  proposed_by: string | null;
 }
 
 export interface ThreadsTable {

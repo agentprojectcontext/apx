@@ -297,6 +297,7 @@ const toTask = (
   ...askedField(r.asked),
   ...opt("plan", r.plan),
   ...(r.proposed ? { proposed: true } : {}),
+  ...opt("proposed_by", r.proposed_by),
   // A person removed before this fix left an id behind: shown as no person, never as the id.
   ...(r.person_id && r.person_name
     ? {
@@ -393,6 +394,18 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
         ),
       );
     },
+    countProposedBy(proposer: string): number {
+      return (
+        one(
+          qb
+            .selectFrom("tasks")
+            .select((c) => c.fn.countAll<number>().as("n"))
+            .where("state", "=", "open")
+            .where("proposed", "=", 1)
+            .where("proposed_by", "=", proposer),
+        )?.n ?? 0
+      );
+    },
     /** Newest activity first. `projects` limits to those projects (undefined in the list = tasks without one). */
     list(o: {
       projects?: Array<string | undefined>;
@@ -486,6 +499,7 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
           goal: t.goal?.trim() || null,
           asked: t.asked?.length ? JSON.stringify(keptAsked(t.asked)) : null,
           proposed: t.proposed ? 1 : 0,
+          proposed_by: t.proposed ? t.by : null,
           reminded_at: t.reminded_at ?? null,
           kind: t.kind ?? (t.person_id ? "commitment" : "task"),
           place: placeJson(t.place),
@@ -555,7 +569,7 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
             ...(c.reviewer !== undefined ? { reviewer: c.reviewer } : {}),
             ...(c.goal !== undefined ? { goal: c.goal?.trim() || null } : {}),
             ...(c.plan !== undefined ? { plan: c.plan } : {}),
-            ...(c.proposed !== undefined ? { proposed: c.proposed ? 1 : 0 } : {}),
+            ...(c.proposed !== undefined ? { proposed: c.proposed ? 1 : 0, proposed_by: c.proposed ? by : null } : {}),
             updated_at: at,
             activity_at: at,
           })

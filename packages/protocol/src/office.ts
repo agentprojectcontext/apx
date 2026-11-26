@@ -71,6 +71,8 @@ export const Task = z.object(
     plan: () => z.string().optional(),
     /** An agent proposed it: it waits for the owner to accept it (tasks.update proposed:false) before work starts. */
     proposed: () => z.boolean().optional(),
+    /** Recorded proposer; absent for proposals whose provenance is unknown. */
+    proposed_by: () => z.string().optional(),
     /** A commitment: the person on the other side, and who owes it (the owner promised it, or the person did). */
     person_id: () => Id.optional(),
     person_name: () => z.string().optional(),

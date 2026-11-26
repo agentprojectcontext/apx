@@ -1515,4 +1515,5 @@ export const MIGRATIONS: readonly string[] = [
     source TEXT NOT NULL CHECK(source IN ('osm', 'google', 'pinned'))
   );
   `,
+  `ALTER TABLE tasks ADD COLUMN proposed_by TEXT;`,
 ];

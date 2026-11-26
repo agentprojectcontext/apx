@@ -56,6 +56,20 @@ test("handing a task to another agent follows the same rule: back up its chain, 
     thread_id: store.threads.create({ kind: "task", title: "Draft the launch post", agent_ids: ["vera"] }).id,
     by: "superagent",
   });
+  for (const [by, state] of [
+    ["vera", "open"],
+    ["superagent", "open"],
+    ["vera", "dropped"],
+  ] as const) {
+    const proposal = store.tasks.create({
+      title: "Other proposed work",
+      status: "todo",
+      proposed: true,
+      thread_id: store.threads.create({ kind: "task", title: "Proposal", agent_ids: [by] }).id,
+      by,
+    });
+    if (state !== "open") store.tasks.change(proposal.id, { state }, "owner");
+  }
   handing = { task: sub.id, to: "superagent" };
   const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "vera", title: "Vera" });
   await env.client.call("threads.send", { thread: chat.id, text: "pass it on" });
@@ -63,6 +77,9 @@ test("handing a task to another agent follows the same rule: back up its chain, 
   const after = store.tasks.get(sub.id);
   assert.equal(after?.assignee, "superagent");
   assert.equal(after?.proposed, true, "the owner decides before it goes back up");
+  assert.equal(after?.created_by, "superagent");
+  assert.equal(after?.proposed_by, "vera");
+  assert.equal((await env.client.call("tasks.get", { task: sub.id })).task.proposed_by, "vera");
   assert.deepEqual(store.threads.byTask(sub.id), [], "no work started on it");
   const step = store.runs
     .list(chat.id, 5)
@@ -70,8 +87,11 @@ test("handing a task to another agent follows the same rule: back up its chain, 
     .find((x) => x.tool === "task_update");
   assert.match(step?.result ?? "", /^proposed /, "the agent is told it waits for the owner");
   const tray = await env.client.call("notifications.list", {});
-  assert.ok(
-    tray.notifications.some((n) => n.ref?.startsWith("proposals:")),
-    "the owner is told of the proposal",
-  );
+  const notice = tray.notifications.find((n) => n.ref === "proposal-author:vera");
+  assert.ok(notice, "the handoff notice belongs to its proposer, not its creator");
+  assert.equal(notice.title, store.agents.get("vera")?.name);
+  assert.match(notice.body ?? "", /^2 /, "only open proposals from the same proposer are counted");
+  const renamed = store.tasks.change(sub.id, { title: "Updated launch post" }, "superagent");
+  assert.equal(renamed?.proposed_by, "vera", "ordinary edits do not change provenance");
+  assert.ok(!tray.notifications.some((n) => n.ref === "proposal-author:superagent"));
 });
