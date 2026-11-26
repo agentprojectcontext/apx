@@ -120,6 +120,20 @@ function line(root: string, release: string | undefined): Line | undefined {
   };
 }
 
+/** The docs' What's new pages, which keep every release: one cut without its own section is refused. */
+export const WHATS_NEW_PAGES = [
+  "apps/docs/src/content/docs/reference/whats-new.mdx",
+  "apps/docs/src/content/docs/es/reference/whats-new.mdx",
+] as const;
+
+/** Each What's new page has a `## x.y.z` section for the release being cut (RELEASE.md#whats-new-page). */
+export function whatsNewProblems(release: string, pages: ReadonlyArray<{ path: string; text: string }>): string[] {
+  const heading = new RegExp(`^## ${release.replace(/\./g, "\\.")}\\s*$`, "m");
+  return pages
+    .filter((page) => !heading.test(page.text))
+    .map((page) => `${page.path} has no "## ${release}" section: add what this release brings (or that it only fixes)`);
+}
+
 async function main(argv: string[]): Promise<number> {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
   const at = argv.indexOf("--release");
@@ -138,6 +152,13 @@ async function main(argv: string[]): Promise<number> {
     return 0;
   }
   const problems = sinceProblems(items, l);
+  if (release)
+    problems.push(
+      ...whatsNewProblems(
+        release.replace(/^v/, ""),
+        WHATS_NEW_PAGES.map((page) => ({ path: page, text: fs.readFileSync(path.join(root, page), "utf8") })),
+      ),
+    );
   for (const p of problems) console.error(`check:since: ${p}`);
   if (!problems.length)
     console.log(

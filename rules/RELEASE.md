@@ -86,6 +86,14 @@ troubleshooting and engineering rules; update/create affected pages in English a
 and distinguish candidate-only features from the currently tagged version. Record specific no-change reasons
 and unresolved gaps. Do not infer coverage from release news, green builds or commit titles alone.
 
+### What's new page
+
+`apps/docs/src/content/docs/reference/whats-new.mdx` and its Spanish page (`es/reference/whats-new.mdx`) keep every
+release, newest first, each linking to the page that explains it. Before a tag, add a `## x.y.z` section to both with
+what a person can see or use from that release; a patch that only fixes says so in one line. `release:check --tag`
+(through `check:since --release`) refuses a release whose section is missing from either page
+([D-277](DECISIONS.md#d-277)).
+
 ## Mandatory minor upgrade proof
 
 Before publishing a new minor, exercise the previous **published** version and the candidate artifacts in an
