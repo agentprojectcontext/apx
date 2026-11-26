@@ -330,6 +330,10 @@ When a job is too wide for one agent, such as reviewing every area of a project 
 your agent can run a **workflow** instead of asking helpers one by one. It writes a plan and APX runs it. The agent
 doesn't decide each step as it goes.
 
+Ask for one in your own words, for example "Review every area of Acme Store with a workflow: one agent per area, and
+another to check what it finds." Your agent may also suggest one when a request splits into many parts. To check the
+plan first, ask it to show you the plan before it starts.
+
 - **Items and stages.** Each item (up to 24) goes through up to four stages in order, for example *find* then
   *verify*. An item moves to its next stage as soon as its last one ends: it doesn't wait for the other items.
 - **Several agents at once.** Up to four of the workflow's agents work at the same time (three by default). Each
@@ -363,6 +367,10 @@ you asked for. Working for you, your agents:
 What stays closed: your contacts' chats and the rooms on your channels, work for outside apps, APX's own folder, a
 project you are moving, and whatever your mode or a rule leaves to you. An agent that answers a contact or a room
 keeps to that conversation and its project.
+
+An agent whose own instructions still tell it to refuse work outside its area may hold back. Ask your super-agent
+"Which of my agents' instructions still tell them to refuse work outside their area?": it lists them and proposes the
+change, and nothing is edited until you say yes.
 
 ## One way to talk to an agent
 

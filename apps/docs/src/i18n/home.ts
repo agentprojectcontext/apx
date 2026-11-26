@@ -180,9 +180,37 @@ const en = {
   newIn: {
     label: "What's new",
     title: "More than a chat window.",
-    lead: "The latest releases bring a Marketplace, contacts that book on your calendar, calls, group chats, Flows and links anyone can open.",
+    lead: "The latest releases bring agents that work across your projects, workflows for big jobs, a Marketplace, contacts that book on your calendar, calls and links anyone can open.",
     more: "Learn more",
     items: [
+      {
+        clip: "free-agents",
+        blob: "orbita",
+        title: "Agents that work across projects",
+        body: "Your agents read and work in all your projects and chats, and say where they acted. A role says what each one is good at, not what it refuses.",
+        href: "/concepts/agents/#what-your-agents-can-reach",
+      },
+      {
+        clip: "workflows",
+        blob: "noche",
+        title: "Workflows for big jobs",
+        body: "Several agents at once, each result checked before the next step, on one card you can stop and resume.",
+        href: "/concepts/agents/#workflows",
+      },
+      {
+        clip: "engine-sessions",
+        blob: "cobalto",
+        title: "Claude Code and Codex sessions",
+        body: "A session an agent opens shows as Claude Code or Codex, named after its task, with a chip back to the chat that asked.",
+        href: "/office/code/#sessions-your-agent-starts",
+      },
+      {
+        clip: "agent-folder",
+        blob: "menta",
+        title: "Everything in .apx/",
+        body: "A project's agents, notes and skills live in its .apx/ folder. APX moves an older .apc/ there by itself.",
+        href: "/concepts/projects/",
+      },
       {
         clip: "marketplace",
         blob: "menta",
@@ -219,25 +247,11 @@ const en = {
         href: "/office/calls/",
       },
       {
-        clip: "groups",
-        blob: "orbita",
-        title: "Group chats",
-        body: "You and two to five agents in one chat. Mention one with @ and the others follow along.",
-        href: "/office/chat/#group-chats",
-      },
-      {
         clip: "flows",
         blob: "noche",
         title: "Flows",
         body: "Draw the steps once: they run on a schedule or when a webhook arrives, read and save tables, and call a model only where you ask. Your super-agent can draw them for you.",
         href: "/office/routines/#flows",
-      },
-      {
-        clip: "apps",
-        blob: "lila",
-        title: "Widgets and apps",
-        body: "Ask for a chart, a checklist or a small tool: an agent builds it, and you pin it to the project's board or open it full screen.",
-        href: "/apps/overview/",
       },
       {
         shot: "phone-app",
@@ -802,9 +816,37 @@ const es: HomeText = {
   newIn: {
     label: "Lo nuevo",
     title: "Más que una ventana de chat.",
-    lead: "Las últimas versiones traen un Marketplace, contactos que agendan en tu calendario, llamadas, chats grupales, Flows y links que cualquiera puede abrir.",
+    lead: "Las últimas versiones traen agentes que trabajan en todos tus proyectos, flujos de trabajo para trabajos grandes, un Marketplace, contactos que agendan en tu calendario, llamadas y links que cualquiera puede abrir.",
     more: "Ver más",
     items: [
+      {
+        clip: "free-agents",
+        blob: "orbita",
+        title: "Agentes que trabajan en todos tus proyectos",
+        body: "Tus agentes leen y trabajan en todos tus proyectos y chats, y dicen dónde actuaron. El rol dice en qué es bueno cada uno, no qué rechaza.",
+        href: "/es/concepts/agents/#hasta-dónde-llegan-tus-agentes",
+      },
+      {
+        clip: "workflows",
+        blob: "noche",
+        title: "Flujos de trabajo para trabajos grandes",
+        body: "Varios agentes a la vez, cada resultado revisado antes del paso siguiente, en una tarjeta que podés detener y reanudar.",
+        href: "/es/concepts/agents/#flujos-de-trabajo",
+      },
+      {
+        clip: "engine-sessions",
+        blob: "cobalto",
+        title: "Sesiones de Claude Code y Codex",
+        body: "Una sesión que abre un agente se ve como Claude Code o Codex, con el nombre de su tarea y un chip que vuelve al chat que la pidió.",
+        href: "/es/office/code/#sesiones-que-abre-tu-agente",
+      },
+      {
+        clip: "agent-folder",
+        blob: "menta",
+        title: "Todo en .apx/",
+        body: "Los agentes, las notas y las skills de un proyecto viven en su carpeta .apx/. APX mueve ahí solo una .apc/ vieja.",
+        href: "/es/concepts/projects/",
+      },
       {
         clip: "marketplace",
         blob: "menta",
@@ -841,25 +883,11 @@ const es: HomeText = {
         href: "/es/office/calls/",
       },
       {
-        clip: "groups",
-        blob: "orbita",
-        title: "Chats grupales",
-        body: "Vos y de dos a cinco agentes en un chat. Nombrás a uno con @ y los demás siguen la charla.",
-        href: "/es/office/chat/#chats-grupales",
-      },
-      {
         clip: "flows",
         blob: "noche",
         title: "Flows",
         body: "Dibujás los pasos una vez: corren por horario o cuando llega un webhook, leen y guardan tablas, y usan un modelo solo donde lo pedís. Tu super-agente los puede dibujar por vos.",
         href: "/es/office/routines/#flows",
-      },
-      {
-        clip: "apps",
-        blob: "lila",
-        title: "Widgets y apps",
-        body: "Pedí un gráfico, una checklist o una herramienta chica: un agente la arma, y la fijás en el tablero del proyecto o la abrís en pantalla completa.",
-        href: "/es/apps/overview/",
       },
       {
         shot: "phone-app",

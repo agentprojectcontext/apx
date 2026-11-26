@@ -65,13 +65,7 @@ Si un proyecto no se puede mover (por ejemplo, `.apx/` ya tiene otra versión de
 proyecto sigue funcionando desde `.apc/`, su resumen muestra **Agentes todavía en .apc/** con **Probar de nuevo**, el
 aviso dice por qué y APX vuelve a probar en el próximo inicio. Para reintentar todos esos proyectos juntos:
 
-<Terminal title="reintentar mover proyectos a .apx/">
-
-```bash
-apx doctor --fix
-```
-
-</Terminal>
+<Terminal command="apx doctor --fix" title="reintentar mover proyectos a .apx/" />
 
 Un APX v1 que siga instalado lee `.apc/`, así que después del movimiento deja de ver los agentes de ese proyecto.
 

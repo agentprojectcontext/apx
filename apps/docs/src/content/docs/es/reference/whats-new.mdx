@@ -1,0 +1,99 @@
+---
+title: Novedades
+description: Lo que sumó cada versión de APX que podés ver y usar, con un enlace a dónde se explica cada parte.
+sidebar:
+  order: 5
+---
+
+Cuando APX arranca en una versión nueva, tu super-agente abre un chat con lo que cambió y te ofrece lo nuevo que le
+sirve a cómo lo usás (ver [Actualizaciones](/es/start/install/#actualizaciones)). Esta página guarda esa lista para
+después, con un enlace a la página que explica cada parte. Quedan afuera los arreglos que solo hacen que algo funcione
+como ya debía.
+
+## 2.17.2
+
+- La investigación se completa mientras charlás. Mencioná un interés, un proyecto a seguir, una página pública o dónde
+  vivís, y tu super-agente lo suma a tu investigación; una línea chica **Se actualizó la investigación** bajo su
+  respuesta muestra lo que sumó. Ver [Investigación contextual](/es/office/contextual-research/).
+- El trabajo silencioso de un chat se ve como líneas chicas en vez de pasos: **Se guardó en memoria**, **Se actualizó
+  la investigación** y **Se resumió la charla**. Ver [Hablar con un agente](/es/office/chat/#hablar-con-un-agente).
+- **Ajustes › Revisión y mejoras** lista las revisiones pasadas: cuándo corrió cada una, cuántos chats leyó y qué pasó
+  con cada mejora que sugirió. Ver [Historial](/es/office/secretary/#historial).
+
+## 2.17.1
+
+- Investigación contextual, apagada hasta que la prendas: APX mira fuentes públicas en el contexto de tus proyectos e
+  intereses y suma un hallazgo respaldado a un informe que ya recibís. **Ajustes › Investigación** tiene el interruptor,
+  la configuración y tus informes, con una barra abajo para guardar o descartar los cambios. Ver
+  [Investigación contextual](/es/office/contextual-research/).
+
+## 2.17.0
+
+### Agentes
+
+- Tus agentes trabajan en todos tus proyectos y chats, y dicen dónde actuaron. El rol o la lista `tools:` dicen en qué
+  es bueno un agente y qué usa primero; ya no lo hacen rechazar tu trabajo. Ver
+  [Hasta dónde llegan tus agentes](/es/concepts/agents/#hasta-dónde-llegan-tus-agentes).
+- Los trabajos grandes corren como flujos de trabajo: varios agentes a la vez, cada resultado revisado antes de la
+  etapa siguiente, en una tarjeta que podés detener y reanudar. Ver [Flujos de trabajo](/es/concepts/agents/#flujos-de-trabajo).
+- Un agente delegado que llega a su límite de pasos o de tiempo sigue en la misma conversación mientras avanza, y el
+  chat muestra un aviso discreto con lo que hizo hasta ahora. Los compañeros consultados desde cualquier chat de una
+  tarea aparecen bajo esa tarea en la Bandeja. Ver [Delegar](/es/concepts/agents/#delegar) y
+  [Tareas](/es/office/tasks/#adjuntos-y-acciones-de-los-chats-de-una-tarea).
+- Una sesión de Claude Code o Codex que abre un agente se ve como ese motor, con el nombre de su tarea y un chip
+  **Iniciada por** que vuelve al chat que la pidió. Ver
+  [Sesiones que abre tu agente](/es/office/code/#sesiones-que-abre-tu-agente).
+- En Auto, tu super-agente hace los cambios de ajustes que le pedís sin una tarjeta cada vez: la búsqueda por
+  significado de la memoria, modelos, voz, transcripción, un servicio de medios y qué herramientas puede usar otro
+  agente. Borrar para siempre, las claves y quién te puede escribir siguen esperándote. Ver
+  [Cambiá ajustes desde el chat](/es/office/secretary/#cambiá-ajustes-desde-el-chat) y [Borrar](/es/concepts/autonomy/#borrar).
+
+### Chats y seguimientos
+
+- Pedile a un agente que vuelva una vez al mismo chat, a una hora o cuando termine una tarea ("Cuando termine esta
+  tarea, revisá el resultado"). El comprobante tiene **Cancelar** y el resultado llega a ese chat. Ver
+  [Volver a este chat una vez](/es/office/routines/#volver-a-este-chat-una-vez).
+- Los archivos y los archivos cambiados se abren en pestañas en el panel lateral. Ver
+  [Los paneles que vas a usar](/es/office/code/#los-paneles-que-vas-a-usar).
+
+### Modelos
+
+- **Ajustes › Modelo ayudante** muestra lo que hace el modelo chico de fondo y te deja elegirlo con respaldos en orden.
+  Ver [El modelo ayudante](/es/concepts/models/#el-modelo-ayudante).
+- Cuando un modelo falla por algo pasajero y los demás están en su límite, el turno le pregunta de nuevo a la lista
+  antes de esperar a que se libere un límite. Ver
+  [Los respaldos propios de un agente](/es/concepts/models/#los-respaldos-propios-de-un-agente).
+
+### Proyectos
+
+- Los agentes, las notas y las skills de un proyecto viven en `.apx/`. APX mueve ahí solo una carpeta `.apc/` vieja, al
+  arrancar y cuando sumás un proyecto. Ver
+  [Proyectos de versiones anteriores](/es/concepts/projects/#proyectos-de-versiones-anteriores-apc).
+
+### Navegador
+
+- En una página de inicio de sesión tu agente encuentra el usuario y la contraseña que guardaste para ese sitio, o te
+  pide que los escribas en una tarjeta que nunca ve. Ver
+  [Iniciar sesión con tus claves guardadas](/es/office/browser/#iniciar-sesión-con-tus-claves-guardadas).
+- Los agentes pueden guardar como receta un trabajo en el navegador que salió bien y repetirlo después en un paso,
+  adjuntando archivos en el camino. Ver [Repetir un trabajo: recetas](/es/office/browser/#repetir-un-trabajo-recetas).
+
+### Contactos
+
+- El agente que le asignás a un contacto puede responder con las notas de su proyecto si lo permitís y, con la lectura
+  del proyecto prendida para esa persona, leer su proyecto por ella. Cuando eso no alcanza, le pregunta a tu
+  super-agente, y podés abrir esa consulta desde el chat del contacto. Ver
+  [Leer el proyecto del agente asignado](/es/channels/overview/#leer-el-proyecto-del-agente-asignado).
+
+### Extensiones
+
+- Las extensiones que admiten avisos pueden revisar en segundo plano y despertar al agente que elijas cuando algo
+  cambia. Ver [Observaciones en segundo plano](/es/extend/extensions/#observaciones-en-segundo-plano).
+- El Marketplace muestra quién hizo cada extensión, aparte de la insignia de revisión de APX. Ver
+  [Encontralas en el Marketplace](/es/extend/extensions/#encontralas-en-el-marketplace).
+
+### Teléfono
+
+- **Tareas** lista primero lo que te necesita. Mantener apretado **Chats**, **Tareas** o **Rutinas** marca esa pestaña
+  como leída, y en **Chats** también ofrece **Ver archivados**. Una respuesta cortada por una conexión caída se completa
+  cuando la app se reconecta. Ver [Navegá la app Android](/es/devices/phone/#navegá-la-app-android).
