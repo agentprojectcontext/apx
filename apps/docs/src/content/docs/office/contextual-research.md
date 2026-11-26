@@ -9,13 +9,17 @@ Contextual research is separate from activity review. Activity review proposes i
 
 Ask your super-agent to help configure research. It can propose changes through `apx_settings` using `discovery.configure`; changing the configuration always has an approval card. Installation does not enable research or change existing routines.
 
+In **Settings › Research**, the switch at the top turns research on or off at once. While it is off, APX looks nothing up and your report goes out as usual; turning it on shows the setup. Changes to the setup are kept until you choose **Save changes**, which restarts research with the new choices; **Discard** puts back what was saved.
+
 Choose:
 
 - All registered, readable projects, or an explicit selection.
 - Public official pages for each project. Include relevant sections such as pricing, release notes or documentation. Public search terms are optional. APX does not send private conversation excerpts or generated hypotheses to search engines.
-- Optional interests, expressed as terms you authorize APX to search publicly. An optional city or region can narrow those searches. APX does not determine or track your location.
+- Optional interests, expressed as terms you authorize APX to search publicly. Type a topic and press Enter, a comma or **Add**. One optional city or region can narrow those searches. APX does not determine or track your location.
 - A deep-research interval, initially two days; limits on model calls, web operations and elapsed time; and a repeat-topic cooldown.
-- An existing global report run by your super-agent and your time zone. The report's own schedule controls delivery: selecting it does not move it to 9:00. Ask to change that routine if you want a different time or different weekdays.
+- An existing global report run by your super-agent. The report's own schedule controls delivery: selecting it does not move it to 9:00. Ask to change that routine if you want a different time or different weekdays. If your super-agent has no report yet, create one in Routines first.
+
+Research uses the time zone in your profile (**Settings › Account**) to decide what counts as a day. If your profile has none, it uses the research's own time zone, UTC unless your super-agent changed it.
 
 You can allow authorized conversations and decisions, public websites mentioned in project context, and interest news independently. The website option starts from HTTPS origins already referenced in the selected projects; it does not publish their private questions as searches. You can add specific official sections separately. A referenced website is not automatically treated as an official authority.
 

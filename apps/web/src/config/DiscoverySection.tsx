@@ -1,6 +1,8 @@
-import { Button, Dialog, Skeleton } from "@apx/ui";
+import { Button, Dialog, SettingRow, Skeleton, Switch } from "@apx/ui";
 import { useEffect, useRef, useState } from "react";
+import { useOwnerTimeZone } from "../data/owner.ts";
 import { useT } from "../i18n/index.ts";
+import { go } from "../shell/nav.ts";
 import { DiscoveryCoverage } from "./DiscoveryCoverage.tsx";
 import { DiscoveryFindings } from "./DiscoveryFindings.tsx";
 import { DiscoveryForm } from "./DiscoveryForm.tsx";
@@ -13,6 +15,7 @@ export function DiscoverySection() {
   const t = useT();
   const model = useDiscovery();
   const { status, draft, error, busy, dirty } = model;
+  const owned = useOwnerTimeZone();
   const [reload, setReload] = useState(false);
   const doReload = () => {
     model.load();
@@ -41,25 +44,37 @@ export function DiscoverySection() {
       </Button>
     </div>
   );
+  if (!draft || !status)
+    return (
+      <>
+        <SectionHead title={t("discovery.title")} lead={t("discovery.lead")} />
+        {problem || <Skeleton height={240} shape="block" />}
+      </>
+    );
+  const on = status.settings.enabled;
+  // The core follows the profile's time zone; the research's own one only covers a profile without it.
+  const zone = { value: owned || status.settings.timezone, mine: !!owned };
   return (
     <>
       <SectionHead title={t("discovery.title")} lead={t("discovery.lead")} />
-      {(!draft || !status) && problem}
-      {!draft || !status ? (
-        error ? null : (
-          <Skeleton height={240} shape="block" />
-        )
-      ) : (
+      <SettingRow title={t("discovery.enabled")} description={t(on ? "discovery.cost" : "discovery.off")}>
+        <Switch
+          checked={draft.enabled}
+          disabled={busy}
+          onCheckedChange={(enabled) => void model.turn(enabled)}
+          aria-label={t("discovery.enabled")}
+        />
+      </SettingRow>
+      {!on && problem}
+      {on && !status.available && (
+        <SettingRow title={t("discovery.needsModel")} description={t("discovery.needsModelHint")}>
+          <Button size="sm" variant="secondary" onClick={() => go.config("helper-model")}>
+            {t("discovery.chooseModel")}
+          </Button>
+        </SettingRow>
+      )}
+      {on && (
         <>
-          <p role="status" className="config__lead">
-            {t(
-              !status.available && status.settings.enabled
-                ? "discovery.unavailable"
-                : status.settings.enabled
-                  ? "discovery.active"
-                  : "discovery.paused",
-            )}
-          </p>
           <form
             className="discovery__stack"
             onInvalidCapture={(event) => {
@@ -78,19 +93,31 @@ export function DiscoverySection() {
                 draft={draft}
                 change={model.setDraft}
                 projects={model.projects}
-                routines={model.routines}
+                reports={model.reports}
+                zone={zone}
               />
             </fieldset>
             {problem}
-            <div className="discovery__actions">
-              <Button type="submit" loading={busy} disabled={busy || !dirty}>
-                {t("discovery.save")}
-              </Button>
-              {model.saved && !dirty && <span role="status">{t("discovery.saved")}</span>}
-            </div>
+            {(dirty || model.saved) && (
+              <div className="discovery__savebar">
+                {dirty ? (
+                  <>
+                    <span>{t("discovery.unsaved")}</span>
+                    <Button variant="ghost" disabled={busy} onClick={model.discard}>
+                      {t("discovery.discardChanges")}
+                    </Button>
+                    <Button type="submit" loading={busy} disabled={busy}>
+                      {t("discovery.save")}
+                    </Button>
+                  </>
+                ) : (
+                  <span role="status">{t("discovery.saved")}</span>
+                )}
+              </div>
+            )}
           </form>
-          <DiscoveryCoverage status={status} busy={busy} refresh={model.refresh} />
-          <DiscoveryFindings status={status} update={model.setStatus} />
+          <DiscoveryCoverage status={status} zone={zone.value} busy={busy} refresh={model.refresh} />
+          <DiscoveryFindings status={status} zone={zone.value} update={model.setStatus} />
         </>
       )}
       <Dialog

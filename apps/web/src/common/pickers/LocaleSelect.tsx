@@ -91,6 +91,9 @@ function split(zone: string): { region: string; place: string } {
   return { region: rest.length ? region : "", place: (rest.length ? rest : [zone]).join(" / ").replaceAll("_", " ") };
 }
 
+/** How a zone reads on screen: "Argentina / Buenos Aires". */
+export const zonePlace = (zone: string): string => split(zone).place;
+
 /** The owner's IANA time zone, grouped by region with the current offset; empty is this machine's. */
 export function TimezoneSelect({
   value,

@@ -11,17 +11,20 @@ const REASONS: Record<DiscoveryStatus["inaccessible"][number]["kind"], MessageKe
 
 export function DiscoveryCoverage({
   status,
+  zone,
   busy,
   refresh,
 }: {
   status: DiscoveryStatus;
+  /** The time zone research runs in, for the dates shown. */
+  zone: string;
   busy: boolean;
   refresh: () => Promise<void>;
 }) {
   const t = useT();
   const date = (value: string) =>
     new Date(value).toLocaleString(currentLocale(), {
-      timeZone: status.settings.timezone,
+      timeZone: zone,
       dateStyle: "medium",
       timeStyle: "short",
     });

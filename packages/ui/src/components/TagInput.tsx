@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { type KeyboardEvent, useState } from "react";
 import { cx } from "../cx";
 
@@ -10,6 +10,8 @@ export interface TagInputProps {
   label: string;
   /** Accessible name of each chip's remove button; `{tag}` is replaced. */
   removeLabel?: string;
+  /** Text of the button that shows while something is typed, so adding does not depend on knowing Enter. */
+  addLabel?: string;
   max?: number;
   className?: string;
 }
@@ -21,6 +23,7 @@ export function TagInput({
   placeholder,
   label,
   removeLabel = "Remove {tag}",
+  addLabel,
   max = 12,
   className,
 }: TagInputProps) {
@@ -72,6 +75,17 @@ export function TagInput({
         onKeyDown={onKey}
         onBlur={() => draft.trim() && add(draft)}
       />
+      {addLabel && draft.trim() && (
+        <button
+          type="button"
+          className="apx-taginput__add"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => add(draft)}
+        >
+          <Plus size={12} />
+          {addLabel}
+        </button>
+      )}
     </div>
   );
 }

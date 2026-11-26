@@ -1,7 +1,9 @@
 import type { DiscoverySettings, DiscoveryStatus, Project, Routine } from "@apx/protocol";
 import { ApxError, ErrorCode } from "@apx/protocol/client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { client } from "../data/client.ts";
+import { useData } from "../data/state.ts";
+import { reportRoutines } from "./discoveryReports.ts";
 
 export function useDiscovery() {
   const [status, setStatus] = useState<DiscoveryStatus>();
@@ -9,6 +11,8 @@ export function useDiscovery() {
   const [baseline, setBaseline] = useState<DiscoverySettings>();
   const [projects, setProjects] = useState<Project[]>([]);
   const [routines, setRoutines] = useState<Routine[]>([]);
+  const agents = useData((s) => s.agents);
+  const reports = useMemo(() => reportRoutines(routines, agents), [routines, agents]);
   const [error, setError] = useState<"load" | "save" | "conflict">();
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -28,7 +32,7 @@ export function useDiscovery() {
         setDraft(value.settings);
         setBaseline(value.settings);
         setProjects(ps.projects.filter((p) => p.registered !== false && !p.unreadable));
-        setRoutines(rs.routines.filter((r) => !r.project_id && r.agent_id === "superagent" && r.action === "agent"));
+        setRoutines(rs.routines);
       },
       () => {
         if (sequence.current === seq) setError("load");
@@ -41,17 +45,18 @@ export function useDiscovery() {
       sequence.current++;
     };
   }, [load]);
-  const save = async () => {
+  /** `patch` alone (the switch) keeps the rest of the draft as it is; without it, the whole draft is saved. */
+  const save = async (patch?: Partial<DiscoverySettings>) => {
     if (!draft || !status) return;
     setBusy(true);
     setError(undefined);
     setSaved(false);
     try {
-      const value = await client.call("discovery.configure", { ...draft, expected: baseline });
+      const value = await client.call("discovery.configure", { ...(patch ?? draft), expected: baseline });
       setStatus(value);
-      setDraft(value.settings);
+      setDraft(patch ? { ...draft, ...patch } : value.settings);
       setBaseline(value.settings);
-      setSaved(true);
+      if (!patch) setSaved(true);
     } catch (err) {
       setError(
         err instanceof ApxError &&
@@ -70,7 +75,7 @@ export function useDiscovery() {
     setDraft,
     setStatus,
     projects,
-    routines,
+    reports,
     error,
     saved,
     busy,
@@ -87,7 +92,9 @@ export function useDiscovery() {
         setBusy(false);
       }
     },
-    save,
+    save: () => save(),
+    turn: (enabled: boolean) => save({ enabled }),
+    discard: () => baseline && setDraft(baseline),
     dirty: JSON.stringify(draft) !== JSON.stringify(baseline),
   };
 }

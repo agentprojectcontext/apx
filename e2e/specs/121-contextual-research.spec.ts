@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import type { DiscoveryStatus } from "../../packages/protocol/src/index.ts";
+import type { DiscoveryStatus, Routine } from "../../packages/protocol/src/index.ts";
 import { expect, open, rpc, test, world } from "./kit.ts";
 
 async function prepareResearch() {
@@ -30,7 +30,15 @@ async function prepareResearch() {
     report_routine: null,
   });
   await world.clock("2099-05-01T08:00:00.000Z");
-  return { initial, memory };
+  const report = await rpc<Routine>("routines.set", {
+    name: "Morning report",
+    agent: "superagent",
+    schedule: { kind: "manual" },
+    prompt: "Summarize what matters today.",
+  });
+  const owner = await rpc<{ timezone: string }>("owner.get");
+  await rpc("owner.set", { timezone: "America/Argentina/Buenos_Aires" });
+  return { initial, memory, report, zone: owner.timezone };
 }
 
 async function undoAfterCacheClear(page: Page, en: boolean) {
@@ -58,6 +66,12 @@ async function checkInterestControl(page: Page, en: boolean) {
   await expect(remove).toBeVisible();
   await remove.click();
   await expect(remove).toHaveCount(0);
+  // Adding doesn't depend on knowing Enter: a button shows while a topic is typed.
+  await input.fill("Open data");
+  await page.getByRole("button", { name: en ? "Add" : "Agregar", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: en ? "Remove Open data" : "Quitar Open data", exact: true }),
+  ).toBeVisible();
 }
 async function recoverConflict(page: Page, en: boolean) {
   const reload = en ? "Reload" : "Recargar";
@@ -70,7 +84,7 @@ async function recoverConflict(page: Page, en: boolean) {
     .click();
   await expect(dialog).toBeHidden();
   const place = page.getByRole("textbox", {
-    name: en ? "Place for nearby events · optional" : "Lugar para eventos cercanos · opcional",
+    name: en ? "City or region · optional" : "Ciudad o región · opcional",
     exact: true,
   });
   await expect(place).toHaveValue("Unsaved region");
@@ -97,11 +111,13 @@ for (const language of ["en", "es"] as const)
     test(`investigación contextual: configuración, evidencia, feedback y errores (${language}, ${width})`, async ({
       page,
     }, info) => {
-      const { initial, memory } = await prepareResearch();
+      const { initial, memory, report, zone } = await prepareResearch();
       const en = language === "en";
       const title = en ? "Research" : "Investigación";
-      const save = en ? "Save" : "Guardar";
-      const enabled = en ? "Research on my behalf" : "Investigar para mí";
+      const save = en ? "Save changes" : "Guardar cambios";
+      const enabled = en
+        ? "Look for news on my projects and interests"
+        : "Buscar novedades de mis proyectos e intereses";
       try {
         await page.setViewportSize({ width, height: width === 390 ? 780 : 1000 });
         await page.addInitScript(
@@ -120,8 +136,25 @@ for (const language of ["en", "es"] as const)
         await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
         expect(chunks).toHaveLength(1);
         await expect(page.getByRole("switch", { name: enabled })).not.toBeChecked();
-        await page.screenshot({ path: info.outputPath("empty.png"), fullPage: true });
+        // Off, the setup is out of the way; the switch applies at once, like every switch in Settings.
+        await expect(page.getByRole("textbox", { name: en ? "Interests" : "Intereses", exact: true })).toHaveCount(0);
+        await page.screenshot({ path: info.outputPath("off.png"), fullPage: true });
+        await page.getByRole("switch", { name: enabled }).click();
+        await expect.poll(async () => (await rpc<DiscoveryStatus>("discovery.settings")).settings.enabled).toBe(true);
+        await expect(page.getByRole("button", { name: save, exact: true })).toHaveCount(0);
+        // The research follows the profile's time zone instead of asking for its own.
+        await expect(
+          page.getByText(
+            en ? "Uses your profile's: Argentina / Buenos Aires." : "Se usa la de tu perfil: Argentina / Buenos Aires.",
+            { exact: true },
+          ),
+        ).toBeVisible();
+        await page.getByRole("combobox", { name: en ? "Usual report" : "Informe habitual" }).click();
+        await page.getByRole("option", { name: /^Morning report/ }).click();
+        await expect(page.getByText(en ? "You have unsaved changes." : "Tenés cambios sin guardar.")).toBeVisible();
         await checkInterestControl(page, en);
+        await page.locator(".config__content").evaluate((element) => element.scrollTo(0, 0));
+        await page.screenshot({ path: info.outputPath("on.png"), fullPage: true });
         await page
           .getByText(en ? "Additional public sources" : "Fuentes públicas adicionales", { exact: true })
           .click();
@@ -136,19 +169,19 @@ for (const language of ["en", "es"] as const)
           })
           .fill("https://research.example/news");
         const place = page.getByRole("textbox", {
-          name: en ? "Place for nearby events · optional" : "Lugar para eventos cercanos · opcional",
+          name: en ? "City or region · optional" : "Ciudad o región · opcional",
         });
         await place.fill("Example region");
+        await page.screenshot({ path: info.outputPath("unsaved.png"), fullPage: true });
         await page.getByRole("button", { name: save, exact: true }).click();
         await expect(
           page.getByRole("status").filter({ hasText: en ? "Changes saved" : "Cambios guardados" }),
         ).toBeVisible();
         const config = await rpc<DiscoveryStatus>("discovery.settings");
-        expect(config.settings.enabled).toBe(false);
+        expect(config.settings.enabled).toBe(true);
+        expect(config.settings.report_routine).toBe(report.id);
+        expect(config.settings.interests).toEqual(["Open data"]);
         expect(config.settings.sources[0]?.pages).toEqual(["https://research.example/news"]);
-        await page.getByRole("switch", { name: enabled }).click();
-        await page.getByRole("button", { name: save, exact: true }).click();
-        await expect.poll(async () => (await rpc<DiscoveryStatus>("discovery.settings")).settings.enabled).toBe(true);
         await world.clock("2099-05-01T08:02:00.000Z");
         await expect
           .poll(async () => {
@@ -232,6 +265,8 @@ for (const language of ["en", "es"] as const)
         await restoreMuted(initial);
         await rpc("discovery.configure", { ...initial.settings, enabled: false });
         await rpc("memory.set_settings", memory);
+        await rpc("routines.remove", { routine: report.id });
+        await rpc("owner.set", { timezone: zone });
         await world.clock(null);
       }
     });
