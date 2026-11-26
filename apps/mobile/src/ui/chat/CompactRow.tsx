@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from "react";
+import { type ReactNode, type Ref, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Icon, type IconName } from "../Icon";
 import { makeStyles, useTheme } from "../theme";
@@ -11,6 +11,7 @@ export function CompactRow({
   warning = false,
   summary,
   feedback,
+  headingRef,
 }: {
   title: string;
   summary?: string;
@@ -18,6 +19,7 @@ export function CompactRow({
   children?: ReactNode;
   warning?: boolean;
   feedback?: ReactNode;
+  headingRef?: Ref<View>;
 }) {
   const [open, setOpen] = useState(false);
   const s = useStyles();
@@ -43,6 +45,7 @@ export function CompactRow({
       <View style={s.line}>
         {children ? (
           <Pressable
+            ref={headingRef}
             accessibilityRole="button"
             accessibilityLabel={summary ? `${title} · ${summary}` : title}
             accessibilityState={{ expanded: open }}

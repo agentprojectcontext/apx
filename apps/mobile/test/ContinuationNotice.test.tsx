@@ -1,8 +1,12 @@
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
+
 import { lang, t } from "../src/i18n";
 import { ApxClient, type Message, noticeText } from "../src/protocol";
 import { ContinuationNotice } from "../src/ui/chat/ContinuationNotice";
 import { credentials, transport } from "./transport.test-support";
+
+const Native = jest.requireActual<typeof import("react-native")>("react-native");
+afterEach(() => jest.restoreAllMocks());
 
 type Notice = Extract<Message["parts"][number], { type: "notice" }>;
 const label = (key: string) => noticeText({ code: `continuation.${key}`, text: key }, lang);
@@ -26,13 +30,17 @@ const terminal = (state: string, reason = "access"): Notice => ({ ...part, vars:
 test("pending checks cancel through the registered protocol and show the confirmed state", async () => {
   const net = transport();
   net.responses["continuations.cancel"] = { state: "canceled" };
+  const focus = jest.spyOn(Native.AccessibilityInfo, "setAccessibilityFocus").mockImplementation(() => {});
+  jest.spyOn(Native, "findNodeHandle").mockReturnValue(42);
   const client = new ApxClient({ ...credentials, client: { name: "test", version: "1" } });
   const ui = await render(<ContinuationNotice part={part} client={client} />);
   expect(ui.queryByText("Check the report")).toBeNull();
+  expect(focus).not.toHaveBeenCalled();
   await fireEvent.press(ui.getByRole("button", { name: `${t("followup")} · ${label("scheduled")}` }));
   expect(ui.getByText("Check the report")).toBeTruthy();
   await fireEvent.press(ui.getByText(label("cancel")));
   await waitFor(() => expect(ui.getByText(`${t("followup")} · ${label("canceled")}`)).toBeTruthy());
+  await waitFor(() => expect(focus).toHaveBeenCalledWith(42));
   expect(net.calls).toContainEqual({
     method: "continuations.cancel",
     params: expect.objectContaining({ thread: "thread", id: "followup" }),

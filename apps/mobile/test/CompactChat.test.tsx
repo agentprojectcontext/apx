@@ -33,10 +33,16 @@ test("chat plans fold by default, retain steps when opened and update progress l
   expect(ui.getByText("Compare options")).toBeTruthy();
   expect(ui.getByLabelText(`Compare options, ${t("planPending")}`)).toBeTruthy();
   await ui.rerender(
-    <PlanCard label={t("plan")} steps={steps.map((s, i) => (i === 0 ? { ...s, state: "done" } : s))} collapsible />,
+    <PlanCard
+      label={t("plan")}
+      steps={steps.map((s, i) => (i === 0 ? { ...s, state: "done" } : i === 1 ? { ...s, state: "doing" } : s))}
+      collapsible
+    />,
   );
   expect(ui.getByText(t("planDone", { done: 1, count: 3 }))).toBeTruthy();
-  expect(ui.getByText("Read the brief")).toBeTruthy();
+  expect(ui.getByLabelText(`Read the brief, ${t("runDone")}`)).toBeTruthy();
+  expect(ui.getByLabelText(`Compare options, ${t("runWorking")}`)).toBeTruthy();
+  expect(ui.getByLabelText(`Write the result, ${t("planPending")}`)).toBeTruthy();
   await fireEvent.press(ui.getByRole("button"));
   expect(ui.queryByText("Read the brief")).toBeNull();
   await ui.rerender(<PlanCard label={t("plan")} steps={steps.map((s) => ({ ...s, state: "done" }))} collapsible />);

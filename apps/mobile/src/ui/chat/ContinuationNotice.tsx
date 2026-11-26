@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { Text } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { AccessibilityInfo, findNodeHandle, Text, type View } from "react-native";
 import { lang, t } from "../../i18n";
 import { type ApxClient, ApxError, type Message, noticeText } from "../../protocol";
 import { Button } from "../kit";
@@ -14,6 +14,13 @@ const words = (key: string, vars?: Record<string, string | number>) =>
 export function ContinuationNotice({ part, client }: { part: Notice; client?: ApxClient | undefined }) {
   const s = useStyles();
   const [observed, setObserved] = useState<string>();
+  const heading = useRef<View>(null);
+  useEffect(() => {
+    if (!observed) return;
+    // The cancel control disappears after confirmation; keep its result in reach of the screen reader.
+    const node = findNodeHandle(heading.current);
+    if (node !== null) AccessibilityInfo.setAccessibilityFocus(node);
+  }, [observed]);
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
   const [error, setError] = useState(false);
@@ -59,6 +66,7 @@ export function ContinuationNotice({ part, client }: { part: Notice; client?: Ap
   const warning = state === "blocked" || state === "failed" || state === "expired";
   return (
     <CompactRow
+      headingRef={heading}
       title={`${t("followup")} · ${title}`}
       icon={warning ? "TriangleAlert" : state === "completed" ? "CircleCheck" : "Clock"}
       warning={warning}
