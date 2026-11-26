@@ -64,10 +64,13 @@ const keep = (page: import("@playwright/test").Page, corner: object) =>
 
 test("after an update only the slide not seen yet shows, and once", async ({ page }) => {
   await page.route("https://apxagent.app/**", (route) => route.abort("aborted"));
-  await keep(page, { welcomeSeen: ALL_SLIDES.filter((k) => k !== "groups") });
+  // The oldest slide this version still shows: older ones expire as releases go by.
+  const unseen = slides.at(-1);
+  if (!unseen) throw new Error(`No welcome slides for ${version}`);
+  await keep(page, { welcomeSeen: ALL_SLIDES.filter((k) => k !== unseen.key) });
   await open(page);
   const dialog = page.getByRole("dialog", { name: "Lo nuevo de APX" });
-  await expect(dialog.getByRole("heading", { name: "Chats en grupo" })).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: esWelcome[`welcome.${unseen.key}.title`] })).toBeVisible();
   await expect(dialog.getByText("1 de 1")).toBeVisible();
   await dialog.getByRole("button", { name: "Vamos" }).click();
   await expect(dialog).toBeHidden();
