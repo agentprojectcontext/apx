@@ -243,11 +243,11 @@ const tasksQuery = () =>
         .select((c) => c.fn.countAll<number>().as("n"))
         .as("chats"),
     )
-    // Who took part: each chat's agent for it, and each teammate asked on its conversation (task-work.ts consult).
+    // Who took part: each chat's agent for it, and each teammate asked from its home or any of its chats.
     .select(
       raw<
         string | null
-      >`(select json_group_array(a) from (select distinct json_extract(t.agent_ids, '$[0]') as a from threads t where t.task_id = tasks.id or t.parent_id = tasks.thread_id))`.as(
+      >`(select json_group_array(a) from (select distinct json_extract(t.agent_ids, '$[0]') as a from threads t where t.task_id = tasks.id or t.parent_id = tasks.thread_id or t.parent_id in (select c.id from threads c where c.task_id = tasks.id)))`.as(
         "agents",
       ),
     );

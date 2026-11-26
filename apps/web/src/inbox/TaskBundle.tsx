@@ -26,14 +26,13 @@ import { useT } from "../i18n/index.ts";
 import { TaskStatusHint } from "../lazy.ts";
 import { go } from "../shell/nav.ts";
 import { ListedChat } from "./Delegated.tsx";
-import { delegatedByChat, tookPart } from "./groupThreads.ts";
+import { taskTeammates, tookPart } from "./groupThreads.ts";
 import { SessionRow } from "./InboxViews.tsx";
 import { ProjectBadge } from "./ProjectBadge.tsx";
 import { FoldContext, useRowFold } from "./RowFold.tsx";
+import { selectionPath } from "./selectionPath.ts";
 import { ThreadAvatar } from "./ThreadAvatar.tsx";
 import { useOpenRow } from "./useOpenRow.ts";
-
-const NONE: Thread[] = [];
 
 /**
  * One task in the Inbox: its latest chat's face, its title and when, then its state, how many chats and agents work
@@ -71,16 +70,16 @@ export function TaskBundle({ taskId, threads, selected }: { taskId: string; thre
   ];
   // The row is its latest chat; unfolding lists the task's other sessions and its teammates' conversations.
   const others = sorted.slice(1);
-  const home = task?.thread_id;
   const loaded = useData((s) => s.threads);
-  const teammates = (home && delegatedByChat(loaded).get(home)) || NONE;
-  const counted = useData((s) => (home ? (s.delegated[home] ?? 0) : 0));
-  const asked = Math.max(counted, teammates.length);
+  const counted = useData((s) => s.delegated);
+  // Teammates asked from any of the task's chats, not only its home: the agent often works the task in another one.
+  const asked = taskTeammates(loaded, task?.thread_id, threads, counted);
+  const path = selectionPath(loaded, selected);
   const [open, setOpen] = useOpenRow(
     `task:${taskId}`,
-    [...others, ...teammates].some((th) => th.id === selected),
+    [...others, ...asked.kids].some((th) => path.has(th.id)),
   );
-  const chats = threads.length + asked;
+  const chats = threads.length + asked.total;
   const running = threads.some((th) => isWorking(th.state));
   const unread = threads.reduce((n, th) => n + th.unread, 0);
   const who = tookPart(task?.agents, threads);
@@ -92,7 +91,7 @@ export function TaskBundle({ taskId, threads, selected }: { taskId: string; thre
     <div className="taskbundle">
       <FoldContext.Provider
         value={
-          others.length || asked
+          others.length || asked.total
             ? {
                 open,
                 toggle: () => setOpen(!open),
@@ -135,8 +134,9 @@ export function TaskBundle({ taskId, threads, selected }: { taskId: string; thre
       </FoldContext.Provider>
       {open && chats > 1 && (
         <div className="tree__sessions apx-branches">
+          {/* A chat's teammates are listed once, with the task's below, not again under that chat. */}
           {others.map((th) => (
-            <ListedChat key={th.id} thread={th} selected={selected}>
+            <ListedChat key={th.id} thread={th} selected={selected} ancestors={asked.chats}>
               <SessionRow
                 thread={th}
                 agent={agents[th.agent_ids[0] ?? ""]}
@@ -146,7 +146,7 @@ export function TaskBundle({ taskId, threads, selected }: { taskId: string; thre
               />
             </ListedChat>
           ))}
-          {home && <Teammates home={home} kids={teammates} total={asked} selected={selected} />}
+          <Teammates {...asked} selected={selected} />
         </div>
       )}
     </div>
@@ -157,20 +157,32 @@ export function TaskBundle({ taskId, threads, selected }: { taskId: string; thre
  * The conversations of the teammates asked on a task, newest first: a few, then the rest on request. Each opens as the
  * chat, as a delegated chat does under its caller in Chats (see DECISIONS.md#d-225).
  */
-function Teammates(props: { home: string; kids: Thread[]; total: number; selected: string | undefined }) {
+function Teammates(props: {
+  kids: Thread[];
+  total: number;
+  short: string[];
+  chats: string[];
+  selected: string | undefined;
+}) {
   const t = useT();
   const agents = useShownAgents();
+  const loaded = useData((s) => s.threads);
   const [all, setAll] = useState(false);
+  const path = selectionPath(loaded, props.selected);
+  const active = props.kids.findIndex((k) => path.has(k.id));
+  useEffect(() => {
+    if (active >= DELEGATED_SHOWN) setAll(true);
+  }, [active]);
   const listed = all ? props.kids : props.kids.slice(0, DELEGATED_SHOWN);
   const more = props.total - listed.length;
   const showMore = () => {
     setAll(true);
-    if (props.kids.length < props.total) void loadDelegated(props.home);
+    for (const chat of props.short) void loadDelegated(chat);
   };
   return (
     <>
       {listed.map((k) => (
-        <ListedChat key={k.id} thread={k} selected={props.selected} nested ancestors={[props.home]}>
+        <ListedChat key={k.id} thread={k} selected={props.selected} nested ancestors={props.chats}>
           <SessionRow
             thread={k}
             agent={agents[k.agent_ids[0] ?? ""]}

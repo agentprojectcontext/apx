@@ -7,7 +7,7 @@ import { placeName, worksForOwner } from "../domain/owner-work.ts";
 import { worksIn } from "../domain/projects.ts";
 import { type DelegationResult, type Origin, type RunRecord, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
-import { previewOf, strictestWrite, type Worker, worksInFolder } from "../domain/threads.ts";
+import { strictestWrite, type Worker, worksInFolder } from "../domain/threads.ts";
 import { agentReply } from "../tools/agents.ts";
 import { folderInProject, ownerFolder, readOnlyFolders } from "../tools/folders.ts";
 import { modeOf, reachOf, withProjectAutonomy } from "../tools/policy.ts";
@@ -19,6 +19,7 @@ import type { Admit } from "./engine.ts";
 import { MAX_ACTIVE_DELEGATIONS, MAX_DEPTH } from "./limits.ts";
 import { MAX_AUTO_PARTS, stalled } from "./progress.ts";
 import { answerOf as answered, type Outcome, outcomeNote, outcomeOf } from "./run-outcome.ts";
+import { soFar } from "./so-far.ts";
 import { withFilesNote } from "./task-files.ts";
 import { runLineage } from "./task-handoff.ts";
 
@@ -524,12 +525,11 @@ export function createDelegations(deps: {
     const sub = store.threads.get(child.thread_id);
     const caller = store.agents.get(parent.agent_id)?.name ?? parent.agent_id;
     const limit = child.end_reason === "step_limit" ? "steps" : "time";
-    const session = sub?.session ?? child.thread_id;
     const task = (resultCard(store, child.id)?.title ?? sub?.title ?? "").slice(0, 120);
-    const sofar = previewOf(answer).slice(0, 200);
+    const sofar = soFar(answer);
     const text =
       how === "continued"
-        ? `${who} ran out of ${limit} on “${task}” and is making progress; APX had it go on in session ${session}. So far: ${sofar}`
+        ? `${who} hit the ${limit === "steps" ? "step" : "time"} limit on “${task}” and keeps going in the same conversation, since it is making progress. So far: ${sofar}`
         : how === "stopped"
           ? `${who} ran out of ${limit} on “${task}” and its last part made no progress, so APX did not go on by itself. Continue if it should. So far: ${sofar}`
           : `${who} ran out of ${limit} on “${task}”. ${caller} has its report and decides how to go on. So far: ${sofar}`;
@@ -546,7 +546,6 @@ export function createDelegations(deps: {
             variant: `${how}${limit === "steps" ? "Steps" : "Time"}`,
             who,
             task,
-            session,
             caller,
             sofar,
             subthread: child.thread_id,

@@ -2,7 +2,7 @@
 // APX goes on in the same session while each part progresses, the owner hears when it stops, and the caller can stop it.
 import assert from "node:assert/strict";
 import { after, afterEach, before, beforeEach, type TestContext, test } from "node:test";
-import type { Part } from "@apx/protocol";
+import { noticeText, type Part } from "@apx/protocol";
 import type { ApxSocket } from "@apx/protocol/client";
 import { z } from "zod";
 import { fakeTelegram } from "../channels/fake-telegram.test-support.ts";
@@ -230,6 +230,11 @@ test("a run cut short goes on once in the same session, with its context, and re
   assert.equal(notice?.level, "info");
   assert.equal(notice?.vars?.who, "Napper");
   assert.equal(notice?.vars?.subthread, sub);
+  // Going on is the same conversation, named by the teammate: never a session id that reads like the work moved.
+  const told = notice ? noticeText(notice, "es") : "";
+  assert.match(told, /^Napper llegó al límite de tiempo con «.*» y sigue en la misma conversación/);
+  assert.doesNotMatch(`${told} ${notice?.text}`, /napper\b|sesión|in session/);
+  assert.match(notice?.text ?? "", /keeps going in the same conversation/);
   const tray = env.core.store.notifications.list({ unreadOnly: true, limit: 50 }).find((n) => n.ref === sub);
   assert.equal(tray, undefined);
 });
