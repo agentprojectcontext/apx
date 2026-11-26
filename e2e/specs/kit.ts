@@ -66,14 +66,6 @@ export const world = {
         calls: { method: string; url: string; headers: Record<string, string>; body: string }[];
       }
     ).calls,
-  holdWorkers: async (hold: boolean) => {
-    await ownSandbox();
-    await post(`${control}/llm/${hold ? "hold" : "finish"}-workers`);
-  },
-  finishStream: async () => {
-    await ownSandbox();
-    await post(`${control}/llm/finish-stream`);
-  },
   /** Whether any request the model got carried this text. */
   modelCarried: async (text: string) =>
     (
@@ -81,6 +73,17 @@ export const world = {
         carried: boolean;
       }
     ).carried,
+  /** Keeps worker slots occupied until the browser observes their queued siblings. */
+  workerGate: async (hold: boolean) => {
+    await ownSandbox();
+    const res = await post(`${control}/llm/worker-gate`, { hold });
+    if (!res.ok) throw new Error(`Worker gate: ${res.status}`);
+  },
+  streamGate: async (text: string, action: "hold" | "next" | "clear") => {
+    await ownSandbox();
+    const res = await post(`${control}/llm/stream-gate`, { text, action });
+    if (!res.ok) throw new Error(`Stream gate: ${res.status}`);
+  },
   /** Stops the core's clock at `at` (ISO), or lets it run again with null. */
   clock: async (at: string | null) => {
     await post(`${control}/clock`, { at });

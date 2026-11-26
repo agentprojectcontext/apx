@@ -15,6 +15,7 @@ import { sql as raw } from "kysely";
 import type { Bus } from "../bus.ts";
 import type { TasksTable } from "../db/schema.ts";
 import { badRequest, notFound, unauthorized } from "../errors.ts";
+import { ownerAgentOf, placeName } from "./owner-work.ts";
 import { worksIn } from "./projects.ts";
 import { newId, now, opt, qb, type Sql } from "./sql.ts";
 import type { Store } from "./store.ts";
@@ -86,39 +87,56 @@ export const tagsOf = (tags: string[] | undefined) =>
 
 /**
  * Where a caller works on the board: undefined is all of it (the owner, or the super-agent outside any project);
- * any other agent works on its chat's project and the global tasks.
+ * any other agent works on its chat's project and the global tasks. `owner`: one of the owner's agents working for
+ * the owner, which may also reach other projects' tasks (DECISIONS.md#d-271).
  */
+export type BoardScope = { project: string | undefined; owner?: true };
+
 export function boardScope(
   store: Store,
   agent: { id: string; thread_id: string } | undefined,
-): { project: string | undefined } | undefined {
+  ctx: { client?: unknown; channel?: unknown } = {},
+): BoardScope | undefined {
   if (!agent) return undefined;
   const project = store.threads.get(agent.thread_id)?.project_id;
   if (!project && store.agents.get(agent.id)?.kind === "secretary") return undefined;
-  return { project };
+  return ownerAgentOf(store, { agent, ...ctx }) ? { project, owner: true } : { project };
 }
 
-/** New tasks stay in the caller's scope; the global super-agent may use the assignee's project by default. */
+/** Whether a scoped caller may work on tasks of `project`; a project being moved stays fenced both ways. */
+export function reaches(store: Store, scope: BoardScope | undefined, project: string | undefined): boolean {
+  if (!scope || !project || project === scope.project) return true;
+  if (!scope.owner) return false;
+  const moving = new Set(store.projectProtection.list().map((p) => p.project));
+  return !moving.has(project) && !(scope.project && moving.has(scope.project));
+}
+
+const outOfReach = (scope: BoardScope, outsider: string) =>
+  unauthorized(scope.owner ? "that project is being moved: its tasks are out of reach until the move ends" : outsider);
+
+/** New tasks go to the caller's project unless it names another it reaches; the global super-agent may use the assignee's. */
 export function taskProject(
   store: Store,
   agent: { id: string; thread_id: string } | undefined,
   request: { project?: string | undefined; assignee?: string | undefined },
+  ctx: { client?: unknown; channel?: unknown } = {},
 ): string | undefined {
-  const scope = boardScope(store, agent);
+  const scope = boardScope(store, agent, ctx);
   if (scope) {
-    if (request.project !== undefined && request.project !== scope.project)
-      throw unauthorized("an agent creates tasks only in its own project");
-    return scope.project;
+    if (request.project === undefined || request.project === scope.project) return scope.project;
+    if (!reaches(store, scope, request.project))
+      throw outOfReach(scope, "an agent creates tasks only in its own project");
+    return request.project;
   }
   return request.project ?? (agent && request.assignee ? store.agents.get(request.assignee)?.project_id : undefined);
 }
 
 /** A task the caller may see and change. */
-export function visibleTask(store: Store, id: string, scope: { project: string | undefined } | undefined): Task {
+export function visibleTask(store: Store, id: string, scope: BoardScope | undefined): Task {
   const t = store.tasks.get(id);
   if (!t) throw notFound(`task ${id}`);
-  if (scope && t.project_id && t.project_id !== scope.project)
-    throw unauthorized("an agent works only on its own project's tasks");
+  if (scope && !reaches(store, scope, t.project_id))
+    throw outOfReach(scope, "an agent works only on its own project's tasks");
   return t;
 }
 
@@ -131,7 +149,7 @@ export function checkTaskParent(
   task: Task | undefined,
   parent: string | null | undefined,
   project: string | undefined,
-  scope: { project: string | undefined } | undefined,
+  scope: BoardScope | undefined,
 ): void {
   const moving = Boolean(task) && task?.project_id !== project;
   if (task && moving && store.tasks.list({ parent: task.id, limit: 1 }).length)
@@ -162,12 +180,22 @@ export function checkColumn(store: Store, status: string | undefined): void {
     throw badRequest(`no column "${status}" (columns: ${columns.map((c) => c.id).join(", ")})`);
 }
 
-/** An assignee must exist and belong to the task's project (or to none). */
-export function checkAssignee(store: Store, id: string | null | undefined, project: string | undefined): void {
+/** An assignee must exist and belong to the task's project (or to none); an agent is told how to reach it instead. */
+export function checkAssignee(
+  store: Store,
+  id: string | null | undefined,
+  project: string | undefined,
+  byAgent = false,
+): void {
   if (!id) return;
   const a = store.agents.get(id);
   if (!a) throw notFound(`agent ${id}`);
-  if (!worksIn(store.projects, a.project_id, project)) throw badRequest(`${a.name} works in another project`);
+  if (worksIn(store.projects, a.project_id, project)) return;
+  // The id is for an agent's next call; a person reads the project's name only.
+  const there = a.project_id ? ` (${placeName(store, a.project_id)}${byAgent ? `, id ${a.project_id}` : ""})` : "";
+  throw badRequest(
+    `${a.name} works in another project${there}${byAgent ? ": put the task in their project (project) or ask them with delegate" : ""}`,
+  );
 }
 
 /** A person by id or exact name (any case); never the owner or a blocked person, never a guess between two. */
@@ -215,11 +243,11 @@ const tasksQuery = () =>
         .select((c) => c.fn.countAll<number>().as("n"))
         .as("chats"),
     )
-    // Who took part: each chat's agent for it, and each teammate asked on its conversation (task-work.ts consult).
+    // Who took part: each chat's agent for it, and each teammate asked from its home or any of its chats.
     .select(
       raw<
         string | null
-      >`(select json_group_array(a) from (select distinct json_extract(t.agent_ids, '$[0]') as a from threads t where t.task_id = tasks.id or t.parent_id = tasks.thread_id))`.as(
+      >`(select json_group_array(a) from (select distinct json_extract(t.agent_ids, '$[0]') as a from threads t where t.task_id = tasks.id or t.parent_id = tasks.thread_id or t.parent_id in (select c.id from threads c where c.task_id = tasks.id)))`.as(
         "agents",
       ),
     );

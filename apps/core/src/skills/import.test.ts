@@ -161,10 +161,10 @@ test("a folder too big to be a skills folder is refused instead of walked", () =
   assert.throws(() => findSkillDirs(big), /holds too much/);
 });
 
-test("a project's skills land in .apc/skills, never through a link", async () => {
+test("a project's skills land in .apx/skills, never through a link", async () => {
   const repo = realpath(fs.mkdtempSync(path.join(work, "repo-")));
   fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Acme\n");
-  fs.mkdirSync(path.join(repo, ".apc"));
+  fs.mkdirSync(path.join(repo, ".apx"));
   const project = (await env.client.call("projects.register", { path: repo })).project.id;
   const src = path.join(work, "proj-src");
   skill(src, "deploy");
@@ -174,9 +174,9 @@ test("a project's skills land in .apc/skills, never through a link", async () =>
     r.imported.map((s) => [s.name, s.scope]),
     [["deploy", "project"]],
   );
-  assert.ok(fs.existsSync(path.join(repo, ".apc", "skills", "deploy", "SKILL.md")));
-  await removeDir(path.join(repo, ".apc", "skills"));
-  fs.symlinkSync(work, path.join(repo, ".apc", "skills"));
+  assert.ok(fs.existsSync(path.join(repo, ".apx", "skills", "deploy", "SKILL.md")));
+  await removeDir(path.join(repo, ".apx", "skills"));
+  fs.symlinkSync(work, path.join(repo, ".apx", "skills"));
   await assert.rejects(
     env.client.call("skills.import", { source, target: "project", project, pick: ["deploy"] }),
     /symlink/,

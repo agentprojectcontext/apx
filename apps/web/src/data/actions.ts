@@ -7,7 +7,7 @@ import { client } from "./client.ts";
 import { type Attached, setThreadModel } from "./composer.ts";
 import { refetchDelegations } from "./delegationWatch.ts";
 import { loadEngines } from "./engines.ts";
-import { DELEGATED_SHOWN } from "./identity.ts";
+import { DELEGATED_SHOWN, isDelegated } from "./identity.ts";
 import { loadJobs } from "./jobs.ts";
 import { loadCatalog, loadModelsConfig } from "./models.ts";
 import { parseNewChat, takeNewChatModel } from "./newChat.ts";
@@ -85,7 +85,7 @@ export async function loadDelegated(parent: string): Promise<void> {
     const { threads } = await client.call("threads.list", { root_thread: parent });
     data.set((s) => ({
       threads: { ...s.threads, ...Object.fromEntries(threads.map((t) => [t.id, t])) },
-      delegated: { ...s.delegated, [parent]: threads.filter((t) => t.parent_id === parent).length },
+      delegated: { ...s.delegated, [parent]: threads.filter((t) => t.parent_id === parent && isDelegated(t)).length },
     }));
   } catch (e) {
     notify(t("error.openChat", { error: errText(e) }));
@@ -272,6 +272,15 @@ export async function cancelJob(job: string): Promise<void> {
     await client.call("jobs.cancel", { job });
   } catch (e) {
     notify(t("error.stop", { error: errText(e) }));
+  }
+}
+
+/** Stops a workflow an agent started, or runs what did not finish again (DECISIONS.md#d-273). */
+export async function workflowAction(workflow: string, action: "stop" | "resume"): Promise<void> {
+  try {
+    await client.call(action === "stop" ? "workflows.stop" : "workflows.resume", { workflow });
+  } catch (e) {
+    notify(t("workflow.error", { error: errText(e) }));
   }
 }
 

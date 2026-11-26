@@ -83,6 +83,28 @@
 .config__sub + .config__lead {
   margin-top: -4px;
 }
+/* What the helper model does: one short line per job, each with its icon. */
+.helper__jobs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--apx-text-sm);
+}
+.helper__job {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  text-wrap: pretty;
+}
+.helper__icon {
+  flex: none;
+  display: inline-flex;
+  padding-top: 2px;
+  color: var(--apx-fg-muted);
+}
 .config__inner > .apx-setting:first-of-type,
 .config__head + .apx-setting {
   margin-top: -8px;

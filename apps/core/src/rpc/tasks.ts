@@ -1,16 +1,19 @@
-// Tasks. Scoped agents use their thread's project and global tasks; the global super-agent may choose any project.
+// Tasks. Scoped agents use their thread's project and global tasks; the owner's own agents may reach any project's
+// (DECISIONS.md#d-271), and the global super-agent may choose any project.
 // Giving a task to an agent starts its work in that agent's chat for the
 // task, and the owner's comment that @mentions its agent asks it there (its answer comes back as a comment) and anyone
 // else in a consult shown on the task as a card (task-work.ts). A task an agent creates from a chat about a task is its
-// subtask; an agent answering another one gives nobody work (DECISIONS.md#d-079).
+// subtask; an agent answering another one gives nobody work (DECISIONS.md#d-079), unless it works for the owner.
 import { type Author, SUPER_AGENT_ID, type Task, type TaskAsked } from "@apx/protocol";
 import { planSteps } from "@apx/protocol/task-plan";
+import { ownerAgentOf } from "../domain/owner-work.ts";
 import { worksIn } from "../domain/projects.ts";
 import { publicRun } from "../domain/runs.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
 import { ownerWordsOf } from "../domain/task-asked.ts";
 import { noticeTaskProposed, noticeTaskWaiting } from "../domain/task-attention.ts";
+import { manualTaskWait } from "../domain/task-input-wait.ts";
 import {
   boardScope,
   checkAssignee,
@@ -20,6 +23,7 @@ import {
   columnsOf,
   dueOf,
   personOf,
+  reaches,
   tagsOf,
   taskDepth,
   taskProject,
@@ -30,6 +34,7 @@ import { agentTrip, trip } from "../engine/breaker.ts";
 import type { Engine } from "../engine/engine.ts";
 import { ownerMentionProblem } from "../engine/office.ts";
 import { assignmentProposalReason } from "../engine/task-assignment.ts";
+import { withFiles } from "../engine/task-files.ts";
 import { checkSelfHandoff, runLineage } from "../engine/task-handoff.ts";
 import { awaitAgent } from "../engine/task-inbox.ts";
 import { reportClose } from "../engine/task-report.ts";
@@ -58,7 +63,7 @@ export function taskHandlers(
   beforeDelete?: (ids: string[]) => Promise<void>,
 ) {
   const assets = taskAssets(store, home);
-  const agentScope = (ctx: CallContext) => boardScope(store, ctx.agent);
+  const agentScope = (ctx: CallContext) => boardScope(store, ctx.agent, ctx);
   const by = (ctx: CallContext) => ctx.agent?.id ?? "owner";
   /** Who is asking for work: the owner, or an agent one hop further than the turn it calls from. */
   const askerOf = (ctx: CallContext): Asker =>
@@ -107,6 +112,8 @@ export function taskHandlers(
     return undefined;
   };
   const refuseHandOn = (ctx: CallContext) => {
+    // The owner's agent helping a teammate may still open the work it finds; its answer says so (DECISIONS.md#d-271).
+    if (ownerAgentOf(store, ctx)) return;
     const caller = answering(ctx);
     if (caller)
       throw badRequest(
@@ -206,7 +213,10 @@ export function taskHandlers(
     "tasks.list": ({ project, state, assignee, commitments, person, limit, exhaustive, after }, ctx) => {
       if (after && !exhaustive) throw badRequest("after requires exhaustive listing");
       const scope = agentScope(ctx);
-      const projects = scope ? [scope.project, undefined] : project ? [project] : undefined;
+      const named = scope?.owner && project !== undefined && project !== scope.project ? project : undefined;
+      if (named && !reaches(store, scope, named))
+        throw unauthorized("that project is being moved: its tasks are out of reach until the move ends");
+      const projects = named ? [named] : scope ? [scope.project, undefined] : project ? [project] : undefined;
       const found = store.tasks.list({
         projects,
         state: state ?? "open",
@@ -229,13 +239,11 @@ export function taskHandlers(
     "tasks.get": ({ task }, ctx) => {
       const scope = agentScope(ctx);
       const found = store.tasks.get(task);
-      if (!found || (scope && found.project_id && found.project_id !== scope.project))
-        throw notFound("task unavailable");
+      if (!found || !reaches(store, scope, found.project_id)) throw notFound("task unavailable");
       const t = found;
       const owner = ctx.actor === "human" && !ctx.agent && !ctx.client && !ctx.channel;
       const readable = (thread: { id: string; project_id?: string | undefined }) =>
-        (owner || !store.threads.context(thread.id).client) &&
-        (!scope || !thread.project_id || thread.project_id === scope.project);
+        (owner || !store.threads.context(thread.id).client) && reaches(store, scope, thread.project_id);
       const sessions = store.threads.byTask(t.id).filter(readable);
       const consults = store.threads
         .children(t.thread_id)
@@ -253,7 +261,7 @@ export function taskHandlers(
       }));
       const subtasks = store.tasks
         .list({ parent: t.id, limit: 200 })
-        .filter((child) => !scope || !child.project_id || child.project_id === scope.project)
+        .filter((child) => reaches(store, scope, child.project_id))
         .reverse();
       const comments = root.length ? store.messages.list(t.thread_id, 61) : [];
       let readsAssets = false;
@@ -277,8 +285,8 @@ export function taskHandlers(
     },
     "tasks.create": (p, ctx) => {
       checkColumn(store, p.status);
-      const project = taskProject(store, ctx.agent, p);
-      checkAssignee(store, p.assignee, project);
+      const project = taskProject(store, ctx.agent, p, ctx);
+      checkAssignee(store, p.assignee, project, Boolean(ctx.agent));
       // A proposal starts nothing, so even an agent answering another one may make it (for the owner to decide).
       if (p.assignee && !p.propose) refuseHandOn(ctx);
       if (project && !store.projects.get(project)) throw notFound(`project ${project}`);
@@ -346,10 +354,12 @@ export function taskHandlers(
     ) => {
       const { changed, forced, requestReview } = assets.write((attach) => {
         const cur = visible(task, ctx);
+        if (c.awaits_owner !== undefined) c.awaits_owner = manualTaskWait(store, cur, c.awaits_owner);
         const sources = assets.prepare(attachments, ctx);
         checkColumn(store, c.status);
-        // An agent keeps its tasks in its own project; the owner can move one anywhere (null = global).
-        if (project !== undefined && agentScope(ctx))
+        // The owner, and their own agents, move a task anywhere they reach (null = global); other agents keep it.
+        const scope = agentScope(ctx);
+        if (project !== undefined && scope && !(scope.owner && reaches(store, scope, project ?? undefined)))
           throw unauthorized("an agent cannot move a task to another project");
         if (project && !store.projects.get(project)) throw notFound(`project ${project}`);
         const moving = project !== undefined && (project ?? undefined) !== cur.project_id;
@@ -359,7 +369,7 @@ export function taskHandlers(
         // Hand-off depth counts parents, so an agent may regroup but never make a task shallower.
         if (ctx.agent && taskDepth(store, taskParent) < taskDepth(store, cur.parent_id))
           throw unauthorized("parent: an agent cannot move a task higher up; the owner can");
-        checkAssignee(store, c.assignee, target);
+        checkAssignee(store, c.assignee, target, Boolean(ctx.agent));
         const checker = reviewerOf(reviewer, target);
         if (c.proposed === false && agentScope(ctx)) throw unauthorized("only the owner accepts a proposed task");
         const accepting = Boolean(cur.proposed) && c.proposed === false;
@@ -405,20 +415,21 @@ export function taskHandlers(
         const acceptingReview = accepting && (c.status ?? cur.status) === "review";
         // An agent naming the task's own agent again while none of its chats for the task works has it go on; the
         // owner's edits send every field, so they never restart it (DECISIONS.md#d-210).
+        const ownerReleased =
+          ctx.actor === "human" &&
+          !ctx.agent &&
+          !ctx.client &&
+          !ctx.channel &&
+          cur.awaits_owner &&
+          c.awaits_owner === false;
         const resuming =
-          Boolean(ctx.agent) &&
-          c.assignee !== undefined &&
-          c.assignee === cur.assignee &&
+          (ownerReleased || (Boolean(ctx.agent) && c.assignee !== undefined && c.assignee === cur.assignee)) &&
+          Boolean(cur.assignee) &&
           cur.state === "open" &&
           !cur.proposed &&
           (c.status ?? cur.status) !== "review" &&
           !(c.awaits_owner ?? cur.awaits_owner) &&
-          !store.threads.busy(
-            store.threads
-              .byTask(cur.id)
-              .filter((t) => t.agent_ids[0] === cur.assignee)
-              .map((t) => t.id),
-          );
+          !store.threads.busy(store.threads.byTask(cur.id).flatMap((t) => store.threads.family(t.id)));
         const starting =
           !forced &&
           !unassign &&
@@ -484,7 +495,8 @@ export function taskHandlers(
               }
             : undefined,
         ) as Task;
-        if (updated.assignee && starting)
+        const released = updated.awaits_owner ? 0 : engine.releaseTaskInputs(updated.id);
+        if (updated.assignee && starting && !released)
           startTaskWork(store, engine.admit, updated, updated.assignee, askerOf(ctx), { transfer: true });
         return {
           changed: updated,
@@ -551,7 +563,7 @@ export function taskHandlers(
       removeThreadFiles(home, files);
       return { deleted: t.id };
     },
-    "tasks.comment": ({ task, text }, ctx) => {
+    "tasks.comment": ({ task, text, attachments }, ctx) => {
       const t = visible(task, ctx);
       const why = ctx.agent ? ownerMentionProblem(store, text) : undefined;
       if (why)
@@ -559,11 +571,18 @@ export function taskHandlers(
           `not posted: ${why}. Mention @owner only with one specific question or decision and what they need to know; to stop waiting for them, use task_update awaits_owner:false.`,
         );
       const author: Author = ctx.agent ? { kind: "agent", id: ctx.agent.id } : { kind: "user" };
-      return store.tx(() => {
+      const sources = assets.prepare(attachments, ctx);
+      return assets.write((_, share) => {
         store.tasks.heard(t.id, ownerWords(ctx, t.thread_id));
-        const message = addComment(store, t, author, text, by(ctx));
+        const ownerReply = ctx.actor === "human" && !ctx.agent && !ctx.client && !ctx.channel;
+        const message = withFiles(
+          store,
+          addComment(store, t, author, text, by(ctx), ownerReply),
+          share(t, sources, by(ctx)),
+        );
         // An agent's @mentions are consults whose answers come back to it (DECISIONS.md#d-132).
         const current = store.tasks.get(t.id) ?? t;
+        if (!current.awaits_owner) engine.releaseTaskInputs(current.id);
         const runs = ctx.agent
           ? consultFromAgent(store, engine.admit, current, ctx.agent, text)
           : askMentioned(store, engine.admit, current, text);

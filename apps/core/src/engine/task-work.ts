@@ -21,6 +21,7 @@ import type { AdmitFn } from "./engine.ts";
 import { mentioned, mentionsOwner, taskCommentAttention } from "./office.ts";
 import { outcomeOf } from "./run-outcome.ts";
 import { continueTask } from "./task-continue.ts";
+import { type ShareOnTask, showTurnFiles, withFilesNote } from "./task-files.ts";
 import { checkSelfHandoff, markHandoff, runLineage } from "./task-handoff.ts";
 import { answersOwner, ownerTurnEnded } from "./task-inbox.ts";
 import { MAX_HANDOFF_DEPTH, MAX_REVIEW_ROUNDS } from "./task-limits.ts";
@@ -576,6 +577,7 @@ function afterConsult(
     review?: boolean;
     asker?: { agent: string; thread: string };
   },
+  share?: ShareOnTask,
 ): void {
   const task = store.tasks.get(consulted.task);
   const answer = textOf(store, run);
@@ -592,7 +594,7 @@ function afterConsult(
   }
   if (!task) return;
   store.tasks.touched(task.id, run.agent_id, "update");
-  if (consulted.asker) answerAsker(store, admit, task, run, answer, consulted.asker);
+  if (consulted.asker) answerAsker(store, admit, task, run, answer, consulted.asker, share);
   if (run.state !== "completed" || !answer) return;
   // A consult answers and stops: whoever it @mentions is not asked (DECISIONS.md#d-074).
   taskCommentAttention(store, task, answer, run.agent_id);
@@ -607,6 +609,7 @@ function answerAsker(
   run: RunRecord,
   answer: string,
   from: { agent: string; thread: string },
+  share?: ShareOnTask,
 ): void {
   const askerId = from.agent;
   const current = store.tasks.get(task.id) ?? task;
@@ -616,9 +619,17 @@ function answerAsker(
   const thread = asked && !asked.archived && !ownerLine(asked) ? asked : sessionFor(store, current, askerId);
   if (trip(store, thread.id) || agentTrip(store, thread.id, askerId)) return;
   const name = store.agents.get(run.agent_id)?.name ?? run.agent_id;
+  let delivered = answer.slice(0, 4000);
+  if (run.state === "completed" && answer) {
+    try {
+      delivered = withFilesNote(store, run, delivered, share && ((sources) => share(task, sources, run.agent_id)));
+    } catch {
+      delivered += "\n\nThe files could not be kept on the task; their delivery is incomplete.";
+    }
+  }
   const text =
     run.state === "completed" && answer
-      ? `${name} answered your question on task ${task.id}:\n${answer.slice(0, 4000)}\n\nGo on with the task.`
+      ? `${name} answered your question on task ${task.id}:\n${delivered}\n\nGo on with the task.`
       : `${name} could not answer your question on task ${task.id} (${run.error ?? run.state}). Go on without it.`;
   const asker: Asker = { kind: "agent", id: run.agent_id, name, thread_id: run.thread_id, run_id: run.id, depth: 1 };
   ask(store, admit, current, askerId, text, asker, { kind: "agent", id: run.agent_id }, thread, [
@@ -736,11 +747,18 @@ function textOf(store: Store, run: RunRecord): string {
 }
 
 /** A comment on the task, by the owner or an agent: the task moved, and an @owner asks for the owner's attention. */
-export function addComment(store: Store, task: Task, author: Author, text: string, by: string) {
+export function addComment(
+  store: Store,
+  task: Task,
+  author: Author,
+  text: string,
+  by: string,
+  ownerReply = by === "owner",
+) {
   const message = store.messages.add({ thread_id: task.thread_id, author, parts: [{ type: "text", text }] });
   if (author.kind === "agent") store.threads.join(task.thread_id, author.id);
   store.threads.patch(task.thread_id, { preview: previewOf(text) });
-  taskCommentAttention(store, task, text, by);
+  taskCommentAttention(store, task, text, by, ownerReply);
   store.tasks.touched(task.id, by);
   return message;
 }
@@ -750,11 +768,11 @@ export function addComment(store: Store, task: Task, author: Author, text: strin
  * a close reports to the creator), answers the owner, or asks the owner (@owner). Anything else stays in the chat:
  * agents comment on the task on purpose, with task_comment.
  */
-export function afterWorkTurn(store: Store, admit: AdmitFn, run: RunRecord): void {
+export function afterWorkTurn(store: Store, admit: AdmitFn, run: RunRecord, share?: ShareOnTask): void {
   const thread = store.threads.get(run.thread_id);
   const consulted = thread?.kind === "a2a" ? store.threads.context(thread.id).consult : undefined;
   if (consulted) {
-    afterConsult(store, admit, run, consulted);
+    afterConsult(store, admit, run, consulted, share);
     return;
   }
   const task = thread?.task_id ? store.tasks.get(thread.task_id) : undefined;
@@ -764,7 +782,13 @@ export function afterWorkTurn(store: Store, admit: AdmitFn, run: RunRecord): voi
   const owners = ownerTurnEnded(store, task, run);
   const closed = closedIn(store, store.tasks.get(task.id) ?? task, run);
   if (text && (closed || owners || mentionsOwner(store, text)))
-    addComment(store, task, { kind: "agent", id: run.agent_id }, text, run.agent_id);
+    showTurnFiles(
+      store,
+      task,
+      run,
+      addComment(store, task, { kind: "agent", id: run.agent_id }, text, run.agent_id),
+      share,
+    );
   // Closed in this turn: whoever created the task hears now, with the answer just posted as its report.
   if (closed) reportClose(store, admit, task.id);
   else continueTask(store, admit, run);

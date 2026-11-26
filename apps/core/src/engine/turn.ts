@@ -15,6 +15,7 @@ import {
 } from "@apx/protocol";
 import { readOrganization } from "../apc/org.ts";
 import type { AgentRecord } from "../domain/agents.ts";
+import { isConsult } from "../domain/contact-consult.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
 import { ownerIdentity, ownerTimeZone } from "../domain/owner.ts";
 import { panelMode } from "../domain/panel-mode.ts";
@@ -24,6 +25,7 @@ import { failureOf } from "../domain/run-failure.ts";
 import { inChrome, type RunRecord, runsOnComputer } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf, type Worker, worksInFolder } from "../domain/threads.ts";
+import type { WorkflowAsk } from "../domain/workflow-plan.ts";
 import { computerBriefing, HOME_COMPUTER } from "../environments/briefing.ts";
 import { AGENT_WORKSPACE } from "../environments/worker.ts";
 import { CallError, Canceled, DeadlineExceeded, errorMessage, Shutdown, Superseded } from "../errors.ts";
@@ -149,6 +151,8 @@ export type TurnDeps = {
   /** How the agent acts and how far its files reach: every permission question goes here. */
   permissions: Permissions;
   delegate(caller: Caller, to: DelegateTo, task: string, waitMs: number, signal?: AbortSignal): Promise<string>;
+  /** Starts a workflow (or resumes one) from this turn and waits up to `waitMs` for its result (DECISIONS.md#d-273). */
+  workflow?(caller: Caller, w: WorkflowAsk, waitMs: number, signal?: AbortSignal): Promise<string>;
 };
 
 export type ToolCall = <M extends MethodName>(
@@ -349,6 +353,12 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     // Harnesses and delegations see the agent as it acts here (its project's and callers' mode), never its bare record.
     delegate: (to, task, waitMs, signal) =>
       deps.delegate({ run, agent: policy.agent, display }, to, task, waitMs, signal),
+    ...(deps.workflow
+      ? {
+          workflow: (w: WorkflowAsk, waitMs: number, signal?: AbortSignal) =>
+            deps.workflow?.({ run, agent: policy.agent, display }, w, waitMs, signal) ?? Promise.resolve(""),
+        }
+      : {}),
   });
   const system = () =>
     thread.engine
@@ -385,6 +395,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     },
     execute: exec.execute,
     approve: exec.approve,
+    refusal: exec.refusal,
     observe: exec.observe,
     showImage: (file) => showImage(deps, { thread, run, display, owner: audience.kind === "owner" }, file),
     takeSteered: () => {
@@ -518,8 +529,10 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
         ? HOME_COMPUTER
         : undefined;
   // A worker delegates to no one: it needs no roster.
+  // Nor does the super-agent answering a contact's agent: the team is not that contact's business.
   const rosterChanged =
     !sealed &&
+    !isConsult(thread) &&
     !turn.worker &&
     (!step || step.delegate) &&
     (ctxState.roster_hash !== roster.hash || ctxState.roster_agent !== agent.id);
@@ -540,7 +553,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
         ctxState,
         from,
         // A chat working a task is about that task, like a helper's turn: no standing global notes.
-        turn.input.origin.kind === "agent" || Boolean(thread.task_id),
+        isConsult(thread) ? "project" : turn.input.origin.kind === "agent" || Boolean(thread.task_id),
       )
     : {};
   const chats = remembers
@@ -756,11 +769,16 @@ function systemFor(
       ]),
     };
   }
-  const role = turn.agent.kind === "secretary" ? profileBlock(store, roots) : "";
+  // Answering a contact's agent, the super-agent works from the project alone: none of its own profile, personality,
+  // instructions or place in the team, nor what the owner wrote about themselves (DECISIONS.md#d-269).
+  const consult = isConsult(turn.thread);
+  const agent = consult ? { ...turn.agent, personality: undefined, prompt: "" } : turn.agent;
+  const role = turn.agent.kind === "secretary" && !consult ? profileBlock(store, roots) : "";
   const project = projectBrief(store, projectId);
-  const owner = ownerIdentity(store);
+  const identity = ownerIdentity(store);
+  const owner = consult ? { ...identity, about: "" } : identity;
   const text = systemPrompt(
-    turn.agent,
+    agent,
     turn.thread,
     lang,
     project,
@@ -772,15 +790,15 @@ function systemFor(
     computerOff,
     channelsOn(store),
     told,
-    placeOf(store, turn.agent),
-    panelMode(store) === "simple",
+    consult ? "" : placeOf(store, turn.agent),
+    panelMode(store) === "simple" && !consult,
   );
   return {
     text,
     parts: systemParts(text, [
       ["profile", role],
-      ["personality", turn.agent.personality],
-      ["instructions", turn.agent.prompt],
+      ["personality", agent.personality],
+      ["instructions", agent.prompt],
       ["owner", owner.about],
       ["agents_md", project?.context && agentsMdOf(project)],
       ["org", project?.org ? orgText(project.org) : undefined],
@@ -807,14 +825,15 @@ function enginePick(deps: TurnDeps, turn: Turn, start: RunRecord, history: ChatI
   // The chat's own model (picked in its composer) first, then the agent's, then the install default. The agent's own
   // fallbacks back whichever model the chat runs on (DECISIONS.md#d-195).
   const chatChoice = deps.store.threads.context(turn.thread.id).model_choice;
+  const own = turn.thread.engine;
+  // The session is the engine, not the agent that opened it: never the agent's model (DECISIONS.md#d-274).
+  if (own) {
+    const ref = chatChoice?.model && engineOf(chatChoice.model) === own ? chatChoice.model : own;
+    return { harness: harnessOf(ref), refs: [ref] };
+  }
   const fallbacks = chatChoice?.fallbacks ?? turn.agent.model_choice?.fallbacks;
   const picked = chatChoice ?? turn.agent.model_choice;
   const chosen = picked && fallbacks ? { ...picked, fallbacks } : picked;
-  const own = turn.thread.engine;
-  if (own) {
-    const ref = chosen?.model && engineOf(chosen.model) === own ? chosen.model : own;
-    return { harness: harnessOf(ref), refs: [ref] };
-  }
   const settings = modelSettings(deps.store);
   const refs = candidates(chosen ?? settings.defaultChoice(), settings.router(), {
     text: turn.input.text,

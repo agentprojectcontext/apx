@@ -1,5 +1,5 @@
 import type { Result } from "@apx/protocol";
-import { Button, EmptyState, Icons, MarkdownView, SegmentedControl, Skeleton } from "@apx/ui";
+import { Button, EmptyState, IconButton, Icons, MarkdownView, SegmentedControl, Skeleton } from "@apx/ui";
 import { Suspense, useEffect, useState } from "react";
 import { useMarkdownLabels } from "../../common/useMarkdownLabels.ts";
 import { client } from "../../data/client.ts";
@@ -83,10 +83,12 @@ export function TextView({ where, path }: { where: FileWhere; path: string }) {
             label={t("files.mode")}
             value={mode}
             onValueChange={(v) => setMode(v as Mode)}
+            className="files__modes"
+            // A narrow panel shows only the icons; the names stay for screen readers.
             options={[
-              { value: "view", label: t("files.mode.view") },
-              { value: "source", label: t("files.mode.source") },
-              { value: "split", label: t("files.mode.split") },
+              { value: "view", icon: <Icons.Eye size={14} />, label: <span>{t("files.mode.view")}</span> },
+              { value: "source", icon: <Icons.Code size={14} />, label: <span>{t("files.mode.source")}</span> },
+              { value: "split", icon: <Icons.Columns2 size={14} />, label: <span>{t("files.mode.split")}</span> },
             ]}
           />
         )}
@@ -106,11 +108,7 @@ export function TextView({ where, path }: { where: FileWhere; path: string }) {
             </Button>
           </>
         ) : (
-          canEdit && (
-            <Button size="sm" variant="ghost" leadingIcon={<Icons.Pencil size={14} />} onClick={edit}>
-              {t("files.edit")}
-            </Button>
-          )
+          canEdit && <IconButton size="sm" label={t("files.edit")} icon={<Icons.Pencil size={14} />} onClick={edit} />
         )}
       </FileHead>
       {error ? (

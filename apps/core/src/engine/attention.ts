@@ -6,6 +6,7 @@ import { type CoreEvent, noticeText, type Part } from "@apx/protocol";
 import type { Bus } from "../bus.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
+import { engineLabel } from "../harness/labels.ts";
 import { audienceOf } from "./audience.ts";
 import { tree } from "./breaker.ts";
 import { droppedWords } from "./owner-words.ts";
@@ -60,12 +61,15 @@ export function createAttention(deps: { store: Store; bus: Bus; now?: () => Date
           ? origin.name
           : origin?.kind === "delegation_results"
             ? origin.results.map((r) => r.name).join(", ")
-            : undefined;
+            : origin?.kind === "workflow_result"
+              ? origin.name
+              : undefined;
       store.notifications.add({
         kind: "run",
         // A turn that ended without a word or an action is not a finished one: the owner should look.
         level: failed ? "error" : silent(store, run) ? "warn" : "info",
-        title: store.agents.get(run.agent_id)?.name ?? now.title,
+        // An engine session speaks as its engine, never as the agent that opened it (DECISIONS.md#d-274).
+        title: now.engine ? engineLabel(store, now.engine) : (store.agents.get(run.agent_id)?.name ?? now.title),
         body: previewOf(
           failed ? (run.error ?? now.preview) : dropped && from ? droppedWords(store, from) : now.preview,
         ),
@@ -114,7 +118,7 @@ export function createAttention(deps: { store: Store; bus: Bus; now?: () => Date
       store.notifications.add({
         kind: "input",
         level: "warn",
-        title: agent?.name ?? thread.title,
+        title: thread.engine ? engineLabel(store, thread.engine) : (agent?.name ?? thread.title),
         body: previewOf([e.part.prompt, e.part.detail].filter(Boolean).join(" — ")),
         thread_id: thread.id,
         ref: e.part.input_id,

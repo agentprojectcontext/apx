@@ -8,6 +8,9 @@ import call1 from "../assets/welcome/call-1.jpg";
 import call2 from "../assets/welcome/call-2.jpg";
 import call3 from "../assets/welcome/call-3.jpg";
 import call4 from "../assets/welcome/call-4.jpg";
+import engine1 from "../assets/welcome/engine-1.jpg";
+import folder1 from "../assets/welcome/folder-1.jpg";
+import free1 from "../assets/welcome/free-1.jpg";
 import group1 from "../assets/welcome/group-1.jpg";
 import group2 from "../assets/welcome/group-2.jpg";
 import group3 from "../assets/welcome/group-3.jpg";
@@ -23,6 +26,7 @@ import slide7 from "../assets/welcome/slide-7.jpg";
 import slide8 from "../assets/welcome/slide-8.jpg";
 import slide9 from "../assets/welcome/slide-9.jpg";
 import slide10 from "../assets/welcome/slide-10.jpg";
+import workflow1 from "../assets/welcome/workflow-1.jpg";
 import { closeCard, useClosedCards } from "../data/cornerCards.ts";
 import { useSetup } from "../data/setup.ts";
 import { useLanguage, useT } from "../i18n/index.ts";
@@ -35,6 +39,10 @@ import { type SlideKey, seenBefore, slidesToShow, type WelcomeSlide } from "./we
 // still stays in its place.
 const clip = (lang: "es" | "en", key: string) => `https://apxagent.app/media/whats-new/${lang}/${key}.mp4`;
 const POSTERS: Record<SlideKey, string> = {
+  "free-agents": free1,
+  workflows: workflow1,
+  "engine-sessions": engine1,
+  "agent-folder": folder1,
   marketplace: market1,
   "contact-booking": booking1,
   "apx-account": account1,

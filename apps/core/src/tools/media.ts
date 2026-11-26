@@ -17,7 +17,7 @@ export function mediaTools(store: Store, home: string, vm?: { hasThread(id: stri
     defineTool({
       name: "send_file",
       description:
-        "Attach a file you can read to your reply in this chat, when the owner asks to see or download it here: images show inline, videos play, other files download. Path relative to your work folder, absolute, or a med_ id from a readable owner's chat or task; 20 MB at most per file. Call once per file; a website link is no substitute.",
+        "Attach a file you can read to your reply in this chat, when the owner asks to see or download it here or you hand them one to review (the final version, before asking): images show inline, videos play, other files download. Path relative to your work folder, absolute, or a med_ id from a readable owner's chat or task; 20 MB at most per file. Call once per file; a website link is no substitute.",
       args: z.object({ path: z.string().trim().min(1).max(1000) }),
       // Only to this chat, the owner's: contacts and rooms never get it (CONTACT_TOOLS).
       effect: "local",

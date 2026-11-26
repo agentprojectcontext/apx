@@ -4,6 +4,7 @@ import { migrationContext } from "./agent-migration-context.ts";
 import { suspendMigrationGrants } from "./agent-migration-grants.ts";
 import { agentMigrationInventory } from "./agent-migration-inventory.ts";
 import { type MigrationBackup, migrationRevision, migrationSnapshot } from "./agent-migration-snapshot.ts";
+import { revokeContactProjectReading } from "./contact-project-permission.ts";
 import { projectProtectionRepo } from "./project-protection.ts";
 import { newId, now, qb, type Sql } from "./sql.ts";
 
@@ -26,6 +27,7 @@ export function commitAgentMigration(q: Sql, inventory: Inventory, id = newId("m
     const threads = new Set(live.threads);
     const tasks = new Set(live.tasks);
     const selected = migrationSnapshot(q, live);
+    revokeContactProjectReading(q, live.agent);
     q.run(qb.updateTable("agents").set({ project_id: live.destination, parent: null }).where("id", "=", live.agent));
     for (const a of selected.agents)
       if (a.id !== live.agent) q.run(qb.updateTable("agents").set({ parent: null }).where("id", "=", a.id));

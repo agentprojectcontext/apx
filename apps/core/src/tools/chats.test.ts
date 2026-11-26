@@ -85,7 +85,7 @@ test("a global specialist finds another agent's owner conversation by participan
   );
 });
 
-test("a project specialist can ask the global agent to retrieve context through A2A", async () => {
+test("a project specialist finds the owner's Home chat itself, and can still ask the global agent", async () => {
   env.core.store.projects.upsert({ id: "team", name: "Team" });
   env.core.store.agents.upsert({
     id: "team-editor",
@@ -97,11 +97,17 @@ test("a project specialist can ask the global agent to retrieve context through 
     source: "local",
     prompt: "",
   });
-  const chat = env.core.store.threads.create({ kind: "loose", title: "Team review", agent_ids: ["team-editor"] });
+  const chat = env.core.store.threads.create({
+    kind: "loose",
+    title: "Team review",
+    project_id: "team",
+    agent_ids: ["team-editor"],
+  });
   await env.client.call("threads.send", { thread: chat.id, text: "find participant" });
+  // Working for the owner, a project's agent reads the owner's chats elsewhere, and says where (DECISIONS.md#d-271).
   assert.match(
     (await env.settle(chat.id)).messages.at(-1)?.parts.find((p) => p.type === "text")?.text ?? "",
-    /delegate/,
+    /\[Errands · chat [^\]]+ · Home\] .*dentist appointment/,
   );
   await env.client.call("threads.send", { thread: chat.id, text: "ask colleague" });
   const done = await env.settle(chat.id);
@@ -116,9 +122,22 @@ test("a project specialist can ask the global agent to retrieve context through 
   assert.equal(env.core.store.threads.sessions(chat.id)[0]?.agent_ids[0], "superagent");
 });
 
-test("search scopes before ranking limits and excludes external clients, rooms and other projects", async () => {
+test("search scopes before ranking limits and excludes external clients, rooms, contacts and protected projects", async () => {
   const store = env.core.store;
+  store.projects.upsert({ id: "vault", name: "Vault" });
+  store.projectProtection.protect("move_search", "vault");
   const review = store.threads.create({ kind: "loose", title: "Search review", agent_ids: ["editor"] });
+  const teamChat = store.threads.create({
+    kind: "loose",
+    title: "Team owner chat",
+    project_id: "team",
+    agent_ids: ["team-editor"],
+  });
+  store.messages.add({
+    thread_id: teamChat.id,
+    author: { kind: "user" },
+    parts: [{ type: "text", text: "uniquecontext evidence" }],
+  });
   const visible = store.threads.create({ kind: "loose", title: "Older owner chat", agent_ids: ["superagent"] });
   store.threads.arrange(visible.id, { archived: true });
   store.messages.add({
@@ -130,8 +149,8 @@ test("search scopes before ranking limits and excludes external clients, rooms a
     const hidden = store.threads.create({
       kind: "loose",
       title: `Private ${i}`,
-      project_id: "team",
-      agent_ids: ["team-editor"],
+      project_id: "vault",
+      agent_ids: ["superagent"],
     });
     store.messages.add({
       thread_id: hidden.id,
@@ -143,7 +162,14 @@ test("search scopes before ranking limits and excludes external clients, rooms a
   store.threads.mergeContext(client.id, { client: "external" });
   const room = store.threads.create({ kind: "loose", title: "Room", agent_ids: ["superagent"] });
   store.threads.mergeContext(room.id, { room: { name: "Room" } });
-  for (const t of [client, room]) {
+  const person = store.persons.create({ name: "Alex Acme", role: "contact" });
+  const contact = store.threads.create({
+    kind: "loose",
+    title: "Contact Alex",
+    agent_ids: ["superagent"],
+    channel: { id: "ch_test", conversation: "alex", person_id: person.id },
+  });
+  for (const t of [client, room, contact]) {
     store.messages.add({
       thread_id: t.id,
       author: { kind: "user" },
@@ -157,7 +183,30 @@ test("search scopes before ranking limits and excludes external clients, rooms a
   const done = await env.settle(review.id);
   const result = done.messages.at(-1)?.parts.find((p) => p.type === "text")?.text ?? "";
   assert.match(result, /Older owner chat/);
+  assert.match(result, /\[Team owner chat · chat [^\]]+ · project Team\]/);
   assert.doesNotMatch(result, /Private \d|External client|\[Contact|\[Room/);
+  store.projectProtection.restore("move_search");
+});
+
+test("a turn for an outside app keeps the narrow rule: no other project's chat", async () => {
+  const store = env.core.store;
+  const elsewhere = store.threads.create({
+    kind: "loose",
+    title: "Team plan",
+    project_id: "team",
+    agent_ids: ["team-editor"],
+  });
+  store.messages.add({ thread_id: elsewhere.id, author: { kind: "user" }, parts: [{ type: "text", text: "plan" }] });
+  const owners = store.threads.create({ kind: "loose", title: "Owner asks", agent_ids: ["editor"] });
+  await env.client.call("threads.send", { thread: owners.id, text: `read:${elsewhere.id}` });
+  assert.match(
+    texts((await env.settle(owners.id)).messages).at(-1) ?? "",
+    /<chat title="Team plan"[^>]*place="project Team"/,
+  );
+  const outside = store.threads.create({ kind: "loose", title: "Outside app chat", agent_ids: ["editor"] });
+  store.threads.mergeContext(outside.id, { client: "external" });
+  await env.client.call("threads.send", { thread: outside.id, text: `read:${elsewhere.id}` });
+  assert.match(texts((await env.settle(outside.id)).messages).at(-1) ?? "", /no chat named/);
 });
 
 test("participants retrieve their delegation by session name and by both participant names", async () => {
@@ -256,7 +305,7 @@ test("a longer participant name does not also require an unrelated agent with it
   assert.match(texts(done.messages).at(-1) ?? "", /Team delegated findings/);
 });
 
-test("search finds what an agent did in its own runs, by tool and arguments, and only in chats it can read", async () => {
+test("search finds what an agent did in its runs, by tool and arguments, and only in chats it can read", async () => {
   const store = env.core.store;
   const step = (threadId: string, agentId: string, postId: string) => {
     const run = store.runs.create({
@@ -277,6 +326,7 @@ test("search finds what an agent did in its own runs, by tool and arguments, and
   };
   const routine = store.threads.create({ kind: "loose", title: "Board check", agent_ids: ["superagent"] });
   step(routine.id, "superagent", "post-4f1a");
+  store.projectProtection.protect("move_board", "team");
   const hidden = store.threads.create({
     kind: "loose",
     title: "Team board check",
@@ -285,7 +335,7 @@ test("search finds what an agent did in its own runs, by tool and arguments, and
   });
   step(hidden.id, "team-editor", "post-9c2b");
 
-  // A global specialist, not the secretary: it must not see the project team's chat.
+  // A global specialist, not the secretary: a protected project's chat stays out of its reach.
   const chat = store.threads.create({ kind: "loose", title: "Board audit", agent_ids: ["editor"] });
   await env.client.call("threads.send", { thread: chat.id, text: "search:create_comment post" });
   const text = (await env.settle(chat.id)).messages.at(-1)?.parts.find((p) => p.type === "text")?.text ?? "";
@@ -294,6 +344,7 @@ test("search finds what an agent did in its own runs, by tool and arguments, and
     /Tool calls:\n- \[Board check · chat [^\]]+\] .* Roby called mcp_board_create_comment .*post-4f1a.* → Comment added/,
   );
   assert.doesNotMatch(text, /post-9c2b/);
+  store.projectProtection.restore("move_board");
 });
 
 test("read_chat expands an old message beyond the latest page and honors forgotten evidence", async () => {
@@ -387,4 +438,30 @@ test("search reaches this chat's own earlier steps outside the model's view, wit
     await isolated.core.close();
     await isolated.cleanup();
   }
+});
+
+test("another project's chat read from here still hides what the owner had forgotten there", async () => {
+  const store = env.core.store;
+  const { project } = await env.client.call("projects.create", { name: "Northwind" });
+  const there = store.threads.create({ kind: "loose", title: "Vendor notes", project_id: project.id, agent_ids: [] });
+  const fact = "The Northwind vendor code is teal seven.";
+  const said = (text: string) =>
+    store.messages.add({ thread_id: there.id, author: { kind: "user" }, parts: [{ type: "text", text }] }).id;
+  const forgotten = said(fact);
+  said("The vendor meeting moved to Monday.");
+  const note = store.memories.add({
+    scope: "project",
+    project_id: project.id,
+    source: "agent",
+    text: fact,
+    evidence: [{ message_id: forgotten, quote: fact }],
+  });
+  await env.client.call("memory.remove", { id: note.id });
+  const here = store.threads.create({ kind: "loose", title: "Vendor check", agent_ids: ["editor"] });
+  await env.client.call("threads.send", { thread: here.id, text: `read:${there.id}` });
+  const read = texts((await env.settle(here.id)).messages).at(-1) ?? "";
+  assert.match(read, /vendor meeting moved to Monday/);
+  assert.doesNotMatch(read, /teal seven/);
+  await env.client.call("threads.send", { thread: here.id, text: "search:vendor code teal" });
+  assert.doesNotMatch(texts((await env.settle(here.id)).messages).at(-1) ?? "", /teal seven/);
 });

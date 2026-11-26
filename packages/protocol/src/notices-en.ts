@@ -1,4 +1,29 @@
 export const noticeEn = {
+  "notice.continuation.scheduled": "Scheduled",
+  "notice.continuation.waiting": "Waiting",
+  "notice.continuation.started": "In progress",
+  "notice.continuation.completed": "Completed",
+  "notice.continuation.canceled": "Canceled",
+  "notice.continuation.expired": "The wait expired",
+  "notice.continuation.blocked": "Couldn't continue",
+  "notice.continuation.failed": "The check stopped",
+  "notice.continuation.at": "{date} at {time}",
+  "notice.continuation.whenTask": "When “{when}” is completed",
+  "notice.continuation.until": "Until {date} at {time}",
+  "notice.continuation.expiredDetail": "It didn't start before the deadline.",
+  "notice.continuation.expiredEvent": "“{when}” didn't finish before the deadline.",
+  "notice.continuation.expiredEventUnknown": "The task didn't finish before the deadline.",
+  "notice.continuation.accessDetail": "Access changed. Ask again if you still want this check.",
+  "notice.continuation.blockedDetail": "I couldn't start this check. Ask again if you still want it.",
+  "notice.continuation.unavailableDetail": "The agent couldn't start this check. Ask again when it is available.",
+  "notice.continuation.taskDetail": "I couldn't confirm completion. Choose an available task and ask again.",
+  "notice.continuation.failedDetail":
+    "The check couldn't finish. See its result here. It won't be retried automatically.",
+  "notice.continuation.alreadyStarted": "It already started.",
+  "notice.continuation.cancel": "Cancel",
+  "notice.continuation.cancelLabel": "Cancel: {purpose}",
+  "notice.continuation.cancelError": "Couldn't cancel. Try again.",
+  "notice.continuation.view": "View run",
   "notice.run.stepLimit":
     "Ran out of steps for this turn: this is a report of what is done and left, not a final answer.",
   "notice.run.noModel": "No model available: none of the models could answer (out of quota, signed out or down).",
@@ -40,9 +65,9 @@ export const noticeEn = {
   "notice.breaker.release": "Let them finish this round",
   "notice.breaker.wentOn": "Agents went on",
   "notice.delegation.limit.continuedSteps":
-    "{who} ran out of steps on “{task}” and is making progress; APX had it go on in session {session}. So far: {sofar}",
+    "{who} hit the step limit on “{task}” and keeps going in the same conversation, since it is making progress. So far: {sofar}",
   "notice.delegation.limit.continuedTime":
-    "{who} ran out of time on “{task}” and is making progress; APX had it go on in session {session}. So far: {sofar}",
+    "{who} hit the time limit on “{task}” and keeps going in the same conversation, since it is making progress. So far: {sofar}",
   "notice.delegation.limit.stoppedSteps":
     "{who} ran out of steps on “{task}” and its last part made no progress, so APX did not go on by itself. Continue if it should. So far: {sofar}",
   "notice.delegation.limit.stoppedTime":

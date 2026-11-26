@@ -7,7 +7,7 @@ import { after, before, test } from "node:test";
 import { type BrowserFillSecret, SCOPE_METHODS, siteAllowed } from "@apx/protocol";
 import { ApxClient, type ApxSocket } from "@apx/protocol/client";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
-import { waitFor } from "../testkit/platform.ts";
+import { filesUnder, waitFor } from "../testkit/platform.ts";
 import { totp } from "../totp.ts";
 
 const PASSWORD = "Northwind-hunter2-correct";
@@ -54,15 +54,7 @@ after(async () => {
 
 /** Every file the core keeps, except the test's file store of secret values, holds none of these. */
 function assertNowhere(...values: string[]) {
-  const files: string[] = [];
-  const walk = (dir: string) => {
-    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-      const at = path.join(dir, e.name);
-      if (e.isDirectory()) walk(at);
-      else if (e.name !== "secrets.json") files.push(at);
-    }
-  };
-  walk(env.home);
+  const files = filesUnder(env.home).filter((f) => path.basename(f) !== "secrets.json");
   for (const v of values) {
     for (const f of files) assert.ok(!fs.readFileSync(f).includes(v), `${path.basename(f)} holds a secret's value`);
     assert.ok(!JSON.stringify(llm.calls).includes(v), "a model call carried a secret's value");
@@ -119,7 +111,9 @@ test("on a site nobody marked, the owner is asked in the app: once covers one fi
     const card = await waitFor(async () => (await env.client.call("runs.pending", { thread: t1 })).inputs[0]);
     assert.equal(env.core.store.inputs.get(card.id)?.app_only, true);
     assert.match(card.prompt ?? "", /ACME_PASSWORD/);
-    assert.match(card.prompt ?? "", /https:\/\/partner\.acme\.com/);
+    assert.match(card.prompt ?? "", /partner\.acme\.com/);
+    // A sign-in card has no free text: a password typed there would reach the agent.
+    assert.equal(env.core.store.inputs.get(card.id)?.tool, "browser_sign_in");
     assert.equal(fills.length, before, "nothing reaches the browser before the owner answers");
     await env.client.call("runs.respond", { input: card.id, text: "Una vez" });
     await env.settle(t1);

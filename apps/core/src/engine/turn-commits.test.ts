@@ -31,23 +31,28 @@ test("a plain chat turn commits to the store a bounded number of times", async (
   const env = await startCore({ llm: scriptedLlm(async () => say("Done.")) });
   try {
     const thread = (await env.client.call("threads.create", { kind: "agent", agent_id: "superagent" })).id;
-    // The first turn of a chat writes what later turns only read (its roster): it is not the steady cost.
-    await env.client.call("threads.send", { thread, text: "first" });
-    await env.settle(thread);
+    // A snapshot before warmup keeps its later frames from being fully checkpointed during measurement.
     const side = new DatabaseSync(path.join(env.home, "apx.db"));
+    side.exec("PRAGMA busy_timeout = 5000; BEGIN");
+    side.prepare("SELECT count(*) FROM sqlite_master").get();
     try {
-      side.exec("PRAGMA busy_timeout = 5000");
-      const checkpoint = side.prepare("PRAGMA wal_checkpoint(TRUNCATE)").get();
-      assert.equal(checkpoint?.busy, 0, "the measurement starts with a truncated log");
-      // Pin a reader: checkpointing must not recycle the log generation being counted.
-      side.exec("BEGIN; SELECT name FROM sqlite_schema LIMIT 1");
+      // The first turn writes what later turns only read (its roster): it is not the steady cost.
+      await env.client.call("threads.send", { thread, text: "first" });
+      await env.settle(thread);
       const before = walCommits(env.home);
+      assert.ok(before.salt, "the first turn must establish a WAL generation");
       for (let i = 0; i < TURNS; i++) {
         await env.client.call("threads.send", { thread, text: `turn ${i}` });
         await env.settle(thread);
+        const checkpoint = new DatabaseSync(path.join(env.home, "apx.db"));
+        try {
+          checkpoint.exec("PRAGMA wal_checkpoint(PASSIVE)");
+        } finally {
+          checkpoint.close();
+        }
       }
       const after = walCommits(env.home);
-      assert.ok(!before.salt || before.salt === after.salt, "the log was checkpointed while turns were counted");
+      assert.equal(after.salt, before.salt, "the WAL generation changed while its reader was open");
       const perTurn = (after.commits - before.commits) / TURNS;
       assert.ok(perTurn > 0, "no commits seen: the log is not where the store writes");
       assert.ok(
@@ -55,6 +60,7 @@ test("a plain chat turn commits to the store a bounded number of times", async (
         `a turn commits ${perTurn} times, more than ${MAX_COMMITS_PER_TURN}: group the new writes in one store.tx`,
       );
     } finally {
+      side.exec("ROLLBACK");
       side.close();
     }
   } finally {

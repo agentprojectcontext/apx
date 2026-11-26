@@ -13,6 +13,7 @@ import type { RuntimeHomes } from "../skills/runtimes.ts";
 import type { Tool } from "../tools/types.ts";
 import { agentTrip, trip } from "./breaker.ts";
 import { frameInput } from "./context.ts";
+import { continuationCanStart } from "./continuations.ts";
 import { createDelegations } from "./delegation.ts";
 import type { Display } from "./display.ts";
 import { createFanout, deliverResults } from "./fanout.ts";
@@ -29,8 +30,9 @@ import { roomHandoff } from "./room-handoff.ts";
 import { droppedResult } from "./run-outcome.ts";
 import type { SkillPicker } from "./skill-pick.ts";
 import { ownerTaskAssignment } from "./task-assignment.ts";
-import { OWNER_ADDS, runTurn, type ToolCall } from "./turn.ts";
+import { OWNER_ADDS, runTurn, type ToolCall, type TurnDeps } from "./turn.ts";
 import { askedIn, editInLine, lineOf, removeFromLine, reorderLine } from "./waiting.ts";
+import { createWorkflows } from "./workflows.ts";
 
 /**
  * A turn on our own loop ends after this long without progress (a token, a tool's result): a long browser or
@@ -222,6 +224,7 @@ export function createEngine(deps: {
   a2aCapMs?: number;
   /** Timer source for run deadlines, independent of transports and background work. */
   runTimers?: RunTimers;
+  officeClock?: (() => Date) | undefined;
   /** Timer source for how long answers of teammates asked together wait for each other (tests drive it). */
   fanoutTimers?: RunTimers;
   /** Whether the Mac slept since a moment (engine/awake.ts): a turn it cut short gets one more window. */
@@ -287,6 +290,18 @@ export function createEngine(deps: {
     windowMs: (threadId) => runLimit(store, threadId, "a2a", deps).ms,
     deliver: (parent, child, stopped) => fanout.arrive(parent, child, stopped),
     steer: steerResult,
+    home: deps.home,
+    workflowEnded: (run) => workflows.stepEnded(run),
+  });
+
+  const workflows = createWorkflows({
+    store,
+    open: (from, req, task, wf) => delegations.open(from, req, task, wf),
+    kick,
+    cancel: (threadId) => cancel(threadId),
+    admit: (a) => admit(a),
+    live,
+    timers: deps.runTimers ?? wallRunTimers,
   });
 
   const fanout = createFanout({
@@ -390,6 +405,12 @@ export function createEngine(deps: {
   }
 
   async function execute(run: RunRecord): Promise<void> {
+    if (!continuationCanStart(store, run, deps.officeClock?.() ?? new Date())) {
+      const done = store.runs.setState(run, "failed", "The follow-up expired or its access changed before execution");
+      ended(done);
+      deps.afterRun?.(done);
+      return;
+    }
     // Before any await: from here its message is no longer in line, and edits to it are refused.
     const asked = askedIn(run);
     if (asked && store.messages.get(asked)?.waiting) {
@@ -442,8 +463,13 @@ export function createEngine(deps: {
       };
       // Waiting on a delegate at work is the turn at work too.
       const delegate: typeof delegations.delegate = (...a) => delegations.delegate(...a).finally(clock.busy());
+      const workflow: TurnDeps["workflow"] = (caller, w, waitMs, signal) =>
+        (w.resume !== undefined
+          ? workflows.resume(w.resume, caller, waitMs, signal)
+          : workflows.start(caller, w.plan, waitMs, signal)
+        ).finally(clock.busy());
       const done = await runTurn(
-        { ...deps, inputs, jobs, takeSteered, stepSignal, delegate, alive: clock.touch, busy: clock.busy },
+        { ...deps, inputs, jobs, takeSteered, stepSignal, delegate, workflow, alive: clock.touch, busy: clock.busy },
         run,
         ac.signal,
       );
@@ -630,6 +656,7 @@ export function createEngine(deps: {
   /** Cancels the thread's queued and running turns and, recursively, its sub-threads'. */
   function cancel(threadId: string): number {
     fanout.drop(threadId);
+    workflows.stopIn(threadId);
     let n = 0;
     for (const id of store.runs.queuedIds(threadId)) {
       const r = store.runs.get(id);
@@ -680,7 +707,9 @@ export function createEngine(deps: {
     /** The owner's answer to something an agent asked (runs.respond). */
     respond: inputs.respond,
     pending: inputs.pending,
+    releaseTaskInputs: inputs.releaseTask,
     jobs,
+    workflows,
     /** Stops only the turn in progress for the owner's new message; queued inputs and what it delegated still run. */
     interrupt: (threadId: string) => stopRunning(threadId, new Superseded()),
     /** Resolves when the run ends, or after `timeoutMs` with the run as it is then. */
@@ -735,11 +764,14 @@ export function createEngine(deps: {
       for (const threadId of store.runs.queuedThreads()) kick(threadId);
       // After the resumed delegations are admitted, so they hold their slots first.
       for (const threadId of store.runs.heldParents()) delegations.release(threadId);
+      // Once cut steps closed and interrupted ones resumed, workflows take what ended and start what may.
+      workflows.restore();
     },
     /** Shutdown: stops every running turn (left open, so the next boot resumes it) and waits for them to finish writing. */
     async stop(): Promise<void> {
       stopping = true;
       fanout.stop();
+      workflows.close();
       for (const a of active.values()) a.ac.abort(new Shutdown());
       await Promise.allSettled([...running, jobs.stopAll()]);
     },

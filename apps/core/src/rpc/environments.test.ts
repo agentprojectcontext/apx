@@ -50,6 +50,7 @@ const KEPT = [
   "task_update",
   "web_read",
   "web_search",
+  "workflow",
 ];
 
 test("the computer is off by default over HTTP and WS; agent clients cannot acquire a screen", async () => {

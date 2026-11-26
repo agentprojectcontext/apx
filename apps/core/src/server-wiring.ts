@@ -23,6 +23,7 @@ import type { Computer } from "./environments/computer.ts";
 import { errorMessage } from "./errors.ts";
 import { createCatalog, shippedCatalog } from "./extensions/catalog.ts";
 import { createCatalogs } from "./extensions/catalogs.ts";
+import type { ExtensionEvents } from "./extensions/events.ts";
 import { createExtensions } from "./extensions/extensions.ts";
 import { createPlugins } from "./extensions/plugins.ts";
 import { acpAgents, acpEngine } from "./harness/acp/agents.ts";
@@ -52,12 +53,14 @@ import { composerHandlers } from "./rpc/composer.ts";
 import { computerHandlers } from "./rpc/computer.ts";
 import { contactSourceHandlers } from "./rpc/contact-sources.ts";
 import type { CallContext } from "./rpc/context.ts";
+import { continuationHandlers } from "./rpc/continuations.ts";
 import { desktopInstallHandlers } from "./rpc/desktop-install.ts";
 import { deviceHandlers } from "./rpc/devices.ts";
 import { discoveryHandlers } from "./rpc/discovery.ts";
 import { emailSignatureHandlers } from "./rpc/email-signatures.ts";
 import { embeddingHandlers } from "./rpc/embeddings.ts";
 import { environmentHandlers } from "./rpc/environments.ts";
+import { extensionEventHandlers } from "./rpc/extension-events.ts";
 import { extensionHandlers } from "./rpc/extensions.ts";
 import { fileHandlers } from "./rpc/files.ts";
 import { flowHandlers } from "./rpc/flows.ts";
@@ -84,6 +87,7 @@ import { runHandlers } from "./rpc/runs.ts";
 import { sessionHandlers } from "./rpc/sessions.ts";
 import { setupHandlers } from "./rpc/setup.ts";
 import { prepareHandlers } from "./rpc/setup-prepare.ts";
+import { signInCardHandlers } from "./rpc/sign-in-card.ts";
 import { artifactHandlers } from "./rpc/surfaces.ts";
 import {
   newsHandlers,
@@ -100,6 +104,7 @@ import { threadAdminHandlers } from "./rpc/thread-admin.ts";
 import { threadHandlers } from "./rpc/threads.ts";
 import { transcriptionHandlers } from "./rpc/transcription.ts";
 import { webhookHandlers } from "./rpc/webhooks.ts";
+import { workflowHandlers } from "./rpc/workflows.ts";
 import type { Secrets } from "./secrets.ts";
 import type { SignIn } from "./sign-in.ts";
 import { runGit } from "./skills/import.ts";
@@ -113,6 +118,7 @@ import { chatTools } from "./tools/chats.ts";
 import { computerTools } from "./tools/computer.ts";
 import { connectionTools } from "./tools/connections.ts";
 import { contactTools } from "./tools/contact.ts";
+import { continuationTools } from "./tools/continuations.ts";
 import { directoryTools } from "./tools/directory.ts";
 import { externalSessionTools } from "./tools/external-sessions.ts";
 import { fileTools } from "./tools/files.ts";
@@ -124,6 +130,7 @@ import { messageTools } from "./tools/message.ts";
 import { ownerTools } from "./tools/owner.ts";
 import { phoneTools } from "./tools/phone.ts";
 import { planTools } from "./tools/plan.ts";
+import { planUsageTools } from "./tools/plan-usage.ts";
 import { requestTools } from "./tools/requests.ts";
 import { routineTools } from "./tools/routines.ts";
 import { settingsTools } from "./tools/settings.ts";
@@ -135,6 +142,7 @@ import type { Tool } from "./tools/types.ts";
 import { videoTools } from "./tools/video.ts";
 import { vmTools } from "./tools/vm.ts";
 import { webTools } from "./tools/web.ts";
+import { workflowTool } from "./tools/workflow.ts";
 import { type Gate, originsFor } from "./transport/guard.ts";
 import { httpHandler } from "./transport/http.ts";
 import { attachVmDisplay } from "./transport/vm-display.ts";
@@ -235,6 +243,7 @@ export function builtinTools(
 ): Tool[] {
   const tools = [
     ...agentTools(store),
+    workflowTool(store),
     ...agentSetTools(store),
     ...chatTools(store),
     ...externalSessionTools(store),
@@ -248,6 +257,7 @@ export function builtinTools(
     ...messageTools(store, home),
     ...directoryTools(store),
     ...routineTools(store),
+    ...continuationTools(),
     ...limitTools(store),
     ...skillTools(store, { home, apps: skillApps }),
     ...memoryTools(store),
@@ -256,6 +266,7 @@ export function builtinTools(
     ...computerTools(store),
     ...taskTools(store, home),
     ...planTools(),
+    ...planUsageTools(),
     ...videoTools(findProgram("yt-dlp")),
     ...webTools(),
     ...contactTools(store),
@@ -294,11 +305,13 @@ type HandlerDeps = {
   channels: Parameters<typeof channelHandlers>[1];
   services: Parameters<typeof mediaHandlers>[0];
   scheduler: Parameters<typeof routineHandlers>[1];
+  clock?: (() => Date) | undefined;
   flows: Parameters<typeof flowHandlers>[1];
   /** Which model references a Flow's model step may name. */
   flowModel: Parameters<typeof flowHandlers>[3];
   nudges: Parameters<typeof noticeHandlers>[1];
   extensions: Parameters<typeof extensionHandlers>[0];
+  extensionEvents: ExtensionEvents;
   mcp: Parameters<typeof extensionHandlers>[1] & Parameters<typeof mcpHandlers>[0];
   /** The owner's Google account (Calendar, Gmail). */
   google: Google;
@@ -409,7 +422,9 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...threadHandlers(d.store, d.engine, d.upkeep, d.aside, d.groups, (ref) => refProblem(ref, d.engines, undefined)),
     ...threadAdminHandlers(d.store, d.app.home, d.vm?.beforeDelete),
     ...runHandlers(d.store, d.engine, d.publications),
+    ...signInCardHandlers({ store: d.store, secrets: d.secrets, signIn: d.signIn, respond: d.engine.respond }),
     ...jobHandlers(d.store, d.engine),
+    ...workflowHandlers(d.store, d.engine),
     ...memoryHandlers(d.store, d.memory, d.memoryMaintenance),
     ...channelsH,
     ...contactSourceHandlers(d.store),
@@ -435,6 +450,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     }),
     ...taskHandlers(d.store, d.engine, d.app.home, d.vm?.beforeDelete),
     ...routineHandlers(d.store, d.scheduler, d.profileRoots),
+    ...continuationHandlers(d.store, d.clock),
     ...flowHandlers(d.store, d.flows, d.publicCredentials, d.flowModel, d.bus),
     ...noticeHandlers(d.store, d.nudges),
     ...notificationHandlers(d.store),
@@ -445,6 +461,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...phoneHandlers(d.broker, d.store, d.app.home),
     ...computerHandlers(d.broker, d.store, d.app.home, d.engine, (thread) => Boolean(d.vm?.hasThread(thread)), d.bus),
     ...extensionHandlers(d.extensions, d.mcp, d.bus, d.store),
+    ...extensionEventHandlers(d.extensionEvents),
     // Native integrations share the project switches of global servers, without starting an MCP.
     ...mcpHandlers(d.mcp, d.store, (name) =>
       name === "asana" ? d.asana.connected() : isGoogleId(name) && d.google.connected(name),

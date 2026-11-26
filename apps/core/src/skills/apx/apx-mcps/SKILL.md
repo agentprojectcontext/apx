@@ -18,7 +18,7 @@ never reaches you:
 | The owner wants | Command |
 |---|---|
 | It for all their agents (the usual case; it may use variables) | `apx mcps add <name> …` |
-| It only inside one project, saved in the repo (`.apc/mcps.json`) | `apx mcps add <name> --project <project-id> …` |
+| It only inside one project, saved in the repo (`.apx/mcps.json`) | `apx mcps add <name> --project <project-id> …` |
 
 An owner's private server can be limited to a project without writing its configuration into the repo:
 
@@ -117,7 +117,7 @@ apx mcps copy <name> <new-name> --env ACCOUNT=secret://OTHER_KEY   # a second on
 apx mcps rm <name>
 ```
 
-A server that comes with an extension is changed in that extension, not here. A project's `.apc/mcps.json` written
+A server that comes with an extension is changed in that extension, not here. A project's `.apx/mcps.json` written
 by someone else needs the owner's approval before it runs: that approval is theirs, in
 [Resources › MCP](apx:resources/mcp), never yours.
 

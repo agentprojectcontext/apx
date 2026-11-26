@@ -1,6 +1,7 @@
 import type { Result, Task, Thread } from "@apx/protocol";
-import { AgentAvatar, Icons, Skeleton, Spinner, Tooltip } from "@apx/ui";
+import { AgentAvatar, EngineIcon, Icons, Skeleton, Spinner, Tooltip } from "@apx/ui";
 import { formatNumber, shortWhen } from "../common/format.ts";
+import { useEngineLabels } from "../common/useEngineLabel.ts";
 import { blobOf, isWorking } from "../data/identity.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { useTasks } from "../data/tasks.ts";
@@ -22,6 +23,7 @@ export function TaskWork({
   consults?: Thread[] | undefined;
 }) {
   const t = useT();
+  const engineLabel = useEngineLabels();
   const agents = useShownAgents();
   const live = useData((s) => s.threads);
   if (!sessions) return <Skeleton width={180} />;
@@ -33,7 +35,8 @@ export function TaskWork({
       {all.map((s) => {
         const chat = live[s.id] ?? s;
         const agent = agents[s.agent_ids[0] ?? ""];
-        const name = agent?.name ?? s.agent_ids[0] ?? "";
+        // An engine session is the engine's (Claude Code, Codex), not the agent's that opened it.
+        const name = s.engine ? engineLabel(s.engine) : (agent?.name ?? s.agent_ids[0] ?? "");
         const consult = s.kind === "a2a";
         return (
           <Tooltip key={s.id} content={t(consult ? "tasks.work.openConsult" : "tasks.work.open", { name })}>
@@ -42,7 +45,11 @@ export function TaskWork({
               className="taskwork__chat"
               onClick={() => (consult ? go.subthread(s.id) : go.thread(s.id))}
             >
-              <AgentAvatar name={name} blob={blobOf(agent)} size={18} animated={false} />
+              {s.engine ? (
+                <EngineIcon engine={s.engine} tile size={18} />
+              ) : (
+                <AgentAvatar name={name} blob={blobOf(agent)} size={18} animated={false} />
+              )}
               <span className="taskwork__name">{name}</span>
               {consult && <span className="taskwork__kind">{t("tasks.work.consult")}</span>}
               <span className="taskwork__state">

@@ -1,16 +1,22 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
+import { waitFor } from "../testkit/platform.ts";
 import { pickUpTasks, startTaskWork } from "./task-work.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
 let env: Awaited<ReturnType<typeof startCore>>;
 let waitingTask = "";
+/** A chat whose consults an outside app opened: its agents answer for that app, not for the owner. */
+let outsideChat = "";
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(String(req.messages.at(-1)?.content));
   if (said.includes("request completion"))
     return callTool("consult", "delegate", { agent: "vera", task: "Complete pending specification" });
-  if (said.includes("Complete pending specification"))
+  if (said.includes("Complete pending specification")) {
+    for (const id of outsideChat ? env.core.store.threads.children(outsideChat) : [])
+      env.core.store.threads.mergeContext(id, { client: "external" });
     return callTool("fill", "task_update", { task: waitingTask, description: "Write the implementation plan." });
+  }
   return say("Work complete.");
 });
 before(async () => {
@@ -93,18 +99,36 @@ test("completing a closed or unassigned waiting task does not start work", async
   assert.deepEqual(sessions(pending.id), []);
 });
 
-test("an agent answering another agent cannot start waiting work by completing its description", async () => {
+test("an agent answering in an outside app's chat cannot start waiting work by completing its description", async () => {
   const t = await env.client.call("tasks.create", { title: "Waiting for specification", assignee: "superagent" });
   waitingTask = t.id;
   const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
+  outsideChat = chat.id;
   await env.client.call("threads.send", { thread: chat.id, text: "request completion" });
   await env.settle(chat.id);
+  outsideChat = "";
   assert.equal(env.core.store.tasks.get(t.id)?.description, "", "refused before persisting the specification");
   assert.deepEqual(sessions(t.id), []);
   const refusal = llm.calls
     .flatMap((c) => c.messages)
     .find((m) => m.role === "tool" && String(m.content).includes("so you start no task work"));
   assert.ok(refusal, "completing a description respects the same hand-off restriction as assigning");
+  await env.client.call("tasks.close", { task: t.id, state: "dropped" });
+});
+
+test("the owner's agent answering a teammate may complete a waiting task's description, and its work starts", async () => {
+  const t = await env.client.call("tasks.create", {
+    title: "Waiting for the owner's specification",
+    assignee: "superagent",
+  });
+  waitingTask = t.id;
+  const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
+  await env.client.call("threads.send", { thread: chat.id, text: "request completion" });
+  await env.settle(chat.id);
+  assert.equal(env.core.store.tasks.get(t.id)?.description, "Write the implementation plan.");
+  await waitFor(() => sessions(t.id).length > 0, "the task's work chat");
+  await finish(t.id);
+  assert.equal(runs(t.id).length, 1);
   await env.client.call("tasks.close", { task: t.id, state: "dropped" });
 });
 

@@ -169,7 +169,9 @@ test("the answer to a question asked from the owner's chat goes to the asker's c
   assert.match(JSON.stringify(heard?.parts), /animation first/);
 });
 
-test("a teammate an agent asked on a task starts no task work: the agent that asked assigns it", async () => {
+test("a teammate an agent asked on a task may open the task it was asked for, and tells who asked", async () => {
+  // Between the owner's agents a helper opening work is recorded, not refused (DECISIONS.md#d-271); the refusal for an
+  // outside app's chat is covered in tasks.test.ts.
   const store = env.core.store;
   const task = await env.client.call("tasks.create", {
     title: "Recount",
@@ -179,15 +181,13 @@ test("a teammate an agent asked on a task starts no task work: the agent that as
   await waitFor(() => store.threads.sessions(task.thread_id).length > 0, "a consult on the task");
   const [consult] = store.threads.sessions(task.thread_id);
   await env.settle(consult?.id ?? "");
-  const refused = store.messages
+  const opened = store.tasks.list({ limit: 500 }).find((t) => t.title === "Recount the totals");
+  assert.ok(opened, "the task asked for is opened");
+  const told = store.messages
     .list(consult?.id ?? "", 50)
     .map((m) => JSON.stringify(m.parts))
-    .find((t) => t.includes("you are answering"));
-  assert.match(refused ?? "", /answering Vera/, "the refusal names the agent that asked, which assigns it");
-  assert.ok(
-    !store.tasks.list({ limit: 500 }).some((t) => t.title === "Recount the totals"),
-    "no task handed out from the answer",
-  );
+    .find((t) => t.includes("Say in your answer that you opened"));
+  assert.match(told ?? "", new RegExp(opened.id), "the helper is told to say which task it opened");
 });
 
 const consultsOf = (threadId: string) =>

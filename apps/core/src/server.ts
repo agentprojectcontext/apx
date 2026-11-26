@@ -68,6 +68,7 @@ import { type ComputerConfig, createComputer } from "./environments/computer.ts"
 import { managedVmConfig } from "./environments/managed.ts";
 import { computerWatchdog } from "./environments/watchdog.ts";
 import { errorMessage } from "./errors.ts";
+import { createExtensionEvents } from "./extensions/events.ts";
 import { flowHttpPolicy } from "./flow-http.ts";
 import { notifyDestination } from "./flow-outward.ts";
 import { createFlows } from "./flows.ts";
@@ -112,6 +113,7 @@ import type { OwnersChrome } from "./rpc/browser.ts";
 import { useLocalEmbedder } from "./rpc/embeddings.ts";
 import { internalCaller } from "./rpc/internal.ts";
 import { createRouter, type Dispatch } from "./rpc/router.ts";
+import { taskAssets } from "./rpc/task-assets.ts";
 import { useLocalModel } from "./rpc/transcription.ts";
 import { createSecrets } from "./secrets.ts";
 import {
@@ -146,6 +148,7 @@ import { type TelemetrySink, telemetrySink } from "./telemetry-sink.ts";
 import { createTerminals } from "./terminal/terminals.ts";
 import { asanaTools } from "./tools/asana.ts";
 import { bookingTools } from "./tools/contact-booking.ts";
+import { projectReadingTools } from "./tools/contact-project-reading.ts";
 import { scratchRoot } from "./tools/folders.ts";
 import { googleTools } from "./tools/google.ts";
 import { imessageTools } from "./tools/imessage.ts";
@@ -321,6 +324,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       providers: providers.active,
       secrets,
       firstByteMs: config.llmTimeoutMs,
+      ...(config.llmRetryMs ? { retryDelayMs: config.llmRetryMs } : {}),
       media: (id) => mediaData(store, id),
       signIns,
     });
@@ -331,6 +335,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     llm,
     onDetected: ({ codex }) => codexSeen?.(codex),
     home: config.home,
+    stepPatienceMs: config.stepPatienceMs,
     mcpProxy: () => ({
       command: process.execPath,
       args: [TERMINAL_MAIN, "mcp", "--run"],
@@ -359,6 +364,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const apc = createApcSync({
     store,
     log,
+    home: config.home,
     engines: { has: (id) => engineIds.harness.has(id) || providers.has(id) },
     read: opts.projectRead ?? projectReader?.read,
     ...(opts.runTimers ? { timers: opts.runTimers } : {}),
@@ -471,6 +477,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       ...imessageTools(imessage),
       ...googleTools(google),
       ...bookingTools(store, google),
+      ...projectReadingTools(store, google),
       ...asanaTools(asana, store),
       ...(opts.extraTools ?? []),
     ],
@@ -671,6 +678,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   });
   const sleep = opts.sleptSince ? undefined : sleepWatch(opts.runTimers);
   const engine = createEngine({
+    officeClock: opts.clock,
     sleptSince: opts.sleptSince ?? ((since) => sleep?.sleptSince(since) ?? false),
     vm,
     store,
@@ -703,7 +711,9 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       channels.afterRun(run);
       scheduler.afterRun(run);
       scheduler.stalls.afterRun(run);
-      afterWorkTurn(store, engine.admit, run);
+      afterWorkTurn(store, engine.admit, run, (task, sources, by) =>
+        taskAssets(store, config.home).write((_, share) => share(task, sources, by)),
+      );
       continuePlan(store, engine.admit, run);
       groups.afterRun(run);
     },
@@ -775,6 +785,13 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     models: () => upkeep.auxModels(),
     ...(opts.clock ? { now: opts.clock } : {}),
   });
+  const extensionEvents = createExtensionEvents({
+    store,
+    extensions,
+    mcp,
+    internal,
+    ...(opts.clock ? { now: opts.clock } : {}),
+  });
   const scheduler = officeScheduler({
     store,
     admit: (a) => engine.admit(a),
@@ -783,6 +800,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     openHeld: () => channels.openHeld((a) => engine.admit(a)),
     flowTick: (at) => flows.tick(at),
     checks: (remind) => [
+      { id: "extension-events", everyMs: 15000, run: () => extensionEvents.tick() },
       ...contextual.checks,
       storage.check,
       retention.check,
@@ -852,6 +870,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const dispatch = createRouter(
     coreHandlers({
       ...(opts.clock ? { clock: opts.clock } : {}),
+      extensionEvents,
       account,
       publications,
       activityReview: contextual.activityReview,
@@ -891,6 +910,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       channels,
       services,
       scheduler,
+      clock: opts.clock,
       nudges: scheduler.nudges,
       extensions,
       mcp,
@@ -1040,6 +1060,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       await widgetPages?.closeAll().catch(() => {});
       headless?.close();
       scheduler.stop();
+      await extensionEvents.close();
       await contextual.close();
       stopFlowEvents();
       await flows.close();

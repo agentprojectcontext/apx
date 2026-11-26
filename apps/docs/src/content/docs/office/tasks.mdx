@@ -65,6 +65,31 @@ single group (for example only **In progress**), with every task in it instead o
   It is asked to review at once: asking for changes sends it back to whoever did it; approving makes it yours.
 - **Closed recently**: done or dropped, newest first.
 
+### Answering a task's question
+
+A blocking question or action card opened in the assigned agent's task chat puts the task in **Waiting for you**
+automatically. Answering that card removes only its own wait. If another card or a separate manual blocker remains,
+the task still waits. Optional questions do not block it. An answer does not close the task, bypass a review, or
+approve an action that you declined. A partial answer may need a follow-up question.
+
+Once all of that task's waits are resolved, APX resumes the listening turn or queues one answer turn if the earlier
+turn ended or APX restarted. Until then it records the answer without continuing the approved call or the listening
+turn, including across a restart. Several recorded answers in the same task chat are delivered together rather
+than starting an executor for each. Repeating the same answer cannot start another turn. Clearing a separate manual wait from the task menu resumes idle assigned
+work once; it does not dismiss unanswered cards or start a second executor while work is running.
+
+A reply in the task comments acknowledges an agent's `@owner` request and reaches its agent through the task's
+comment queue. It is not approval of an action card and cannot remove a separate manual blocker or an unanswered
+card. For several independent decisions, use separate cards rather than one unstructured comment thread.
+
+Existing manual waits are kept: APX cannot safely infer which old question, permission or privacy requirement a
+free-text reply resolves. Clear that manual wait explicitly when it is resolved. Cards in unrelated chats are not
+silently linked to a task. Cards from an earlier assignment or from before the task was closed and reopened cannot
+approve actions or release the current wait; dismiss them and ask a fresh question in the current task chat.
+
+For agents: use `ask_owner` in the assigned task chat for a blocking question or action; do not also set
+`task_update awaits_owner=true` for that same card. Reserve that flag and its `why` for a separate manual blocker.
+
 ### Group existing tasks as subtasks
 
 Ask your agent to put related tasks under an existing parent task. Both
@@ -91,13 +116,31 @@ the task's copy; removing the attachment deletes that copy, not copies already s
 can inspect task attachments without gaining access to private contact chats. Sending a file outside APX remains
 a separate owner action.
 
+When an agent hands you a file on a task (a video to review, the final copy), it shows in the task's conversation
+next to what the agent asks, and it is kept with the task's attachments too. The same file is not shown or copied
+twice; a new file under a name the task already has is shown as its next version, such as `cut (v2).mp4`.
+
+In the Inbox's **Tasks** tab, **In progress** comes first, followed by **Waiting for you**, **Pending**, **Done**
+and **Dropped**. Pending includes proposals and reviews assigned to an agent; reviews waiting on you appear in
+Waiting for you. Each small heading counts the tasks in the current list (after filters, not every task ever
+created). All sections start expanded; click a heading or press Enter or Space to collapse it without indenting
+the task rows. Opening a chat from elsewhere reveals its section again. Each section shows its first ten tasks;
+**Show 10 more** below them adds the next ten. While the tasks load, the tab shows placeholder rows.
+
+Within a section, tasks keep their activity order. The sections themselves can go in another order: press and hold
+a section's title (a long press on a phone) and drag it up or down; while you hold it every section folds to its
+title, and the whole section moves with its tasks. With the keyboard, focus a title and press Alt+↑ or Alt+↓. Moving
+a section never changes its tasks' status. The order is kept in this browser, like the sidebar's.
+
 In the Inbox's **Tasks** tab each task is one row: the face of its latest chat, its title, its state (running, to
 do, done), how many chats and agents work it, and its project. Click it to open that chat; the arrow by the title
-lists the task's other chats, each with what its agent said last, and the conversation of each teammate asked on the
-task, with what they were asked; clicking one opens that conversation as the chat, and seeing it marks it
+lists the task's other chats, each with what its agent said last, and the conversation of each teammate asked from
+any of the task's chats, with what they were asked; clicking one opens that conversation as the chat, and seeing it marks it
 read. Right-click it to change its column, mark it
 waiting, close or reopen it, or archive its chats. Archiving preserves history: it does not close the task or restart
-work.
+work. External coding sessions an agent starts from a task stay inside that task, including older sessions whose
+saved parent chain identifies it. Sessions started from an unrelated chat stay in **Chats**; titles and folders
+alone do not link a session to a task.
 
 In a task's chat the task's state is a button at the top right, before the **···** menu: click it to see the task
 beside the chat (a wide chat moves aside for it), and again to hide it. Under the title, after who works the task,
@@ -114,8 +157,12 @@ task**. That chat is a normal chat listed in the Inbox: you can open it and watc
 2. Tomás's chat for the task opens with the task's words and he starts: reads the project, drafts the page.
 3. His answers stay in his chat, and how far he got shows in his plan. He comments on the task when his plan is done
    or to ask someone something. The task keeps those comments; the chat keeps the work itself (every tool call,
-   every file). When he closes the task, his last answer is posted as his report.
-4. When he needs a decision, he asks you. The task moves to **Waiting for you** until you answer.
+   every file). When he closes the task, his last answer is posted as his report, with the files he showed in it.
+   Whoever gave him the task hears which files they were and can show them to you where they asked.
+   If the files cannot be kept on the task, the answer explicitly says delivery is incomplete; it does not present
+   temporary source references as saved attachments. Files with different names or types stay distinct even if their bytes match.
+4. When he needs a decision, he asks you, with the files it is about. The task moves to **Waiting for you** until you
+   answer.
 
 </Steps>
 
@@ -147,17 +194,21 @@ Above the description, a task shows where its work must arrive and what you said
   step of its plan (counted since the last step done or since you last wrote), they pause. You see why in the chat,
   with the button to let them go on, and once in your notifications. A step done, or your message, starts the count
   over.
-- **One agent does the work, one review at the end**: the agent on a task does it itself. It asks another agent only
-  once the rest of its plan is done, usually for a review (unless you ask it for help sooner); a worker of its own
-  (a search, a log, a first look at the diff) may help it at any point. Work for someone else becomes a subtask. The reviewer reports what works, what fails and what it could not check; it never approves or
+- **One agent does the work, one review at the end**: the agent on a task does it itself, and asks for a review once
+  the rest of its plan is done. On the way it may ask a teammate for a part (a figure, a design, a check) or start a
+  worker of its own (a search, a log, a first look at the diff); the task's history records who it asked for what.
+  Work for someone else becomes a subtask. The reviewer reports what works, what fails and what it could not check; it never approves or
   blocks. The task goes back to its agent, who decides what to fix and delivers it.
 - **The agent on a task delivers it**: when the task asks to publish or deploy, that is part of the work. A step that
   can be undone (pushing a branch, a deploy) it does; a hard one (a release or tag, a payment, a production data
   migration, a message in your name) waits for you. It closes the task saying what works, what is left and how ready
   it is, from 1 to 5.
 - **Few comments**: an agent comments on a task when its plan is done, to ask you or a teammate something (an
-  `@name`), or when it answers you; at most once a turn, in short lines. Progress shows in the plan. A helper answers
-  whoever asked it, not the task.
+  `@name`), or when it answers you; one comment a turn, in short lines, and more words in the same turn join it.
+  Progress shows in the plan: a progress note lands on the step under way instead of becoming a comment, also when an
+  agent works the task from another chat (your super-agent on a teammate's result writes it there too). A helper's
+  note becomes part of its answer to whoever asked it, not a comment on the task. An `@name` reaches only agents of the
+  task's project; one of another project is asked directly with a delegation, or through your super-agent.
 - **Cleaning old tasks**: tasks from before 2.13 may hold dozens of progress comments. Your super-agent offers to
   clean them: it tells you what it would take out of each task and the one summary it would leave, and removes
   nothing until you say yes. Your own comments always stay.
@@ -190,7 +241,9 @@ answer comes back as a comment. Ask Vera from Lucía's task:
 > @Vera can you have the product photos by Thursday? This page needs them.
 
 An agent asks a teammate the same way: its `@name` in a comment opens a consult on the task, and the answer comes
-back to the agent that asked, which goes on with its work. Between
+back to the agent that asked, which goes on with its work. Files shown in that answer are kept on the task so the
+asking agent can open or show them without gaining access to the teammate's other files. If they cannot be kept
+(for example, the task already holds 50 files), the answer says delivery is incomplete. Between
 agents, the card is one closed row, in the asking agent's chat where it asked and on the task: who asked whom, what,
 how it went and how long it took. A click on the row unfolds the answer, which steps failed if some did, and **Open
 Bruno's chat**, which opens the teammate's conversation beside the chat with its steps; another click folds it. One
@@ -355,8 +408,8 @@ apx tasks done <task-id>
 Columns for `move` are `backlog`, `todo`, `doing` and `review`.
 
 <Aside type="note">
-Agents can open, move, comment on and close tasks with their own tools, so "Lucía, put that on the board for Tomás"
-works in any chat.
+Agents can open, move, comment on and close tasks with their own tools, in any of your projects, so "Lucía, put that
+on the board for Tomás" works in any chat. When the task is in another project, the agent says which.
 </Aside>
 
 ## Agent tools
@@ -366,9 +419,9 @@ works in any chat.
 - A description cut in `task_get` is read with `description_page: "0"` and then each `next_page`; if the description changes in between, the read fails and starts over.
 - `task_get` includes task fields, history, work sessions, consults, subtasks, token usage and the latest 60 conversation messages. Saved evidence (file references, change patches and consult summaries) stays with its message; it does not fetch attachment bytes or invent missing proof.
 - Detail sections are bounded for the model, with omission markers for long content and older comments. Task and conversation content is returned as data, not instructions.
-- Project agents can read their project's and global tasks, not other projects' tasks or related work. Missing and out-of-scope IDs return the same safe error. The global secretary keeps its board-wide visibility.
+- Working for you, any of your agents reads and works on tasks of every project: `task_list` and `task_create` take a `project`, and a result about a task in another project says where it is. A chat for a contact, a room or an outside app reaches only its own project's and global tasks, and there missing and out-of-scope IDs return the same safe error. A project being moved keeps its tasks to itself until the move ends.
 - `task_create`, `task_update`, `task_comment` and `task_close` create and maintain tasks; `commitment_settle` records an agreed commitment outcome.
-- `plan` keeps the agent's checklist; in a task's chat it is the task's plan.
+- `plan` keeps the agent's checklist; in a task's chat it is the task's plan. From another chat, `task_update plan` writes it.
 
 ## Next
 

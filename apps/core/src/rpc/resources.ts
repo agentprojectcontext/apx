@@ -2,6 +2,7 @@
 // servers are in rpc/mcp.ts.
 
 import path from "node:path";
+import { projectDir } from "../apc/folder.ts";
 import { lineage } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, conflict, errorMessage, notFound } from "../errors.ts";
@@ -67,7 +68,7 @@ export function resourceHandlers(deps: {
     if (target === "global") return { dir: path.join(home, "skills") };
     const repo = rootOf(project);
     if (!repo) throw badRequest("a project skill needs a project whose folder is on disk");
-    return { dir: path.join(repo, ".apc", "skills"), repo };
+    return { dir: path.join(projectDir(repo), "skills"), repo };
   };
   /** A failure reading the source (a bad zip, a clone that failed, no SKILL.md) is the caller's to fix. */
   const fromSource = async <T>(work: () => Promise<T>): Promise<T> => {
@@ -126,9 +127,11 @@ export function resourceHandlers(deps: {
       return { ok: true as const };
     },
     "secrets.reveal": ({ name, project }) => {
-      const value = deps.secrets.resolve(`secret://${project ? projectSecretName(project, name) : name}`);
+      const key = project ? projectSecretName(project, name) : name;
+      const value = deps.secrets.resolve(`secret://${key}`);
       if (value === undefined) throw notFound(`variable ${name}`);
-      return { value };
+      const login = deps.secrets.login(key);
+      return login ? { value: login.password, username: login.username } : { value };
     },
     "skills.list": ({ project }) => ({
       skills: allSkills(store, roots, project).map((s) => skillInfo(store, s, project)),

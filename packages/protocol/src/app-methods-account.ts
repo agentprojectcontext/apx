@@ -547,6 +547,7 @@ export const appAccountMethods = {
               requests: z.boolean().nullable(),
               notes: z.boolean().nullable(),
               any_hour: z.boolean().nullable(),
+              project_reading: z.boolean().nullable(),
             })
             .partial()
             .strict()

@@ -66,6 +66,36 @@ estado de al lado muestra un solo grupo (por ejemplo solo **En curso**), con tod
   nombra). Se le pide la revisión enseguida: si pide cambios, vuelve al que la hizo; si aprueba, pasa a la tuya.
 - **Cerradas hace poco**: hechas o descartadas, las más nuevas primero.
 
+### Responder una consulta de una tarea
+
+Una tarjeta de pregunta o acción que necesita tu respuesta, abierta en el chat de tarea del agente asignado, pone
+la tarea en **Te espera** automáticamente. Responder esa tarjeta quita únicamente su propia espera. Si queda otra
+tarjeta o un bloqueo manual independiente, la tarea sigue esperando. Las preguntas opcionales no la bloquean.
+Responder no cierra la tarea, no evita una revisión ni autoriza una acción que rechazaste. Una respuesta parcial
+puede necesitar otra pregunta.
+
+Cuando se resuelven todas las esperas de esa tarea, APX continúa el turno que escucha la respuesta o encola un turno
+de respuesta si el anterior terminó o APX se reinició. Hasta entonces registra la respuesta sin continuar la
+llamada aprobada ni el turno que escucha, incluso tras un reinicio. Varias respuestas registradas en el mismo chat
+de tarea llegan juntas, en vez de iniciar un ejecutor por cada una. Repetir la misma respuesta no inicia otro turno. Quitar un bloqueo manual desde el menú de la tarea
+reanuda una vez el trabajo asignado que esté inactivo; no descarta tarjetas sin responder ni inicia otro ejecutor
+si ya hay trabajo en curso.
+
+Una respuesta en los comentarios de la tarea acusa recibo de una consulta con `@owner` y llega a su agente por la
+cola de comentarios. No aprueba una tarjeta de acción ni quita un bloqueo manual independiente o una tarjeta sin
+responder. Para varias decisiones independientes, usá tarjetas separadas en vez de un hilo de comentarios sin
+correlación explícita.
+
+Las esperas manuales existentes se conservan: APX no puede inferir con seguridad qué pregunta, permiso o requisito
+de privacidad anterior resuelve una respuesta de texto libre. Quitá esa espera manual explícitamente cuando esté
+resuelta. Las tarjetas de otros chats no se vinculan silenciosamente con una tarea. Las tarjetas de una asignación
+anterior, o de antes de cerrar y reabrir la tarea, no pueden aprobar acciones ni destrabar la espera actual:
+descartalas y hacé una pregunta nueva en el chat actual de la tarea.
+
+Para agentes: usá `ask_owner` en el chat de la tarea asignada para una pregunta o acción bloqueante; no marques
+también `task_update awaits_owner=true` por esa misma tarjeta. Reservá ese indicador y su `why` para un bloqueo
+manual independiente.
+
 ### Agrupar tareas existentes como subtareas
 
 Pedile a tu agente que ponga tareas relacionadas debajo de una
@@ -93,13 +123,34 @@ Borrar el chat original no borra la copia de la tarea; quitar el adjunto borra e
 compartido. Los agentes autorizados pueden consultar los adjuntos sin obtener acceso a chats privados de contactos.
 Enviar un archivo fuera de APX sigue siendo una acción separada del dueño.
 
+Cuando un agente te entrega un archivo en una tarea (un video para revisar, el texto final), aparece en la
+conversación de la tarea junto a lo que te pregunta, y también queda entre los adjuntos de la tarea. El mismo archivo
+no se muestra ni se copia dos veces; uno nuevo con un nombre que la tarea ya tiene aparece como su siguiente versión,
+por ejemplo `cut (v2).mp4`.
+
+En la pestaña **Tareas** del Inbox, **En curso** va primero, seguida de **Te esperan**, **Pendientes**,
+**Listo** y **Descartadas**. Pendientes incluye propuestas y revisiones asignadas a un agente; las revisiones que
+te esperan a vos van en Te esperan. Cada encabezado pequeño cuenta las tareas de la lista actual (con sus filtros,
+no todas las tareas que existieron). Las secciones empiezan abiertas; hacé clic en un encabezado o usá Enter o Espacio
+para plegarlo, sin agregar sangría a las filas. Abrir un chat desde otro lugar vuelve a mostrar su sección. Cada
+sección muestra sus primeras diez tareas; **Ver 10 más**, debajo, suma las diez siguientes. Mientras las tareas cargan, la pestaña muestra
+filas de carga.
+
+Dentro de una sección, las tareas mantienen su orden de actividad. Las secciones sí pueden ir en otro orden: mantené
+presionado el título de una sección (una pulsación larga en el teléfono) y arrastralo hacia arriba o hacia abajo;
+mientras la sostenés, todas las secciones se pliegan a su título y la sección entera se mueve con sus tareas. Con el
+teclado, enfocá un título y usá Alt+↑ o Alt+↓. Mover una sección nunca cambia el estado de sus tareas. El orden se
+guarda en este navegador, como el de la barra lateral.
+
 En la pestaña **Tareas** del Inbox cada tarea es una fila: la cara de su último chat, su título, su estado (en
 curso, pendiente, listo), cuántos chats y agentes la trabajan y su proyecto. Un clic abre ese chat; la flecha junto al
 título lista los otros chats de la tarea, cada uno con lo último que dijo su agente, y la conversación de cada
-compañero al que le preguntaron en la tarea, con lo que le preguntaron; un clic abre esa conversación como el chat, y verla la
+compañero al que le preguntaron desde cualquiera de los chats de la tarea, con lo que le preguntaron; un clic abre esa conversación como el chat, y verla la
 marca como leída. Con clic derecho la cambiás de
 columna, la marcás en espera, la cerrás, la reabrís o archivás sus chats. Archivar conserva el historial: no cierra la
-tarea ni reinicia el trabajo.
+tarea ni reinicia el trabajo. Las sesiones externas de programación que un agente inicia desde una tarea quedan
+dentro de esa tarea, incluso las anteriores cuyo linaje de chats guardado permite identificarla. Las sesiones
+iniciadas desde un chat ajeno siguen en **Chats**; compartir título o carpeta no las vincula con una tarea.
 
 En el chat de una tarea, su estado es un botón arriba a la derecha, antes del menú **···**: un clic muestra la tarea
 al costado del chat (un chat ancho se corre para dejarle lugar) y otro la oculta. Debajo del título, después de quiénes
@@ -116,8 +167,12 @@ tarea**. Ese chat es uno más del Inbox: podés abrirlo y mirar, o hablar ahí c
 2. Se abre el chat de Tomás para la tarea con el texto de la tarea, y arranca: lee el proyecto, arma un borrador.
 3. Sus respuestas quedan en su chat, y hasta dónde llegó se ve en su plan. Comenta en la tarea cuando termina su plan
    o para preguntarle algo a alguien. La tarea guarda esos comentarios; el chat guarda el trabajo en sí (cada
-   herramienta, cada archivo). Cuando la cierra, su última respuesta se publica como su informe.
-4. Cuando necesita una decisión, te pregunta. La tarea pasa a **Te esperan** hasta que respondas.
+   herramienta, cada archivo). Cuando la cierra, su última respuesta se publica como su informe, con los archivos que
+   mostró. Quien le dio la tarea se entera de qué archivos eran y puede mostrártelos donde lo pidió.
+   Si no se pueden guardar en la tarea, la respuesta aclara que la entrega está incompleta; no presenta referencias
+   temporales como adjuntos guardados. Los archivos con distinto nombre o tipo siguen separados aunque tengan los mismos bytes.
+4. Cuando necesita una decisión, te pregunta, con los archivos de los que se trata. La tarea pasa a **Te esperan**
+   hasta que respondas.
 
 </Steps>
 
@@ -150,18 +205,22 @@ Arriba de la descripción, una tarea muestra adónde tiene que llegar su trabajo
   terminar un paso de su plan (contando desde el último paso hecho o desde tu último mensaje), se pausan. Ves el
   motivo en el chat, con el botón para dejarlos seguir, y una vez en tus notificaciones. Un paso hecho, o tu mensaje,
   vuelve a empezar la cuenta.
-- **Un agente hace el trabajo, una revisión al final**: el agente de una tarea la hace él mismo. Le pide algo a otro
-  agente recién cuando terminó el resto de su plan, en general una revisión (salvo que vos le pidas ayuda antes); un
-  worker propio (una búsqueda, un log, una primera mirada al diff) lo puede ayudar en cualquier momento. Lo que tiene
-  que hacer otro pasa a ser una subtarea. Quien revisa informa qué funciona, qué falla y qué no pudo probar;
+- **Un agente hace el trabajo, una revisión al final**: el agente de una tarea la hace él mismo, y pide una revisión
+  cuando terminó el resto de su plan. En el camino le puede pedir una parte a un compañero (un número, un diseño, una
+  verificación) o arrancar un worker propio (una búsqueda, un log, una primera mirada al diff); el historial de la
+  tarea registra a quién le pidió qué. Lo que tiene que hacer otro pasa a ser una subtarea. Quien revisa informa qué funciona, qué falla y qué no pudo probar;
   nunca aprueba ni bloquea. La tarea vuelve a su agente, que decide qué arreglar y la entrega.
 - **El agente de una tarea la entrega**: cuando la tarea pide publicar o desplegar, eso es parte del trabajo. Un paso
   que se puede deshacer (subir una rama, un deploy) lo hace; uno difícil (una versión o un tag, un pago, una migración
   de datos en producción, un mensaje en tu nombre) te espera. Cierra la tarea diciendo qué funciona, qué falta y qué
   tan lista está, de 1 a 5.
 - **Pocos comentarios**: un agente comenta en una tarea cuando termina su plan, para preguntarte algo a vos o a un
-  compañero (con `@nombre`), o cuando te responde; como mucho una vez por turno y en líneas cortas. El avance se ve en
-  el plan. Un ayudante le responde a quien le preguntó, no a la tarea.
+  compañero (con `@nombre`), o cuando te responde; un comentario por turno, en líneas cortas, y lo que agregue en el
+  mismo turno se suma a ese. El avance se ve en el plan: una nota de avance queda en el paso en curso en vez de ser un
+  comentario, también cuando un agente trabaja la tarea desde otro chat (tu superagente, con el resultado de un
+  compañero, lo escribe ahí también). La nota de un ayudante pasa a ser parte de su respuesta a quien le preguntó, no un
+  comentario en la tarea. Un `@nombre` llega sólo a agentes del proyecto de la tarea; a uno de otro proyecto se le
+  pregunta directo con una delegación, o a través de tu superagente.
 - **Limpiar tareas viejas**: las tareas de antes de 2.13 pueden tener decenas de comentarios de avance. Tu
   super-agente te ofrece limpiarlas: te dice qué sacaría de cada tarea y el único resumen que dejaría, y no borra nada
   hasta que le digas que sí. Tus propios comentarios quedan siempre.
@@ -196,8 +255,9 @@ para la tarea, y su respuesta vuelve como comentario. Preguntale a Vera desde la
 > @Vera ¿podés tener las fotos de producto para el jueves? Esta página las necesita.
 
 Un agente le pregunta a un compañero igual: su `@nombre` en un comentario abre una consulta en la tarea, y la
-respuesta le vuelve al agente que preguntó, que sigue con su
-trabajo. Entre
+respuesta le vuelve al agente que preguntó, que sigue con su trabajo. Los archivos mostrados en esa respuesta se
+guardan en la tarea para que quien preguntó pueda abrirlos o mostrarlos sin acceder a los demás archivos del compañero.
+Si no se pueden guardar (por ejemplo, la tarea ya tiene 50 archivos), la respuesta aclara que la entrega está incompleta. Entre
 agentes, la tarjeta es una sola fila cerrada, en el chat del agente donde preguntó y en la tarea: quién le preguntó a
 quién, qué, cómo salió y cuánto tardó. Un clic en la fila despliega la respuesta, qué pasos fallaron si alguno falló, y
 **Abrir el chat de Bruno**, que abre la conversación del compañero al lado del chat con sus pasos; otro clic la pliega. Un comentario pregunta a dos compañeros como mucho, y el que responde una consulta no puede preguntarle a
@@ -369,8 +429,9 @@ apx tasks done <id-tarea>
 Las columnas para `move` son `backlog`, `todo`, `doing` y `review`.
 
 <Aside type="note">
-Los agentes pueden abrir, mover, comentar y cerrar tareas con sus propias herramientas, así que "Lucía, poné eso en
-el tablero para Tomás" funciona en cualquier chat.
+Los agentes pueden abrir, mover, comentar y cerrar tareas con sus propias herramientas, en cualquiera de tus
+proyectos, así que "Lucía, poné eso en el tablero para Tomás" funciona en cualquier chat. Cuando la tarea está en otro
+proyecto, el agente dice en cuál.
 </Aside>
 
 ## Herramientas de agentes
@@ -380,9 +441,9 @@ el tablero para Tomás" funciona en cualquier chat.
 - Una descripción cortada en `task_get` se lee con `description_page: "0"` y luego cada `next_page`; si la descripción cambia entre páginas, la lectura falla y hay que empezar de nuevo.
 - `task_get` incluye campos, historial, sesiones de trabajo, consultas, subtareas, uso de tokens y los últimos 60 mensajes de la conversación. Las evidencias guardadas (referencias a archivos, parches y resúmenes de consultas) se conservan en su mensaje; no descarga adjuntos ni inventa pruebas faltantes.
 - Cada sección tiene un límite para el modelo, con marcas cuando se omite contenido o hay comentarios anteriores. El contenido se devuelve como datos, no como instrucciones.
-- Los agentes de proyecto pueden leer tareas de su proyecto y globales, pero no tareas ni trabajo relacionado de otros proyectos. Un ID inexistente o fuera del ámbito devuelve el mismo error seguro. La secretaria global conserva su visibilidad de todo el tablero.
+- Trabajando para vos, cualquiera de tus agentes lee y trabaja tareas de todos los proyectos: `task_list` y `task_create` aceptan un `project`, y un resultado sobre una tarea de otro proyecto dice dónde está. Un chat de un contacto, una sala o una app de afuera llega sólo a las tareas de su propio proyecto y a las globales, y ahí un ID inexistente o fuera del ámbito devuelve el mismo error seguro. Un proyecto que se está moviendo guarda sus tareas para sí hasta que termina la mudanza.
 - `task_create`, `task_update`, `task_comment` y `task_close` crean y mantienen tareas; `commitment_settle` registra el resultado acordado de un compromiso.
-- `plan` guarda la lista de pasos del agente; en el chat de una tarea es el plan de la tarea.
+- `plan` guarda la lista de pasos del agente; en el chat de una tarea es el plan de la tarea. Desde otro chat, la escribe `task_update plan`.
 
 ## Lo que sigue
 

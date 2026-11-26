@@ -160,9 +160,10 @@ test("the board is ordered from the grip, takes the full width, and both stay af
       .click();
     const drawer = page.getByRole("complementary", { name: "Chat del widget Primero" });
     await expect(drawer.frameLocator("iframe").getByText("Primero")).toBeVisible();
-    // A new session for the widget starts with its name ready in the composer.
     await drawer.getByRole("button", { name: "Nueva sesión para este widget" }).click();
-    await expect(drawer.getByRole("textbox")).toHaveValue(/Seguí editando el widget «Primero» \(nombre: board-a\)/);
+    await expect(drawer.getByRole("textbox")).toHaveValue("Seguí editando «Primero»: ");
+    await expect(drawer.getByRole("textbox")).not.toHaveValue(/board-a/);
+    await expect(drawer.locator(".ctxrefs__label")).toHaveText("Primero");
     await page.keyboard.press("Escape");
     await expect(drawer).toBeHidden();
   } finally {

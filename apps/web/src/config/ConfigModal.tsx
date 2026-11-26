@@ -15,6 +15,7 @@ import { DesktopSection } from "./DesktopSection.tsx";
 import { DevicesSection } from "./DevicesSection.tsx";
 import { EnginesSection } from "./EnginesSection.tsx";
 import { ExternalSection } from "./ExternalSection.tsx";
+import { HelperModelSection } from "./HelperModelSection.tsx";
 import { InterruptionsSection } from "./InterruptionsSection.tsx";
 import { LogsSection } from "./LogsSection.tsx";
 import { MemorySection } from "./MemorySection.tsx";
@@ -43,6 +44,7 @@ const GROUPS: { label: MessageKey; items: NavEntry[] }[] = [
       { id: "engines", label: "config.engines", icon: <Icons.Sparkles /> },
       { id: "external", label: "config.external", icon: <Icons.Terminal /> },
       { id: "router", label: "config.router", icon: <Icons.Layers /> },
+      { id: "helper-model", label: "config.helperModel", icon: <Icons.Zap /> },
       { id: "memory", label: "config.memory", icon: <Icons.Brain /> },
       { id: "voices", label: "config.voices", icon: <Icons.Mic /> },
       { id: "images", label: "config.images", icon: <Icons.Image /> },
@@ -164,6 +166,8 @@ function Body({ section }: { section: ConfigSection }) {
       return <AgentsSection />;
     case "router":
       return <RouterSection />;
+    case "helper-model":
+      return <HelperModelSection />;
     case "memory":
       return <MemorySection />;
     case "voices":

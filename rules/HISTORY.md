@@ -6,6 +6,25 @@ The long *why* behind rules the code enforces: quirks, fixes and workarounds tha
 
 ## Runtime
 
+### Attachment-note provenance
+
+**Rule:** channel ingestion records the exact suffixes it appended in the optional text Part field
+`attachment_notes`. Only the panel removes those suffixes, and only while an attachment is displayed. The raw
+`text`, stored previews and model transcript remain unchanged. The internal channel context carries the notes;
+no request parameter can assert that provenance.
+
+**Why:** an unnamed sticker appends `[sticker]` without a model trust envelope. A person may also write exactly
+`[sticker]` alongside an ordinary picture, or write that caption on a sticker (ingestion then appends a second
+identical line). The existing image MIME, filename and text cannot distinguish these cases. An optional Part
+field is necessary rather than a text heuristic: remove only the recorded suffix, never all matching lines.
+Historical bare notes without provenance remain visible because hiding them would also erase human captions;
+no migration guesses at their authorship. Missing attachments retain the text fallback. This provenance is not
+an adult-content filter: adult approval remains in the sticker catalog, not the chat renderer.
+
+**Where:** `channels/inbound-files.ts`, `channels/quiet-message.ts`, `rpc/threads.ts`, `engine/owner-relay.ts`,
+`packages/protocol/src/domain-parts.ts` and the panel's `chat/parts/mediaGroups.ts`. Existing clients may ignore
+the optional field; no new RPC method, request parameter or database schema is needed.
+
 <a id="migration-lineage"></a>
 ### A migration number does not prove an additive schema exists
 **Rule:** the canonical migration array remains append-only. A recognized discrepancy in the 101–108

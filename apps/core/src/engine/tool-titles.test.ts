@@ -34,6 +34,23 @@ test("titles follow the owner's language, Spanish by default", () => {
   assert.equal(toolTitle(store, post, { room: "#apx-help" }), "Posted in #apx-help");
 });
 
+test("follow-up card titles describe each action in the owner's language", () => {
+  const { store, tools } = setup();
+  const followup = tools.find((t) => t.name === "chat_followup");
+  assert.ok(followup);
+  const cases = [
+    ["create", "Programó una continuación", "Scheduled a follow-up"],
+    ["list", "Revisó las continuaciones", "Looked at follow-ups"],
+    ["cancel", "Canceló una continuación", "Canceled a follow-up"],
+  ] as const;
+  for (const [action, spanish] of cases) assert.equal(toolTitle(store, followup, { action }), spanish);
+  for (const language of ["es", "en"]) {
+    store.settings.set("owner_language", language);
+    for (const [action, spanish, english] of cases)
+      assert.equal(toolTitle(store, followup, { action }), language === "es" ? spanish : english);
+  }
+});
+
 test("a skill's second file reads as that file, not as loading the skill again", () => {
   const { store, tools } = setup();
   const load = tools.find((t) => t.name === "load_skill");

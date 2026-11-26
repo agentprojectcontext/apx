@@ -450,15 +450,6 @@
   gap: 3px;
   color: var(--apx-info-soft-fg);
 }
-.mkt-facts__inline {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-.mkt-facts__sub {
-  color: var(--apx-fg-muted);
-}
 @container (max-width: 560px) {
   .mkt-facts {
     grid-template-columns: minmax(0, 1fr);

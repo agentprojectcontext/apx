@@ -88,7 +88,7 @@ export const OrgRole = z.object(
     description: () => z.string().max(500).optional(),
   }),
 );
-/** A project's areas and roles: `.apc/organization.json` (v1's format), the base project's in APX's settings. */
+/** A project's areas and roles: `.apx/organization.json` (v1's format), the base project's in APX's settings. */
 export const Organization = z.object(
   schemaFields({
     areas: () => z.array(OrgArea).max(40),
@@ -99,7 +99,7 @@ export type Organization = z.infer<typeof Organization>;
 export type ProjectKind = z.infer<typeof ProjectKind>;
 
 /**
- * A safety limit, not a budget: a project's AGENTS.md (and .apc/memory.md) reach its agents whole up to this many
+ * A safety limit, not a budget: a project's AGENTS.md (and .apx/memory.md) reach its agents whole up to this many
  * UTF-16 code units. Past it, the head and tail are sent with a marker naming the lines left out.
  * The owner-facing CLI/UI notice covers AGENTS.md only; token usage depends on the content and model.
  */
@@ -112,7 +112,7 @@ export const Project = z.object(
     id: () => Id,
     name: () => z.string(),
     description: () => z.string().optional(),
-    /** "company", "software", "personal"… as the project's .apc/project.json says. */
+    /** "company", "software", "personal"… as the project's .apx/project.json says. */
     kind: () => z.string().optional(),
     /** false when the registered folder is not on disk (moved, unmounted drive). */
     present: () => z.boolean().default(true),
@@ -121,6 +121,12 @@ export const Project = z.object(
      * prompt nobody answered); `denied`, it refused. Known only to the running core.
      */
     unreadable: () => z.enum(["waiting", "denied"]).optional(),
+    /**
+     * `.apc/`, the folder earlier versions used, still holds its agents or settings because the core could not move them
+     * to `.apx/` (projects.move_folder retries). While `.apx/` does not exist the project works from `.apc/`. Known
+     * only to the running core.
+     */
+    legacy_folder: () => z.literal(true).optional(),
     /** Blob name from the design system catalog, used as the project's avatar. */
     blob: () => z.string().optional(),
     path: () => z.string().optional(),

@@ -4,11 +4,15 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Worker } from "node:worker_threads";
+import { type FolderOutcome, moveIfLegacy } from "./folder.ts";
 import { type ApcAgent, type ApcProject, isApcProject, readAgents, readProject } from "./read.ts";
 
-/** What a project folder holds: its files, nothing to read there, or a folder the system refused to open. */
+/**
+ * What a project folder holds: its files, nothing to read there, or a folder the system refused to open. `moved` says
+ * what moving its `.apc/` to `.apx/` did, when it had one (DECISIONS.md#d-275).
+ */
 export type ProjectFiles =
-  | { state: "read"; project: ApcProject; agents: ApcAgent[] }
+  | { state: "read"; project: ApcProject; agents: ApcAgent[]; moved?: FolderOutcome }
   | { state: "missing" }
   | { state: "denied" };
 
@@ -16,7 +20,10 @@ export type ReadProjectFiles = (root: string) => Promise<ProjectFiles>;
 
 const REFUSED = new Set(["EPERM", "EACCES"]);
 
-/** Reads a project folder, synchronously: on the main thread only where access was already proven. */
+/**
+ * Reads a project folder, synchronously: on the main thread only where access was already proven. A folder still
+ * holding `.apc/` has it moved to `.apx/` first, here, off the main thread at start.
+ */
 export function readProjectFiles(root: string): ProjectFiles {
   const abs = path.resolve(root);
   try {
@@ -27,7 +34,8 @@ export function readProjectFiles(root: string): ProjectFiles {
     return REFUSED.has((err as NodeJS.ErrnoException).code ?? "") ? { state: "denied" } : { state: "missing" };
   }
   if (!isApcProject(abs)) return { state: "missing" };
-  return { state: "read", project: readProject(abs), agents: readAgents(abs) };
+  const moved = moveIfLegacy(abs);
+  return { state: "read", project: readProject(abs), agents: readAgents(abs), ...(moved ? { moved } : {}) };
 }
 
 type Lane = { worker: Worker; busy: boolean };

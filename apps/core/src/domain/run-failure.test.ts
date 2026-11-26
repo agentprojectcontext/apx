@@ -16,6 +16,8 @@ test("a failed run's error reads as a kind a person understands", () => {
     ["Could not finish: acme/model-1: Our servers are currently overloaded. Please try again later.", "down"],
     ["Could not finish: acme/model-1: HTTP 503: Service Unavailable", "down"],
     ["Could not finish: acme/model-1: empty stream", "down"],
+    ["Could not finish: acme/model-1: fetch failed\n(asked again 3 times; the work so far is kept)", "network"],
+    ["Could not finish: acme/model-1: empty stream\n(asked again 3 times; the work so far is kept)", "down"],
     ["interrupted by a restart", "restart"],
     ["Could not finish: something odd", "other"],
   ];

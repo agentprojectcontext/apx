@@ -27,10 +27,24 @@ export const approvalScopes = (a: ApprovalTarget): ApprovalScope[] =>
     ? ["once", "tab", "turn"]
     : a.key === COMPUTER_GRANT
       ? ["session", "always"]
-      : ["once", "session", "always"];
+      : a.key === DELETE_GRANT
+        ? ["once", "session"]
+        : ["once", "session", "always"];
+
+/**
+ * A forced deletion (`rm -r`/`rm -f`) and nothing else that always asks: its own key, so the owner's OK for this chat
+ * covers deletions only, never `sudo` or a release; never for good, as an agent deletes only when asked (DECISIONS.md#d-266).
+ */
+export const DELETE_GRANT = "apx:delete";
+export const deleteApproval: ApprovalTarget = {
+  key: DELETE_GRANT,
+  server: "apx",
+  tool: "delete",
+  permanent: false,
+};
 
 /** The server name of APX's own tools in grants (an MCP server's is its approval id). */
-export const APX_SERVER = "apx";
+const APX_SERVER = "apx";
 
 /**
  * One of APX's own tools: one key per tool name, so the owner's "always" for an agent covers that tool's calls that

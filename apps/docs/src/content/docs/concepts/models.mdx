@@ -108,6 +108,14 @@ marked as on this computer. To stop offering a found app, remove it from the lis
 On a server with no panel, three environment variables add one OpenAI-compatible provider: `APX_LLM_BASE_URL`,
 `APX_LLM_KEY_REF` (a secret's name) and `APX_LLM_MODELS`. See [Configuration](/reference/configuration/).
 
+### A model is missing from the list
+
+Run `apx models --refresh` to ask again without waiting for the daily refresh. This does not change any saved
+agent or router model. ChatGPT's app and Codex can offer different lists: seeing a model in the app does not
+establish that your connected plan offers it through Codex. APX uses the plan's own list, not manually added IDs.
+For external Codex sessions, update the Codex CLI on the core's computer before refreshing; an older CLI can
+receive a smaller catalog. Listing a model does not by itself prove that a turn can run with it.
+
 ### Your ChatGPT plan
 
 Your ChatGPT plan can be a provider too, shown as **Codex**. Its models then run in APX's loop with APX's tools.
@@ -194,11 +202,45 @@ is used up and the agent has the router behind it, the router's chain comes last
 again before the reset, and once the main model's limit resets, the next turn goes back to it on its own. If you pick
 a different model for one chat in the composer, the agent's fallbacks still stand behind that model.
 
+If every model in the list fails for a passing reason (an empty or dropped stream, an overloaded provider, no
+connection), the turn waits and asks the whole list again, up to three more times over about a minute, inside the
+turn's time limit. The tool work already done stays in the chat. Only then does the turn end, with the reason.
+This also holds when one model failed in passing and the rest are at their usage limit: the turn asks again first,
+and only then waits for the limit to lift.
+
 Under each reply, the line with the agent's name shows which model answered and adds **Fallback** when it was not the
 agent's own. The notice above it says which model did not answer and why.
 
 Fallbacks only apply to turns that APX's own loop runs. A Claude Code, Codex or ACP session runs its own CLI with its
 own model, so the agent's fallbacks are not used there.
+
+You can also ask your super-agent to change the default, the router or one chat's model. It only saves models from an
+engine that is on and has its key or sign-in, and it never leaves the router with an empty chain; otherwise nothing
+changes.
+
+## The helper model
+
+Besides the model that answers each turn, APX keeps a **helper model** for small background jobs, so your agents don't
+spend their main model on them. Find it in **Settings › Helper model** (Memory links to it too). It:
+
+- titles chats and summarizes long ones;
+- saves what's worth remembering from each chat and tidies your agents' notes;
+- decides which emails are worth telling you about and which group messages are worth an answer;
+- describes the images and stickers people send you, when it can read images;
+- picks which agent answers in a group chat;
+- suggests reply drafts when the agent has no other model for it (an agent on Claude Code or Codex);
+- reviews activity to suggest improvements (**Activity review**);
+- stands in for an agent's model in short notices and when reading chats you import.
+
+It has three modes:
+
+- **Automatic**: the agent's own API model or, if it has none, the router's. It works, but spends your main model.
+- **Chosen**: an ordered list you pick. The first model goes first; if it doesn't answer, the next one is tried. Add up
+  to five, reorder them or remove them. A small, fast model fits best, for example a small ChatGPT model from your
+  plan with a local Ollama model as its backup. Switching to Automatic or Off keeps the list, so going back to Chosen
+  brings it back as it was.
+- **Off**: chats get no title, long ones aren't summarized, memory isn't saved on its own and emails and group messages
+  aren't checked.
 
 ## Usage
 
@@ -226,11 +268,13 @@ plan; Codex metadata still needs its separately linked local CLI account. Turnin
 hides cached results. Your explicit choice is remembered. Chat tokens, costs and context usage remain separate
 from these account limits.
 
-Ask your super-agent “Check all my plan quotas” or “How much of my Claude weekly limit have I used?” It reads every
+Ask any of your agents, including a project agent, “Check all my plan quotas” or “How much of my Claude weekly limit have I used?” It reads every
 engine detected on this computer, including those you keep out of the top bar, with the menu's source and cache (up to
 60 seconds), regardless of its own model. It can ask about all of them or filter by a provider/plan name or engine id
 (`Claude`, `Claude Auto`, `Codex`, `ChatGPT`, `Cursor`), and gets reported percentages, window durations, reset times
-and the report's check time. What the top bar shows is still your choice: the agent's read does not change it.
+and the report's check time. Agents discover `plan_usage` through `tool_search`; explicit tool restrictions still apply.
+The super-agent can also use `apx_settings` with `engines.usage`. These are requested reads, not background monitoring.
+What the top bar shows is still your choice: the agent's read does not change it.
 
 Only Claude and Codex currently provide quota windows. Other configured engines can report unsupported or unavailable
 limits. A disabled or unknown account may be absent entirely; a missing match is not zero usage. `not_available` means

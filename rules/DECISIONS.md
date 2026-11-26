@@ -255,7 +255,8 @@ than the caller's and is capped at the destination project's autonomy (D-126); a
 sub-thread, so the caller's spend limits pause it (a tripped breaker refuses creating it and every later message) and
 later messages from the caller queue past the active-delegation cap. Confirmation: `confirm: "always"`, so the owner
 approves each start on a card even in Auto; only Total or the agent's own rule for that risk skips it (D-047), and
-Plan mode refuses it. Inside the session, the engine's commands and edits follow the same policy as any session's.
+Plan mode refuses it. *Amended by [D-266](#d-266) (2026-11-23): `untrusted`, so Auto starts it without a card unless
+outside content is in the turn; Manual still asks.* Inside the session, the engine's commands and edits follow the same policy as any session's.
 
 <a id="d-024"></a>
 ## D-024 — 2026-10-02 — v2 lives in ~/.apx/v2, beside v1's files
@@ -739,6 +740,7 @@ notes, where the owner let that person's chat read them).
 
 <a id="d-060"></a>
 ## D-060 — 2026-10-10 — The super-agent runs the team with `agent_set`; the owner approves each change
+*Models part reversed by [D-268](#d-268) (2026-11-23): the super-agent sets models and voice at the owner's word.*
 v1 had nine tools to manage agents (create, import, configure, rename, remove, set a prompt, set identity…), offered
 to every agent. v2 has one, `agent_set`, and only the super-agent gets it (policy.ts filters it out for every other
 agent, whatever its `tools:` list says): with only `agent` it reads that agent's definition and whole prompt (no OK
@@ -3768,6 +3770,8 @@ account's, and a provider would send it to the address the file gives).
 
 <a id="d-193"></a>
 ## D-193 — 2026-11-05 — An agent signs in with a stored secret it never sees
+*Amended by [D-264](#d-264) (2026-11-23): the agent finds the owner's sign-in for a site, asks which one, or has the
+owner type one on a card; a variable may hold a username and a password together.*
 Amends rule 10. Until now the embedded browser never typed a password, one-time code or card data: the agent handed
 the tab to the owner. Now an agent may put one of the owner's stored secrets into a sign-in field, and the value never
 reaches the model, the transcript, the run's steps, logs, traces or a picture of the tab.
@@ -4129,6 +4133,7 @@ without the owner seeing what goes.
 
 <a id="d-203"></a>
 ## D-203 — 2026-11-06 — What the owner asks the super-agent for follows its mode; a short list keeps the card
+*Auto part superseded by [D-267](#d-267) (2026-11-23): in Auto what the owner asks runs unless outside content is in the turn.*
 The owner asked the super-agent, on Total, to add a contact and their WhatsApp, and got two cards. Since D-140 and D-143
 every `apx_settings` change, and every `agent_set` and `task_tidy` change, showed the owner's card in every mode with no
 "always" answer. The owner wants the super-agent independent: what they ask it themselves, it does as its mode says,
@@ -4692,6 +4697,7 @@ caller's words that went unseen, not the caller who was unaware).
 
 <a id="d-223"></a>
 ## D-223 — 2026-11-12 — Working alone is not working with less: a routine or task run has its agent's tools, and a routine acts as the owner chose on it
+*Revised by [D-265](#d-265) (2026-11-23): a task an agent created or assigned while working for the owner reaches their Chrome too.*
 A routine assigned to the agent an owner talks to in a project answered "I don't have this tool available" for that
 project's MCP tools, which the same agent used when asked in chat. Reproduced on a scratch core: the chat ran in the
 project, and the routine, made on the Routines page (which since 2.14 lists every project's routines) with no project
@@ -4803,6 +4809,7 @@ middle), and renaming the stored titles in the core (the threads already kept wo
 
 <a id="d-226"></a>
 ## D-226 — 2026-11-13 — What an agent does for the owner's work reaches their Chrome; a form holding a password is theirs to send
+*Revised by [D-265](#d-265) (2026-11-23): that includes a task the agent created or assigned there.*
 D-198 kept the owner's Chrome to their own turns, and D-223 added their routines and the tasks they created. Work an
 agent handed to a teammate from one of those still used APX's own browser, so a routine that delegated "check the late
 orders in my Chrome" got a helper that could not. The owner decided: **a helper inherits the reach of the turn it works
@@ -5802,7 +5809,30 @@ now states the expanded scope before the owner chooses it.
 Docs impact: updated channels/overview in English and Spanish, permission help and protocol comment.
 
 <a id="d-261"></a>
-## D-261 — 2026-11-21 — Assigned contacts consult explicitly authorized documents and propose corrections
+## D-261 — 2026-11-21 — Extensions report durable observations through opt-in MCP monitors
+
+An extension declares named events and optionally one observation tool in its own MCP server. Connecting approves
+its code, not background notices: the owner separately selects a personal chat and quiet hours. The office clock
+polls only that declared tool, through the existing bounded MCP manager, without a model turn per check. A source
+may request a shorter bounded interval while observing activity. It receives a stable configuration session and a
+core-provided state directory outside its fingerprinted package. It must persist/replay stable event ids across
+restarts rather than consume a completion before the core receives it. Explicitly declared local cursor writes are
+allowed for non-destructive monitors; device controls remain separate owner-requested actions. Metadata is not a
+sandbox and does not replace reviewing the extension's code.
+
+Normal owner-authenticated protocol and CLI calls can also emit observations. No public listener, generic token
+passed to extension code or agent-authored appliance state is introduced. SQLite receipts deduplicate by installation
+generation, event name and source id. Delivery goes through `threads.send` as external-client data; the receipt and
+run are linked atomically. Configuration revisions invalidate in-flight results and pending destinations. Quiet
+hours defer admission. Disable cancels pending receipts and revokes opt-in atomically; reconnecting alone does not
+resume it. Updates require new configuration. Pending receipts expire after seven days; bounded storage refuses
+new events while its window is full rather than silently evicting recent history. Terminal receipts are compacted after 24 hours so capacity recovers; deduplication is not promised for later replays. Reserved monitor tools are excluded from agent discovery and ordinary calls, with a core-pinned source session and acknowledgments of persisted receipts. Sources retain individual events until acknowledged. Existing Gmail monitoring remains unchanged.
+
+See [extension observations](EXTENSION_EVENTS.md) for the wire/source contract, limits, lifecycle and failure cases.
+Docs impact: updated extension guides in English and Spanish, HUMAN_MODEL.md and EXTENSION_EVENTS.md.
+
+<a id="d-262"></a>
+## D-262 — 2026-11-21 — Assigned contacts consult explicitly authorized documents and propose corrections
 An assigned agent must be able to consult the client's authorized sources, not just recall short notes. This extends
 D-260 without granting general filesystem or chat access. The owner selects individual UTF-8 Markdown, text or CSV
 documents inside the assigned agent's project through `contacts.sources.set`, naming the person, agent and project.
@@ -5830,3 +5860,517 @@ changed sources fail closed. No automatic memory update, cross-contact lookup, a
 interpretation or guarantee of exhaustive retrieval is introduced.
 
 Docs impact: updated channels/overview in English and Spanish, HUMAN_MODEL.md, contact notes news and tool guidance.
+
+<a id="d-263"></a>
+## D-263 — 2026-11-21 — A contact's assigned agent can read its own project, read-only
+The owner wants an explicitly assigned agent to answer a contact the way it answers them: look up the project's notes
+and the owner's chats with it, find the document the owner referenced and read it as it is now, citing it, without
+authorizing each file. D-260 and D-262 stay as they are: the notes right does not grow. A separate right,
+`project_reading`, is off by default and is set per person only; account defaults never carry it (rejected in
+`channels.set`, ignored when computing rights). Turning it on through the super-agent keeps the owner's card even in
+Total.
+
+It holds only while the person has an explicit `agent_id`, the chat is answered by that agent in that agent's project,
+the chat is not a room or client chat, memory is on and no migration is pending. It is refused for every contact of a
+project while another contact is assigned to any agent of that project, since owner chats there may be about them.
+
+`search_project_context` returns standing untainted project notes and the agent's notebook in that project, the
+owner's own messages (author `user`) in the owner's chats of that project with that agent (no contact, room, client,
+worker or delegated chat; memory exclusions apply) and the project description. References are taken only from that
+owner-written text: owner-sourced notes, owner messages and the description. Contact messages, agent replies, tool
+output and document contents never lend a reference. A reference is a project-relative `.md`, `.markdown`, `.txt` or
+`.csv` path (no hidden segment, `AGENTS.md`, secret-looking name, `~` or path outside the folder) or an `https` link on
+`docs.google.com`/`drive.google.com` reduced to a file id; the link itself is never fetched.
+
+Each reference is handed out as a random handle held in memory, bound to the person, agent, project and contact chat.
+`read_project_document` checks the right, the binding and that the origin still holds the reference before reading and
+again after an asynchronous Drive read, discarding the result when anything changed. Local files reuse the pinned
+reader from D-262 (no symlinks, realpath equality, 400 KB, UTF-8). Drive goes through the owner's connection and the
+versioned windows of `drive_read`; connection availability is rechecked after the response. Both reading tools have
+no side effects. No document write, send, shell, browsing or other owner tool is offered. Handles do not survive a
+restart: the agent searches again.
+
+The owner chose a private APX project record, not an edit to the original Drive document, for new contact data.
+`propose_project_record_update` revalidates a discovered reference and its revision, then stores a bounded proposal
+with contact, channel, incoming message, document label/revision and the full private-record diff. It never copies
+the source into global memory. The existing `contacts.source_updates` review shows the separate destination and
+always asks the owner. Acceptance atomically updates only that person's record bound to the agent, project and
+document; rejection changes nothing. Repeats return the original proposal and stale concurrent edits fail closed.
+Assignment, project, permission and the persisted owner-written reference origin are rechecked at acceptance;
+removing or forgetting that origin blocks a pending proposal even across restart. The source revision is provenance
+of the read that informed the proposal, not a precondition for editing a different private APX record: acceptance
+does not reread Drive or require the original document to stay unchanged. The owner approves the full private-record
+diff, not a write to that snapshot. Existing records are returned as bounded snippets with their record revision;
+revision-bound unique-passage replacement or append is expanded inside core to the full review diff. The agent never
+has to reconstruct a truncated record. Terminal decisions also resolve their review notification. Approved records can be searched as untrusted data
+under the same project-reading boundary; their text never lends document references. The original source remains
+unchanged. This does not require or broaden the separate notes right.
+
+Not decided here: sharing a project with several contacts, agent replies as searchable history, or interim "I'll get
+back to you" messages. Revocation stops new reads, not answers already delivered.
+
+Docs impact: updated channels/overview in English and Spanish, HUMAN_MODEL.md, settings help and news.
+
+
+<a id="d-264"></a>
+## D-264 — 2026-11-23 — An agent finds the owner's sign-in for a site, or the owner types one on a card it never sees
+Amends D-193. Signing in with a stored secret worked, but the owner had to tell the agent which variable to use and
+mark each one as a login (and which field) through a dialog that was easy to get wrong. Without a variable the agent
+handed the tab over every time. The owner asked that an agent at a sign-in form look first, ask when unsure, and
+otherwise give them a place to type the username and password, without the agent ever seeing them.
+
+- **What a variable is for.** A stored variable may say what it is for (`field`): `username`, `password`, `otp`, or
+  `login`, a username and a password kept together as one value and filled each into its own field. The value of a
+  `login` is its two parts as JSON; no part is kept as a hint. Its sign-in marks are always both fields, whatever the
+  owner's dialog or "Always on this site" sends. A field the owner set wins over the kinds a variable is marked for.
+  Variables shows the type as a badge beside the sites; the new-variable dialog asks the type, a `login`'s two fields
+  and its sites.
+- **Found, asked, or typed.** `browser_sign_in` without `secret` looks, in order: a sign-in typed for this time in this
+  chat and site; a variable marked for this exact site and field (used without asking when there is one); variables
+  whose name matches the site's own words (`google` in `accounts.google.com`, skipping `www`, `accounts`, `login`,
+  top-level domains…) and are for that field (offered on a card; picking one marks it for the site, like "Always");
+  then a card where the owner types a username and password. A plain variable with no field or marks is offered only
+  when its name says it signs in (user, pass, login, auth, email…); APX's own secrets (providers, channels,
+  integrations) never are. A one-time code is never typed on a card.
+- **The typing card.** An input of kind question, tool `browser_sign_in`, `args.login = { origin, kind }`, app only,
+  with no free text (every sign-in card loses the free-text answer, which would reach the agent). The panel sends
+  what the owner typed with `secrets.provide_login` (human access only, refused from a channel or an agent), never
+  with `runs.respond`. **Save** stores a `login` under a name made from the site and the user (`GOOGLE_PAT_LOGIN`),
+  numbered when any variable, global or a project's own, already has it, global and marked for the site. **Just this
+  once** holds the two parts in the core's memory for ten minutes, bound to that chat and site, each field filled once,
+  under a random handle the fill names; nothing is written. The card's answer, which the agent and the transcript see,
+  says only "Saved as NAME" or "Just this once". The card is answered first, so an expired one keeps nothing.
+- **Unchanged.** The browser's own checks at fill time (D-193: exact origin, frame, field kind, leak scan), the audit
+  line (it names the handle for a typed-once sign-in), "Once / Always / No" when the agent names a variable not marked
+  for the site, the isolated computer and the owner's Chrome refusing stored secrets, and handoff for captchas, SMS
+  codes and a site where nothing could be filled.
+
+Rejected: a value as `user:password` (a password may hold a colon; JSON keeps both parts whole); matching by
+registrable domain to pick a variable silently (only the owner's mark makes a site use one without asking); the typed
+sign-in as the answer text of a question card (it would reach the model and the transcript).
+
+Known limits: a site whose words are generic (`app.example.com` → `example`) or shared by several services may offer
+an unrelated variable; the owner says No. A typed-once sign-in lives in memory and is gone after a restart.
+
+Docs impact: updated office/browser in English and Spanish, and the news entry.
+
+<a id="d-265"></a>
+## D-265 — 2026-11-23 — Repeated browser work runs as one step list (`browser_do`), saved as recipes; agent tasks made for the owner reach their Chrome
+An agent asked to schedule 22 posts on a company page did the first by hand (about ten snapshots, clicks and typings,
+each a model round trip carrying a page of up to 12,000 characters and a picture), then wrote a Node script that ran
+`apx browser snapshot|click|type` in a loop to do the rest without spending turns. It failed three ways. The CLI acts
+as the owner, so the script drove the owner's Chrome past every check the agent has (who may reach that Chrome,
+typing after reading a page, which tabs are the agent's); the shell's own `apx` rule asks before such a command, but
+cannot see one inside a script. The CLI marks its actions `by: "terminal"`, so the agent's own tools then found the tab
+"used by another agent". And the task the script ran in had been created by the super-agent when the owner asked it,
+which D-223 counted as "an agent's task" and kept out of the owner's Chrome. The owner's ask: once an agent has
+learned a sequence, repeating it should be one short call, saved somewhere it finds again, and "if I ask Roby and Roby
+hands it on, it is still me asking".
+
+- **`browser_do`** (`tools/browser-do.ts`, the browser's `screen_do`) takes up to 40 steps: `open`, `click`, `type`,
+  `wait`. A step names its control as the snapshot shows it (`button "Schedule"`, or the name alone; `within` a dialog
+  when names repeat). The core finds it on a fresh snapshot before each action (`tools/browser-steps.ts`): an exact
+  name first, else a name containing it, exactly one or the step fails with the candidates. Each step waits up to
+  10 s for its control; `wait` waits for a text to show or go. It stops at the first step that fails and returns the
+  log with the page (6,000 chars) so the agent fixes the step without another look. Every action goes through
+  `browser.click|type|navigate` as the agent, the same router calls as `browser_click` and `browser_type`, so tab
+  ownership, holds, the owner's-Chrome reach, refused credential fields and page checks are unchanged. It asks as
+  `browser_type` does when it types (`untrusted`) and runs alone where clicks do. The model reads none of the pages
+  between steps, which is the saving; a fixed list cannot be steered by them either. The steps are one flat object in
+  the tool's schema (1,532 chars for the whole tool), checked into kinds inside.
+- **Recipes** are data, not code: `save_as` (with `about`) writes the steps that just all worked, with their
+  `{{name}}` blanks, to `<project>/.apc/browser-recipes/<name>.json`, and adds a project note to memory saying the
+  recipe exists and its variables, so recall brings it back in a later chat. `recipe` + `vars` runs it: a missing
+  value or an unknown name fails before anything runs (an unknown one lists the saved names). Script files (`.mjs`)
+  were rejected: they run with whatever the process can reach, cannot be shown on an approval card, and are what
+  failed here. Files in the project were chosen over the database so the owner can read, version and delete them,
+  and over memory text so a recipe is not paid for in every turn that recalls it.
+- **`apx browser` refuses inside an agent's command** (`APX_AGENT` set), as `apx chat` does (D-127): it would act as
+  the owner. In the core, a call for the owner's Chrome from a model-driven caller with no run to follow (an outside
+  app, a script whose client says it is an agent) is refused like an agent working on its own (`rpc/browser.ts`),
+  which D-198 already meant for outside apps.
+- **Revises D-223 and D-226:** a task an agent created, or assigned, from a run that reaches the owner's Chrome is the
+  owner's work too (`taskOrigin` in `domain/runs.ts` follows the task's `create` event to its run). Its chat reaches
+  the Chrome when asked, never only there, even when made from the Chrome side panel, since a task outlives that
+  panel. A task an agent made on its own (from a contact's message, a mail, its own wake-up) still reaches nothing.
+  Not decided here: an owner-given standing permission for an agent to use their Chrome in its own work; a contact's
+  turn stays out of it whatever the agent.
+
+**A broken sequence is the agent's to repair.** The first real run stopped at its first failure (the site emptied the
+post's text when its date picker closed) and waited for the owner, as it had been told. The owner's rule: agents
+finish on their own, as a coding agent would. A failed step now ends the call as an error (the card shows it), and its
+result says what to do next: try 1 and 2 of a recipe or sequence in a turn tell the agent to change the steps from the
+reason and the page shown, check what the earlier steps already did so nothing is done twice, run again and `save_as`
+the same name once it works; try 3 tells it to leave that item undone and recorded, finish the rest of the task and
+ask the owner one specific thing. This lives in the tool's result, not the system prompt, whose realistic budget has no
+room (`RECOVERY` already says to fix a failure and go on).
+
+A chat on the agents' computer (D-154) does not get `browser_do`: its recipes are files of the owner's project on
+this computer, which those chats never read or write.
+
+A `type` step whose text is the full path of a file the agent may read attaches it to a file field, as `browser_type`
+does (the same folder check, `attachableIn`), so a recipe takes the file as a value (`{{image}}`). A file field the
+page hides (only a button that opens the system's file picker) does not show in the snapshot and cannot be named yet,
+for `browser_type` either.
+
+Not done yet: keys other than Enter.
+
+Docs impact: updated office/browser (recipes, the Chrome bullet, the terminal note) in English and Spanish,
+PROMPT_SIZE.md (browser tools), and news.
+
+<a id="d-266"></a>
+## D-266 — 2026-11-23 — Agents delete only when asked; heredoc data is not shell words; start_session runs in Auto
+In Auto an external Claude Code session producing a video in a git worktree of the owner's project stopped four times
+on "a high-impact action that needs your OK even in Auto" for ordinary work, and one card expired unanswered. Three
+of those commands were high-impact only because `commandRisk`'s static reading (D-097) scanned a heredoc's body as
+shell words: a Spanish docstring's "su" counted as `su`, and a Python regex's `\d\d` (backslashes dropped) as `dd`. The
+parent agent also asked the owner before starting that session, because `start_session` was `always`.
+
+Now:
+- A heredoc's body is its program's data unless a shell reads it (`bash <<EOF`, `cat <<EOF | sh`, `ssh host <<EOF`,
+  `sudo`, `eval`, `exec`, `osascript`…): a script for Python or a file written with `cat > f <<EOF` is judged like a
+  script file, which was never scanned (`tools/command-heredocs.ts`). A body fed to a shell is still scanned whole.
+- An agent deletes only when the owner asked for it, in the chat or as a standing rule of theirs ("tiene que estar muy
+  claro que solo va a borrar cuando se lo pido"). APX cannot read intent, so a forced deletion (`rm -r`/`rm -f`,
+  also inside the agent's folder or a script fed to a shell) keeps asking in Auto, as decided on 2026-11-01, and the
+  card is about the deletion: it lists each path resolved where the command runs (following its own `cd`s and
+  variables; what only the running command knows, as written), the agent's reason in its own words (Claude Code's
+  Bash `description`; for APX's agents what they wrote just before the call) and the command
+  (`tools/command-deletions.ts`, `owner-words.ts`). A command whose only high-impact part is the deletion gets its own
+  grant key, `apx:delete`, offered "only this time" or "for this chat" (D-109) and never for good: the chat's OK
+  covers that agent's later deletions there, never `sudo`, a release or anything else that always asks, and for an
+  outside session only deletions the folder rule lets it make. Agents are told so in the line they already had for
+  git: "Commit, pull, merge, push or delete only if the owner or task asked or a project rule or note says so; else
+  ask, saying why." It replaced the old line at one character more, which fills the realistic owner's budget exactly
+  (8,250, PROMPT_SIZE.md).
+- Git commands that throw away work git would otherwise keep are deletions too (the owner: "Sí, que pregunte"), with
+  the same card, listing the branch, worktree, files or stash they lose, and the same `apx:delete` grant:
+  `git worktree remove --force`/`-f`, `git branch -D` (and `--delete --force`, `-df`), `git clean` unless a dry run,
+  `git reset --hard` (moved here from the destructive list), `git checkout -- paths`, `git checkout .`,
+  `git checkout -f`, `git restore` of the working tree (not `--staged` alone), `git switch --discard-changes`/`-f`,
+  `git stash drop`/`clear`, `git rm -f` (not `--cached`), `git reflog expire`/`delete` and `git gc --prune=now`. Git's
+  own options before the command (`-C dir`) are read through, and a script fed to a shell is read as commands. Still
+  ordinary commands, since git refuses them when work would be lost or they keep it: `git worktree remove`,
+  `git branch -d`, `git worktree prune`, `git clean -n`, `git reset --soft`/`--mixed`, `git checkout <branch>`,
+  `git restore --staged`, `git stash`/`pop`, `git rm` and `git gc`. `git rm` is no longer read as a forced `rm`. So
+  the owner's worktree cleanup after a merge (AGENTS.md rule 29: `git worktree remove` and `git branch -d`) runs in
+  Auto without a card, and forcing it asks. Gaps left: a project rule or note tells the agent it was asked but does
+  not skip the card, and the only standing grant beyond a chat is the agent's rule for `irreversible`, which covers
+  every action that always asks; a rule for deletions alone does not exist. `git filter-branch` and
+  `git update-ref -d` stay high-impact actions (they rewrite history) and a push that deletes a branch keeps its
+  release card (D-208).
+- `start_session` is `untrusted`: its calls pass the same policy in the caller's mode, and its write policy is never
+  more than the caller's, so in Auto it starts without a card unless outside content is in the turn (rule 10: an
+  injected page must not launch a session), as a delegation does. Manual asks, Plan refuses.
+- An external agent's call the owner declined, or whose card expired, comes back to Claude Code with why ("the owner
+  did not answer in time … continue another way, or say what is left"), not the generic "policy does not allow it"
+  (`TurnIO.refusal`). The card already resolved as `expired` after its wait and the run went on; this only makes the
+  reason readable. ACP's permission answer carries no message.
+
+Known limit: still a static reading, not a sandbox; a script run by Python, Node or a heredoc can do anything its
+program can, as before, and the listed paths are what the words say, not a check of the disk.
+
+Docs impact: updated concepts/autonomy and office/code in English and Spanish, PROMPT_SIZE.md.
+
+<a id="d-267"></a>
+## D-267 — 2026-11-23 — The super-agent does what the owner asks in Auto, and sets up memory's engine and agents' tools
+The owner asked Roby, on Discord, to set up an embedding engine for memory and to let a project agent read quotas; it
+could do neither, and every settings change it could make still showed a card in Auto. The owner's rule: the
+super-agent can do on request whatever the owner could do in the panel or CLI, and asks only for what is genuinely
+harmful; in Auto and Total it does not ask at all except for grave or system-touching actions, and a failed change
+must not break what worked. [rules/SUPER_AGENT_POWERS.md](SUPER_AGENT_POWERS.md) audits every owner method against
+this.
+
+- **Auto runs the owner's word.** An `apx_settings` or `agent_set` change is now `untrusted`, not `always`: Auto,
+  Accept edits and Total run it unless outside content is in the turn; Manual asks. D-140's gate is unchanged (only the
+  owner's own word), and so is `card` (D-143, D-203's list). `Setting.asks: "always"` marks what cannot be undone or
+  speaks for the owner, which asks in Auto and runs in Total: deleting a task, a routine, a widget or an agent profile
+  for good, a widget's memory, cancelling a contact's appointment (it tells them), copying APX's skills into other agent
+  apps. Applying or acknowledging a reviewed agent proposal (`if_revision`, `review`) keeps `always`. `hermes.import`
+  adds MCP servers, so it keeps `mcp.set`'s `card`.
+- **Memory's engine.** `embeddings.local` (a read) and `embeddings.install` join `apx_settings`; install takes only a
+  model from APX's library (Ollama itself stays the owner's to install). `services.set` joins too, never with
+  `api_key` (refused; the owner types keys in Settings › Services) and with the card in every mode when the change
+  would send a saved key to another address or delete it. `memory.set_settings` refuses `mode: semantic` while no
+  embedding engine is on.
+- **Agents' tools.** `agent_set` takes `tools` (the whole list; `[]` all), checked against `agents.tools` before
+  anything is written; the super-agent's own tools are refused there. `grant_tool` grants APX's own tools as well as
+  MCP ones (key `apx:<tool>`, the ordinary grant, never the strict one of D-089 or a `card`), only ones the granter
+  runs without asking and the target's own `tools:` list allows, and takes grants back with `revoke`.
+- **Failure containment.** Every change is validated before it is written: the method's schema and `refuse` (as
+  before), a live `services.test` before a service is saved (a service that does not answer is not saved; one that
+  needs a key the owner has not typed is saved off), the tool names of a list, the embedding model, an engine before
+  semantic search. A method that fails changes nothing, so the previous config keeps working.
+
+Rejected: a new tool for embeddings or grants (footprint ladder, rules/PROMPT_SIZE.md: `apx_settings` methods and
+existing tools cost no prompt); letting the agent pass a key as `secret://NAME` for a service (a saved key could be
+sent to an address the agent picks: that stays the owner's, as MCP servers' do); `models.set_config`, `voice.set` and
+`access.set` (D-060 keeps models and how far agents act the owner's; listed in the audit for the owner to decide).
+
+Docs impact: updated concepts/autonomy, concepts/memory, concepts/agents and office/secretary in English and Spanish,
+the apx-agents skill, rules/SUPER_AGENT_POWERS.md and news.
+
+<a id="d-268"></a>
+## D-268 — 2026-11-23 — The super-agent sets models, voice, transcription and MCP tools at the owner's word
+D-267's audit left six things for the owner to decide, because D-060 kept which model runs the owner's. The owner
+said to open them: the super-agent may change them when the owner asks it themselves. This reverses D-060 for
+models; how far agents may act (`access.set`, autonomy, rules) stays the owner's.
+
+- **Which models run.** `apx_settings` reaches `models.config` (read), `models.set_config` (the default and the router;
+  a router given in part keeps the rest) and `threads.model` (one chat). Before writing, every engine named must be a
+  provider that is on and has its key or sign-in (`providers.list`); the method still checks each ref (refProblem). An
+  empty router chain is refused: every agent on the router would be left with nothing to fall back on.
+- **Voice and transcription.** `voice.status` (read) and `voice.set`: a call model is checked like the router's, a call
+  speech or transcription service must exist. `transcription.local` (read) and `transcription.install`, only a model
+  from APX's whisper.cpp list (whisper.cpp itself stays the owner's to install).
+- **An MCP server's tools.** `mcp.approveTool` and `mcp.toolMode` run in Auto for a server already added. `mcp.trust`
+  with `trusted: true` starts a project's server, a command on this computer: like adding one, it keeps the card in
+  every mode (D-267's B list); `trusted: false` stops it and runs in Auto.
+- **Narrowing a grant.** `grant_tool` takes `condition` and `expires_at` (in the future). Granting a tool the agent
+  already holds no longer replaces the grant, so a condition or end date the owner set stays unless this call sets a
+  new one.
+
+Every change is `untrusted` (D-267): Auto and Total run it unless outside content is in the turn, Manual asks. Each is
+checked before anything is written and the methods write once, so a refused or failed change leaves the previous
+setup working.
+
+Rejected: checking engines with `models.list` (it asks every engine over the network and starts the coding CLIs to read
+their lists; a provider's key and switch are what a turn needs, and they are local).
+
+Docs impact: updated concepts/autonomy, concepts/models and office/secretary in English and Spanish,
+rules/SUPER_AGENT_POWERS.md and the 2.17.0 news entry.
+
+<a id="d-269"></a>
+## D-269 — 2026-11-24 — A contact's agent asks the super-agent what its project reading cannot answer
+D-263 lets a contact's assigned agent read only what the owner wrote in its project. In use the documents a contact
+needs were opened by the agent itself in the owner's chats, never linked by the owner, so the agent found nothing and
+had no way to ask. The owner asked for the circuit they expected: the agent consults, the super-agent answers, the agent
+replies to the contact. This takes the owner's call over D-263's open question and the October design that preferred an
+isolated profile without private context: the owner chose the super-agent, told the question comes from outside.
+
+`consult_super_agent` is offered under the same per-person `project_reading` right and only while D-263's access holds
+(explicit assignment, own project, no room or client chat, memory on, no pending migration, no other contact in the
+project); it is checked again on each call. It is not offered when the super-agent itself answers the chat. It goes
+through the one delegation path (`ctx.delegate`), so no new a2a route: a sub-thread of the contact's chat, session
+`contact-consult`, with the super-agent, in the agent's project. The contact's need is an `untrusted` envelope inside
+the agent's request, which keeps outside content flagged in the super-agent's turn (strong actions ask as D-108 says).
+The request tells it to answer only what that contact may be told about that project, to do nothing else the contact
+asks, and to ask the owner with `ask_owner` first when it would act or is unsure it may share.
+
+The tool waits up to 90 seconds; a later answer reaches the contact's chat as a `delegation_result` of that session,
+framed as an answer for the person there, and goes out on the channel. Asking again while the super-agent works steers
+into the same session; asked after, it continues it: one consultation thread per contact chat.
+
+The consult turn is contained in code, not only by its request (`engine/contact-consult.ts`,
+`domain/contact-consult.ts`): it is offered only `ask_owner` and reads (`read_chat`, `search_chats`, `file_read`,
+`drive_read`, `sheets_read`, `sheets_tabs`, `read_output`, `load_skill`), no MCP or app bridge; its chat tools see only
+the owner's own chats of that project and their sub-threads (no contact chat, room or client); its files are fenced to
+the project's folders and the contact chat's temp folder (`confined`: no system temp folder, where other chats leave
+files, nor another chat's, and other projects' restrictions hold as for that project's agents); a Drive file opens only when that project's chats already used its id; its recalled notes are
+that project's only. Every call checks again that the contact's project reading holds, and an answer that comes after
+the owner withdrew it is dropped, inline or late. Drive search is left out: a file the project never used is the
+owner's to link.
+
+Its system prompt is built from the project alone: none of the super-agent's profile, personality, instructions or place
+in the team, nor the owner's "about"; no roster. The base rules (safety, outside content, `ask_owner`) and the project's
+own context stay. The super-agent's agent record and profile are not changed: the consult turn filters them.
+
+Not decided here: quotas beyond the chat's existing limits, and consults from contacts without project reading.
+
+Docs impact: updated channels/overview in English and Spanish and the 2.17.0 project reading news entry.
+
+<a id="d-270"></a>
+## D-270 — 2026-11-24 — Agents fix by default, briefs keep the owner's scope, progress has a place from any chat
+The owner asked to check or improve something and got diagnoses that stopped there, then had to ask again. Three
+shared causes, not one agent's prompt: the base prompt said what a promise is but not what "check this" asks for, so
+a review ended at a report; the super-agent's briefs added limits the owner never set ("diagnosis and proposal only,
+do not implement"), and a task's brief yielded to the owner only where it asked for more than they said; and an agent
+working a task outside its chat (the super-agent on a teammate's result, a session it started) had its progress
+comments refused with "progress goes in your plan", a plan it could not write, so it kept retrying or wrote it in the
+description, which a running session does not read.
+
+The base prompt's promise line now says: asked to check or fix something, fix and verify unless told to change
+nothing; stop only at a rule (naming who unblocks it) or a choice that cannot be inferred. It replaced words of the same
+line and of the earlier-work line, so the realistic prompt stays in budget. `delegate` asks for no limit the owner did
+not set; the task block follows the owner where a brief asks for more or less than they said. `task_update` takes
+`plan` (the task's checklist), and a refused progress comment names that from outside the task's chat; one that
+@names an agent of another project says a comment never reaches it and to use delegate or the super-agent, instead of
+pointing at a plan. Comments stay as D-202 has them. The `apx-agents` skill lists "diagnosis as the end" among what
+to look for when reviewing agents' prompts.
+
+Not changed here: whether an outside engine session started with `start_session` can be steered while it runs, and a
+cross-project task @mention reaching another project's agent (privacy boundary; the super-agent reaches it).
+
+Docs impact: updated office/tasks in English and Spanish and rules/PROMPT_SIZE.md.
+
+<a id="d-271"></a>
+## D-271 — 2026-11-25 — An agent wears a hat: its role guides, never walls; between the owner's agents, rules and records replace walls
+The owner was close to collapsing the team into one super-agent with roles, because the specialists kept stopping at
+walls the super-agent never hit: "an agent can only read its own thread's jobs" while a teammate's gates were running,
+"an agent works only on its own project's tasks", reading nothing outside its own project, a widget "not being its
+permission". A month of the owner's store (2026-10-26 → 2026-11-25) had 189 + 119 + 72 task comments refused, 88
+delegations refused mid-task, 33 `shell_output` and 24 cross-project `task_get` refusals, and 25 folder cards for
+writes in the owner's own projects, 98% of cards approved. The "not my permission" for widgets came from no check at
+all: D-209's prompt line ("work outside your area goes to that area's agent") and a stale template `tools:` list that
+agents installed around 2026-11-14 kept as a hard allowlist.
+
+The model now is Claude's: one capable agent that works for different projects. Its role, area and `tools:` are a hat:
+what it is good at, where it usually works, the tools it uses first. Working for the owner it may read any of the
+owner's chats, jobs, tasks and project files, and act where the work is, saying where it acted, so "it created this in
+another project" is always visible and explained instead of forbidden.
+
+Who counts is decided in one place (`domain/owner-work.ts`): a turn works for the owner when its chat (and the chats
+above it) has no contact, room, outside app, Flow bot or contact consult. Every widened check goes through it.
+
+- **Chats** (`canReadChat`): any chat that works for the owner, any project; results from another project say where.
+  The narrow rule stays as `canReadOwnScope` for automatic recall, contact project reading and every outsider turn.
+  What the owner asked to forget stays hidden in any project's chat read from another.
+- **Jobs and outputs**: `shell_output`, `shell_kill`, `read_output`, `stop_session` and `media.transcribe` reach a
+  chat the agent can read, naming that chat. Another chat's whole turn stays its own.
+- **Tasks**: list, get, create (explicit `project`), update, move, comment and close in any project, with "This task
+  is in project X". A self-handoff may go to another project. Data rules stay (a parent in the same project, an
+  assignee who works in the task's project, now saying how to fix it); so do "only the owner accepts a proposed task"
+  and "an agent cannot move a task higher up".
+- **Refusals become routing** (amends D-202, D-270): mid-plan progress is noted on the plan's step; a helper's
+  comment is told to be part of its answer; a second comment in a turn joins the first; the task's agent may ask a
+  teammate mid-task, recorded on the task. The per-turn executor lock, depth and fan-out caps stay.
+- **The hat** (amends D-209): `tools:` is focus — listed tools are sent, the rest are found with `tool_search` under
+  the same mode and rules; a caller's list no longer narrows its helper (mode and rules still do). A rule the owner
+  set to off, the super-agent's own tools and every outsider tool set stay walls. The prompt says the agent's usual
+  area and that a role is never a reason to refuse, and one line tells every agent its reach. Widget tools take a
+  `project`. Example roles lost their "never" lines except QA's no-fix while reviewing and the legal disclaimer.
+- **Files** (extends D-108): a code thread or worktree session gets the same writable owner projects as other chats
+  (kept to its folder only when the owner made it read-only, fenced or a consult); a program writing where it runs in
+  an unregistered folder raises the folder card instead of "read-only folder"; the owner's other chats' temp folders
+  are readable (not in Manual, not in protected projects); Claude and Codex folder cards offer "Always"; a delegated
+  session may work in any of the owner's projects or worktrees.
+
+What stays a wall: contacts and rooms, outside apps, Flow bots and contact consults (D-262, D-263, D-269); APX's own
+folder, `.git`, `AGENTS.md`/`.apc` asks and deletions (D-266); projects being moved; the owner's mode (Plan, Manual),
+rules set to off, fenced reach and read-only folders; human-only methods; group chats; turn budgets.
+
+Rejected: one super-agent with roles instead of agents (the owner wants separate agents with their own memory, model
+and face); a "ask the super-agent when blocked" relay for every wall (one more turn for what the agent may simply do;
+the relay stays for what is the super-agent's own: settings, agents, Flows).
+- **Outside engines**: Claude Code and other harnesses also write in their own project's folder (before, only the
+  owner's other projects were writable without a card); Codex outside code threads writes in the owner's projects in
+  Auto, Accept edits and Total through a permission profile that never reads APX's home and keeps `AGENTS.md`, `.apc`
+  and Claude settings read-only unless Total; a turn not for the owner keeps only its temp folders. `start_session`
+  may open a session in any of the owner's projects not being moved, and says where. An edit to
+  `.claude/settings*.json` asks like `AGENTS.md`, since it would let a session widen itself.
+
+Not changed here: memory notes are still written only for the agent's own project.
+
+<a id="d-272"></a>
+## D-272 — 2026-11-25 — Owner-approved public blog attribution
+The owner asked for a public author identity on every blog post and approved keeping it when the private-data gate flagged it. Rule 17 otherwise remains in force: the gate exempts only four approved literal matches in the exact reviewed author-data file bytes. A content edit invalidates the exception; a detected term then fails. New denylist matches, public path and phone shapes, and commit scans remain active. Without a local denylist, these personal terms are not detected. Updating the exemption requires renewed review, not a blanket allowlist. The published attribution and repository history are public; this exception is not a general privacy audit.
+
+Docs impact: updated GUARDRAILS_PROFILE.md to describe the scoped gate exception.
+
+<a id="d-273"></a>
+## D-273 — 2026-11-25 — Workflows: a plan of delegations run by code, with a live card, not a model deciding each hand-off
+The owner watched a coding agent run a workflow (a script that fanned five agents out, piped each result through a
+check, grouped them in phases, showed each agent's state live with a stop button, and resumed from cached results after
+a failure) and asked for it in APX: "just a group of agents, or something better?". What APX had: `delegate` (the
+model decides each hand-off, two at once from a chat, answers of one turn delivered together, D-194) and Flows (the
+owner's published automations, started by events, D-172/D-181).
+
+| | `delegate` | Flows | Workflows |
+|---|---|---|---|
+| Who decides the next step | the model, each time | the owner's drawing | the plan the agent wrote, run by code |
+| Lifetime | a turn and its results | for good, published by the owner | one piece of work, minutes to hours |
+| Fan-out | two at once, the rest queued | none | up to four at once, over up to 24 items |
+| Stages | the model reads each answer | a DAG of steps | each item through up to four stages, no barrier |
+| Structured output | no | an AI step's text | JSON checked against a schema, one retry |
+| Resume after a stop | ask again | a new event | done steps reused, the rest run again |
+
+**Decision: an extension of delegation, not of Flows** (rule 15: extend before adding). Every agent call of a workflow
+is a delegation (`delegations.open` in `engine/delegation.ts`, the same function `delegate` uses): the same sub-thread,
+the callee's mode, the caller's write ceiling (D-104, D-126), rules and grants, the breaker and each agent's own budget
+(D-160), cycle and depth checks (an agent of a workflow asks nobody else, D-074), and D-271's rule for who works for the
+owner. Flows stay the owner's published automations: a one-off plan needs no draft, publish card or trigger.
+
+- **The plan** (`workflow` tool, found with `tool_search`, D-233): `items` (0–24) go through `stages` (1–4) in order,
+  each item on its own (item 3's check starts as soon as its search ends); a stage names an agent or a worker, a
+  `phase` shown on the card, a `task` with `{{item}}`, `{{item.field}}` and `{{previous}}`, an optional JSON `output`
+  schema, and `only_if` (a true field of the previous output, else the item stops there: the verify pattern). An
+  optional `finish` stage runs once with every item's last output (`{{results}}`): the only barrier. `parallel` (1–4,
+  default 3) caps how many agents of the workflow work at once; it is the workflow's own cap beside the chat's two for
+  `delegate` (D-202), because the whole plan is visible and stoppable on one card.
+- **Durable** (`workflows` table): the plan, each step's state, session, output and error; a step's run that a restart
+  resumes keeps reporting to it through its sub-thread. A workflow has a deadline (4 hours) and ends `done`, `failed`
+  or `stopped`. Stopping the chat stops its workflows; agents being paused stops a workflow before its next step.
+- **Resume** (`workflows.resume`, the card's Resume, or the tool's `resume`): done steps keep their output (the cache);
+  failed, canceled and unstarted ones run again. Changing the plan means a new workflow.
+- **Live card** (`workflow` part in the asking answer): phases with each agent's state, done/total, Stop while it runs,
+  Resume once stopped or failed, the result when done; a row opens that agent's session.
+- **The result** reaches the asking agent inside its turn when it ends within `wait_s`, else in a new turn
+  (`workflow_result`, the team's words, D-071), as a delegation's does.
+
+Rejected: running an agent-written script (JavaScript) in the core, as the coding agent does (a sandbox and a review
+surface for little more than items × stages give); building it on Flows (publishing and triggers are the wrong
+lifetime, and Flow steps may not delegate); raising the chat's delegation cap for everyone instead (D-202's reason,
+three agents on one task, still holds for model-decided hand-offs).
+
+<a id="d-274"></a>
+## D-274 — 2026-11-25 — An engine session an agent opens is the engine's: its name and face, the agent only as who started it
+When an agent opened a Claude Code or Codex session (`start_session`), the core already ran it as the engine itself (no
+persona, notes, roster or skills: `DIRECT_NOTE`), but the screens did not say so. The session kept the agent in
+`agent_ids` and a `parent_id`, so its header read as the agent's delegated chat ("Agent ↔ agent"), the card in the
+agent's chat showed the agent's face, notices were titled with the agent's name and the phone named its answers after
+the agent. The owner read it as "Roby talking through Claude".
+
+Such a session now reads as the engine everywhere: lists, chat header, answers, the thinking and waiting lines, task
+views, notices (core titles them with the engine, `harness/labels.ts`), the side panel of the agent's chat ("Roby →
+Claude Code") and the phone. The `subthread` part carries `engine`. The agent shows only as a **Started by** chip that
+opens the chat that asked, and the task it sent stays the agent's words (a message with no run). The session is named
+after the task's first line; a session the owner opens is "Claude Code · folder", never the raw engine id.
+
+Kept: `agent_ids`, `parent_id` and the run's caller, because the caller's budget, permissions, write ceiling and where
+the answer goes ride on them (D-106, D-266); the session stays read-only for the owner like any delegated chat.
+
+Leaks checked: memory never reaches an engine session either way (`memoryEligibleChat`, `canRecallOwnChat`); voice
+replies are channel-only; the agent's model could still pick the engine's model when the chat had none (an older
+APX could save a CLI as an agent's model), so an engine session now runs only on its chat's model or the engine's
+default.
+
+Rejected: a separate "bot" agent per engine (a fake teammate with no memory or rules of its own, and one more place
+the caller's limits would have to follow); dropping the agent from the thread (loses budgets and the answer's way back).
+
+<a id="d-275"></a>
+## D-275 — 2026-11-25 — A project's APX files live in `.apx/`; `.apc/` is moved there by itself
+The owner no longer follows APC (the Agent Project Context standard APX v1 started) under that folder name and wants
+a project's APX files under APX's own name: `.apx/`. `AGENTS.md` stays at the root: it is the cross-tool standard
+other agents read. Everything that was in `.apc/` (agents, `project.json`, `memory.md`, `skills/`, `mcps.json`,
+`organization.json`, browser recipes) now lives in `.apx/`, named once in `apps/core/src/apc/folder.ts` (`APX_DIR`),
+skills included: APX never writes into a project's `.agents/`, and only reads the skills another tool keeps in
+`.agents/skills/`, listed like other apps' (never merged or overwritten). A first take of this change used `.agent/`;
+it never left the owner's machine, so no install has that name and it is not read (the owner's projects were moved
+from it by hand). The APC repository calls this layout Agent Project Context v2.
+
+The owner chose the most comfortable path over a prompt: it ships to everyone in 2.17.0 and runs by itself.
+- At start (in the project reader's thread, so a folder held by a privacy prompt holds nothing else) and when a
+  project is registered, a project that still has `.apc/` is moved: copied aside, every file checked byte-equal,
+  renamed to `.apx/` at once (a reindex never sees half of it), then removed from `.apc/`. Safe to run again: equal
+  files count as moved; a file `.apx/` holds with other content stops it before anything is removed. Git worktrees
+  in `.apc/worktree(s)` are checkouts: never copied, left in place, and `.apc/` goes once they are gone. APX never
+  commits; in a repository the move is a diff for the owner.
+- The owner is told once per project in the tray (`agent-folder:<project>`): moved, or why not. A first move also
+  makes the `agent-folder` news apply, so the super-agent can explain it.
+- A project that could not be moved keeps working from `.apc/` (reads and writes, `ownDir`) until a move succeeds, is
+  marked `legacy_folder`, shows a Try again card, and is retried at each start; `projects.move_folder` (owner only)
+  and `apx doctor --fix` retry it. This is the one place both names are read; it goes with `LEGACY_DIR` once no
+  supported install has one (rule 14).
+- A folder that holds APX's own home (the user's home folder, where `~/.apx` is APX's data) is never a project: it is
+  refused when registered or created, never moved into, and not read at start (`holdsApxHome`).
+- v1's import registers its projects like any other, so their `.apc/` moves too: v1, deprecated, stops seeing those
+  agents; v1's own home is untouched.
+
+Edits to `.apc/` (outside its worktrees) stay guarded like `.apx/`'s while it exists. The `apc-context` skill APX
+copies into Claude Code, Codex, Cursor and `~/.agents` is rewritten for `.apx/` under the same name (without its
+"always activate" and "delete .apc/migrate.md" instructions); the copy at each core start overwrites the old one.
+
+Not decided here: renaming the code's own `apc` names (`apps/core/src/apc`, the agent source `apc`).
+
+Docs impact: updated concepts/projects (a section on the move), concepts/agents, start/from-v1, reference/cli,
+extend/skills and every page naming the folder, in English and Spanish; news entry `agent-folder` (2.17.0).

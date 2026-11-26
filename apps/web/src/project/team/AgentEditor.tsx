@@ -106,7 +106,7 @@ function fieldsOf(d: Draft, changed: Array<keyof Draft>): Omit<Params<"agents.up
 /**
  * The whole agent in one place, laid out like Config: who it is, its prompt, model and team, the tools and skills it
  * may use, and how far it goes on its own (autonomy, rules by case, what was granted, the browser). Everything but the
- * model and the budget is saved together; a project agent's definition goes to its `.apc/agents/<slug>.md`.
+ * model and the budget is saved together; a project agent's definition goes to its `.apx/agents/<slug>.md`.
  */
 export function AgentEditor({
   agent,
@@ -240,7 +240,7 @@ export function AgentEditor({
       t(`agentedit.page.${id}`).toLowerCase().includes(query) ||
       (id === "tools" && Boolean(catalog?.some((x) => x.name.includes(query)))));
   const groups = NAV.map((g) => ({ ...g, items: g.items.filter((i) => matches(i.id)) })).filter((g) => g.items.length);
-  const file = agent.source === "apc" && agent.slug ? `.apc/agents/${agent.slug}.md` : undefined;
+  const file = agent.source === "apc" && agent.slug ? `.apx/agents/${agent.slug}.md` : undefined;
 
   const body = (): ReactNode => {
     if (!d) return <Skeleton shape="block" height={240} />;

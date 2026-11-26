@@ -11,6 +11,7 @@ import { browserMethods } from "./browser.ts";
 import { callMethods } from "./call-methods.ts";
 import { channelMethods } from "./channel-methods.ts";
 import { contactSourceMethods } from "./contact-sources.ts";
+import { continuationMethods } from "./continuations.ts";
 import { deferMethod } from "./defer-method.ts";
 import { desktopInstallMethods } from "./desktop-install.ts";
 import { deviceMethods } from "./device-methods.ts";
@@ -18,6 +19,7 @@ import { discoveryMethods } from "./discovery.ts";
 import { emailSignatureMethods } from "./email-signatures.ts";
 import { engineUsageMethods } from "./engine-usage.ts";
 import { environmentMethods } from "./environment-methods.ts";
+import { extensionEventMethods } from "./extension-events.ts";
 import { flowMethods } from "./flow-methods.ts";
 import { hermesMethods } from "./hermes-methods.ts";
 import { instanceMethods } from "./instance-methods.ts";
@@ -87,6 +89,7 @@ export type MethodDef = {
 };
 
 export const methods = {
+  ...extensionEventMethods,
   "system.health": deferMethod({
     params: () => z.object({}).strict(),
     result: () => Health,
@@ -133,6 +136,7 @@ export const methods = {
   ...appMethods,
   ...channelMethods,
   ...contactSourceMethods,
+  ...continuationMethods,
   ...artifactMethods,
   ...publicArtifactMethods,
   ...asanaMethods,

@@ -5,7 +5,7 @@ import { SignInResult } from "@apx/protocol";
 import { lineage } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, unauthorized } from "../errors.ts";
-import type { Secrets } from "../secrets.ts";
+import { parseLogin, type Secrets } from "../secrets.ts";
 import type { SignIn } from "../sign-in.ts";
 import { totp } from "../totp.ts";
 import type { Handler } from "./router.ts";
@@ -39,7 +39,6 @@ export function signInHandler(d: SignInDeps): Handler<"browser.sign_in"> {
     const agent = ctx.agent;
     if (!agent) throw unauthorized("only APX's own agents sign in with the owner's stored secrets");
     const thread = d.store.threads.get(agent.thread_id);
-    const key = d.signIn.keyFor(lineage(d.store.projects, thread?.project_id ?? undefined), p.secret);
     const origin = await d.tabOrigin(p.tab, ctx);
     const done = (r: SignInResult): SignInResult => {
       // An audit line names the secret and the site, never the value.
@@ -56,17 +55,35 @@ export function signInHandler(d: SignInDeps): Handler<"browser.sign_in"> {
       );
       return r;
     };
+    // A sign-in the owner typed for this one use: bound to its chat and site, each field filled once.
+    if (d.signIn.isHeld(p.secret)) {
+      const value = d.signIn.takeHeld(agent.thread_id, p.secret, origin, p.kind);
+      if (!value) return done({ outcome: "refused", origin, reason: "that sign-in is not for this field or site" });
+      return done(
+        SignInResult.parse(
+          await d.fill({ tab: p.tab, ref: p.ref, by: agent.id, kind: p.kind, origins: [origin], value }, ctx),
+        ),
+      );
+    }
+    const key = d.signIn.keyFor(lineage(d.store.projects, thread?.project_id ?? undefined), p.secret);
     if (!key) return done({ outcome: "refused", origin, reason: `no stored secret named ${p.secret}` });
     if (!d.signIn.allows(agent.run_id, key, origin, p.kind))
       return done({ outcome: "refused", origin, reason: `${p.secret} is not allowed on ${origin || "this page"}` });
     const stored = d.secrets.resolve(`secret://${key}`);
     if (!stored) return done({ outcome: "refused", origin, reason: `${p.secret} has no value` });
     let value: string;
-    try {
-      value = p.kind === "otp" ? totp(stored, now()) : stored;
-    } catch {
-      return done({ outcome: "refused", origin, reason: `${p.secret} is not a one-time code seed` });
-    }
+    if (d.secrets.field(key) === "login") {
+      // A sign-in holds both parts: each field gets its own.
+      const login = parseLogin(stored);
+      const part = p.kind === "username" ? login?.username : p.kind === "password" ? login?.password : undefined;
+      if (!part) return done({ outcome: "refused", origin, reason: `${p.secret} has no ${p.kind}` });
+      value = part;
+    } else
+      try {
+        value = p.kind === "otp" ? totp(stored, now()) : stored;
+      } catch {
+        return done({ outcome: "refused", origin, reason: `${p.secret} is not a one-time code seed` });
+      }
     // The browser accepts only these origins at fill time: a page that moved on in between is refused there.
     const origins = [...d.signIn.marked(key, p.kind)];
     if (!origins.includes(origin) && d.signIn.allows(agent.run_id, key, origin, p.kind)) origins.push(origin);

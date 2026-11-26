@@ -2,7 +2,7 @@ import type { NewsEntry } from "./entries.ts";
 
 export const CONTACT_NOTES_NEWS: NewsEntry = {
   id: "contact-assigned-agent-notes",
-  since: "2.16.2",
+  since: "2.17.0",
   title: {
     en: "Your contact's agent can consult its sources",
     es: "El agente de tu contacto puede consultar sus fuentes",
@@ -23,6 +23,28 @@ export const CONTACT_NOTES_NEWS: NewsEntry = {
       label: { en: "Choose documents for a contact", es: "Elegir documentos para un contacto" },
       prompt:
         "Help me choose which existing documents my contact's assigned agent may consult. Review the specific sources and their versions, keep originals read-only, and ask me in the app before authorizing anything.",
+    },
+  ],
+};
+
+export const CONTACT_PROJECT_READING_NEWS: NewsEntry = {
+  id: "contact-project-reading",
+  since: "2.17.0",
+  title: {
+    en: "A contact's agent can read its project for them",
+    es: "El agente de un contacto puede leer su proyecto para esa persona",
+  },
+  about: {
+    en: "With project reading on for one person, their agent looks up its project and the documents you referenced there.",
+    es: "Con la lectura del proyecto activada para una persona, su agente busca en su proyecto y en los documentos que mencionaste ahí.",
+  },
+  applies: (facts) => facts.contacts,
+  text: "A new per-person right, project reading, lets a contact's explicitly assigned agent answer from its own project, read-only: the project's standing notes and its notebook there, what the owner wrote in their own chats with that agent in that project, and the documents the owner referenced in them (text, Markdown or CSV files inside the project folder, or Google Drive links read now through the owner's Drive connection). It cites what it used. It is off by default, never an account default, and does not change the existing notes right. It works only while the person has that agent assigned and no other contact is assigned to an agent of the same project. Links or files sent by the contact, written by agents or found inside documents are never opened. It cannot edit the original document, send, run or browse anything. New contact data can be proposed for private review with the contact, original message, source and full diff. Acceptance updates only a private project record in APX, never the original Drive document or global memory; rejection changes nothing and identical repeats do not duplicate. Review these through contacts.source_updates.list and resolve with the owner's confirmation. Approved records are available through project lookup but never lend document references. Turning the right off stops new reads and acceptance of pending proposals, not answers already sent. Turning it on with apx_settings contacts.set perms.project_reading always asks the owner in the app. When what it may read does not answer, the agent can ask the super-agent (you) with consult_super_agent: you look it up in that project with the owner's access, answer only what that contact may be told, ask the owner first for anything risky or doubtful, and your answer goes back to the agent, which answers the contact. Explain it to owners with contacts assigned to project agents, and change nothing without their request.",
+  actions: [
+    {
+      label: { en: "Let a contact's agent read its project", es: "Dejar que el agente de un contacto lea su proyecto" },
+      prompt:
+        "Review which contacts have a specific project agent assigned. Explain what project reading would let each one's agent read, flag projects shared by several contacts, and ask me before turning it on for anyone.",
     },
   ],
 };

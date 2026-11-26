@@ -155,25 +155,40 @@ test("the global super-agent may explicitly choose a project for an unassigned t
   }
 });
 
-test("ordinary global agents and project-bound callers gain no cross-project creation or assignment", async () => {
+test("the owner's agents create a task in the project they name; an assignee of another project stays refused", async () => {
   for (const [agent, place] of [
     ["vera", undefined],
     [worker, other],
     ["superagent", other],
   ] as const) {
     const thread = await chat(agent, place);
-    for (const explicit of [false, true]) {
-      const title = `Refused ${agent} ${explicit}`;
-      const result = await env.core.dispatch(
-        "tasks.create",
-        { title, description: "Prepare the delivery for review.", assignee: worker, ...(explicit ? { project } : {}) },
-        context(agent, thread.id),
-        title,
-      );
-      assert.equal(result.ok, false);
-      if (!result.ok) assert.equal(result.error.code, explicit ? "unauthorized" : "bad_request");
-      assert.ok(!tasks().some((t) => t.title === title));
+    // Without a project the task stays in the chat's project, where the assignee does not work: a data rule.
+    const implicit = `Implicit ${agent}`;
+    const refused = await env.core.dispatch(
+      "tasks.create",
+      { title: implicit, description: "Prepare the delivery for review.", assignee: worker },
+      context(agent, thread.id),
+      implicit,
+    );
+    assert.equal(refused.ok, false);
+    if (!refused.ok) {
+      assert.equal(refused.error.code, "bad_request");
+      assert.match(refused.error.message, /works in another project.*put the task in their project.*delegate/);
     }
+    assert.ok(!tasks().some((t) => t.title === implicit));
+    // Naming the assignee's project puts it there (DECISIONS.md#d-271).
+    const named = `Named ${agent}`;
+    const made = await env.core.dispatch(
+      "tasks.create",
+      { title: named, description: "Prepare the delivery for review.", assignee: worker, project },
+      context(agent, thread.id),
+      named,
+    );
+    assert.equal(made.ok, true, JSON.stringify(made));
+    const task = tasks().find((t) => t.title === named);
+    assert.equal(task?.project_id, project);
+    assert.equal(task?.assignee, worker);
+    // A task kept in another project still cannot go to an agent who does not work there.
     const own = await env.client.call("tasks.create", { title: `Unassigned ${agent}`, project: place });
     const assigned = await env.core.dispatch(
       "tasks.update",
@@ -184,10 +199,46 @@ test("ordinary global agents and project-bound callers gain no cross-project cre
     assert.equal(assigned.ok, false);
     assert.equal(env.core.store.tasks.get(own.id)?.assignee, undefined);
   }
-  const { output } = await ask(
-    "vera",
-    `create ${JSON.stringify({ title: "Tool escape", goal: "Done as asked", description: "Prepare the delivery for review.", assignee: worker, project })}`,
-  );
+});
+
+test("agents in an outside app's chat gain no cross-project creation or assignment", async () => {
+  for (const [agent, place] of [
+    ["vera", undefined],
+    [worker, other],
+    ["superagent", other],
+  ] as const) {
+    const thread = await chat(agent, place);
+    env.core.store.threads.mergeContext(thread.id, { client: "external" });
+    for (const explicit of [false, true]) {
+      const title = `Refused ${agent} ${explicit}`;
+      const result = await env.core.dispatch(
+        "tasks.create",
+        { title, description: "Prepare the delivery for review.", assignee: worker, ...(explicit ? { project } : {}) },
+        context(agent, thread.id),
+        title,
+      );
+      assert.equal(result.ok, false);
+      if (!result.ok) assert.equal(result.error.code, explicit ? "unauthorized" : "bad_request");
+      if (!result.ok && explicit) assert.match(result.error.message, /only in its own project/);
+      assert.ok(!tasks().some((t) => t.title === title));
+    }
+    const own = await env.client.call("tasks.create", { title: `Outside unassigned ${agent}`, project: place });
+    const assigned = await env.core.dispatch(
+      "tasks.update",
+      { task: own.id, assignee: worker },
+      context(agent, thread.id),
+      `outside-assign-${agent}`,
+    );
+    assert.equal(assigned.ok, false);
+    assert.equal(env.core.store.tasks.get(own.id)?.assignee, undefined);
+  }
+  const app = await chat("vera");
+  env.core.store.threads.mergeContext(app.id, { client: "external" });
+  await env.client.call("threads.send", {
+    thread: app.id,
+    text: `create ${JSON.stringify({ title: "Tool escape", goal: "Done as asked", description: "Prepare the delivery for review.", assignee: worker, project })}`,
+  });
+  const output = texts((await env.settle(app.id)).messages).join("\n");
   assert.match(output, /only in its own project/);
   assert.ok(!tasks().some((t) => t.title === "Tool escape"));
 });
@@ -223,36 +274,45 @@ test("the super-agent can choose the project orchestrator to prepare the task, t
   assert.deepEqual(children[0]?.agent_ids, [orchestrator, "superagent"]);
 });
 
-test("an answering orchestrator still cannot start task work through the router", async () => {
-  const thread = env.core.store.threads.create({
-    kind: "a2a",
-    title: "Prepare delivery",
-    agent_ids: [orchestrator, "superagent"],
-    project_id: project,
-  });
+test("an orchestrator answering in an outside app's chat still cannot start task work through the router", async () => {
+  const a2a = (title: string) =>
+    env.core.store.threads.create({
+      kind: "a2a",
+      title,
+      agent_ids: [orchestrator, "superagent"],
+      project_id: project,
+    });
+  const outside = a2a("Prepare delivery");
+  env.core.store.threads.mergeContext(outside.id, { client: "external" });
   const result = await env.core.dispatch(
     "tasks.create",
     { title: "No chained work", description: "Prepare the delivery for review.", assignee: worker },
-    context(orchestrator, thread.id),
+    context(orchestrator, outside.id),
     "no-chained-work",
   );
   assert.equal(result.ok, false);
   if (!result.ok) assert.match(result.error.message, /answering.*start no task work/);
   assert.ok(!tasks().some((t) => t.title === "No chained work"));
+  // Answering the owner's own agent, it may open the work it finds (DECISIONS.md#d-271).
+  const owned = await env.core.dispatch(
+    "tasks.create",
+    { title: "Chained for the owner", description: "Prepare the delivery for review.", assignee: worker },
+    context(orchestrator, a2a("Prepare delivery for the owner").id),
+    "chained-for-owner",
+  );
+  assert.equal(owned.ok, true, JSON.stringify(owned));
+  assert.equal(tasks().find((t) => t.title === "Chained for the owner")?.assignee, worker);
 });
 
-test("exhaustive task pages retain agent project boundaries even with another project's filter and cursor", async () => {
-  const own = await env.client.call("tasks.create", { title: "Scoped page own", project });
-  const foreign = await env.client.call("tasks.create", { title: "Scoped page foreign", project: other });
-  const thread = await chat(worker, project);
+async function pages(ctx: CallContext, key: string): Promise<string[]> {
   const ids: string[] = [];
   let after: string | undefined;
   do {
     const response = await env.core.dispatch(
       "tasks.list",
       { project: other, exhaustive: true, limit: 1, ...(after ? { after } : {}) },
-      context(worker, thread.id),
-      `page-${after ?? "first"}`,
+      ctx,
+      `${key}-${after ?? "first"}`,
     );
     assert.equal(response.ok, true);
     if (!response.ok) break;
@@ -260,7 +320,19 @@ test("exhaustive task pages retain agent project boundaries even with another pr
     ids.push(...page.tasks.map((t) => t.id));
     after = page.next_cursor ?? undefined;
   } while (after);
-  assert.ok(ids.includes(own.id));
-  assert.ok(!ids.includes(foreign.id));
   assert.equal(new Set(ids).size, ids.length);
+  return ids;
+}
+
+test("exhaustive task pages keep an outside app's agent in its project; the owner's agent pages the one it names", async () => {
+  const own = await env.client.call("tasks.create", { title: "Scoped page own", project });
+  const foreign = await env.client.call("tasks.create", { title: "Scoped page foreign", project: other });
+  const outside = await chat(worker, project);
+  env.core.store.threads.mergeContext(outside.id, { client: "external" });
+  const fenced = await pages(context(worker, outside.id), "outside-page");
+  assert.ok(fenced.includes(own.id));
+  assert.ok(!fenced.includes(foreign.id));
+  const named = await pages(context(worker, (await chat(worker, project)).id), "owner-page");
+  assert.ok(named.includes(foreign.id));
+  assert.ok(!named.includes(own.id));
 });

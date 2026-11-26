@@ -12,6 +12,7 @@ import { chat } from "./commands/chat.ts";
 import { clients } from "./commands/clients.ts";
 import { desktop, openPanel } from "./commands/desktop.ts";
 import { doctor, updateOffline } from "./commands/doctor.ts";
+import { events } from "./commands/events.ts";
 import { expose } from "./commands/expose.ts";
 import { extensions } from "./commands/extensions.ts";
 import { flows } from "./commands/flows.ts";
@@ -50,7 +51,8 @@ Usage:
   apx desktop             The desktop app (downloads and opens its installer when it is not here)
   apx upgrade [--check] [--json]   Check or apply the core's updater (a server install updates itself even when its core is down)
   apx doctor [--json]     Why the core does not answer on this machine, and what to run next
-  apx doctor --fix        Repair recognized migrations offline; with a running core, reclaim old history and disk space
+  apx doctor --fix        Repair recognized migrations offline; with a running core, retry moving projects from
+                          .apc/ to .apx/ and reclaim old history and disk space
   apx doctor fix          Alias for doctor --fix
   apx doctor --schema     Read-only local schema report as JSON, including all structural differences; works offline
   apx devices [list|pair|revoke <id>] [--json]
@@ -93,6 +95,7 @@ Usage:
   apx news [tell [<id>…]] [--json]   Release news; tell runs the super-agent's message now
   apx clients [add <name>|rm <id>]  Outside apps with their own token (Claude Code, Codex…)
   apx extensions [inspect|install|on|off|secret|rm]  Skills, MCP servers and routines in one folder
+  apx events [get|set|emit]                        Extension observations and notices
   apx memory [words]      Notes agents keep between threads (newest first, or the best matches for the words)
   apx memory add [global|project|agent] <text> [--project p] [--agent a]
   apx memory edit <id> <text…>   Rewrite a note in place
@@ -127,12 +130,13 @@ Usage:
   apx mcps logs <server> [--project p] [-n 100]   What a server printed on stderr since the core started
                            The one way to talk to an agent. Default: Home (the secretary)
   apx threads [list] | get <thread> [--json] | cancel <thread>
+  apx threads folder <thread> <folder>
   apx threads search <words…>   Messages with every word, best first
   apx runs get <run> | wait <run> [--timeout 60]
   apx runs pending [thread]   What agents are waiting on from you
   apx runs respond <input> approve|deny ["note"] [--scope once|session|always] | "<answer>"
   apx projects [list] | register <folder> | sync [project]
-                           Projects are folders with AGENTS.md / .apc/; their agents come from those files
+                           Projects are folders with AGENTS.md / .apx/; their agents come from those files
   apx projects create "<Name>" [--path <folder>] [--kind personal|app|company|software|other] [--desc "…"]
                     [--parent <project>|base]
                            A new project: in that folder (made if missing), else in a folder of its own in APX's home.
@@ -146,7 +150,7 @@ Usage:
                            Folders its agents may read and never change (another checkout, docs)
   apx projects rm <project>   Forget a project in APX; its folder and files are never deleted
   apx init [folder]       Make a folder (default: this one) an APC project and register it; writes only what is
-                           missing (AGENTS.md, .apc/), never over an existing file
+                           missing (AGENTS.md, .apx/), never over an existing file
   apx agents              Agents and the model each one runs on
   apx agents show <agent>            Its fields and full prompt
   apx agents new <slug> "<Name>" [--project <id>] [--role "<role>"]
@@ -161,7 +165,7 @@ Usage:
   apx agents move <agent> <destination> [relative-path…]   Preview a move, including shared tasks
                            Apply the same selection with --apply --id <preview-id> --revision <revision>
   apx agents move recover <id>       Restore a migration from its recovery record
-  apx agents archive <agent>         Project agents: changes are written to .apc/agents/<slug>.md
+  apx agents archive <agent>         Project agents: changes are written to .apx/agents/<slug>.md
   apx agents archived | restore <agent>   Archived agents, and bringing one back (deleting for good is in the app)
   apx agents model <agent> <engine/model | engine | router | default> [--router] [--fallbacks <ref>,<ref>]
                            An agent's model; --router keeps the router as its fallback
@@ -418,6 +422,9 @@ try {
       break;
     case "clients":
       await clients(client, rest, { scopes: values.scopes });
+      break;
+    case "events":
+      await events(client, rest);
       break;
     case "extensions":
       await extensions(client, rest, { clear: values.clear });

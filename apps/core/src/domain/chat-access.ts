@@ -1,15 +1,32 @@
 import type { Memory, Thread } from "@apx/protocol";
 import type { AgentRecord } from "./agents.ts";
+import { worksForOwner } from "./owner-work.ts";
 import { OWNER_ID } from "./persons.ts";
 import type { Store } from "./store.ts";
 
-export function canReadChat(store: Store, agent: AgentRecord, thread: Thread): boolean {
+/**
+ * The narrow rule: the agent's own chats, its project's chats, or Home's top-level owner chats. A contact's assigned
+ * agent reading its project (D-263), automatic recall and turns that work for someone else keep it.
+ */
+export function canReadOwnScope(store: Store, agent: AgentRecord, thread: Thread): boolean {
   const context = store.threads.context(thread.id);
   if (context.client) return false;
   if (agent.kind !== "secretary" && store.agentMigrationPending.blocked(agent.id, thread.id)) return false;
   if (agent.kind === "secretary" || thread.agent_ids.includes(agent.id)) return true;
   if (agent.project_id) return thread.project_id === agent.project_id;
   return !thread.project_id && !thread.channel && !context.room && !thread.parent_id;
+}
+
+/**
+ * What one of the owner's agents may read for the owner: any chat that works for the owner, in any project, its
+ * sessions included. Outside apps, chats being moved and protected projects, either way, stay walled; contacts'
+ * chats and rooms keep the narrow rule (DECISIONS.md#d-271).
+ */
+export function canReadChat(store: Store, agent: AgentRecord, thread: Thread): boolean {
+  if (canReadOwnScope(store, agent, thread)) return true;
+  if (store.agentMigrationPending.blocked(agent.id, thread.id) || !worksForOwner(store, thread)) return false;
+  const walled = store.projectProtection.list().map((p) => p.project);
+  return !walled.some((p) => p === thread.project_id || p === agent.project_id);
 }
 
 /** Automatic recall never widens the explicit chat reader's visibility. */
@@ -25,7 +42,7 @@ export function canRecallOwnChat(
     (thread.id === current.id || !family || family !== context.memory_family) &&
     thread.project_id === current.project_id &&
     thread.agent_ids.includes(agent.id) &&
-    canReadChat(store, agent, thread) &&
+    canReadOwnScope(store, agent, thread) &&
     !thread.engine &&
     ownersOrNone(thread) &&
     !thread.parent_id &&

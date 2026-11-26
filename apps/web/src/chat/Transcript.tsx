@@ -5,6 +5,7 @@ import {
   AgentAvatar,
   DayDivider,
   EmptyState,
+  EngineIcon,
   Icons,
   Message,
   StickyScroll,
@@ -56,6 +57,8 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
   const engine = thread.engine && engineLabel ? { id: thread.engine, label: engineLabel } : undefined;
   const showTools = useNav((s) => s.tools);
   const agent = threadAgent(thread, agents);
+  // Who is at work in it: an engine session's engine, never the agent that opened it.
+  const speaker = engine?.label ?? agent?.name ?? t("chat.theAgent");
   const mailIds = useChannels((s) =>
     s.channels
       .filter((c) => c.type === "email")
@@ -87,6 +90,8 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
     scroll.current?.release();
     nav.set({ focus: undefined });
     row.scrollIntoView({ block: "center" });
+    row.tabIndex = -1;
+    row.focus({ preventScroll: true });
     row.classList.add("is-flash");
     row.addEventListener("animationend", () => row.classList.remove("is-flash"), { once: true });
   }, [focus, rows]);
@@ -236,7 +241,8 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
                 showTools={showTools}
                 showSkills={!comments}
                 showPlan={msg.id === planAt}
-                engine={engine}
+                // Only the engine's answers are its own: the task its caller sent is the caller's words.
+                engine={msg.run_id ? engine : undefined}
                 actions={<Regenerate thread={thread} message={msg} messages={messages} />}
               />
             )}
@@ -250,18 +256,24 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
         {working && thread.kind !== "group" && (
           <Thinking
             threadId={thread.id}
-            name={agent?.name ?? t("chat.theAgent")}
-            face={agent && <AgentAvatar name={agent.name} blob={blobOf(agent)} size={22} />}
+            name={speaker}
+            face={
+              engine ? (
+                <EngineIcon engine={engine.id} tile size={22} />
+              ) : (
+                agent && <AgentAvatar name={agent.name} blob={blobOf(agent)} size={22} />
+              )
+            }
           />
         )}
         {thread.state === "queued" && (
           <div className="transcript__activity">
-            <ActivityPill label={t("chat.agentQueued", { name: agent?.name ?? t("chat.theAgent") })} />
+            <ActivityPill label={t("chat.agentQueued", { name: speaker })} />
           </div>
         )}
         {thread.state === "input-required" && (
           <div className="transcript__activity">
-            <ActivityPill tone="danger" label={t("chat.agentWaiting", { name: agent?.name ?? t("chat.theAgent") })} />
+            <ActivityPill tone="danger" label={t("chat.agentWaiting", { name: speaker })} />
           </div>
         )}
       </StickyScroll>

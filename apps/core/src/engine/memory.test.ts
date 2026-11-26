@@ -43,8 +43,8 @@ before(async () => {
   env = await startCore({ llm });
   repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-mem-")));
   fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Northwind\n");
-  fs.mkdirSync(path.join(repo, ".apc"));
-  fs.writeFileSync(path.join(repo, ".apc", "memory.md"), "## Notes\n- The staging server is called kestrel.\n");
+  fs.mkdirSync(path.join(repo, ".apx"));
+  fs.writeFileSync(path.join(repo, ".apx", "memory.md"), "## Notes\n- The staging server is called kestrel.\n");
   project = (await env.client.call("projects.register", { path: repo })).project.id;
 });
 after(async () => {
@@ -83,7 +83,7 @@ test("an agent's first turn gets the owner's standing notes; later turns only ne
   assert.match(first, /\[memory: notes saved earlier\][\s\S]*short answers/);
   assert.doesNotMatch(first, /Notion/, "another agent's notebook stays private");
   const system = String(llm.calls.at(-1)?.messages[0]?.content);
-  assert.match(system, /\.apc\/memory\.md\)\n\n## Notes\n- The staging server is called kestrel\./);
+  assert.match(system, /\.apx\/memory\.md\)\n\n## Notes\n- The staging server is called kestrel\./);
 
   await env.client.call("threads.send", { thread: t.id, text: "how do kestrel deploys work?" });
   await env.settle(t.id);
@@ -325,6 +325,28 @@ test("a delegated turn gets its project's and its own notes, and global ones onl
   assert.match(text, /reports in tables/, "its own notes");
   assert.match(text, /invoice totals in euros/, "a global note that shares words with the task");
   assert.doesNotMatch(text, /sip-call-ai|monkey cave|cobalt/, "no unrelated global note, none from another project");
+});
+
+test("a consult for a contact gets only that project's notes, never the owner's or the agent's own", async () => {
+  const store = env.core.store;
+  const byWords = async (o: { query: string; limit: number }) => store.memories.list(o);
+  store.memories.add({
+    scope: "project",
+    text: "Quokka deliveries leave from the east gate.",
+    source: "owner",
+    project_id: project,
+  });
+  store.memories.add({ scope: "global", text: "The owner's quokka deliveries salary is private.", source: "owner" });
+  store.memories.add({
+    scope: "agent",
+    agent_id: "superagent",
+    text: "Quokka deliveries notebook entry.",
+    source: "owner",
+  });
+  const ask = "When do the quokka deliveries leave?";
+  const consult = await recallFor(store, byWords, "superagent", { project_id: project }, ask, {}, 0, "project");
+  assert.match(consult.text ?? "", /east gate/);
+  assert.doesNotMatch(consult.text ?? "", /salary|notebook entry/);
 });
 
 test("a delegated turn ignores global notes that only share the owner's generic words with the task", async () => {

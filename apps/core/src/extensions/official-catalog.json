@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "registry": "apx-official",
-  "generated_at": "2026-11-18T13:20:24.188Z",
+  "generated_at": "2026-11-25T01:36:23.907Z",
   "publishers": [
     {
       "id": "apx",
@@ -8919,6 +8919,749 @@
                   "¿Qué dispositivos y acciones expone mi conexión de Home Assistant?",
                   "Consultá el estado de las luces que elija, si mi servidor ofrece esa información.",
                   "Ayudame a identificar el dispositivo correcto antes de pedir un cambio."
+                ],
+                "screenshots": []
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
+      "id": "hon-readonly",
+      "publisher": "apx",
+      "name": "hOn",
+      "description": "Read hOn cloud status, choose completion notices and optionally enable explicit program starts.",
+      "categories": [
+        "devices"
+      ],
+      "tags": [
+        "optional"
+      ],
+      "icon": "https://marketplace.apxagent.app/listings/hon-readonly/0.3.6/743e72f9c3357e9413876166a6379c0ae4e9f5479f2225f2950d70869a714e7d/assets/icon.svg",
+      "license": "MIT",
+      "tagline": "Check hOn appliance readings in your chat",
+      "category": "devices-home",
+      "listing": "https://marketplace.apxagent.app/listings/hon-readonly/0.3.6/743e72f9c3357e9413876166a6379c0ae4e9f5479f2225f2950d70869a714e7d/apx-listing.json",
+      "versions": [
+        {
+          "version": "0.3.6",
+          "source": {
+            "type": "archive",
+            "url": "https://marketplace.apxagent.app/packages/hon-readonly/0.3.6/743e72f9c3357e9413876166a6379c0ae4e9f5479f2225f2950d70869a714e7d.apxext"
+          },
+          "integrity": "sha256-743e72f9c3357e9413876166a6379c0ae4e9f5479f2225f2950d70869a714e7d",
+          "archive": {
+            "url": "https://marketplace.apxagent.app/packages/hon-readonly/0.3.6/743e72f9c3357e9413876166a6379c0ae4e9f5479f2225f2950d70869a714e7d.apxext",
+            "sha256": "743e72f9c3357e9413876166a6379c0ae4e9f5479f2225f2950d70869a714e7d"
+          },
+          "content_hash": "290a8662267f21dd",
+          "apx": "2.16.0",
+          "published_at": "2026-11-25T01:34:41.000Z",
+          "card": {
+            "summary": "Read hOn cloud status, choose completion notices and optionally enable explicit program starts.",
+            "features": [
+              "Read-only status and opt-in managed dishwasher program notices; explicit program starts stay off unless separately enabled",
+              "Known numeric telemetry with private identifiers omitted"
+            ],
+            "requirements": [
+              "uv on the computer running APX; internet for Python 3.13 and locked dependencies",
+              "A working hOn email/password login and paired appliances"
+            ],
+            "limits": [
+              "Physical pilot evidence only for Candy CF 6C4F1PS-12 (DW)",
+              "No interactive Google login; no stable appliance identities or generic code decoding",
+              "Depends on the hOn cloud; data may be stale or unavailable",
+              "Package runtime exercised on macOS ARM64 only",
+              "Requires APX extension events for opt-in notices; physical completion delivery verified only for Automatic on the supported model, not automatic door opening or every future cycle"
+            ],
+            "pricing": "No extension fee. Requires your own compatible appliance and hOn account; internet and upstream service terms apply.",
+            "privacy": "Your extension-owned email/password are injected at runtime. Credentials go to hOn authentication; only allowlisted status reaches the tool. Selected readings may enter chat and its model provider. No extra analytics.",
+            "id": "hon-readonly",
+            "authentication": "secret",
+            "billing": "free",
+            "docs": "README.md",
+            "schema": 2,
+            "tagline": "Check hOn appliance readings in your chat",
+            "description": "An unofficial community hOn connection using pyhOn. Status and completion observations never control an appliance. Experimental program starts are separately enabled, prepared and confirmed for the known dishwasher; physical execution through this package is verified only for Automatic on Candy CF 6C4F1PS-12 in the completed 2026-11-23 trial. Other program starts remain physically unverified. No door-opening, stop or pause is offered. The care program requires an empty appliance prepared according to its manual. This is not made or endorsed by Haier, Candy, Hoover or hOn.\n\nOnly the Candy CF 6C4F1PS-12 dishwasher has physical pilot evidence. Other models are unverified. The tool returns temporary appliance numbers, known type and connection codes, and allowlisted numeric readings; it omits names, MACs, serials and unknown fields. Numeric codes are model-specific and are not automatically decoded as running or finished. Cloud readings may be stale.\n\nInstall uv on the computer running APX first. The first launch can download Python 3.13 and locked dependencies. Enter your own hOn email and password in this extension's credential fields. Google sign-in alone is not supported: establish and verify a hOn password for that account first.",
+            "prompts": [
+              "Read the available hOn appliance telemetry.",
+              "Check whether the hOn cloud reports an appliance connection event.",
+              "Explain which returned readings are unknown instead of guessing their meaning."
+            ],
+            "category": "devices-home",
+            "icon": "assets/icon.svg",
+            "screenshots": [],
+            "connection": "key",
+            "links": {
+              "website": "https://hon-smarthome.com/",
+              "privacy": "https://apxagent.app/reference/privacy/",
+              "terms": "https://github.com/agentprojectcontext/apx-marketplace/blob/main/LICENSE",
+              "docs": "https://github.com/Andre0512/pyhOn"
+            },
+            "publisher": {
+              "name": "APX",
+              "verified": true
+            },
+            "locales": {
+              "es": {
+                "summary": "Consultá hOn, elegí avisos de final y habilitá arranques explícitos sólo si los necesitás.",
+                "features": [
+                  "Consulta de estado y avisos opcionales de programas del lavavajillas; los arranques explícitos vienen apagados y se habilitan por separado",
+                  "Telemetría numérica conocida sin identificadores privados"
+                ],
+                "requirements": [
+                  "uv en la computadora que ejecuta APX; internet para Python 3.13 y dependencias fijadas",
+                  "Login hOn con email y contraseña y aparatos emparejados"
+                ],
+                "limits": [
+                  "Evidencia física del piloto sólo para Candy CF 6C4F1PS-12 (DW)",
+                  "Sin login interactivo con Google, identidad estable de aparatos ni interpretación genérica de códigos",
+                  "Depende de la nube hOn; los datos pueden faltar o estar desactualizados",
+                  "Runtime del paquete probado sólo en macOS ARM64",
+                  "Los avisos opcionales requieren eventos de extensiones de APX; entrega física verificada sólo para Automático en el modelo compatible, no apertura automática ni todos los ciclos futuros"
+                ],
+                "pricing": "Sin cargo por la extensión. Requiere aparato compatible y cuenta hOn propios; aplican internet y condiciones del servicio.",
+                "privacy": "El email y la contraseña propios de esta extensión se inyectan al ejecutar. Las credenciales van a la autenticación hOn; sólo el estado permitido llega a la herramienta. Las lecturas elegidas pueden entrar al chat y su proveedor de IA. Sin analítica adicional.",
+                "tagline": "Consultá las lecturas de hOn en el chat",
+                "description": "Conexión comunitaria no oficial a hOn mediante pyhOn. La consulta de estado y los avisos nunca controlan el aparato. Los arranques experimentales se habilitan por separado, se preparan y se confirman para el lavavajillas conocido; la ejecución física mediante este paquete sólo está verificada para Automático en el Candy CF 6C4F1PS-12 en la prueba completada el 23/11/2026. Los arranques de los demás programas siguen sin validación física. No ofrece apertura de puerta, detención ni pausa. El ciclo de limpieza requiere el aparato vacío y preparado según su manual. No está hecha ni respaldada por Haier, Candy, Hoover ni hOn.\n\nSólo el lavavajillas Candy CF 6C4F1PS-12 tiene evidencia física del piloto. Los demás modelos no están verificados. Devuelve posiciones temporales, códigos conocidos de tipo y conexión y lecturas numéricas permitidas; omite nombres, MAC, seriales y campos desconocidos. Los códigos dependen del modelo: no se interpretan automáticamente como en marcha o terminado. Los datos pueden estar desactualizados.\n\nInstalá uv en la computadora que ejecuta APX. El primer inicio puede descargar Python 3.13 y dependencias fijadas. Cargá tu email y contraseña hOn en los campos privados de esta extensión. El inicio con Google solo no alcanza: primero definí y verificá una contraseña hOn para esa cuenta.",
+                "prompts": [
+                  "Consultá la telemetría disponible de mis aparatos hOn.",
+                  "Revisá si la nube hOn informa un evento de conexión del aparato.",
+                  "Explicá qué lecturas no conocemos, sin adivinar su significado."
+                ],
+                "screenshots": []
+              }
+            }
+          }
+        },
+        {
+          "version": "0.3.5",
+          "source": {
+            "type": "archive",
+            "url": "https://marketplace.apxagent.app/packages/hon-readonly/0.3.5/cf2f2c1e3cffc9bc140ecc88d7dc6fc6bb22047a2c6366e8c8e2f80c3d625681.apxext"
+          },
+          "integrity": "sha256-cf2f2c1e3cffc9bc140ecc88d7dc6fc6bb22047a2c6366e8c8e2f80c3d625681",
+          "archive": {
+            "url": "https://marketplace.apxagent.app/packages/hon-readonly/0.3.5/cf2f2c1e3cffc9bc140ecc88d7dc6fc6bb22047a2c6366e8c8e2f80c3d625681.apxext",
+            "sha256": "cf2f2c1e3cffc9bc140ecc88d7dc6fc6bb22047a2c6366e8c8e2f80c3d625681"
+          },
+          "content_hash": "db94f8fe5845d1d3",
+          "apx": "2.16.0",
+          "published_at": "2026-11-23T11:41:31.000Z",
+          "card": {
+            "summary": "Read hOn cloud status, choose completion notices and optionally enable explicit program starts.",
+            "features": [
+              "Read-only status and opt-in managed dishwasher program notices; explicit program starts stay off unless separately enabled",
+              "Known numeric telemetry with private identifiers omitted"
+            ],
+            "requirements": [
+              "uv on the computer running APX; internet for Python 3.13 and locked dependencies",
+              "A working hOn email/password login and paired appliances"
+            ],
+            "limits": [
+              "Physical pilot evidence only for Candy CF 6C4F1PS-12 (DW)",
+              "No interactive Google login; no stable appliance identities or generic code decoding",
+              "Depends on the hOn cloud; data may be stale or unavailable",
+              "Package runtime exercised on macOS ARM64 only",
+              "Requires APX extension events for opt-in notices; physical completion delivery verified only for Automatic on the supported model, not automatic door opening or every future cycle"
+            ],
+            "pricing": "No extension fee. Requires your own compatible appliance and hOn account; internet and upstream service terms apply.",
+            "privacy": "Your extension-owned email/password are injected at runtime. Credentials go to hOn authentication; only allowlisted status reaches the tool. Selected readings may enter chat and its model provider. No extra analytics.",
+            "id": "hon-readonly",
+            "authentication": "secret",
+            "billing": "free",
+            "docs": "README.md",
+            "schema": 2,
+            "tagline": "Check hOn appliance readings in your chat",
+            "description": "An unofficial community hOn connection using pyhOn. Status and completion observations never control an appliance. Experimental program starts are separately enabled, prepared and confirmed for the known dishwasher; physical execution through this package is verified only for Automatic on Candy CF 6C4F1PS-12 in the completed 2026-11-23 trial. Other program starts remain physically unverified. No door-opening, stop or pause is offered. The care program requires an empty appliance prepared according to its manual. This is not made or endorsed by Haier, Candy, Hoover or hOn.\n\nOnly the Candy CF 6C4F1PS-12 dishwasher has physical pilot evidence. Other models are unverified. The tool returns temporary appliance numbers, known type and connection codes, and allowlisted numeric readings; it omits names, MACs, serials and unknown fields. Numeric codes are model-specific and are not automatically decoded as running or finished. Cloud readings may be stale.\n\nInstall uv on the computer running APX first. The first launch can download Python 3.13 and locked dependencies. Enter your own hOn email and password in this extension's credential fields. Google sign-in alone is not supported: establish and verify a hOn password for that account first.",
+            "prompts": [
+              "Read the available hOn appliance telemetry.",
+              "Check whether the hOn cloud reports an appliance connection event.",
+              "Explain which returned readings are unknown instead of guessing their meaning."
+            ],
+            "category": "devices-home",
+            "icon": "assets/icon.svg",
+            "screenshots": [],
+            "connection": "key",
+            "links": {
+              "website": "https://hon-smarthome.com/",
+              "privacy": "https://apxagent.app/reference/privacy/",
+              "terms": "https://github.com/agentprojectcontext/apx-marketplace/blob/main/LICENSE",
+              "docs": "https://github.com/Andre0512/pyhOn"
+            },
+            "publisher": {
+              "name": "APX",
+              "verified": true
+            },
+            "locales": {
+              "es": {
+                "summary": "Consultá hOn, elegí avisos de final y habilitá arranques explícitos sólo si los necesitás.",
+                "features": [
+                  "Consulta de estado y avisos opcionales de programas del lavavajillas; los arranques explícitos vienen apagados y se habilitan por separado",
+                  "Telemetría numérica conocida sin identificadores privados"
+                ],
+                "requirements": [
+                  "uv en la computadora que ejecuta APX; internet para Python 3.13 y dependencias fijadas",
+                  "Login hOn con email y contraseña y aparatos emparejados"
+                ],
+                "limits": [
+                  "Evidencia física del piloto sólo para Candy CF 6C4F1PS-12 (DW)",
+                  "Sin login interactivo con Google, identidad estable de aparatos ni interpretación genérica de códigos",
+                  "Depende de la nube hOn; los datos pueden faltar o estar desactualizados",
+                  "Runtime del paquete probado sólo en macOS ARM64",
+                  "Los avisos opcionales requieren eventos de extensiones de APX; entrega física verificada sólo para Automático en el modelo compatible, no apertura automática ni todos los ciclos futuros"
+                ],
+                "pricing": "Sin cargo por la extensión. Requiere aparato compatible y cuenta hOn propios; aplican internet y condiciones del servicio.",
+                "privacy": "El email y la contraseña propios de esta extensión se inyectan al ejecutar. Las credenciales van a la autenticación hOn; sólo el estado permitido llega a la herramienta. Las lecturas elegidas pueden entrar al chat y su proveedor de IA. Sin analítica adicional.",
+                "tagline": "Consultá las lecturas de hOn en el chat",
+                "description": "Conexión comunitaria no oficial a hOn mediante pyhOn. La consulta de estado y los avisos nunca controlan el aparato. Los arranques experimentales se habilitan por separado, se preparan y se confirman para el lavavajillas conocido; la ejecución física mediante este paquete sólo está verificada para Automático en el Candy CF 6C4F1PS-12 en la prueba completada el 23/11/2026. Los arranques de los demás programas siguen sin validación física. No ofrece apertura de puerta, detención ni pausa. El ciclo de limpieza requiere el aparato vacío y preparado según su manual. No está hecha ni respaldada por Haier, Candy, Hoover ni hOn.\n\nSólo el lavavajillas Candy CF 6C4F1PS-12 tiene evidencia física del piloto. Los demás modelos no están verificados. Devuelve posiciones temporales, códigos conocidos de tipo y conexión y lecturas numéricas permitidas; omite nombres, MAC, seriales y campos desconocidos. Los códigos dependen del modelo: no se interpretan automáticamente como en marcha o terminado. Los datos pueden estar desactualizados.\n\nInstalá uv en la computadora que ejecuta APX. El primer inicio puede descargar Python 3.13 y dependencias fijadas. Cargá tu email y contraseña hOn en los campos privados de esta extensión. El inicio con Google solo no alcanza: primero definí y verificá una contraseña hOn para esa cuenta.",
+                "prompts": [
+                  "Consultá la telemetría disponible de mis aparatos hOn.",
+                  "Revisá si la nube hOn informa un evento de conexión del aparato.",
+                  "Explicá qué lecturas no conocemos, sin adivinar su significado."
+                ],
+                "screenshots": []
+              }
+            }
+          }
+        },
+        {
+          "version": "0.3.4",
+          "source": {
+            "type": "archive",
+            "url": "https://marketplace.apxagent.app/packages/hon-readonly/0.3.4/4234b46d6521d213842376fa2efce63e4d19c70367f04c6af60375b41dc1f8a2.apxext"
+          },
+          "integrity": "sha256-4234b46d6521d213842376fa2efce63e4d19c70367f04c6af60375b41dc1f8a2",
+          "archive": {
+            "url": "https://marketplace.apxagent.app/packages/hon-readonly/0.3.4/4234b46d6521d213842376fa2efce63e4d19c70367f04c6af60375b41dc1f8a2.apxext",
+            "sha256": "4234b46d6521d213842376fa2efce63e4d19c70367f04c6af60375b41dc1f8a2"
+          },
+          "content_hash": "09dcedc5cf1aeb6c",
+          "apx": "2.16.0",
+          "published_at": "2026-11-23T11:45:00.000Z",
+          "card": {
+            "summary": "Read hOn cloud status, choose completion notices and optionally enable explicit program starts.",
+            "features": [
+              "Read-only status and opt-in managed dishwasher program notices; explicit program starts stay off unless separately enabled",
+              "Known numeric telemetry with private identifiers omitted"
+            ],
+            "requirements": [
+              "uv on the computer running APX; internet for Python 3.13 and locked dependencies",
+              "A working hOn email/password login and paired appliances"
+            ],
+            "limits": [
+              "Physical pilot evidence only for Candy CF 6C4F1PS-12 (DW)",
+              "No interactive Google login; no stable appliance identities or generic code decoding",
+              "Depends on the hOn cloud; data may be stale or unavailable",
+              "Package runtime exercised on macOS ARM64 only",
+              "Requires APX extension events for opt-in notices; physical automatic completion delivery is not yet verified"
+            ],
+            "pricing": "No extension fee. Requires your own compatible appliance and hOn account; internet and upstream service terms apply.",
+            "privacy": "Your extension-owned email/password are injected at runtime. Credentials go to hOn authentication; only allowlisted status reaches the tool. Selected readings may enter chat and its model provider. No extra analytics.",
+            "id": "hon-readonly",
+            "authentication": "secret",
+            "billing": "free",
+            "docs": "README.md",
+            "schema": 2,
+            "tagline": "Check hOn appliance readings in your chat",
+            "description": "An unofficial community hOn connection using pyhOn. Status and completion observations never control an appliance. Experimental program starts are separately enabled, prepared and confirmed for the known dishwasher; physical execution through this package remains unverified. No door-opening, stop or pause is offered. The care program requires an empty appliance prepared according to its manual. This is not made or endorsed by Haier, Candy, Hoover or hOn.\n\nOnly the Candy CF 6C4F1PS-12 dishwasher has physical pilot evidence. Other models are unverified. The tool returns temporary appliance numbers, known type and connection codes, and allowlisted numeric readings; it omits names, MACs, serials and unknown fields. Numeric codes are model-specific and are not automatically decoded as running or finished. Cloud readings may be stale.\n\nInstall uv on the computer running APX first. The first launch can download Python 3.13 and locked dependencies. Enter your own hOn email and password in this extension's credential fields. Google sign-in alone is not supported: establish and verify a hOn password for that account first.",
+            "prompts": [
+              "Read the available hOn appliance telemetry.",
+              "Check whether the hOn cloud reports an appliance connection event.",
+              "Explain which returned readings are unknown instead of guessing their meaning."
+            ],
+            "category": "devices-home",
+            "icon": "assets/icon.svg",
+            "screenshots": [],
+            "connection": "key",
+            "links": {
+              "website": "https://hon-smarthome.com/",
+              "privacy": "https://apxagent.app/reference/privacy/",
+              "terms": "https://github.com/agentprojectcontext/apx-marketplace/blob/main/LICENSE",
+              "docs": "https://github.com/Andre0512/pyhOn"
+            },
+            "publisher": {
+              "name": "APX",
+              "verified": true
+            },
+            "locales": {
+              "es": {
+                "summary": "Consultá hOn, elegí avisos de final y habilitá arranques explícitos sólo si los necesitás.",
+                "features": [
+                  "Consulta de estado y avisos opcionales de Pre-lavado; los arranques explícitos vienen apagados y se habilitan por separado",
+                  "Telemetría numérica conocida sin identificadores privados"
+                ],
+                "requirements": [
+                  "uv en la computadora que ejecuta APX; internet para Python 3.13 y dependencias fijadas",
+                  "Login hOn con email y contraseña y aparatos emparejados"
+                ],
+                "limits": [
+                  "Evidencia física del piloto sólo para Candy CF 6C4F1PS-12 (DW)",
+                  "Sin login interactivo con Google, identidad estable de aparatos ni interpretación genérica de códigos",
+                  "Depende de la nube hOn; los datos pueden faltar o estar desactualizados",
+                  "Runtime del paquete probado sólo en macOS ARM64",
+                  "Los avisos opcionales requieren eventos de extensiones de APX; la entrega automática del final físico todavía no está verificada"
+                ],
+                "pricing": "Sin cargo por la extensión. Requiere aparato compatible y cuenta hOn propios; aplican internet y condiciones del servicio.",
+                "privacy": "El email y la contraseña propios de esta extensión se inyectan al ejecutar. Las credenciales van a la autenticación hOn; sólo el estado permitido llega a la herramienta. Las lecturas elegidas pueden entrar al chat y su proveedor de IA. Sin analítica adicional.",
+                "tagline": "Consultá las lecturas de hOn en el chat",
+                "description": "Conexión comunitaria no oficial a hOn mediante pyhOn. La consulta de estado y los avisos nunca controlan el aparato. Los arranques experimentales se habilitan por separado, se preparan y se confirman para el lavavajillas conocido; la ejecución física mediante este paquete todavía no está verificada. No ofrece apertura de puerta, detención ni pausa. El ciclo de limpieza requiere el aparato vacío y preparado según su manual. No está hecha ni respaldada por Haier, Candy, Hoover ni hOn.\n\nSólo el lavavajillas Candy CF 6C4F1PS-12 tiene evidencia física del piloto. Los demás modelos no están verificados. Devuelve posiciones temporales, códigos conocidos de tipo y conexión y lecturas numéricas permitidas; omite nombres, MAC, seriales y campos desconocidos. Los códigos dependen del modelo: no se interpretan automáticamente como en marcha o terminado. Los datos pueden estar desactualizados.\n\nInstalá uv en la computadora que ejecuta APX. El primer inicio puede descargar Python 3.13 y dependencias fijadas. Cargá tu email y contraseña hOn en los campos privados de esta extensión. El inicio con Google solo no alcanza: primero definí y verificá una contraseña hOn para esa cuenta.",
+                "prompts": [
+                  "Consultá la telemetría disponible de mis aparatos hOn.",
+                  "Revisá si la nube hOn informa un evento de conexión del aparato.",
+                  "Explicá qué lecturas no conocemos, sin adivinar su significado."
+                ],
+                "screenshots": []
+              }
+            }
+          }
+        },
+        {
+          "version": "0.2.1",
+          "source": {
+            "type": "archive",
+            "url": "https://marketplace.apxagent.app/packages/hon-readonly/0.2.1/089ccb125a389feb139b1674776bc3259c6e7d9b7705f6b6162f0eb73ec2c65a.apxext"
+          },
+          "integrity": "sha256-089ccb125a389feb139b1674776bc3259c6e7d9b7705f6b6162f0eb73ec2c65a",
+          "archive": {
+            "url": "https://marketplace.apxagent.app/packages/hon-readonly/0.2.1/089ccb125a389feb139b1674776bc3259c6e7d9b7705f6b6162f0eb73ec2c65a.apxext",
+            "sha256": "089ccb125a389feb139b1674776bc3259c6e7d9b7705f6b6162f0eb73ec2c65a"
+          },
+          "content_hash": "61607449bcf6fa2c",
+          "apx": "2.16.0",
+          "published_at": "2026-11-21T16:38:21.023Z",
+          "card": {
+            "summary": "Read appliance status from the hOn cloud, without controls.",
+            "features": [
+              "Read-only status plus an opt-in local prewash observation preview; no appliance controls or MQTT",
+              "Known numeric telemetry with private identifiers omitted"
+            ],
+            "requirements": [
+              "uv on the computer running APX; internet for Python 3.13 and locked dependencies",
+              "A working hOn email/password login and paired appliances"
+            ],
+            "limits": [
+              "Physical pilot evidence only for Candy CF 6C4F1PS-12 (DW)",
+              "No interactive Google login; no stable appliance identities or generic code decoding",
+              "Depends on the hOn cloud; data may be stale or unavailable",
+              "Package runtime exercised on macOS ARM64 only",
+              "Optional prewash monitor requires a separate Flow; scheduled delivery is unverified, at-most-once and may lose notices"
+            ],
+            "pricing": "No extension fee. Requires your own compatible appliance and hOn account; internet and upstream service terms apply.",
+            "privacy": "Your extension-owned email/password are injected at runtime. Credentials go to hOn authentication; only allowlisted status reaches the tool. Selected readings may enter chat and its model provider. No extra analytics.",
+            "id": "hon-readonly",
+            "authentication": "secret",
+            "billing": "free",
+            "docs": "README.md",
+            "schema": 2,
+            "tagline": "Check hOn appliance readings in your chat",
+            "description": "An unofficial community hOn connection using pyhOn. Read cloud appliance attributes without starting, stopping or changing a program. This is not made or endorsed by Haier, Candy, Hoover or hOn.\n\nOnly the Candy CF 6C4F1PS-12 dishwasher has physical pilot evidence. Other models are unverified. The tool returns temporary appliance numbers, known type and connection codes, and allowlisted numeric readings; it omits names, MACs, serials and unknown fields. Numeric codes are model-specific and are not automatically decoded as running or finished. Cloud readings may be stale.\n\nInstall uv on the computer running APX first. The first launch can download Python 3.13 and locked dependencies. Enter your own hOn email and password in this extension's credential fields. Google sign-in alone is not supported: establish and verify a hOn password for that account first.",
+            "prompts": [
+              "Read the available hOn appliance telemetry.",
+              "Check whether the hOn cloud reports an appliance connection event.",
+              "Explain which returned readings are unknown instead of guessing their meaning."
+            ],
+            "category": "devices-home",
+            "icon": "assets/icon.svg",
+            "screenshots": [],
+            "connection": "key",
+            "links": {
+              "website": "https://hon-smarthome.com/",
+              "privacy": "https://apxagent.app/reference/privacy/",
+              "terms": "https://github.com/agentprojectcontext/apx-marketplace/blob/main/LICENSE",
+              "docs": "https://github.com/Andre0512/pyhOn"
+            },
+            "publisher": {
+              "name": "APX",
+              "verified": true
+            },
+            "locales": {
+              "es": {
+                "summary": "Consultá el estado en la nube hOn, sin controlar aparatos.",
+                "features": [
+                  "Consulta de estado y vista previa opcional de observación de Pre-lavado; sin controles ni MQTT",
+                  "Telemetría numérica conocida sin identificadores privados"
+                ],
+                "requirements": [
+                  "uv en la computadora que ejecuta APX; internet para Python 3.13 y dependencias fijadas",
+                  "Login hOn con email y contraseña y aparatos emparejados"
+                ],
+                "limits": [
+                  "Evidencia física del piloto sólo para Candy CF 6C4F1PS-12 (DW)",
+                  "Sin login interactivo con Google, identidad estable de aparatos ni interpretación genérica de códigos",
+                  "Depende de la nube hOn; los datos pueden faltar o estar desactualizados",
+                  "Runtime del paquete probado sólo en macOS ARM64",
+                  "El monitor opcional requiere un Flow separado; entrega programada sin verificar, como máximo una vez y con posible pérdida de avisos"
+                ],
+                "pricing": "Sin cargo por la extensión. Requiere aparato compatible y cuenta hOn propios; aplican internet y condiciones del servicio.",
+                "privacy": "El email y la contraseña propios de esta extensión se inyectan al ejecutar. Las credenciales van a la autenticación hOn; sólo el estado permitido llega a la herramienta. Las lecturas elegidas pueden entrar al chat y su proveedor de IA. Sin analítica adicional.",
+                "tagline": "Consultá las lecturas de hOn en el chat",
+                "description": "Conexión comunitaria no oficial a hOn mediante pyhOn. Consulta atributos en la nube sin iniciar, detener ni modificar programas. No está hecha ni respaldada por Haier, Candy, Hoover ni hOn.\n\nSólo el lavavajillas Candy CF 6C4F1PS-12 tiene evidencia física del piloto. Los demás modelos no están verificados. Devuelve posiciones temporales, códigos conocidos de tipo y conexión y lecturas numéricas permitidas; omite nombres, MAC, seriales y campos desconocidos. Los códigos dependen del modelo: no se interpretan automáticamente como en marcha o terminado. Los datos pueden estar desactualizados.\n\nInstalá uv en la computadora que ejecuta APX. El primer inicio puede descargar Python 3.13 y dependencias fijadas. Cargá tu email y contraseña hOn en los campos privados de esta extensión. El inicio con Google solo no alcanza: primero definí y verificá una contraseña hOn para esa cuenta.",
+                "prompts": [
+                  "Consultá la telemetría disponible de mis aparatos hOn.",
+                  "Revisá si la nube hOn informa un evento de conexión del aparato.",
+                  "Explicá qué lecturas no conocemos, sin adivinar su significado."
+                ],
+                "screenshots": []
+              }
+            }
+          }
+        },
+        {
+          "version": "0.2.0",
+          "source": {
+            "type": "archive",
+            "url": "https://marketplace.apxagent.app/packages/hon-readonly/0.2.0/8eadf842181c40d58d27e1b3ccf6f67367e1fa42c78c6f880bf67c5f29166434.apxext"
+          },
+          "integrity": "sha256-8eadf842181c40d58d27e1b3ccf6f67367e1fa42c78c6f880bf67c5f29166434",
+          "archive": {
+            "url": "https://marketplace.apxagent.app/packages/hon-readonly/0.2.0/8eadf842181c40d58d27e1b3ccf6f67367e1fa42c78c6f880bf67c5f29166434.apxext",
+            "sha256": "8eadf842181c40d58d27e1b3ccf6f67367e1fa42c78c6f880bf67c5f29166434"
+          },
+          "content_hash": "73eaac6cd4a63740",
+          "apx": "2.16.0",
+          "published_at": "2026-11-21T16:19:58.047Z",
+          "card": {
+            "summary": "Read appliance status from the hOn cloud, without controls.",
+            "features": [
+              "Read-only status plus an opt-in local prewash observation preview; no appliance controls or MQTT",
+              "Known numeric telemetry with private identifiers omitted"
+            ],
+            "requirements": [
+              "uv on the computer running APX; internet for Python 3.13 and locked dependencies",
+              "A working hOn email/password login and paired appliances"
+            ],
+            "limits": [
+              "Physical pilot evidence only for Candy CF 6C4F1PS-12 (DW)",
+              "No interactive Google login; no stable appliance identities or generic code decoding",
+              "Depends on the hOn cloud; data may be stale or unavailable",
+              "Package runtime exercised on macOS ARM64 only",
+              "Optional prewash monitor requires a separate Flow; scheduled delivery is unverified, at-most-once and may lose notices"
+            ],
+            "pricing": "No extension fee. Requires your own compatible appliance and hOn account; internet and upstream service terms apply.",
+            "privacy": "Your extension-owned email/password are injected at runtime. Credentials go to hOn authentication; only allowlisted status reaches the tool. Selected readings may enter chat and its model provider. No extra analytics.",
+            "id": "hon-readonly",
+            "authentication": "secret",
+            "billing": "free",
+            "docs": "README.md",
+            "schema": 2,
+            "tagline": "Check hOn appliance readings in your chat",
+            "description": "An unofficial community hOn connection using pyhOn. Read cloud appliance attributes without starting, stopping or changing a program. This is not made or endorsed by Haier, Candy, Hoover or hOn.\n\nOnly the Candy CF 6C4F1PS-12 dishwasher has physical pilot evidence. Other models are unverified. The tool returns temporary appliance numbers, known type and connection codes, and allowlisted numeric readings; it omits names, MACs, serials and unknown fields. Numeric codes are model-specific and are not automatically decoded as running or finished. Cloud readings may be stale.\n\nInstall uv on the computer running APX first. The first launch can download Python 3.13 and locked dependencies. Enter your own hOn email and password in this extension's credential fields. Google sign-in alone is not supported: establish and verify a hOn password for that account first.",
+            "prompts": [
+              "Read the available hOn appliance telemetry.",
+              "Check whether the hOn cloud reports an appliance connection event.",
+              "Explain which returned readings are unknown instead of guessing their meaning."
+            ],
+            "category": "devices-home",
+            "icon": "assets/icon.svg",
+            "screenshots": [],
+            "connection": "key",
+            "links": {
+              "website": "https://hon-smarthome.com/",
+              "privacy": "https://apxagent.app/reference/privacy/",
+              "terms": "https://github.com/agentprojectcontext/apx-marketplace/blob/main/LICENSE",
+              "docs": "https://github.com/Andre0512/pyhOn"
+            },
+            "publisher": {
+              "name": "APX",
+              "verified": true
+            },
+            "locales": {
+              "es": {
+                "summary": "Consultá el estado en la nube hOn, sin controlar aparatos.",
+                "features": [
+                  "Consulta de estado y vista previa opcional de observación de Pre-lavado; sin controles ni MQTT",
+                  "Telemetría numérica conocida sin identificadores privados"
+                ],
+                "requirements": [
+                  "uv en la computadora que ejecuta APX; internet para Python 3.13 y dependencias fijadas",
+                  "Login hOn con email y contraseña y aparatos emparejados"
+                ],
+                "limits": [
+                  "Evidencia física del piloto sólo para Candy CF 6C4F1PS-12 (DW)",
+                  "Sin login interactivo con Google, identidad estable de aparatos ni interpretación genérica de códigos",
+                  "Depende de la nube hOn; los datos pueden faltar o estar desactualizados",
+                  "Runtime del paquete probado sólo en macOS ARM64",
+                  "El monitor opcional requiere un Flow separado; entrega programada sin verificar, como máximo una vez y con posible pérdida de avisos"
+                ],
+                "pricing": "Sin cargo por la extensión. Requiere aparato compatible y cuenta hOn propios; aplican internet y condiciones del servicio.",
+                "privacy": "El email y la contraseña propios de esta extensión se inyectan al ejecutar. Las credenciales van a la autenticación hOn; sólo el estado permitido llega a la herramienta. Las lecturas elegidas pueden entrar al chat y su proveedor de IA. Sin analítica adicional.",
+                "tagline": "Consultá las lecturas de hOn en el chat",
+                "description": "Conexión comunitaria no oficial a hOn mediante pyhOn. Consulta atributos en la nube sin iniciar, detener ni modificar programas. No está hecha ni respaldada por Haier, Candy, Hoover ni hOn.\n\nSólo el lavavajillas Candy CF 6C4F1PS-12 tiene evidencia física del piloto. Los demás modelos no están verificados. Devuelve posiciones temporales, códigos conocidos de tipo y conexión y lecturas numéricas permitidas; omite nombres, MAC, seriales y campos desconocidos. Los códigos dependen del modelo: no se interpretan automáticamente como en marcha o terminado. Los datos pueden estar desactualizados.\n\nInstalá uv en la computadora que ejecuta APX. El primer inicio puede descargar Python 3.13 y dependencias fijadas. Cargá tu email y contraseña hOn en los campos privados de esta extensión. El inicio con Google solo no alcanza: primero definí y verificá una contraseña hOn para esa cuenta.",
+                "prompts": [
+                  "Consultá la telemetría disponible de mis aparatos hOn.",
+                  "Revisá si la nube hOn informa un evento de conexión del aparato.",
+                  "Explicá qué lecturas no conocemos, sin adivinar su significado."
+                ],
+                "screenshots": []
+              }
+            }
+          }
+        },
+        {
+          "version": "0.1.2",
+          "source": {
+            "type": "archive",
+            "url": "https://marketplace.apxagent.app/packages/hon-readonly/0.1.2/749fa6ccff86c11c3f68eb269f639a233e43147b3122f4cb1c5943e2cef243b0.apxext"
+          },
+          "integrity": "sha256-749fa6ccff86c11c3f68eb269f639a233e43147b3122f4cb1c5943e2cef243b0",
+          "archive": {
+            "url": "https://marketplace.apxagent.app/packages/hon-readonly/0.1.2/749fa6ccff86c11c3f68eb269f639a233e43147b3122f4cb1c5943e2cef243b0.apxext",
+            "sha256": "749fa6ccff86c11c3f68eb269f639a233e43147b3122f4cb1c5943e2cef243b0"
+          },
+          "content_hash": "50ee17b53c688722",
+          "apx": "2.16.0",
+          "published_at": "2026-11-21T14:40:10.000Z",
+          "card": {
+            "summary": "Read appliance status from the hOn cloud, without controls.",
+            "features": [
+              "One read-only status tool; no appliance controls or MQTT",
+              "Known numeric telemetry with private identifiers omitted"
+            ],
+            "requirements": [
+              "uv on the computer running APX; internet for Python 3.13 and locked dependencies",
+              "A working hOn email/password login and paired appliances"
+            ],
+            "limits": [
+              "Physical pilot evidence only for Candy CF 6C4F1PS-12 (DW)",
+              "No interactive Google login; no stable appliance identities or generic code decoding",
+              "Depends on the hOn cloud; data may be stale or unavailable",
+              "Package runtime exercised on macOS ARM64 only"
+            ],
+            "pricing": "No extension fee. Requires your own compatible appliance and hOn account; internet and upstream service terms apply.",
+            "privacy": "Your extension-owned email/password are injected at runtime. Credentials go to hOn authentication; only allowlisted status reaches the tool. Selected readings may enter chat and its model provider. No extra analytics.",
+            "id": "hon-readonly",
+            "authentication": "secret",
+            "billing": "free",
+            "docs": "README.md",
+            "schema": 2,
+            "tagline": "Check hOn appliance readings in your chat",
+            "description": "An unofficial community hOn connection using pyhOn. Read cloud appliance attributes without starting, stopping or changing a program. This is not made or endorsed by Haier, Candy, Hoover or hOn.\n\nOnly the Candy CF 6C4F1PS-12 dishwasher has physical pilot evidence. Other models are unverified. The tool returns temporary appliance numbers, known type and connection codes, and allowlisted numeric readings; it omits names, MACs, serials and unknown fields. Numeric codes are model-specific and are not automatically decoded as running or finished. Cloud readings may be stale.\n\nInstall uv on the computer running APX first. The first launch can download Python 3.13 and locked dependencies. Enter your own hOn email and password in this extension's credential fields. Google sign-in alone is not supported: establish and verify a hOn password for that account first.",
+            "prompts": [
+              "Read the available hOn appliance telemetry.",
+              "Check whether the hOn cloud reports an appliance connection event.",
+              "Explain which returned readings are unknown instead of guessing their meaning."
+            ],
+            "category": "devices-home",
+            "icon": "assets/icon.svg",
+            "screenshots": [],
+            "connection": "key",
+            "links": {
+              "website": "https://hon-smarthome.com/",
+              "privacy": "https://apxagent.app/reference/privacy/",
+              "terms": "https://github.com/agentprojectcontext/apx-marketplace/blob/main/LICENSE",
+              "docs": "https://github.com/Andre0512/pyhOn"
+            },
+            "publisher": {
+              "name": "APX",
+              "verified": true
+            },
+            "locales": {
+              "es": {
+                "summary": "Consultá el estado en la nube hOn, sin controlar aparatos.",
+                "features": [
+                  "Una herramienta de consulta; sin controles ni MQTT",
+                  "Telemetría numérica conocida sin identificadores privados"
+                ],
+                "requirements": [
+                  "uv en la computadora que ejecuta APX; internet para Python 3.13 y dependencias fijadas",
+                  "Login hOn con email y contraseña y aparatos emparejados"
+                ],
+                "limits": [
+                  "Evidencia física del piloto sólo para Candy CF 6C4F1PS-12 (DW)",
+                  "Sin login interactivo con Google, identidad estable de aparatos ni interpretación genérica de códigos",
+                  "Depende de la nube hOn; los datos pueden faltar o estar desactualizados",
+                  "Runtime del paquete probado sólo en macOS ARM64"
+                ],
+                "pricing": "Sin cargo por la extensión. Requiere aparato compatible y cuenta hOn propios; aplican internet y condiciones del servicio.",
+                "privacy": "El email y la contraseña propios de esta extensión se inyectan al ejecutar. Las credenciales van a la autenticación hOn; sólo el estado permitido llega a la herramienta. Las lecturas elegidas pueden entrar al chat y su proveedor de IA. Sin analítica adicional.",
+                "tagline": "Consultá las lecturas de hOn en el chat",
+                "description": "Conexión comunitaria no oficial a hOn mediante pyhOn. Consulta atributos en la nube sin iniciar, detener ni modificar programas. No está hecha ni respaldada por Haier, Candy, Hoover ni hOn.\n\nSólo el lavavajillas Candy CF 6C4F1PS-12 tiene evidencia física del piloto. Los demás modelos no están verificados. Devuelve posiciones temporales, códigos conocidos de tipo y conexión y lecturas numéricas permitidas; omite nombres, MAC, seriales y campos desconocidos. Los códigos dependen del modelo: no se interpretan automáticamente como en marcha o terminado. Los datos pueden estar desactualizados.\n\nInstalá uv en la computadora que ejecuta APX. El primer inicio puede descargar Python 3.13 y dependencias fijadas. Cargá tu email y contraseña hOn en los campos privados de esta extensión. El inicio con Google solo no alcanza: primero definí y verificá una contraseña hOn para esa cuenta.",
+                "prompts": [
+                  "Consultá la telemetría disponible de mis aparatos hOn.",
+                  "Revisá si la nube hOn informa un evento de conexión del aparato.",
+                  "Explicá qué lecturas no conocemos, sin adivinar su significado."
+                ],
+                "screenshots": []
+              }
+            }
+          }
+        },
+        {
+          "version": "0.1.1",
+          "source": {
+            "type": "archive",
+            "url": "https://marketplace.apxagent.app/packages/hon-readonly/0.1.1/1d2128486aecc77fa6a6e253a3d9bc8f653e2cfc1bb12685b4a5c2a73d7c6e13.apxext"
+          },
+          "integrity": "sha256-1d2128486aecc77fa6a6e253a3d9bc8f653e2cfc1bb12685b4a5c2a73d7c6e13",
+          "archive": {
+            "url": "https://marketplace.apxagent.app/packages/hon-readonly/0.1.1/1d2128486aecc77fa6a6e253a3d9bc8f653e2cfc1bb12685b4a5c2a73d7c6e13.apxext",
+            "sha256": "1d2128486aecc77fa6a6e253a3d9bc8f653e2cfc1bb12685b4a5c2a73d7c6e13"
+          },
+          "content_hash": "077a22bc520cdb82",
+          "apx": "2.16.0",
+          "published_at": "2026-11-21T14:07:55.000Z",
+          "card": {
+            "summary": "Read appliance status from the hOn cloud, without controls.",
+            "features": [
+              "One read-only status tool; no appliance controls or MQTT",
+              "Known numeric telemetry with private identifiers omitted"
+            ],
+            "requirements": [
+              "uv on the computer running APX; internet for Python 3.13 and locked dependencies",
+              "A working hOn email/password login and paired appliances"
+            ],
+            "limits": [
+              "Physical pilot evidence only for Candy CF 6C4F1PS-12 (DW)",
+              "No interactive Google login; no stable appliance identities or generic code decoding",
+              "Depends on the hOn cloud; data may be stale or unavailable",
+              "Package runtime exercised on macOS ARM64 only"
+            ],
+            "pricing": "No extension fee. Requires your own compatible appliance and hOn account; internet and upstream service terms apply.",
+            "privacy": "Your extension-owned email/password are injected at runtime. Credentials go to hOn authentication; only allowlisted status reaches the tool. Selected readings may enter chat and its model provider. No extra analytics.",
+            "id": "hon-readonly",
+            "authentication": "secret",
+            "billing": "free",
+            "docs": "README.md",
+            "schema": 2,
+            "tagline": "Check hOn appliance readings in your chat",
+            "description": "An unofficial community hOn connection using pyhOn. Read cloud appliance attributes without starting, stopping or changing a program. This is not made or endorsed by Haier, Candy, Hoover or hOn.\n\nOnly the Candy CF 6C4F1PS-12 dishwasher has physical pilot evidence. Other models are unverified. The tool returns temporary appliance numbers, known type and connection codes, and allowlisted numeric readings; it omits names, MACs, serials and unknown fields. Numeric codes are model-specific and are not automatically decoded as running or finished. Cloud readings may be stale.\n\nInstall uv on the computer running APX first. The first launch can download Python 3.13 and locked dependencies. Enter your own hOn email and password in this extension's credential fields. Google sign-in alone is not supported: establish and verify a hOn password for that account first.",
+            "prompts": [
+              "Read the available hOn appliance telemetry.",
+              "Check whether the hOn cloud reports an appliance connection event.",
+              "Explain which returned readings are unknown instead of guessing their meaning."
+            ],
+            "category": "devices-home",
+            "icon": "assets/icon.svg",
+            "screenshots": [],
+            "connection": "key",
+            "links": {
+              "website": "https://hon-smarthome.com/",
+              "privacy": "https://apxagent.app/reference/privacy/",
+              "terms": "https://github.com/agentprojectcontext/apx-marketplace/blob/main/LICENSE",
+              "docs": "https://github.com/Andre0512/pyhOn"
+            },
+            "publisher": {
+              "name": "APX",
+              "verified": true
+            },
+            "locales": {
+              "es": {
+                "summary": "Consultá el estado en la nube hOn, sin controlar aparatos.",
+                "features": [
+                  "Una herramienta de consulta; sin controles ni MQTT",
+                  "Telemetría numérica conocida sin identificadores privados"
+                ],
+                "requirements": [
+                  "uv en la computadora que ejecuta APX; internet para Python 3.13 y dependencias fijadas",
+                  "Login hOn con email y contraseña y aparatos emparejados"
+                ],
+                "limits": [
+                  "Evidencia física del piloto sólo para Candy CF 6C4F1PS-12 (DW)",
+                  "Sin login interactivo con Google, identidad estable de aparatos ni interpretación genérica de códigos",
+                  "Depende de la nube hOn; los datos pueden faltar o estar desactualizados",
+                  "Runtime del paquete probado sólo en macOS ARM64"
+                ],
+                "pricing": "Sin cargo por la extensión. Requiere aparato compatible y cuenta hOn propios; aplican internet y condiciones del servicio.",
+                "privacy": "El email y la contraseña propios de esta extensión se inyectan al ejecutar. Las credenciales van a la autenticación hOn; sólo el estado permitido llega a la herramienta. Las lecturas elegidas pueden entrar al chat y su proveedor de IA. Sin analítica adicional.",
+                "tagline": "Consultá las lecturas de hOn en el chat",
+                "description": "Conexión comunitaria no oficial a hOn mediante pyhOn. Consulta atributos en la nube sin iniciar, detener ni modificar programas. No está hecha ni respaldada por Haier, Candy, Hoover ni hOn.\n\nSólo el lavavajillas Candy CF 6C4F1PS-12 tiene evidencia física del piloto. Los demás modelos no están verificados. Devuelve posiciones temporales, códigos conocidos de tipo y conexión y lecturas numéricas permitidas; omite nombres, MAC, seriales y campos desconocidos. Los códigos dependen del modelo: no se interpretan automáticamente como en marcha o terminado. Los datos pueden estar desactualizados.\n\nInstalá uv en la computadora que ejecuta APX. El primer inicio puede descargar Python 3.13 y dependencias fijadas. Cargá tu email y contraseña hOn en los campos privados de esta extensión. El inicio con Google solo no alcanza: primero definí y verificá una contraseña hOn para esa cuenta.",
+                "prompts": [
+                  "Consultá la telemetría disponible de mis aparatos hOn.",
+                  "Revisá si la nube hOn informa un evento de conexión del aparato.",
+                  "Explicá qué lecturas no conocemos, sin adivinar su significado."
+                ],
+                "screenshots": []
+              }
+            }
+          }
+        },
+        {
+          "version": "0.1.0",
+          "source": {
+            "type": "archive",
+            "url": "https://marketplace.apxagent.app/packages/hon-readonly/0.1.0/a30a31684e1f79f22ce83d1a889e24d76dc110a60baad574d071bdd1337c2ef7.apxext"
+          },
+          "integrity": "sha256-a30a31684e1f79f22ce83d1a889e24d76dc110a60baad574d071bdd1337c2ef7",
+          "archive": {
+            "url": "https://marketplace.apxagent.app/packages/hon-readonly/0.1.0/a30a31684e1f79f22ce83d1a889e24d76dc110a60baad574d071bdd1337c2ef7.apxext",
+            "sha256": "a30a31684e1f79f22ce83d1a889e24d76dc110a60baad574d071bdd1337c2ef7"
+          },
+          "content_hash": "3cca06e4cf57268f",
+          "apx": "2.16.0",
+          "published_at": "2026-11-21T14:00:28.000Z",
+          "card": {
+            "summary": "Read appliance status from the hOn cloud, without controls.",
+            "features": [
+              "One read-only status tool; no appliance controls or MQTT",
+              "Known numeric telemetry with private identifiers omitted"
+            ],
+            "requirements": [
+              "uv on the computer running APX; internet for Python 3.13 and locked dependencies",
+              "A working hOn email/password login and paired appliances"
+            ],
+            "limits": [
+              "Physical pilot evidence only for Candy CF 6C4F1PS-12 (DW)",
+              "No interactive Google login; no stable appliance identities or generic code decoding",
+              "Depends on the hOn cloud; data may be stale or unavailable",
+              "Package runtime exercised on macOS ARM64 only"
+            ],
+            "pricing": "No extension fee. Requires your own compatible appliance and hOn account; internet and upstream service terms apply.",
+            "privacy": "Your extension-owned email/password are injected at runtime. Credentials go to hOn authentication; only allowlisted status reaches the tool. Selected readings may enter chat and its model provider. No extra analytics.",
+            "id": "hon-readonly",
+            "authentication": "secret",
+            "billing": "free",
+            "docs": "README.md",
+            "schema": 2,
+            "tagline": "Check hOn appliance readings in your chat",
+            "description": "An unofficial community hOn connection using pyhOn. Read cloud appliance attributes without starting, stopping or changing a program. This is not made or endorsed by Haier, Candy, Hoover or hOn.\n\nOnly the Candy CF 6C4F1PS-12 dishwasher has physical pilot evidence. Other models are unverified. The tool returns temporary appliance numbers, known type and connection codes, and allowlisted numeric readings; it omits names, MACs, serials and unknown fields. Numeric codes are model-specific and are not automatically decoded as running or finished. Cloud readings may be stale.\n\nInstall uv on the computer running APX first. The first launch can download Python 3.13 and locked dependencies. Enter your own hOn email and password in this extension's credential fields. Google sign-in alone is not supported: establish and verify a hOn password for that account first.",
+            "prompts": [
+              "Read the available hOn appliance telemetry.",
+              "Check whether the hOn cloud reports an appliance connection event.",
+              "Explain which returned readings are unknown instead of guessing their meaning."
+            ],
+            "category": "devices-home",
+            "icon": "assets/icon.svg",
+            "screenshots": [],
+            "connection": "key",
+            "links": {
+              "website": "https://hon-smarthome.com/",
+              "privacy": "https://github.com/agentprojectcontext/apx-marketplace/blob/main/docs/hon-readonly-privacy.md",
+              "terms": "https://github.com/agentprojectcontext/apx-marketplace/blob/main/LICENSE",
+              "docs": "https://github.com/Andre0512/pyhOn"
+            },
+            "publisher": {
+              "name": "APX",
+              "verified": true
+            },
+            "locales": {
+              "es": {
+                "summary": "Consultá el estado en la nube hOn, sin controlar aparatos.",
+                "features": [
+                  "Una herramienta de consulta; sin controles ni MQTT",
+                  "Telemetría numérica conocida sin identificadores privados"
+                ],
+                "requirements": [
+                  "uv en la computadora que ejecuta APX; internet para Python 3.13 y dependencias fijadas",
+                  "Login hOn con email y contraseña y aparatos emparejados"
+                ],
+                "limits": [
+                  "Evidencia física del piloto sólo para Candy CF 6C4F1PS-12 (DW)",
+                  "Sin login interactivo con Google, identidad estable de aparatos ni interpretación genérica de códigos",
+                  "Depende de la nube hOn; los datos pueden faltar o estar desactualizados",
+                  "Runtime del paquete probado sólo en macOS ARM64"
+                ],
+                "pricing": "Sin cargo por la extensión. Requiere aparato compatible y cuenta hOn propios; aplican internet y condiciones del servicio.",
+                "privacy": "El email y la contraseña propios de esta extensión se inyectan al ejecutar. Las credenciales van a la autenticación hOn; sólo el estado permitido llega a la herramienta. Las lecturas elegidas pueden entrar al chat y su proveedor de IA. Sin analítica adicional.",
+                "tagline": "Consultá las lecturas de hOn en el chat",
+                "description": "Conexión comunitaria no oficial a hOn mediante pyhOn. Consulta atributos en la nube sin iniciar, detener ni modificar programas. No está hecha ni respaldada por Haier, Candy, Hoover ni hOn.\n\nSólo el lavavajillas Candy CF 6C4F1PS-12 tiene evidencia física del piloto. Los demás modelos no están verificados. Devuelve posiciones temporales, códigos conocidos de tipo y conexión y lecturas numéricas permitidas; omite nombres, MAC, seriales y campos desconocidos. Los códigos dependen del modelo: no se interpretan automáticamente como en marcha o terminado. Los datos pueden estar desactualizados.\n\nInstalá uv en la computadora que ejecuta APX. El primer inicio puede descargar Python 3.13 y dependencias fijadas. Cargá tu email y contraseña hOn en los campos privados de esta extensión. El inicio con Google solo no alcanza: primero definí y verificá una contraseña hOn para esa cuenta.",
+                "prompts": [
+                  "Consultá la telemetría disponible de mis aparatos hOn.",
+                  "Revisá si la nube hOn informa un evento de conexión del aparato.",
+                  "Explicá qué lecturas no conocemos, sin adivinar su significado."
                 ],
                 "screenshots": []
               }

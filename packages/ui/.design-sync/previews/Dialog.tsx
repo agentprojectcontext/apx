@@ -36,7 +36,7 @@ export function Form() {
       <Dialog
         defaultOpen
         title="New project"
-        description="Point APX at a folder. Agents and memory live in its .apc/ directory."
+        description="Point APX at a folder. Agents and memory live in its .apx/ directory."
         footer={
           <>
             <Button variant="secondary">Cancel</Button>

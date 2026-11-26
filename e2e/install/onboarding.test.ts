@@ -73,6 +73,8 @@ test("curl-style setup opens desktop before installing any service; server and h
             APX_APP: app,
             APX_HOME: path.join(home, ".apx/v2"),
             APX_INSTALL_LOG: log,
+            APX_TELEMETRY: "off",
+            DO_NOT_TRACK: "1",
             DISPLAY: item.graphical ? ":1" : "",
             WAYLAND_DISPLAY: "",
             SSH_CONNECTION: "",

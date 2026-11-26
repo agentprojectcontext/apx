@@ -2,7 +2,7 @@ import type { NewsEntry } from "./entries.ts";
 
 export const CONTEXTUAL_RESEARCH_NEWS: NewsEntry = {
   id: "contextual-research",
-  since: "2.17.0",
+  since: "2.17.1",
   title: { en: "One useful finding in your report", es: "Un hallazgo útil en tu informe" },
   about: {
     en: "APX can research public sources in the context of your projects and optional interests, then include one supported finding in an existing report. It starts paused; you choose its scope, sources, limits and report.",

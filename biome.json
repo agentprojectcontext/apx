@@ -263,6 +263,7 @@
                       "**/AgentEvent.tsx",
                       "**/SubthreadPart.tsx",
                       "**/TaskBundle.tsx",
+                      "**/InboxTasks.tsx",
                       "**/ChannelBundle.tsx",
                       "**/TaskPeek.tsx",
                       "**/McpPeek.tsx",

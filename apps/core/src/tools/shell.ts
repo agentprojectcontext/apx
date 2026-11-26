@@ -5,12 +5,16 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { z } from "zod";
+import { deleteApproval, nativeApproval, strictApproval } from "../domain/approvals.ts";
+import { placeName } from "../domain/owner-work.ts";
 import type { Store } from "../domain/store.ts";
-import { namesApc } from "../engine/paths.ts";
+import { namesAgentFiles } from "../engine/paths.ts";
 import { AGENT_WORKSPACE } from "../environments/worker.ts";
 import { insideReal } from "../paths.ts";
 import { commandShell } from "../processes.ts";
 import { apxReads } from "./apx-reads.ts";
+import { deletes as deletesHere, deletionTargets, FORCED_RM } from "./command-deletions.ts";
+import { shellCode } from "./command-heredocs.ts";
 import { namedPaths } from "./command-paths.ts";
 import { mayChange, readsOnly } from "./command-reads.ts";
 import {
@@ -29,8 +33,9 @@ import {
 import { untrusted } from "./result.ts";
 import { type Confirm, defineTool, type Tool, ToolFailed } from "./types.ts";
 
+/** Destructive or system-level commands, but for deletions (command-deletions.ts: forced `rm`, git discarding work). */
 const DESTRUCTIVE =
-  /\b(sudo|su|doas|mkfs|dd|shutdown|reboot|halt|diskutil|launchctl|crontab|shred|srm)\b|\brm\b[^|;&]*\s(-\w*[rf]|--recursive|--force)|\bgit\b[^|;&]*\s(reset\s+--hard|clean\b|filter-branch|update-ref\s+-d)|\b(curl|wget|fetch)\b[^|]*\|\s*(sudo\s+)?(ba|z|da|k)?sh\b|\bchmod\b[^|;&]*\s-\w*R|\bchown\b[^|;&]*\s-\w*R|:\(\)\s*\{|\/dev\/(sd|disk|nvme)/;
+  /\b(sudo|su|doas|mkfs|dd|shutdown|reboot|halt|diskutil|launchctl|crontab|shred|srm)\b|\bgit\b[^|;&]*\s(filter-branch|update-ref\s+-d)|\b(curl|wget|fetch)\b[^|]*\|\s*(sudo\s+)?(ba|z|da|k)?sh\b|\bchmod\b[^|;&]*\s-\w*R|\bchown\b[^|;&]*\s-\w*R|:\(\)\s*\{|\/dev\/(sd|disk|nvme)/;
 
 /**
  * A push that rewrites or deletes what others have, or that cuts a release (a tag, a package, a GitHub release). A
@@ -95,9 +100,28 @@ export function broadScan(command: string, home = os.homedir()): string | undefi
  * (DECISIONS.md#d-098); anything the classifier cannot be sure of asks.
  */
 export function commandRisk(command: string, apxPort?: number): Confirm {
+  return deletes(command) ? "always" : riskBesides(command, apxPort);
+}
+
+/**
+ * Whether a command deletes: a forced `rm` or a git command that discards work git would keep. It asks in every mode
+ * but Total, unless the owner asked (D-266).
+ */
+const deletes = (command: string) => deletesHere(command) || FORCED_RM.test(normalize(shellCode(command.trim())));
+
+/**
+ * A forced deletion is all that makes this command always ask: its card is a deletion's, and the owner's OK for this
+ * chat (`apx:delete`) covers it (DECISIONS.md#d-266).
+ */
+export const onlyDeletes = (command: string, apxPort?: number) =>
+  deletes(command) && riskBesides(command, apxPort) !== "always";
+
+function riskBesides(command: string, apxPort?: number): Confirm {
   const c = command.trim();
-  if (DESTRUCTIVE.test(c) || DESTRUCTIVE.test(normalize(c))) return "always";
-  if (RELEASES.test(c) || RELEASES.test(normalize(c))) return "always";
+  // A heredoc fed to Python or written to a file is that program's data, not shell words (DECISIONS.md#d-266).
+  const code = shellCode(c);
+  if (DESTRUCTIVE.test(code) || DESTRUCTIVE.test(normalize(code))) return "always";
+  if (RELEASES.test(code) || RELEASES.test(normalize(code))) return "always";
   // A command that talks to APX's own API could act as the owner (answer its own confirmation): always asked.
   if (apxPort && new RegExp(`(127\\.0\\.0\\.1|localhost|\\[::1\\]|0\\.0\\.0\\.0):${apxPort}\\b`).test(c))
     return "always";
@@ -105,9 +129,9 @@ export function commandRisk(command: string, apxPort?: number): Confirm {
   // That includes APX's CLI's list and show commands (DECISIONS.md#d-197).
   if (readsOnly(c)) return "never";
   // Anything else APX's own CLI does, which finds the port by itself, could act as the owner too.
-  if (runsApxCli(c)) return "always";
-  // APC definitions and AGENTS.md set agents' modes: changed by a command as by file_write, the owner says yes first.
-  return mayChange(c, namesApc) ? "always" : "ask";
+  if (runsApxCli(code)) return "always";
+  // Agent files (.apx/) and AGENTS.md set agents' modes: changed by a command as by file_write, the owner says yes first.
+  return mayChange(c, namesAgentFiles) ? "always" : "ask";
 }
 
 /** Programs that run the command after them: `env apx …`, `xargs apx`, `bash -c "apx …"`, `pnpm exec apx`. */
@@ -202,9 +226,9 @@ export function judgeCommand(
   cwd: string,
   o: Omit<JudgeOptions, "write" | "name"> & { userHome?: string; strict?: boolean } = {},
 ): Extract<Access, { refused: string }> | undefined {
-  // Reading anywhere is not a folder to protect: only a read-only folder the owner named (or one lent) is; `strict`
-  // refuses those words anyway.
-  const locked = o.strict === true || roots.some((r) => !r.write && !r.off && !r.anywhere);
+  // Reading anywhere, or the owner's other chats' temp files, is not a folder to protect: only a read-only folder the
+  // owner named (or one lent) is; `strict` refuses those words anyway.
+  const locked = o.strict === true || roots.some((r) => !r.write && !r.off && !r.anywhere && !r.scratch);
   const unknown = (what: string) => (locked ? { refused: refusal.unknown(what) } : undefined);
   let from: string | undefined = cwd;
   let old: string | undefined;
@@ -218,9 +242,10 @@ export function judgeCommand(
         if (n.known && locked) return unknown("this command");
         continue;
       }
-      // Any program may write where it runs; refused only in a read-only folder.
-      const r = judge(roots, ".", from);
-      if (!("refused" in r) && !r.write) return { refused: refusal.readOnly(from) };
+      // Any program may write where it runs: a read-only folder refuses it, a folder outside its own is the owner's
+      // to lend (the refusal carries the offer, as a file_write there does).
+      const r = judge(roots, ".", from, { ...o, write: true, name: from });
+      if ("refused" in r) return r;
       continue;
     }
     const to = n.to;
@@ -318,6 +343,18 @@ export function shellTools(
       }),
       effect: "external",
       confirm: (a) => commandRisk(a.command, apxPort()),
+      // A deletion has its own grant, never one for sudo or a release (DECISIONS.md#d-266).
+      approvalForCall: async (a) =>
+        onlyDeletes(a.command, apxPort())
+          ? deleteApproval
+          : commandRisk(a.command, apxPort()) === "always"
+            ? strictApproval(nativeApproval("shell"))
+            : nativeApproval("shell"),
+      deletes(a, ctx) {
+        if (!deletes(a.command)) return undefined;
+        const where = vm?.hasThread(ctx.thread.id) ? undefined : commandFolder(store, home, ctx.thread, a);
+        return deletionTargets(a.command, where && !("refused" in where) ? where.at : (a.cwd ?? "."));
+      },
       keepsCard: (a) => publishCard(a.command, store.settings.read("owner_profile").publish ?? "auto"),
       // A command that could only be refused is not put to the owner.
       check(a, ctx) {
@@ -393,20 +430,27 @@ export function shellTools(
       title: () => "Read a job's output",
       async run(a, ctx) {
         const r = await ctx.call("jobs.get", { job: a.job, ...(a.offset === undefined ? {} : { offset: a.offset }) });
-        const head = `${r.job.state}${r.job.exit_code === undefined ? "" : ` (exit ${r.job.exit_code})`} · ${r.size} bytes · showing from ${r.offset}`;
+        const from =
+          r.job.thread_id === ctx.thread.id
+            ? ""
+            : `job from chat ${r.job.thread_title ?? r.job.thread_id} (${placeName(store, r.job.thread_project_id)}) · `;
+        const head = `${from}${r.job.state}${r.job.exit_code === undefined ? "" : ` (exit ${r.job.exit_code})`} · ${r.size} bytes · showing from ${r.offset}`;
         return `${head}\n${untrusted("command_output", { job: a.job }, r.output)}`;
       },
     }),
     defineTool({
       name: "shell_kill",
-      description: "Stop a terminal job you started.",
+      description: "Stop a terminal job.",
       args: z.object({ job: z.string().min(1) }),
       effect: "local",
       deadlineMs: 10_000,
       title: () => "Stopped a job",
       async run(a, ctx) {
         const r = await ctx.call("jobs.cancel", { job: a.job });
-        return r.canceled ? `job ${a.job} stopped` : `job ${a.job} was not running`;
+        const at = store.threads.get(store.jobs.get(a.job)?.thread_id ?? ctx.thread.id);
+        // Stopping work in another chat says where, so the owner can see it (DECISIONS.md#d-271).
+        const where = !at || at.id === ctx.thread.id ? "" : ` in chat ${at.title} (${placeName(store, at.project_id)})`;
+        return r.canceled ? `job ${a.job} stopped${where}` : `job ${a.job} was not running${where}`;
       },
     }),
   ];

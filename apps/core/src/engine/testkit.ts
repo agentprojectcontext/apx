@@ -93,6 +93,7 @@ export const callTool = (id: string, name: string, args: object): { message: Ass
 });
 
 type StartCoreOptions = {
+  token?: string;
   computer?: ComputerConfig;
   ffmpeg?: CoreOptions["ffmpeg"];
   llm: Llm;
@@ -131,6 +132,8 @@ type StartCoreOptions = {
   tailscale?: TailscaleRun;
   ngrok?: NgrokStart;
   clock?: () => Date;
+  /** Serve a built panel for isolated browser verification. */
+  webDist?: string;
   unseenAfterMs?: number;
   /** Where push notices go (a stand-in Expo push service). */
   expoPushUrl?: string;
@@ -169,12 +172,14 @@ export async function startCore(opts: StartCoreOptions) {
     testConfig({
       home,
       providers,
+      ...(opts.token ? { token: opts.token } : {}),
       ...(opts.port !== undefined ? { port: opts.port } : {}),
       ...(opts.googleApi ? { googleApi: opts.googleApi } : {}),
       ...(opts.googleClient ? { googleClient: opts.googleClient } : {}),
       ...(opts.accountClient ? { accountClient: opts.accountClient } : {}),
       ...(opts.expoPushUrl ? { expoPushUrl: opts.expoPushUrl } : {}),
       ...(opts.flowHttpAllow ? { flowHttpAllow: opts.flowHttpAllow } : {}),
+      ...(opts.webDist ? { webDist: opts.webDist } : {}),
       ...(opts.marketplaceIndex ? { marketplaceIndex: opts.marketplaceIndex } : {}),
     }),
     {
@@ -233,7 +238,7 @@ export async function startCore(opts: StartCoreOptions) {
     auto_capture: opts.memoryMaintenance ?? false,
     auto_dream: opts.memoryMaintenance ?? false,
   });
-  const client = new ApxClient({ url: core.url });
+  const client = new ApxClient({ url: core.url, ...(opts.token ? { token: opts.token } : {}) });
   const settle = async (
     thread: string,
     ms = 5000,

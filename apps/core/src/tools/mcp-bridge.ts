@@ -33,18 +33,21 @@ export const appOf = (name: string): string | undefined => APPS[name.split("_")[
  * (DECISIONS.md#d-233, #d-234).
  */
 const OWN_GROUPS: Record<string, string[]> = {
+  "AI plan usage and quotas": ["plan_usage"],
   Routines: ["routine_list", "routine_set"],
+  "Timers and event follow-ups": ["chat_followup"],
   "Settings and team": ["apx_settings", "apx_flow", "agent_set", "agent_limits", "grant_tool", "voice_replies"],
   "Owner and attention": ["notify_owner", "attention_hours", "suggest_connection", "commitment_settle"],
   "Tasks and memory": ["task_tidy", "forget"],
   "Coding sessions": ["list_sessions", "start_session", "stop_session"],
+  "Many agents at once, by a plan": ["workflow"],
   "Documents and widgets": ["open_document", "show_widget", "edit_widget", "read_widget"],
   Media: ["make_image", "video_transcript"],
   "Screen of this computer": ["screen_open", "screen_do", "screen_snapshot"],
   Browser: ["browser_evaluate", "browser_handoff", "browser_sign_in"],
   Contacts: ["contact_list", "contact_requests", "answer_contact_request"],
 };
-export const OWN_FOUND: ReadonlySet<string> = new Set(Object.values(OWN_GROUPS).flat());
+const OWN_FOUND: ReadonlySet<string> = new Set(Object.values(OWN_GROUPS).flat());
 
 /** A tool a turn reaches through the bridge rather than in its list: a connected app's, or one of APX's rarely used. */
 export const foundLater = (name: string): boolean => Boolean(appOf(name)) || OWN_FOUND.has(name);
@@ -91,11 +94,14 @@ export function mcpBridge(
   own: string[] = [],
 ): Tool[] {
   const mine = new Set(own);
-  const groups = Object.entries(OWN_GROUPS)
+  // Tools outside an agent's `tools:` focus join here too, after APX's rarely used ones (DECISIONS.md#d-271).
+  const rest = own.filter((n) => !OWN_FOUND.has(n));
+  const groups = [...Object.entries(OWN_GROUPS), ["Your other tools", rest] as const]
     .map(([use, names]) => [use, names.filter((n) => mine.has(n))] as const)
     .filter(([, names]) => names.length)
     .map(([use, names]) => `${use}: ${names.join(", ")}`)
     .join("; ");
+  const server = (t: Tool) => serverOf(t) || (mine.has(t.name) ? "apx" : "");
   const where = [
     apps.length ? `the owner's connected apps (${apps.join(", ")})` : "",
     servers.length ? `MCP servers (${servers.join(", ")})` : "",
@@ -140,7 +146,7 @@ export function mcpBridge(
             );
           return cap(found.join("\n\n"));
         }
-        const pool = a.server ? all.filter((t) => serverOf(t) === a.server) : all;
+        const pool = a.server ? all.filter((t) => server(t) === a.server) : all;
         if (!pool.length)
           return a.server
             ? `no tools from ${a.server} (not started, or not one of: ${sources.join(", ")})`

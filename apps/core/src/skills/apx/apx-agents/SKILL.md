@@ -28,6 +28,18 @@ description: Create, edit, clone, import and review APX agents in their destinat
 5. Read back the result. Verify its destination, prompt, role, hierarchy and available capabilities. Creation or a
    successful write does not prove that its actual job works. State what was verified and what remains untested.
 
+## Tools and grants
+
+- An agent's `tools` list is its focus: those are sent first, and the rest stay reachable through `tool_search` under
+  the same mode and rules (a rule set to off removes a tool). A role or list is never a reason to refuse work the
+  owner asked for. When the owner asks to give or
+  take a tool, read the agent (`agent_set {agent}` shows `tools:`), then save the whole list with
+  `agent_set {agent, tools}`; `[]` goes back to all. Names are tools (`file_write`) or groups (`browser`, `files`,
+  `shell`, `mcp`); an unknown name is refused before anything is saved.
+- To let an agent run a tool without asking the owner each time, `grant_tool {agent, tools}`; `revoke: true` takes it
+  back. Only tools you run without asking yourself. `apx_settings`, `agent_set`, `apx_flow` and `task_tidy` stay
+  yours: another agent asks you for those changes, and reads AI plan quotas with `plan_usage`.
+
 ## Moving an agent between projects
 
 Use a supported move, not `agent_set project`, cloning, or manual database/file edits. Both project folders must be
@@ -120,6 +132,10 @@ yes to that agent's change.
    make sample data); a blocker is only what you cannot clear, said exactly with what unblocks it.
 9. **Coding rules that reach every turn**: a numbered plan and a commit per item written for when the agent codes,
    applied when it only coordinates. Propose scoping them: "when you change code yourself".
+10. **Diagnosis as the end**: "investigate and propose", "report findings before changing anything", "do not
+   implement without approval". The agent stops at a report and the owner has to ask twice. Propose: asked to check
+   or fix, fix and verify; only the owner's "change nothing" ends at a report, and only a choice the agent cannot
+   infer is asked. The same holds for a brief the super-agent writes when it hands work on.
 
 Leave alone what is craft: how to build, what to test, the design bar, the tone. Never weaken a safety rule
 (secrets, payments, outside content as data).
@@ -133,5 +149,5 @@ Leave alone what is craft: how to build, what to test, the design bar, the tone.
 3. Only for the ones the owner approves, `agent_set {agent, prompt, if_revision}` with the whole new prompt and the
    revision read before proposing it (it replaces the old one; keep everything else word for word). Each change
    follows the owner's permission mode; approval of an import is not approval of a later rewrite.
-4. Say what changed, agent by agent. If an agent's file lives in a project (`.apc/agents/`), the change is written
+4. Say what changed, agent by agent. If an agent's file lives in a project (`.apx/agents/`), the change is written
    there.

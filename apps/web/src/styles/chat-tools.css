@@ -74,8 +74,14 @@ textarea.inputcard__detail {
   align-items: center;
   gap: 6px;
   min-width: 0;
+  overflow: hidden;
   margin-left: 6px;
   color: var(--apx-fg-muted);
+}
+/* Who started an engine's session: kept whole, the folder beside it gives way. */
+.startedby {
+  display: inline-flex;
+  flex-shrink: 0;
 }
 .chat__cwd {
   max-width: 280px;
@@ -187,6 +193,12 @@ textarea.inputcard__detail {
 .changes__file .changes__stat {
   font-size: inherit;
 }
+.changes__actions {
+  display: flex;
+  flex: none;
+  gap: 2px;
+  margin-right: -4px;
+}
 .changes__stat .is-add {
   color: var(--apx-brand-soft-fg);
 }
@@ -264,6 +276,42 @@ textarea.inputcard__detail {
   justify-content: flex-end;
   gap: 2px;
   margin-left: auto;
+}
+.continuation-notice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+}
+.continuation-notice > svg {
+  margin-top: 3px;
+}
+.continuation-notice .noticeline__text {
+  display: grid;
+  gap: 4px;
+}
+.continuation-notice :where(p) {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.continuation-notice .noticeline__actions {
+  justify-content: flex-start;
+  margin-left: 0;
+}
+.continuation-notice .noticeline__actions .apx-btn:focus-visible,
+.continuation-notice .continuation-notice__status:focus-visible,
+.transcript .transcript__row:focus-visible {
+  outline: 2px solid var(--apx-brand);
+  outline-offset: 3px;
+}
+@media (max-width: 600px) {
+  .continuation-notice {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .continuation-notice .noticeline__actions {
+    grid-column: 2;
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 .noticeline__done {
   padding: 0 8px;
@@ -359,6 +407,117 @@ textarea.inputcard__detail {
   font-weight: var(--apx-weight-regular);
 }
 .plancard .apx-steps__row.is-done .apx-status,
+/* A workflow's card: the plan card's frame, a row per agent call grouped by phase (DECISIONS.md#d-273). */
+.wfcard {
+  gap: 6px;
+}
+.wfcard__head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 28px;
+}
+.wfcard__name {
+  margin: 0;
+  min-width: 0;
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-medium);
+  color: var(--apx-fg);
+  overflow-wrap: anywhere;
+}
+.wfcard__count,
+.wfcard__state,
+.wfcard__detail {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+  white-space: nowrap;
+}
+.wfcard__side {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+.wfcard__count::before,
+.wfcard__detail::before {
+  content: "·";
+  margin-right: 5px;
+}
+.wfcard__phase {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.wfcard__phasehead {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 4px 0 2px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.wfcard__steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.wfcard__step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 28px;
+  font-size: var(--apx-text-sm);
+}
+.wfcard__step .apx-status {
+  flex: none;
+}
+.wfcard__step.is-working .apx-status {
+  color: var(--apx-brand);
+}
+.wfcard__step:is(.is-pending, .is-skipped, .is-canceled) {
+  color: var(--apx-fg-subtle);
+}
+.wfcard__open.apx-btn {
+  min-width: 0;
+  max-width: 60%;
+  padding-inline: 4px;
+  margin-inline: -4px;
+}
+.wfcard__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wfcard__error {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.wfcard__reason {
+  margin: 2px 0 0;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.wfcard__result {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+@media (max-width: 600px) {
+  .wfcard__open.apx-btn {
+    max-width: 50%;
+  }
+  .wfcard__detail {
+    display: none;
+  }
+}
 .plancard .apx-steps__row.is-pending .apx-status {
   color: var(--apx-fg-subtle);
 }

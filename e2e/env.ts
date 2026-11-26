@@ -94,8 +94,8 @@ const core = spawn(process.execPath, ["--no-warnings", "--import", hook, path.jo
     APX_ALLOWED_ORIGINS: `http://panel.test:${E2E.port}`,
     APX_SECRETS: "file",
     APX_UPDATES: "off",
-    // No live catalog: the Marketplace offers only what APX ships, the same on every run and offline.
-    APX_MARKETPLACE_INDEX: "off",
+    // Offline by default; catalog scenarios may provide an isolated fixture server.
+    APX_MARKETPLACE_INDEX: process.env.E2E_MARKETPLACE_INDEX ?? "off",
     // A sandbox never reports to the APX project.
     APX_TELEMETRY: "off",
     APX_AGENT_NAME: "Roby",
@@ -108,6 +108,10 @@ const core = spawn(process.execPath, ["--no-warnings", "--import", hook, path.jo
     APX_LLM_BASE_URL: llm.url,
     APX_LLM_KEY: "e2e",
     APX_LLM_MODELS: "fake-1,fake-2",
+    // The model list is asked again after a passing failure, here after a blink instead of 5s, 15s and 45s.
+    APX_STEP_PATIENCE_MS: "20,40",
+    // Each model is tried again from 10ms on instead of 0.8s, so a dropped connection fails within a spec's wait.
+    APX_LLM_RETRY_MS: "10",
     APX_TELEGRAM_API: tg.url,
     APX_DISCORD_API: dc.urls.api,
     APX_DISCORD_GATEWAY: dc.urls.gateway,
@@ -204,12 +208,15 @@ const control = http.createServer((req, res) => {
       const user = new URL(req.url, "http://x").searchParams.get("user") ?? "";
       return json(200, { sent: sl.messagesTo(sl.dm(user)).map((s) => ({ text: s.body.text })) });
     }
-    if ((req.url === "/llm/hold-workers" || req.url === "/llm/finish-workers") && req.method === "POST") {
-      llm.holdWorkers(req.url === "/llm/hold-workers");
+    if (req.url === "/llm/worker-gate" && req.method === "POST") {
+      if (typeof body.hold !== "boolean") return json(400, { error: "invalid worker gate" });
+      llm.workerGate(body.hold);
       return json(200, { ok: true });
     }
-    if (req.url === "/llm/finish-stream" && req.method === "POST") {
-      llm.finishSlowAnswers();
+    if (req.url === "/llm/stream-gate" && req.method === "POST") {
+      if (typeof body.text !== "string" || !["hold", "next", "clear"].includes(String(body.action)))
+        return json(400, { error: "invalid stream gate" });
+      llm.streamGate(body.text, body.action as "hold" | "next" | "clear");
       return json(200, { ok: true });
     }
     if (req.url === "/llm/calls") return json(200, { calls: llm.calls.length });

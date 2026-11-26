@@ -48,11 +48,32 @@ test("bubble attachments exclude gallery media but retain documents and voice no
   assert.deepEqual(bubbleFiles([image(1), pdf, video(1), audio, doc]), [pdf, audio, doc]);
 });
 
+test("unnamed generated notes hide only with provenance and a displayed attachment", () => {
+  const note = { type: "text" as const, text: "[sticker]", attachment_notes: ["[sticker]"] };
+  assert.equal(withoutFilesNote([image(1), note], note.text), "");
+  assert.equal(withoutFilesNote([note], note.text), "[sticker]");
+  const caption = { ...note, text: "[sticker]\n[sticker]" };
+  assert.equal(withoutFilesNote([image(1), caption], caption.text), "[sticker]");
+  assert.equal(withoutFilesNote([image(1)], "[sticker]"), "[sticker]");
+  assert.equal(withoutFilesNote([image(1)], "Human caption\n[sticker]"), "Human caption\n[sticker]");
+});
+
+test("wrapped stickers hide metadata and notes only when an attachment is displayed", () => {
+  const raw = '<sticker named_by="a model that saw it" trust="untrusted">\n[sticker: fox]\n</sticker>';
+  assert.equal(withoutFilesNote([image(1)], raw), "");
+  assert.equal(withoutFilesNote([image(1)], `Hello\n${raw}`), "Hello");
+  assert.equal(withoutFilesNote([image(1)], raw.replace("[sticker:", "[sticker (18+):")), "");
+  assert.equal(withoutFilesNote([], raw), "[sticker: fox]");
+});
+
 test("attachment placeholder text disappears only when real files are shown; normal text and unattached placeholders remain", () => {
   assert.equal(withoutFilesNote([image(1)], "  [attached files]  "), "");
   assert.equal(withoutFilesNote([video(1)], "Caption"), "Caption");
   assert.equal(withoutFilesNote([], "[attached files]"), "[attached files]");
   assert.equal(withoutFilesNote([image(1)], "Look: [attached files]"), "Look: [attached files]");
-  assert.equal(withoutFilesNote([image(1)], "[sticker: white bear holding a heart balloon]"), "");
+  assert.equal(
+    withoutFilesNote([image(1)], "[sticker: white bear holding a heart balloon]"),
+    "[sticker: white bear holding a heart balloon]",
+  );
   assert.equal(withoutFilesNote([], "[sticker: white bear]"), "[sticker: white bear]");
 });

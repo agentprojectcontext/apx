@@ -116,6 +116,15 @@ modelos.
 En un servidor sin panel, tres variables de entorno suman un proveedor OpenAI-compatible: `APX_LLM_BASE_URL`,
 `APX_LLM_KEY_REF` (el nombre de un secreto) y `APX_LLM_MODELS`. Mirá [Configuración](/es/reference/configuration/).
 
+### Falta un modelo en la lista
+
+Ejecutá `apx models --refresh` para volver a consultar sin esperar la actualización diaria. Esto no cambia los
+modelos guardados de tus agentes ni del router. La app de ChatGPT y Codex pueden ofrecer listas distintas: ver
+un modelo en la app no demuestra que tu plan conectado lo ofrezca a través de Codex. APX usa la lista del propio
+plan, no identificadores agregados a mano. Para sesiones externas de Codex, actualizá su CLI en la computadora
+del core antes de refrescar; una CLI vieja puede recibir un catálogo más chico. Que un modelo aparezca en la
+lista no demuestra por sí solo que pueda completar un turno.
+
 ### Tu plan de ChatGPT
 
 Tu plan de ChatGPT también puede ser un proveedor, que aparece como **Codex**. Sus modelos corren entonces en el loop
@@ -205,11 +214,46 @@ no le vuelve a preguntar a un modelo en su límite antes del reinicio, y cuando 
 principal, el turno siguiente vuelve a él solo. Si elegís otro modelo para un chat en el compositor, los respaldos del
 agente siguen detrás de ese modelo.
 
+Si todos los modelos de la lista fallan por algo pasajero (una respuesta vacía o cortada, un proveedor sobrecargado,
+sin conexión), el turno espera y vuelve a pedir a toda la lista, hasta tres veces más en alrededor de un minuto, dentro
+del límite de tiempo del turno. El trabajo con herramientas que ya se hizo queda en el chat. Recién entonces el turno
+termina, con el motivo.
+Lo mismo pasa cuando un modelo falló por algo pasajero y los demás están en su límite de uso: el turno vuelve a pedir
+primero, y recién después espera a que se libere el límite.
+
 Debajo de cada respuesta, la línea con el nombre del agente muestra qué modelo respondió y agrega **Con respaldo**
 cuando no fue el suyo. El aviso de arriba dice qué modelo no respondió y por qué.
 
 Los respaldos sólo se aplican a los turnos que corre el loop propio de APX. Una sesión de Claude Code, Codex o ACP corre
 su propia CLI con su propio modelo, así que ahí no se usan los respaldos del agente.
+
+También podés pedirle a tu super-agente que cambie el modelo por defecto, el router o el modelo de un chat. Sólo guarda
+modelos de un motor encendido y con su clave o sesión, y nunca deja el router sin cadena; si no, no cambia nada.
+
+## El modelo ayudante
+
+Además del modelo que responde cada turno, APX tiene un **modelo ayudante** para el trabajo chico de fondo, así tus
+agentes no gastan su modelo principal en eso. Está en **Configuración › Modelo ayudante** (Memoria también lleva ahí).
+Se encarga de:
+
+- poner título a los chats y resumir los largos;
+- guardar lo que vale recordar de cada chat y ordenar las notas de tus agentes;
+- decidir qué mails merecen un aviso y qué mensajes de grupos merecen respuesta;
+- describir las imágenes y stickers que te mandan, si sabe leer imágenes;
+- elegir qué agente responde en un chat de grupo;
+- sugerir borradores de respuesta cuando el agente no tiene otro modelo para eso (un agente en Claude Code o Codex);
+- repasar la actividad para proponerte mejoras (**Revisión y mejoras**);
+- cubrir al modelo de un agente en avisos cortos y al leer chats que importás.
+
+Tiene tres modos:
+
+- **Automático**: el modelo por API del agente o, si no tiene, los del router. Funciona, pero gasta tu modelo principal.
+- **Elegido**: una lista en orden que elegís vos. Primero va el primero; si no responde, se prueba el siguiente.
+  Sumá hasta cinco, cambiales el orden o sacalos. Conviene uno chico y rápido, por ejemplo uno chico de ChatGPT de tu
+  plan con uno local de Ollama de respaldo. Pasar a Automático o Desactivado guarda la lista, así al volver a Elegido
+  vuelve como estaba.
+- **Desactivado**: los chats no reciben título, los largos no se resumen, la memoria no se guarda sola y no se revisan
+  mails ni mensajes de grupos.
 
 ## Consumo
 
@@ -237,12 +281,14 @@ defecto salvo para un plan ChatGPT vinculado; los datos de Codex igual requieren
 por separado. Desactivarlo detiene las consultas y oculta los resultados guardados. Tu elección explícita se
 conserva. Los tokens, costos y contexto del chat siguen separados de estos límites de cuenta.
 
-Pedile a tu superagente «Consultá las cuotas de todos mis planes» o «¿Cuánto usé del límite semanal de Claude?». Lee
+Pedile a cualquiera de tus agentes, también uno de un proyecto, «Consultá las cuotas de todos mis planes» o «¿Cuánto usé del límite semanal de Claude?». Lee
 todos los motores que encuentra en esta computadora, también los que dejaste fuera de la barra superior, con la fuente y
 la caché del menú (hasta 60 segundos), sin depender de su propio modelo. Puede consultar todos o filtrar por nombre del
 proveedor/plan o identificador del motor (`Claude`, `Claude Auto`, `Codex`, `ChatGPT`, `Cursor`), y obtiene los
-porcentajes informados, las duraciones de las ventanas, los horarios de reinicio y la fecha de consulta del informe. Lo
-que muestra la barra superior sigue siendo tu elección: la consulta del agente no la cambia.
+porcentajes informados, las duraciones de las ventanas, los horarios de reinicio y la fecha de consulta del informe.
+Los agentes descubren `plan_usage` con `tool_search`; las restricciones explícitas de herramientas siguen vigentes.
+El superagente también puede usar `apx_settings` con `engines.usage`. Son consultas a pedido, no un monitoreo de fondo.
+Lo que muestra la barra superior sigue siendo tu elección: la consulta del agente no la cambia.
 
 Hoy solo Claude y Codex aportan ventanas de cuota. Otros motores configurados pueden informar límites no compatibles
 o no disponibles. Una cuenta desactivada o desconocida puede no aparecer: no encontrarla no significa consumo cero.

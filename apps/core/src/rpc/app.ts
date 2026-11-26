@@ -7,11 +7,14 @@ import os from "node:os";
 import path from "node:path";
 import { BASE_PROJECT_ID, type Organization, type ProjectKind, siteOrigin } from "@apx/protocol";
 import { declaresApp } from "../../../../packages/surfaces/src/kit.ts";
+import { APX_DIR, holdsApxHome, holdsApxHomeMessage, moveLegacyFolder, needsFolderMove } from "../apc/folder.ts";
+import { tellFolderMove } from "../apc/folder-notice.ts";
 import { readOrganization, writeOrganization } from "../apc/org.ts";
 import type { ApcSync } from "../apc/sync.ts";
 import { writeProjectMeta } from "../apc/write.ts";
 import { artifactDir } from "../domain/artifact-memory.ts";
 import { ownerIdentity, saveOwnerIdentity } from "../domain/owner.ts";
+import { ownerAgentOf } from "../domain/owner-work.ts";
 import { inheritsFrom, parentProblem, publicProject } from "../domain/projects.ts";
 import type { EngineIds } from "../domain/refs.ts";
 import type { Store } from "../domain/store.ts";
@@ -28,9 +31,11 @@ import type { Catalog } from "../models/catalog.ts";
 import { modelSettings, refProblem } from "../models/choice.ts";
 import { projectSecretName, type Secrets } from "../secrets.ts";
 import type { Services } from "../services/registry.ts";
+import { marksFor } from "../sign-in.ts";
 import { withKit } from "../surface-kit.ts";
 import { countUsage } from "../telemetry-counts.ts";
 import { checkReadOnly } from "../tools/folders.ts";
+import type { CallContext } from "./context.ts";
 import { projectHelperHandlers } from "./project-helper.ts";
 import type { Handlers } from "./router.ts";
 
@@ -48,6 +53,18 @@ export function appHandlers(deps: {
   imessage: boolean;
 }) {
   const { store, harnesses, secrets } = deps;
+  /**
+   * The project an owner's agent names for a widget other than its chat's: the widget goes to that project, outside
+   * its chat. Outsiders keep their chat's project; a project being moved keeps its widgets (DECISIONS.md#d-271).
+   */
+  const otherProjectOf = (p: { thread?: string | undefined; project?: string | undefined }, ctx: CallContext) => {
+    const own = ctx.agent && store.threads.get(ctx.agent.thread_id);
+    const here = own?.project_id ?? undefined;
+    if (p.thread || !p.project || !own || here === p.project || !ownerAgentOf(store, ctx)) return undefined;
+    if (store.projectProtection.list().some((x) => x.project === p.project || x.project === here))
+      throw conflict("a project being moved keeps its widgets to itself until the move ends");
+    return p.project;
+  };
   const engineUsage = usagePreferences(
     store.settings,
     (enabled) =>
@@ -112,9 +129,34 @@ export function appHandlers(deps: {
       store.settings.write("desktop", p);
       return desktopPrefs(store);
     },
-    "secrets.set": ({ name, value, project }) => {
+    "secrets.set": ({ name, value, login, field, project }) => {
       if (project && !store.projects.get(project)) throw notFound(`project ${project}`);
-      secrets.set(project ? projectSecretName(project, name) : name, value);
+      const key = project ? projectSecretName(project, name) : name;
+      if (login) {
+        if (value !== undefined || (field != null && field !== "login"))
+          throw badRequest("a sign-in is given as login alone");
+        if (!secrets.setLogin(key, login)) throw badRequest("a sign-in needs a password");
+      } else if (value !== undefined) {
+        if (field === "login") throw badRequest("a sign-in is given as login, with a username and a password");
+        // A plain value over a sign-in is no longer one.
+        const was = secrets.field(key);
+        secrets.set(key, value, field !== undefined ? field : value !== null && was === "login" ? null : undefined);
+      } else if (field !== undefined) {
+        if (field === "login" && !secrets.login(key)) throw badRequest("give the sign-in's username and password");
+        if (!secrets.setField(key, field)) throw notFound(`variable ${name}`);
+      } else throw badRequest("nothing to change");
+      // Its sites follow what it is for: a sign-in is marked for both of its fields.
+      const now = secrets.field(key);
+      const sites = secrets.sites(key);
+      if (now && sites.length)
+        secrets.setSites(
+          key,
+          marksFor(
+            now,
+            sites.map((s) => s.origin),
+            sites[0]?.kind ?? "password",
+          ),
+        );
       return { ok: true as const };
     },
     "secrets.set_sites": ({ name, project, sites }) => {
@@ -126,9 +168,18 @@ export function appHandlers(deps: {
           throw badRequest(`not a site's address: ${s.origin}`);
         return { origin, kind: s.kind };
       });
-      const unique = clean.filter((s, i) => clean.findIndex((o) => o.origin === s.origin && o.kind === s.kind) === i);
-      if (!secrets.setSites(project ? projectSecretName(project, name) : name, unique))
-        throw notFound(`variable ${name}`);
+      const key = project ? projectSecretName(project, name) : name;
+      // A variable that says what it is for goes into that field (both, for a sign-in), whatever the kind sent.
+      const field = secrets.field(key);
+      const marked = field
+        ? marksFor(
+            field,
+            clean.map((s) => s.origin),
+            "password",
+          )
+        : clean;
+      const unique = marked.filter((s, i) => marked.findIndex((o) => o.origin === s.origin && o.kind === s.kind) === i);
+      if (!secrets.setSites(key, unique)) throw notFound(`variable ${name}`);
       return { sites: unique };
     },
     "models.list": async ({ refresh }) => {
@@ -182,6 +233,7 @@ export function appHandlers(deps: {
     },
     "projects.register": ({ path: dir, init }) => {
       let r: ReturnType<typeof deps.apc.register>;
+      if (holdsApxHome(path.resolve(dir), deps.home)) throw badRequest(holdsApxHomeMessage(path.resolve(dir)));
       try {
         if (init) initProject(dir);
         r = deps.apc.register(dir);
@@ -191,6 +243,23 @@ export function appHandlers(deps: {
       const project = store.projects.get(r.project);
       if (!project) throw notFound(`project ${r.project}`);
       return { project: publicProject(project), agents: r.agents };
+    },
+    "projects.move_folder": ({ project: id }) => {
+      const project = store.projects.get(id);
+      if (!project?.path) throw notFound(`project ${id}`);
+      let moved: ReturnType<typeof moveLegacyFolder>;
+      try {
+        moved = moveLegacyFolder(project.path);
+      } catch (err) {
+        throw badRequest(errorMessage(err));
+      }
+      const r = deps.apc.sync(id);
+      const now = store.projects.get(id);
+      if (!now) throw notFound(`project ${id}`);
+      // Replaces the tray's notice about a move that had failed.
+      if (moved.done && moved.files)
+        tellFolderMove(store, now, { state: "moved", files: moved.files, kept: moved.kept });
+      return { project: publicProject(now), agents: r.agents, ...moved };
     },
     "projects.create": ({ name, kind, description, path: dir, parent }) => {
       const under = parent ? parentOf(parent) : undefined;
@@ -266,12 +335,13 @@ export function appHandlers(deps: {
       return { state };
     },
     "surfaces.show": (p, ctx) => {
-      const threadId = p.thread ?? ctx.agent?.thread_id;
+      if (p.project && !store.projects.get(p.project)) throw notFound(`project ${p.project}`);
+      const elsewhere = otherProjectOf(p, ctx);
+      const threadId = p.thread ?? (elsewhere ? undefined : ctx.agent?.thread_id);
       const thread = threadId ? store.threads.get(threadId) : undefined;
       if (threadId && !thread) throw notFound(`thread ${threadId}`);
       if (p.project && thread && thread.project_id !== p.project)
         throw badRequest(`thread ${thread.id} is not in project ${p.project}`);
-      if (p.project && !store.projects.get(p.project)) throw notFound(`project ${p.project}`);
       const project_id = thread ? thread.project_id : p.project;
       // A published widget is public: an agent may not change what its link shows; it makes a new one instead.
       const current = store.surfaces.byName(project_id, p.name);
@@ -386,6 +456,7 @@ export function createProject(
   const root = typed
     ? path.resolve(typed)
     : freeFolder(under?.dir ?? path.join(home, "projects"), slugOf(p.name ?? ""));
+  if (holdsApxHome(root, home)) throw badRequest(holdsApxHomeMessage(root));
   try {
     fs.mkdirSync(root, { recursive: true });
     initProject(root, p.name);
@@ -396,13 +467,16 @@ export function createProject(
   }
 }
 
-/** Makes a plain folder an APC project, writing only what is missing: AGENTS.md (named after it) and .apc/. */
+/**
+ * Makes a plain folder a project, writing only what is missing: AGENTS.md (named after it) and .apx/. A folder whose
+ * files are still in .apc/ gets no empty .apx/: registering it moves them there.
+ */
 function initProject(dir: string, name?: string): void {
   const abs = path.resolve(dir);
   if (!fs.existsSync(abs) || !fs.statSync(abs).isDirectory()) return;
   const agents = path.join(abs, "AGENTS.md");
   if (!fs.existsSync(agents)) fs.writeFileSync(agents, `# ${name ?? path.basename(abs)}\n`);
-  fs.mkdirSync(path.join(abs, ".apc"), { recursive: true });
+  if (!needsFolderMove(abs)) fs.mkdirSync(path.join(abs, APX_DIR), { recursive: true });
 }
 
 /** A folder name from a project's name: "Ventas Q4 · Acme" → "ventas-q4-acme". */

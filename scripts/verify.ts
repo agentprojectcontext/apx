@@ -15,29 +15,38 @@ export type History = Record<string, number>;
 type Out = { write(chunk: string): unknown; isTTY?: boolean; columns?: number };
 
 // APX_TEST_SHARDS=4 runs the unit tests in that many parts at once on this machine (the remote runner's box has the
-// cores for it; the core's own tests run one file at a time).
+// cores for it; the core's own tests run one file at a time), and coverage's parts (unit, panel in six, desktop) side
+// by side, as CI does on eight machines.
 const shards = Number(process.env.APX_TEST_SHARDS ?? 0);
-const TESTS = shards > 1 ? ["pnpm check:tests", `node scripts/test-shard.ts all/${shards}`] : ["pnpm test"];
-const PREFLIGHT = ["pnpm preflight:static", ...TESTS];
-export const PLANS: Record<string, string[]> = {
-  preflight: PREFLIGHT,
-  verify: [
-    ...PREFLIGHT,
-    "pnpm build:web",
-    "pnpm test:chrome-extension:browser",
-    "pnpm test:coverage:all",
-    "node --no-warnings scripts/perf.ts",
-  ],
-  // What only a Mac proves when preflight and verify run on Linux (`pnpm remote`): the native pointer helper and the
-  // desktop app's macOS paths (tray, focus, window placement).
-  mac: ["node --test apps/desktop/scripts/native-pointer.test.ts", "pnpm e2e:desktop"],
-};
+
+/** The plans for a machine that runs the unit tests in `shards` parts at once (0 or 1: one run). */
+export function plans(shards: number): Record<string, string[]> {
+  const tests = shards > 1 ? ["pnpm check:tests", `node scripts/test-shard.ts all/${shards}`] : ["pnpm test"];
+  const coverage = shards > 1 ? "node scripts/coverage-parallel.ts" : "pnpm test:coverage:all";
+  const preflight = ["pnpm preflight:static", ...tests];
+  return {
+    preflight,
+    // Coverage's unit part runs every unit test preflight runs (and the phone app's), so verify runs them once, there.
+    verify: [
+      "pnpm preflight:static",
+      "pnpm build:web",
+      "pnpm test:chrome-extension:browser",
+      coverage,
+      "node --no-warnings scripts/perf.ts",
+    ],
+    // What only a Mac proves when preflight and verify run on Linux (`pnpm remote`): the native pointer helper and the
+    // desktop app's macOS paths (tray, focus, window placement).
+    mac: ["node --test apps/desktop/scripts/native-pointer.test.ts", "pnpm e2e:desktop"],
+  };
+}
+export const PLANS = plans(shards);
 
 // Names for the long steps whose command says little at a glance.
 const LABELS: Record<string, string> = {
   "pnpm -r --if-present test": "test › unit tests (every package)",
   'node --test "scripts/*.test.ts"': "test › repo scripts' tests",
   "pnpm test:coverage:all": "test:coverage:all (every suite + e2e)",
+  "node scripts/coverage-parallel.ts": "test:coverage:all (every suite + e2e, parts side by side)",
   "node --no-warnings scripts/perf.ts": "perf budgets",
   [`node scripts/test-shard.ts all/${shards}`]: `test › unit tests (every package, ${shards} parts at once)`,
 };

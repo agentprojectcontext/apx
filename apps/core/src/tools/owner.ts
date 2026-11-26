@@ -1,7 +1,9 @@
 // Tools that talk to the owner or page through what the turn already produced.
 import { z } from "zod";
+import { canReadChat } from "../domain/chat-access.ts";
 import type { InputRecord } from "../domain/inputs.ts";
 import { ownerQuestionProblem } from "../domain/owner-question.ts";
+import { placeName, worksForOwner } from "../domain/owner-work.ts";
 import type { Store } from "../domain/store.ts";
 import { untrusted } from "./result.ts";
 import { defineTool, type Tool } from "./types.ts";
@@ -34,7 +36,7 @@ export function ownerTools(store: Store): Tool[] {
     defineTool({
       name: "ask_owner",
       description:
-        "Ask the owner something only they can answer, and wait. options: short choices to tap (multi: several at once); they may still write their own answer. A late answer reaches you in a new turn.",
+        "Ask the owner something only they can answer, and wait. options: short choices to tap (multi: several at once); they may still write their own answer. A late answer reaches you in a new turn. In your task, a blocking card tracks its wait automatically; do not also set task_update awaits_owner.",
       args: z
         .object({
           question: z.string().min(1).max(1000).optional(),
@@ -125,13 +127,19 @@ export function ownerTools(store: Store): Tool[] {
       deadlineMs: 5_000,
       title: () => "Read more of an output",
       async run(a, ctx) {
-        const text = store.runs.output(a.ref, ctx.thread.id);
-        if (text === undefined) return `no output ${a.ref} in this thread`;
+        const found = store.runs.outputIn(a.ref);
+        const chat = found && found.thread_id !== ctx.thread.id ? store.threads.get(found.thread_id) : undefined;
+        // The owner's agents page through outputs of any chat they may read for the owner (DECISIONS.md#d-271).
+        const elsewhere = chat && worksForOwner(store, ctx.thread) && canReadChat(store, ctx.agent, chat);
+        if (!found || (found.thread_id !== ctx.thread.id && !elsewhere))
+          return `no output ${a.ref} in a chat you can read`;
+        const text = found.output;
         const from = Math.min(a.offset ?? 0, text.length);
         const page = text.slice(from, from + PAGE);
         const next = from + PAGE < text.length ? `\n[${text.length} chars total; next offset ${from + PAGE}]` : "";
         // The stored text may hold web pages or another agent's words: a page of it stays untrusted.
-        return `${untrusted("tool_output", { ref: a.ref, offset: String(from) }, page)}${next}`;
+        const where = chat ? `output from chat ${chat.title} (${placeName(store, chat.project_id)})\n` : "";
+        return `${where}${untrusted("tool_output", { ref: a.ref, offset: String(from) }, page)}${next}`;
       },
     }),
   ];

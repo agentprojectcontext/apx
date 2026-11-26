@@ -29,11 +29,11 @@ test("See what's new opens the chat that tells the update, and goes once it is r
   await open(page);
   const pill = page.getByRole("button", { name: "Ver cambios" });
   const hint = page.locator(".apx-tooltip", { hasText: "Novedades de APX 9.9.9" });
-  // Late quota reports can move the pill after hover; enter its settled position, not the old coordinates.
+  // Loading top-bar controls can move the trigger away from a stationary pointer.
   await expect(async () => {
     await page.mouse.move(0, 0);
     await pill.hover();
-    await expect(hint).toBeVisible({ timeout: 2_000 });
+    await expect(hint).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: 7_000 });
   await expect(hint).toBeInViewport();
   await pill.click();

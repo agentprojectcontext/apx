@@ -30,7 +30,7 @@ otro equipo. Los datos compartidos del proyecto van en AGENTS.md, no en instrucc
 rutas o personas de otro proyecto.
 
 APX agrupa los agentes modificados en avisos de revisión. Cubre creación, edición, clonación e importación internas,
-y cambios externos en `.apc/agents/*.md` de proyectos registrados cuando el observador del proyecto los indexa.
+y cambios externos en `.apx/agents/*.md` de proyectos registrados cuando el observador del proyecto los indexa.
 No recorre cualquier Markdown ni carpetas sin registrar. Los agentes existentes se toman como punto de partida al
 iniciar el detector por primera vez; los cambios posteriores, incluidos los encontrados después de reiniciar,
 quedan pendientes de revisión. Un aviso significa que la definición cambió, no que APX encontró un error. No se
@@ -47,8 +47,8 @@ dispara una reescritura autónoma ni una revisión semántica en segundo plano.
 
 ## Conservá el contexto junto al trabajo
 
-Los proyectos de APX siguen [APC (Agent Project Context)](/es/concepts/projects/): un `AGENTS.md` en la raíz y una carpeta
-`.apc/`. Las definiciones de agentes son archivos Markdown individuales en `.apc/agents/`. Las instrucciones
+Un [proyecto](/es/concepts/projects/) tiene un `AGENTS.md` en la raíz y una carpeta
+`.apx/`. Las definiciones de agentes son archivos Markdown individuales en `.apx/agents/`. Las instrucciones
 compartidas, las notas seleccionadas y las habilidades del proyecto se pueden leer y versionar junto al trabajo.
 
 APX guarda los chats, ejecuciones, tareas, rutinas y notas en su base de datos local. Los archivos del proyecto son la
@@ -78,7 +78,7 @@ Algunos agentes trabajan con vos en todos lados, otros pertenecen a un proyecto 
     que te sigue a todos los canales. Sabe quién sos, hace él mismo el trabajo chico y mediano, le pasa el trabajo largo de un proyecto al agente de ese proyecto y no se puede borrar.
   </Card>
   <Card title="Agentes de proyecto" icon="document">
-    Viven en la carpeta `.apc/agents/` de un proyecto, un archivo markdown cada uno. Leen el `AGENTS.md` del proyecto,
+    Viven en la carpeta `.apx/agents/` de un proyecto, un archivo markdown cada uno. Leen el `AGENTS.md` del proyecto,
     trabajan en su carpeta y viajan con el repo.
   </Card>
   <Card title="Agentes globales" icon="puzzle">
@@ -98,13 +98,13 @@ escribís en su archivo como `icon:` o lo definís con `apx agents set <agent> b
 
 ## Un agente es un archivo markdown
 
-Un agente de proyecto es `.apc/agents/<slug>.md`: un bloque de frontmatter con sus campos y después un cuerpo con sus
-instrucciones. El archivo manda. APX vigila `.apc/`, así que un cambio guardado aparece en la app al toque, y lo que
+Un agente de proyecto es `.apx/agents/<slug>.md`: un bloque de frontmatter con sus campos y después un cuerpo con sus
+instrucciones. El archivo manda. APX vigila `.apx/`, así que un cambio guardado aparece en la app al toque, y lo que
 cambiás en la app se escribe en el mismo archivo.
 
 Esta es Lucía, la product manager de Acme Store:
 
-```markdown title=".apc/agents/lucia.md"
+```markdown title=".apx/agents/lucia.md"
 ---
 name: Lucía
 role: Product manager
@@ -136,12 +136,12 @@ and follow up until they close. When a decision needs the owner, ask once, clear
 | `icon` | El blobo del agente (`orbita`, `menta`, `cobalto`…). |
 | `emoji` | Un emoji opcional que se guarda con el agente (los archivos de otras herramientas suelen traer uno). |
 | `parent` | El agente al que reporta, por su slug (o su id completo). Si no está, reporta a Home. APX le dice al agente a quién responde y su `area`, así sus instrucciones nunca necesitan nombrar personas. |
-| `area` | El área a la que pertenece, para el organigrama (`product`, `engineering`…). |
+| `area` | Dónde suele trabajar, para el organigrama (`product`, `engineering`…). Orienta quién hace qué; nunca le impide hacer lo que le pedís. |
 | `autonomy` | Su modo de permisos: `manual`, `auto` (por defecto), `accept_edits`, `plan` o `total`. Mirá [Autonomía y seguridad](/es/concepts/autonomy/). |
 | `personality` | Cómo suena, aparte de lo que hace. Hasta 1.000 caracteres. |
 | `orchestrator` | `true` marca a un agente que lidera a los que le reportan. Sin `parent`, encabeza todo el equipo: va arriba del organigrama y recibe primero el trabajo del proyecto; con `parent`, lidera sólo su subequipo (con la etiqueta **Líder de equipo**). `false` dice que no lo es, sugiera lo que sugiera su rol; si nadie sin parent está marcado, se adivina entre los que no tienen parent por el rol (orquestador, CEO, lead), o es el único. |
 | `rules` | Su propia regla por tipo de acción, por encima de su autonomía: `read`, `write`, `outside` o `irreversible`, cada una `auto`, `ask` u `off` (`rules: write=auto, outside=ask`). Un tipo que no aparece sigue a la autonomía. |
-| `tools` | Limita al agente a esas herramientas o grupos. Sin este campo, tiene todas. |
+| `tools` | Las herramientas o grupos que usa primero. Las demás siguen a su alcance cuando las necesita, con el mismo modo y las mismas reglas. Sin este campo, tiene todas a mano. |
 | `skills` | Limita qué skills se le ofrecen. Sin este campo, todas. |
 | `aliases` | Slugs viejos. Renombrás el archivo, ponés acá el slug anterior y el agente conserva sus chats. |
 | `model` | `engine:model`, como lo escribía APX v1. Se lee cuando el agente aparece por primera vez; después, el modelo se cambia desde la app o con `apx agents model`. `inherit` es el modelo por defecto de la instalación. |
@@ -150,9 +150,14 @@ El cuerpo son las instrucciones propias del agente. Escribilo como una nota para
 toca, cómo trabaja, qué no tiene que hacer nunca solo.
 
 **Grupos de herramientas** que podés nombrar en `tools:`: `browser`, `widgets`, `agents` (listar agentes, delegar,
-dar una herramienta), `shell`, `files`, `mcp`, `memory`, `images`, `tasks`. También podés nombrar herramientas
-sueltas. Algunas quedan siempre, diga lo que diga la lista, porque sólo leen o te preguntan: leer una salida,
-hacerte una pregunta, cargar una skill y buscar en las notas.
+correr un flujo de trabajo, dar una herramienta), `shell`, `files`, `mcp`, `memory`, `images`, `tasks`. También podés nombrar herramientas
+sueltas. La lista es el foco del agente, no un cerco: lo que nombra viaja en cada turno, y el agente encuentra
+cualquier otra herramienta cuando el trabajo la pide, así sus turnos quedan livianos. Su modo y sus reglas por caso
+siguen decidiendo qué corre, qué pregunta y qué te espera, y una regla que apagaste sigue quitándole esas herramientas.
+
+Tu super-agente puede cambiar esta lista por vos (`agent_set` con `tools`) y dejar que un agente use una herramienta
+de APX sin preguntarte cada vez (`grant_tool`, que también la quita). Las herramientas de ajustes propias de tu
+super-agente siguen siendo suyas, diga lo que diga la lista.
 
 <Aside type="tip">
   Una lista `tools:` que no nombra nada que APX conozca (un archivo escrito para otra herramienta) se ignora, en vez
@@ -167,7 +172,7 @@ hacerte una pregunta, cargar una skill y buscar en las notas.
 
 1. Abrí un proyecto y andá a la pestaña **Agentes**.
 2. Tocá **Agente** para escribir uno nuevo, o **Importar** para instalar una plantilla (más abajo).
-3. Ponele nombre, rol, descripción e instrucciones, y tocá **Crear agente**. APX escribe el archivo en `.apc/agents/` del
+3. Ponele nombre, rol, descripción e instrucciones, y tocá **Crear agente**. APX escribe el archivo en `.apx/agents/` del
    proyecto.
 4. Tocá el nombre de cualquier agente en la cabecera de un chat para abrir su panel lateral: rol, a quién reporta,
    autonomía, modelo, perfil del navegador y sus números.
@@ -192,18 +197,18 @@ Listá el equipo y el modelo de cada agente (★ marca a Home):
 3f9a1c0d7e21-lucia             Lucía            router                       Product manager
 3f9a1c0d7e21-tomas             Tomás            default                      Developer`}</Terminal>
 
-Creá uno. Con `--project` va a `.apc/agents/` de ese proyecto; sin eso, queda como agente global:
+Creá uno. Con `--project` va a `.apx/agents/` de ese proyecto; sin eso, queda como agente global:
 
-<Terminal command={'apx agents new vera "Vera" --project p_3f9a1c0d7e21 --role "Marketing"'}>{`Vera (3f9a1c0d7e21-vera) · written to .apc/agents/`}</Terminal>
+<Terminal command={'apx agents new vera "Vera" --project p_3f9a1c0d7e21 --role "Marketing"'}>{`Vera (3f9a1c0d7e21-vera) · written to .apx/agents/`}</Terminal>
 
 Cambiá campos con pares `clave=valor` (`name`, `role`, `slug`, `parent`, `blob`):
 
 <Terminal command="apx agents set 3f9a1c0d7e21-vera parent=lucia blob=cobalto">{`Vera (3f9a1c0d7e21-vera) · vera · Marketing`}</Terminal>
 
-Archivá uno. Su archivo pasa a `.apc/agents/.archived/` (nunca se borra) y sus chats quedan. Un agente que responde
+Archivá uno. Su archivo pasa a `.apx/agents/.archived/` (nunca se borra) y sus chats quedan. Un agente que responde
 un canal se archiva recién cuando elegís quién responde ese canal en su lugar:
 
-<Terminal command="apx agents archive 3f9a1c0d7e21-vera">{`archived; file moved to ~/work/acme-store/.apc/agents/.archived/vera.md`}</Terminal>
+<Terminal command="apx agents archive 3f9a1c0d7e21-vera">{`archived; file moved to ~/work/acme-store/.apx/agents/.archived/vera.md`}</Terminal>
 
 Elegí su modelo (mirá [Modelos y motores](/es/concepts/models/)):
 
@@ -218,7 +223,12 @@ Elegí su modelo (mirá [Modelos y motores](/es/concepts/models/)):
 Finder. Una carpeta con `TEAM.md` es un equipo: el de producto (un orquestador, un PM, un desarrollador, un diseñador,
 QA…) o el ejecutivo, que además trae sus rutinas semanales.
 
-Instalar copia el archivo tal cual en `.apc/agents/`. Sólo puede cambiar `parent`, para colgar al líder del equipo
+Las plantillas incluidas usan por defecto todas las herramientas permitidas en su contexto. La jerarquía no impide
+pedidos directos: un ejecutivo te responde y hace el trabajo que le pedís, sin aprobación obligatoria del CEO. Su rol
+dice en qué es bueno, no qué rechaza. QA sigue informando en vez de arreglar mientras revisa, y las confirmaciones
+siguen vigentes. Instalar plantillas no reescribe prompts ni restricciones de agentes existentes.
+
+Instalar copia el archivo tal cual en `.apx/agents/`. Sólo puede cambiar `parent`, para colgar al líder del equipo
 debajo del orquestador que el proyecto ya tiene. Un slug que el proyecto ya usa se saltea, nunca se pisa.
 
 ## El organigrama
@@ -235,10 +245,10 @@ instrucciones de mis agentes": te dice qué cambiaría en cada uno y no cambia n
 
 <Shot name="org" alt="La vista Areas and roles: áreas Product, Engineering y Growth con sus roles y agentes" caption="Agentes › Áreas y roles" />
 
-Las áreas y roles son para empresas: viven en `.apc/organization.json` (hasta 40 áreas y 200 roles), y el tipo del
+Las áreas y roles son para empresas: viven en `.apx/organization.json` (hasta 40 áreas y 200 roles), y el tipo del
 proyecto pasa a **Empresa** cuando los agregás. Los agentes los leen, así Lucía sabe que Growth es de Vera.
 
-```json title=".apc/organization.json"
+```json title=".apx/organization.json"
 {
   "areas": [
     { "slug": "product", "name": "Product", "goal": "Ship what customers ask for" },
@@ -313,16 +323,59 @@ recibe el informe y el motivo: te avisa, y el aviso en el chat, la bandeja y tu 
 y qué hizo hasta ahora, con un botón para continuar. Ese agente también puede detener una sesión que arrancó mientras
 sigue trabajando.
 
-Una delegación trabaja en el modo de quien la pidió, con sus propias reglas por caso, y sólo recibe las herramientas
-que todos los agentes de la cadena pueden usar.
+Una delegación trabaja en el modo de quien la pidió, con sus propias reglas por caso. La lista `tools:` de quien la
+pide no achica la del ayudante: cada agente conserva su propio foco, y una regla apagada en cualquier punto de la
+cadena sigue apagada.
 
-Una delegación puede trabajar en una carpeta de un proyecto, como un worktree de git: quien la pide nombra el proyecto
-con una ruta dentro de él, y las rutas relativas y los comandos del ayudante arrancan ahí, nunca fuera del proyecto (un
-enlace que sale de él se rechaza). También puede decir cuánto puede cambiar esa carpeta el ayudante (`ask`, `auto` o
+Una delegación puede trabajar en una carpeta, como un worktree de git: quien la pide la nombra con una ruta, y las rutas
+relativas y los comandos del ayudante arrancan ahí. Trabajando para vos, esa carpeta puede estar en cualquiera de tus
+proyectos o sus worktrees, y el resultado dice en qué proyecto; la carpeta propia de APX y una carpeta de sólo lectura
+nunca lo son. También puede decir cuánto puede cambiar esa carpeta el ayudante (`ask`, `auto` o
 `read-only`). El ayudante nunca llega más lejos que quien lo llamó: si no se nombra un límite recibe lo máximo que
 puede quien lo llamó, nunca más que el modo de quien lo llamó (en un hilo de código, la política de ese hilo), el modo
 del ayudante o el del proyecto; nombrar uno sólo lo achica. Su resultado vuelve a quien lo pidió como el de cualquier
 delegación.
+
+## Flujos de trabajo
+
+Cuando un trabajo es demasiado amplio para un solo agente, como revisar cada área de un proyecto o una lista larga de
+archivos, tu agente puede correr un **flujo de trabajo** en vez de pedirle ayuda a uno por uno. Escribe un plan y APX lo
+corre. El agente no decide cada paso sobre la marcha.
+
+- **Ítems y etapas.** Cada ítem (hasta 24) pasa por hasta cuatro etapas en orden, por ejemplo *buscar* y después
+  *verificar*. Un ítem pasa a su etapa siguiente apenas termina la anterior: no espera a los demás.
+- **Varios agentes a la vez.** Hasta cuatro agentes del flujo trabajan al mismo tiempo (tres por defecto). Cada etapa
+  nombra un agente del equipo o un ayudante que el agente describe.
+- **Resultados revisados.** Una etapa puede pedir su respuesta en JSON con una forma dada. Si la respuesta no encaja,
+  se la pide una vez más, y la etapa siguiente lee ese JSON. Una etapa también puede seguir sólo con los ítems que la
+  anterior marcó, como los hallazgos que una verificación confirmó.
+- **Una etapa final** puede leer el resultado de cada ítem y escribir el resumen que recibe tu agente.
+
+El chat muestra una tarjeta del flujo: sus fases, el estado de cada agente, cuántos pasos están hechos y el resultado
+cuando termina. Hacé clic en una fila para abrir el chat de ese agente. **Detener** cancela a los agentes que están
+trabajando y no arranca nada más. **Reanudar** vuelve a correr sólo lo que no terminó: los pasos hechos conservan su
+resultado. Un flujo corre como mucho cuatro horas desde que empieza o desde que se reanuda.
+
+Cada llamada a un agente dentro de un flujo es una delegación, así que valen los mismos límites: el modo de quien lo
+pidió, las reglas que pusiste, los presupuestos de tus agentes, y los ayudantes no delegan más. Cuando el flujo
+termina, tu agente recibe el resultado y termina tu pedido con él.
+
+## Hasta dónde llegan tus agentes
+
+El rol, el área y las herramientas de un agente dicen en qué es bueno y dónde suele trabajar. Nunca lo hacen rechazar
+algo que le pediste. Trabajando para vos, tus agentes:
+
+- Leen cualquiera de tus chats, tareas y archivos de proyecto, en todos los proyectos, y leen o detienen un comando o
+  una sesión que arrancó otro de tus chats.
+- Trabajan donde está el trabajo: crean y actualizan tareas, widgets y archivos en otro de tus proyectos cuando
+  corresponden ahí, y dicen dónde lo hicieron ("Esta tarea está en Acme Store"), así nada aparece en algún lado sin
+  que lo sepas.
+- Le piden a un compañero una parte de una tarea mientras la trabajan; el historial de la tarea registra a quién le
+  pidieron qué.
+
+Lo que sigue cerrado: los chats de tus contactos y las salas de tus canales, el trabajo para apps de afuera, la carpeta
+propia de APX, un proyecto que estás moviendo y lo que tu modo o una regla te dejan a vos. Un agente que le responde a
+un contacto o a una sala se queda en esa conversación y su proyecto.
 
 ## Una sola forma de hablarle a un agente
 
@@ -337,7 +390,7 @@ Sin `--agent`, le hablás a Home.
 ## Seguí por acá
 
 <CardGrid>
-  <LinkCard title="Proyectos" description="La carpeta .apc/ donde viven los agentes." href="/es/concepts/projects/" />
+  <LinkCard title="Proyectos" description="La carpeta .apx/ donde viven los agentes." href="/es/concepts/projects/" />
   <LinkCard title="Autonomía y seguridad" description="Qué puede hacer un agente sin preguntar." href="/es/concepts/autonomy/" />
   <LinkCard title="Modelos y motores" description="Con qué modelo piensa cada agente." href="/es/concepts/models/" />
   <LinkCard title="Memoria" description="Qué recuerdan los agentes entre chats." href="/es/concepts/memory/" />

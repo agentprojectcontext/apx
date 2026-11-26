@@ -61,6 +61,7 @@ export const RESUME_NOTE =
 const resumable = (store: Store, run: RunRecord) =>
   run.state === "working" &&
   Boolean(run.input) &&
+  run.input?.origin.kind !== "continuation" &&
   !run.input?.resume_of &&
   Boolean(store.threads.get(run.thread_id)) &&
   Boolean(store.agents.get(run.agent_id));

@@ -72,6 +72,7 @@ export const WORK: Readonly<Record<string, Setting>> = {
             p.kind ?? "",
             p.path ? `folder ${p.path}` : "kept by APX",
             p.present ? "" : "folder away",
+            p.legacy_folder ? "agents still in .apc/: its move failed, the owner retries it" : "",
             p.parent ? `subproject of ${p.parent === BASE_PROJECT_ID ? "the base project" : p.parent}` : "",
           ];
           return `- ${inlineName(p.name)} [${p.id}] (${bits.filter(Boolean).join(", ")})${p.description ? `: ${p.description.slice(0, 160)}` : ""}`;
@@ -84,7 +85,7 @@ export const WORK: Readonly<Record<string, Setting>> = {
     says: (p) => `Create the project ${inlineName(str(p.name) || str(p.path))}${p.path ? ` in ${str(p.path)}` : ""}`,
   },
   "projects.register": {
-    does: "add a folder already on disk as a project (path; init: give a plain folder AGENTS.md and .apc/)",
+    does: "add a folder already on disk as a project (path; init: give a plain folder AGENTS.md and .apx/)",
     named: ["path"],
     says: (p) => `Add the folder ${str(p.path)} as a project`,
   },
@@ -183,7 +184,12 @@ export const WORK: Readonly<Record<string, Setting>> = {
   "memory.set_settings": {
     does: "change memory's settings (only what changes: mode, auto_recall, auto_capture, auto_compact…); its model stays the owner's",
     says: () => "Change how memory works",
-    refuse: (p, { store }) => ownersField(p, memorySettings(store), "aux_model", MODEL),
+    refuse: (p, { store }) =>
+      ownersField(p, memorySettings(store), "aux_model", MODEL) ??
+      ownersField(p, memorySettings(store), "aux_chain", MODEL) ??
+      (p.mode === "semantic" && !store.settings.read("services").some((s) => s.kind === "embedding" && s.enabled)
+        ? "no embedding engine is on to search by meaning: set one up first (embeddings.local)"
+        : undefined),
     now: (_p, { store }) => memorySettings(store),
     keep: (p, { store }) => merged(memorySettings(store), p),
   },
@@ -244,6 +250,7 @@ export const WORK: Readonly<Record<string, Setting>> = {
   },
   "skills.runtimes": {
     does: "copy APX's skills into the other agent apps on this computer (Claude Code, Codex…); dry_run only lists",
+    asks: "always",
     named: ["dry_run"],
     says: (p) =>
       p.dry_run
@@ -346,6 +353,25 @@ export const WORK: Readonly<Record<string, Setting>> = {
       muted: store.settings.read("calendar_muted").some((m) => m.series === str(p.series)),
     }),
   },
+  "extensions.events_get": {
+    does: "read an extension's declared observations, monitor and saved notice settings (id); enabled settings need unchanged approved files",
+    read: (p, { store }) => {
+      const id = str(p.id);
+      const ext = store.extensions.get(id);
+      return JSON.stringify({
+        events: ext?.manifest.events ?? [],
+        monitor: ext?.manifest.monitor,
+        config: store.extensionEvents.config(id)?.config,
+        pending: store.extensionEvents.pendingCount(id),
+      });
+    },
+  },
+  "extensions.events_set": {
+    does: "configure opt-in extension notices (id, config: enabled, thread, quiet_start and quiet_end in local minutes, time_zone); personal chat only, no Flow needed",
+    says: (p, { store }) =>
+      `Change notices from ${inlineName(store.extensions.get(str(p.id))?.manifest.name ?? str(p.id))}`,
+    now: (p, { store }) => ({ id: p.id, config: store.extensionEvents.config(str(p.id))?.config }),
+  },
   "extensions.enable": {
     does: "turn an installed extension on or off (id, enabled)",
     says: (p, { store }) =>
@@ -354,16 +380,6 @@ export const WORK: Readonly<Record<string, Setting>> = {
       const e = store.extensions.get(str(p.id));
       return e ? { id: e.id, enabled: e.enabled } : undefined;
     },
-  },
-  "services.list": {
-    does: "the media services (image, speech, embedding, transcription), in the order they are tried, and the image defaults",
-    read: (_p, { store }) =>
-      [
-        ...store.settings
-          .read("services")
-          .map((s) => `- ${inlineName(s.label)} [${s.id}] (${s.kind}, ${s.enabled ? "on" : "off"})`),
-        `image defaults: ${JSON.stringify(imageDefaultsOf(store))}`,
-      ].join("\n"),
   },
   "services.order": {
     does: "the order services of one kind are tried in (kind, ids)",
@@ -403,12 +419,14 @@ export const WORK: Readonly<Record<string, Setting>> = {
   },
   "surfaces.memory_clear": {
     does: "make a widget forget what it remembers (surface, parts)",
+    asks: "always",
     named: ["surface", "parts"],
     says: (p, { store }) =>
       `Make the widget ${widget(store, p.surface)} forget its ${(p.parts as string[] | undefined)?.join(", ") ?? ""}`,
   },
   "surfaces.remove": {
     does: "delete a widget for good, with what it remembers (surface)",
+    asks: "always",
     named: ["surface"],
     says: (p, { store }) => `Delete for good the widget ${widget(store, p.surface)} and what it remembers`,
   },

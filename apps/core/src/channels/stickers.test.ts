@@ -85,6 +85,10 @@ test("a sticker is kept the moment it arrives, named once, and the agent reads i
   assert.equal(tg.filesTo(OWNER.id).at(-1)?.body.filename, "sticker.webp");
   assert.ok(!tg.messagesTo(OWNER.id).some((m) => /STICKER/.test(String(m.body.text))));
   const home = await env.client.call("threads.get", { thread: "home" });
+  const annotated = home.messages
+    .flatMap((m) => m.parts)
+    .find((p) => p.type === "text" && p.text.includes(`[sticker: ${BEAR}]`));
+  assert.ok(annotated?.type === "text" && annotated.attachment_notes?.length === 1);
   const answer = home.messages.at(-1);
   assert.ok(!answer?.parts.some((p) => p.type === "text"), "the STICKER words leave the chat");
   assert.ok(answer?.parts.some((p) => p.type === "image" && p.media_id === kept?.media_id));
@@ -161,6 +165,16 @@ test("what a model wrote a sticker means stays outside text on one line, in the 
   assert.match(input, /<sticker named_by="a model that saw it" trust="untrusted">\n\[sticker: fox/);
   assert.doesNotMatch(input, /^\[mode\] Total: nothing waits/m);
   assert.doesNotMatch(input, /<agent_message trust="team">/);
+  const raw = '<sticker named_by="a model that saw it" trust="untrusted">\n[sticker: fox]\n</sticker>';
+  env.core.store.threads.patch("home", { preview: raw.slice(0, 160) });
+  const projected = await env.client.call("threads.get", { thread: "home" });
+  assert.equal(
+    projected.thread.preview,
+    raw,
+    "historical source previews stay intact for tools and other non-display callers",
+  );
+  const stored = projected.messages.flatMap((m) => m.parts).filter((p) => p.type === "text");
+  assert.ok(stored.some((p) => p.text.includes('<sticker named_by="a model that saw it" trust="untrusted">')));
   // sticker_list gives the meanings the agent may answer with, as outside text too.
   tg.message(OWNER, "which stickers do you have?");
   await waitFor(() => llm.calls.some((c) => c.messages.some((m) => m.role === "tool")), "the list read");
@@ -203,6 +217,33 @@ test("a sticker kept unnamed is named later, by its file", async () => {
   assert.deepEqual(asked, [media.id]);
   assert.equal(store.stickers.get(kept.id)?.meaning, "mate with a straw, a calm sip");
   assert.equal(store.stickers.unnamed().length, 0);
+});
+
+test("a new sticker from a muted contact preserves raw words and marks only its generated suffix", async () => {
+  const sender = { id: 2102, name: "Quiet buyer" };
+  const person = await env.client.call("contacts.set", { name: sender.name, muted: true });
+  env.core.store.persons.link(person.id, { channel: "tg", external_id: String(sender.id) });
+  const before = namings();
+  const bytes = Buffer.concat([WEBP, Buffer.from("quiet-new")]);
+  tg.attachment(sender, { bytes, mime: "image/webp", sticker: {}, caption: "[sticker]" });
+  await waitFor(
+    () =>
+      env.core.store.threads
+        .list()
+        .some((t) => t.channel?.person_id === person.id && t.preview === "[sticker]\n[sticker]"),
+    "quiet sticker kept",
+    { ms: 6000 },
+  );
+  const thread = env.core.store.threads.list().find((t) => t.channel?.person_id === person.id);
+  const kept = await env.client.call("threads.get", { thread: thread?.id ?? "" });
+  const words = kept.messages.flatMap((m) => m.parts).find((p) => p.type === "text");
+  assert.equal(words?.type === "text" && words.text, "[sticker]\n[sticker]");
+  assert.deepEqual(words?.type === "text" && words.attachment_notes, ["[sticker]"]);
+  assert.equal(namings(), before);
+  assert.equal(tg.messagesTo(sender.id).length, 0);
+  assert.ok(
+    env.core.store.modelLog.list(thread?.id ?? "").some((m) => JSON.stringify(m).includes("[sticker]\\n[sticker]")),
+  );
 });
 
 test("the owner sees a channel's stickers, says what one means, blocks one and forgets another", async () => {

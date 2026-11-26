@@ -1,8 +1,10 @@
 // The owner's own Claude Code and Codex sessions: listed from where those CLIs keep them, gone on with in APX as an
 // engine session (the engine itself, in the session's folder, resuming its own transcript), or brought in as a
 // project whose chats agents take over (import, digest, adopt).
+
 import fs from "node:fs";
 import path from "node:path";
+import { APX_DIR, needsFolderMove } from "../apc/folder.ts";
 import type { ApcSync } from "../apc/sync.ts";
 import { projectOrchestrator } from "../domain/agent-directory.ts";
 import type { AuxAbout } from "../domain/aux-calls.ts";
@@ -67,8 +69,8 @@ export function sessionHandlers(store: Store, homes: NativeHomes, deps: SessionD
     const known = projectAt(store, cwd);
     if (known) return known;
     if (!fs.existsSync(cwd)) return createProject(deps.apc, deps.home, { name }).project;
-    // A folder that already is a project keeps its own name and files.
-    if (fs.existsSync(path.join(cwd, ".apc", "project.json")))
+    // A folder that already is a project keeps its own name and files (ones still in .apx/ are offered the move).
+    if (fs.existsSync(path.join(cwd, APX_DIR, "project.json")) || needsFolderMove(cwd))
       try {
         return deps.apc.register(cwd).project;
       } catch (err) {

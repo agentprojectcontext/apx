@@ -6,11 +6,12 @@ import { DEFAULT_PID, isWorking, projectName, routineName, threadAgent } from ".
 import { loadRoutines, useRoutines } from "../data/routines.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { CallBundle, ChannelBundle, TaskBundle } from "../lazy.ts";
+import { CallBundle, ChannelBundle, InboxTasks } from "../lazy.ts";
 import { scheduleText } from "../routines/scheduleText.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { ListedChat } from "./Delegated.tsx";
 import { bundleChats, type ListEntry } from "./groupThreads.ts";
+import { TasksSkeleton } from "./InboxSkeleton.tsx";
 import { ProjectBadge } from "./ProjectBadge.tsx";
 import { selectionPath } from "./selectionPath.ts";
 import { ThreadAvatar } from "./ThreadAvatar.tsx";
@@ -154,17 +155,12 @@ export function ChatRow({
   );
 }
 
-/** Tasks: one row each, its agents' chats under it once opened. */
+/** Tasks in their status sections, in the owner's order; sketched while they load, never an empty list. */
 export function TasksTab({ entries }: { entries: Tasks[] }) {
-  const selected = useNav((s) => s.threadId);
   return (
-    <>
-      {entries.map((e) => (
-        <Suspense key={e.taskId} fallback={null}>
-          <TaskBundle taskId={e.taskId} threads={e.threads} selected={selected} />
-        </Suspense>
-      ))}
-    </>
+    <Suspense fallback={<TasksSkeleton />}>
+      <InboxTasks entries={entries} />
+    </Suspense>
   );
 }
 

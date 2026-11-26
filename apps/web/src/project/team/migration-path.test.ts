@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { isInside, samePath } from "../../data/paths.ts";
 import { migrationBlocker, migrationPathSelected, toggleMigrationPath } from "./migration.ts";
-import { isInside, samePath } from "./migration-path.ts";
 
 test("file tree selection compares path segments across separators and preserves case-sensitive names", () => {
   assert.equal(samePath("reports\\charts\\", "reports/charts"), true);

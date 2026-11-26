@@ -148,6 +148,8 @@ export const ChannelBundle = lazy(() =>
   import("./inbox/ChannelBundle.tsx").then((m) => ({ default: m.ChannelBundle })),
 );
 export const TaskBundle = lazy(() => import("./inbox/TaskBundle.tsx").then((m) => ({ default: m.TaskBundle })));
+/** The Tasks tab's sections, paging and reordering. */
+export const InboxTasks = lazy(() => import("./inbox/InboxTasks.tsx").then((m) => ({ default: m.InboxTasks })));
 // The Inbox's Calls row, once there is a call.
 export const CallBundle = lazy(() => import("./inbox/CallBundle.tsx").then((m) => ({ default: m.CallBundle })));
 // The call buttons (top bar, the super-agent's chat, a call's chat) show once calls can run here; the card that places
@@ -159,6 +161,9 @@ export const CallCard = lazy(
 );
 export const SubthreadPart = lazy(() =>
   import("./chat/parts/SubthreadPart.tsx").then((m) => ({ default: m.SubthreadPart })),
+);
+export const WorkflowPart = lazy(() =>
+  import("./chat/parts/WorkflowPart.tsx").then((m) => ({ default: m.WorkflowPart })),
 );
 export const AgentEvent = lazy(() => import("./chat/AgentEvent.tsx").then((m) => ({ default: m.AgentEvent })));
 export const TaskDescription = lazy(() =>
@@ -180,6 +185,7 @@ export const MarketplaceScreen = lazy(
 export const ResourcesScreen = lazy(
   withPacks(["resources"], () => import("./project/ResourcesScreen.tsx").then((m) => ({ default: m.ResourcesScreen }))),
 );
+export const SignInCard = lazy(() => import("./chat/parts/SignInCard.tsx").then((m) => ({ default: m.SignInCard })));
 export const PublicCopyInput = lazy(() =>
   import("./surfaces/PublicCopyInput.tsx").then((m) => ({ default: m.PublicCopyInput })),
 );
@@ -311,6 +317,9 @@ export const InputPart = lazy(() => import("./chat/parts/InputPart.tsx").then((m
 
 export const AudioPlayer = lazy(() => import("./chat/parts/AudioPart.tsx").then((m) => ({ default: m.AudioPart })));
 
+export const ContinuationNotice = lazy(() =>
+  import("./chat/parts/ContinuationNotice.tsx").then((m) => ({ default: m.ContinuationNotice })),
+);
 export const DelegationActions = lazy(() =>
   import("./chat/parts/DelegationActions.tsx").then((m) => ({ default: m.DelegationActions })),
 );

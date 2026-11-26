@@ -110,23 +110,19 @@ test("Discord rooms: the owner lists a server room, and the bot answers there wh
   // A room waits a few seconds for one person's quick messages before it answers.
   const post = await until(async () => (await world.roomPosts("100000000000000001"))[0], 20_000).catch(
     async (error) => {
-      try {
-        const channels = await rpc("channels.list");
-        const { threads } = await rpc<{ threads: Array<{ id: string; title: string }> }>("threads.list");
-        await info.attach("room-state", {
-          body: JSON.stringify({
-            channels,
-            rooms: await Promise.all(
-              threads
-                .filter((thread) => thread.title.includes("general"))
-                .map((thread) => rpc("threads.get", { thread: thread.id })),
-            ),
-          }),
-          contentType: "application/json",
-        });
-      } catch (diagnosticError) {
-        console.warn("Could not attach room diagnostics:", diagnosticError);
-      }
+      const channels = await rpc("channels.list");
+      const { threads } = await rpc<{ threads: Array<{ id: string; title: string }> }>("threads.list");
+      await info.attach("room-state", {
+        body: JSON.stringify({
+          channels,
+          rooms: await Promise.all(
+            threads
+              .filter((thread) => thread.title.includes("general"))
+              .map((thread) => rpc("threads.get", { thread: thread.id })),
+          ),
+        }),
+        contentType: "application/json",
+      });
       throw error;
     },
   );

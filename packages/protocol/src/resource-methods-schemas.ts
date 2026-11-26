@@ -57,7 +57,7 @@ export const SkillName = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/);
 
 /**
  * Where a skill's files live. apx: comes with APX (how to change APX itself; always on, read-only); owner: APX home
- * `skills/`; project: `.apc/skills/`; extension; claude, codex, cursor, agents: that app's own skills folder (in the
+ * `skills/`; project: `.apx/skills/`; extension; claude, codex, cursor, agents: that app's own skills folder (in the
  * home or the project), read where it is, or linked into APX's.
  */
 export const SkillSource = z.enum(["apx", "owner", "project", "extension", "claude", "codex", "cursor", "agents"]);
@@ -141,7 +141,7 @@ export const SkillCandidate = z.object(
     id: () => z.string(),
     name: () => z.string(),
     description: () => z.string(),
-    /** The folder it lands in, in APX's skills or the project's `.apc/skills/`. */
+    /** The folder it lands in, in APX's skills or the project's `.apx/skills/`. */
     folder: () => z.string(),
     files: () =>
       z.array(
@@ -172,7 +172,7 @@ export const SkillCandidate = z.object(
 export type SkillCandidate = z.infer<typeof SkillCandidate>;
 
 export const ImportTarget = {
-  /** `global`: APX's skills; `project`: that project's `.apc/skills/`. */
+  /** `global`: APX's skills; `project`: that project's `.apx/skills/`. */
   target: z.enum(["global", "project"]),
   project: Id.optional(),
 };
@@ -189,6 +189,13 @@ export const SecretSite = z.object(
 );
 export type SecretSite = z.infer<typeof SecretSite>;
 
+/**
+ * What a stored variable is for, when the owner said: a username, a password, a one-time code seed, or a sign-in
+ * (`login`: a username and a password kept together, each filled into its own field). Unset: a plain variable.
+ */
+export const SecretField = z.enum(["username", "password", "otp", "login"]);
+export type SecretField = z.infer<typeof SecretField>;
+
 export const SecretInfo = z.object(
   schemaFields({
     name: () => z.string(),
@@ -201,6 +208,8 @@ export const SecretInfo = z.object(
     used_in: () => z.array(z.string()).default([]),
     /** APX keeps it for itself (a provider's key, a channel's token, a sign-in it holds); the screen it names manages it. */
     system: () => z.boolean().optional(),
+    /** What it is for, when the owner said (a password, a username and password…). */
+    field: () => SecretField.optional(),
     /** Sites where agents may sign in with it, and into which field (DECISIONS.md#d-193). */
     sites: () => z.array(SecretSite).default([]),
     /** The last sign-in an agent made with it. */

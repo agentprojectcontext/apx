@@ -12,8 +12,10 @@ import { approvalsRepo } from "./approvals.ts";
 import { auxCallsRepo } from "./aux-calls.ts";
 import { channelsRepo } from "./channels.ts";
 import { clientsRepo } from "./clients.ts";
+import { continuationsRepo } from "./continuations.ts";
 import { devicesRepo } from "./devices.ts";
 import { extensionCatalogsRepo } from "./extension-catalogs.ts";
+import { extensionEventsRepo } from "./extension-events.ts";
 import { extensionsRepo } from "./extensions.ts";
 import { flowGraphRunsRepo } from "./flow-graph-runs.ts";
 import { flowGraphsRepo } from "./flow-graphs.ts";
@@ -48,6 +50,7 @@ import { taskAttachmentsRepo } from "./task-attachments.ts";
 import { taskLanesRepo } from "./task-lanes.ts";
 import { tasksRepo } from "./tasks.ts";
 import { threadsRepo } from "./threads.ts";
+import { workflowsRepo } from "./workflows.ts";
 
 export function createStore(db: Db, bus: Bus) {
   const q = sql(db);
@@ -64,6 +67,7 @@ export function createStore(db: Db, bus: Bus) {
   };
   return {
     tx: q.tx,
+    continuations: continuationsRepo(q),
     agentMigrationPending: pendingMigrationsRepo(q),
     agentMigration: {
       inventory: (agent: string, destination: string) => agentMigrationInventory(q, agent, destination),
@@ -121,7 +125,9 @@ export function createStore(db: Db, bus: Bus) {
     routines: routinesRepo(q),
     notifications: notificationsRepo(q, bus),
     extensions: extensionsRepo(q),
+    extensionEvents: extensionEventsRepo(q),
     extensionCatalogs: extensionCatalogsRepo(q),
+    workflows: workflowsRepo(q),
     clients: clientsRepo(q),
     devices: devicesRepo(q),
     nudges: nudgesRepo(q),

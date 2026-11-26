@@ -39,92 +39,116 @@ export function NoFolder() {
 }
 
 /**
- * A folder, a project's or the one a chat works in: a tree on the left (one level loaded at a time), the file on the
- * right — text, Markdown, images, video, audio and PDFs. Right-click a file or folder to show it in Finder, copy its
- * path, rename it or move it to the trash.
+ * A project's folder: a tree on the left (one level loaded at a time), the file on the right — text, Markdown, images,
+ * video, audio and PDFs. Right-click a file or folder to show it in Finder, copy its path, rename it or move it to the
+ * trash.
  */
 export function FilesPane({
   where,
-  root: known = "",
+  root,
   label,
-  stacked = false,
 }: {
   where: FileWhere;
   root?: string | undefined;
-  /** The folder's name at the top: a project's says "Repository", a chat's shows the folder's own name. */
+  /** The folder's name at the top: a project's says "Repository". */
   label?: string | undefined;
-  stacked?: boolean;
 }) {
   const t = useT();
   const [picked, setPicked] = useState<string>();
+  const [version, setVersion] = useState(0);
+  const done = (c: FileChange) => {
+    setVersion((v) => v + 1);
+    setPicked((p) => (p ? movedPath(p, c) : p));
+  };
+  return (
+    <div className="files">
+      <FileTree where={where} root={root} label={label} picked={picked} onPick={setPicked} onChange={done} />
+      <section className="files__view" aria-label={picked ?? t("files.none")}>
+        {picked ? (
+          <FileView key={`${picked}:${version}`} where={where} path={picked} />
+        ) : (
+          <EmptyState icon={<Icons.FileText />} title={t("files.none")}>
+            {t("files.noneBody")}
+          </EmptyState>
+        )}
+      </section>
+    </div>
+  );
+}
+
+/** Where an open file is after a rename or a trash in the tree: its new name, or undefined when it is gone. */
+export function movedPath(path: string, c: FileChange): string | undefined {
+  if (c.kind === "renamed" && (path === c.from || path.startsWith(`${c.from}/`)))
+    return c.to + path.slice(c.from.length);
+  if (c.kind === "trashed" && (path === c.path || path.startsWith(`${c.path}/`))) return undefined;
+  return path;
+}
+
+/** A folder's tree: its name on top, then one level at a time; picking a file hands it to `onPick`. */
+export function FileTree({
+  where,
+  root: known = "",
+  label,
+  picked,
+  onPick,
+  onChange,
+  onRoot,
+}: {
+  where: FileWhere;
+  root?: string | undefined;
+  label?: string | undefined;
+  picked: string | undefined;
+  onPick(path: string): void;
+  /** A file or folder renamed or moved to the trash from the tree. */
+  onChange(c: FileChange): void;
+  /** The folder's own path, once the core has said it. */
+  onRoot?(root: string): void;
+}) {
+  const t = useT();
   const [version, setVersion] = useState(0);
   const [acting, setActing] = useState<{ kind: "rename" | "trash"; entry: FileEntry }>();
   const [root, setRoot] = useState(known);
   const done = (c: FileChange) => {
     setActing(undefined);
     setVersion((v) => v + 1);
-    // The open file follows its new name, or closes when it went to the trash.
-    if (picked && c.kind === "renamed" && (picked === c.from || picked.startsWith(`${c.from}/`)))
-      setPicked(c.to + picked.slice(c.from.length));
-    if (picked && c.kind === "trashed" && (picked === c.path || picked.startsWith(`${c.path}/`))) setPicked(undefined);
+    onChange(c);
   };
   const ctx: TreeCtx = {
     where,
     root,
-    onRoot: setRoot,
+    onRoot: (r) => {
+      setRoot(r);
+      onRoot?.(r);
+    },
     version,
     picked,
-    onPick: setPicked,
+    onPick,
     onAct: (kind, entry) => setActing({ kind, entry }),
   };
-  // Narrow (the chat's side panel): the tree, or the open file with a way back to it.
-  const showTree = !stacked || !picked;
-  const showView = !stacked || Boolean(picked);
   return (
-    <div className={stacked ? "files files--stacked" : "files"}>
-      {showTree && (
-        <nav className="files__tree" aria-label={t("files.tree")}>
-          <Tooltip content={root || undefined}>
-            <div className="files__root">
-              <Icons.FolderOpen size={14} />
-              <span>{label ?? ("project" in where ? t("files.repo") : root.split("/").filter(Boolean).at(-1))}</span>
-              {coreOnThisComputer() && (
-                <IconButton
-                  size="sm"
-                  label={t("files.reveal")}
-                  icon={<Icons.ExternalLink size={12} />}
-                  onClick={() => void revealFile(where, "")}
-                />
-              )}
-            </div>
-          </Tooltip>
-          <Folder ctx={ctx} dir="" depth={0} />
-        </nav>
-      )}
-      {showView && (
-        <section className="files__view" aria-label={picked ?? t("files.none")}>
-          {stacked && (
-            <button type="button" className="files__back" onClick={() => setPicked(undefined)}>
-              <Icons.ChevronLeft size={14} />
-              {t("files.back")}
-            </button>
+    <nav className="files__tree" aria-label={t("files.tree")}>
+      <Tooltip content={root || undefined}>
+        <div className="files__root">
+          <Icons.FolderOpen size={14} />
+          <span>{label ?? ("project" in where ? t("files.repo") : root.split("/").filter(Boolean).at(-1))}</span>
+          {coreOnThisComputer() && (
+            <IconButton
+              size="sm"
+              label={t("files.reveal")}
+              icon={<Icons.ExternalLink size={12} />}
+              onClick={() => void revealFile(where, "")}
+            />
           )}
-          {picked ? (
-            <FileView key={`${picked}:${version}`} where={where} path={picked} />
-          ) : (
-            <EmptyState icon={<Icons.FileText />} title={t("files.none")}>
-              {t("files.noneBody")}
-            </EmptyState>
-          )}
-        </section>
-      )}
+        </div>
+      </Tooltip>
+      <Folder ctx={ctx} dir="" depth={0} />
       {acting?.kind === "rename" && (
         <RenameDialog where={where} entry={acting.entry} onDone={done} onClose={() => setActing(undefined)} />
       )}
       {acting?.kind === "trash" && (
         <TrashDialog where={where} entry={acting.entry} onDone={done} onClose={() => setActing(undefined)} />
       )}
-    </div>
+    </nav>
   );
 }
 
@@ -149,7 +173,7 @@ function Row({ ctx, entry, children }: { ctx: TreeCtx; entry: FileEntry; childre
 }
 
 const ICON = { image: Icons.Image, video: Icons.Film, audio: Icons.Music, pdf: Icons.FileImage } as const;
-function FileIcon({ path }: { path: string }) {
+export function FileIcon({ path }: { path: string }) {
   const kind = mediaKind(path);
   const Icon = kind ? ICON[kind] : Icons.FileText;
   return <Icon size={14} />;
@@ -229,7 +253,7 @@ function DirRow({ entry: e, ctx, depth }: { entry: FileEntry; ctx: TreeCtx; dept
   );
 }
 
-function FileView({ where, path }: { where: FileWhere; path: string }) {
+export function FileView({ where, path }: { where: FileWhere; path: string }) {
   if (mediaKind(path)) return <MediaView where={where} path={path} />;
   return <TextView where={where} path={path} />;
 }

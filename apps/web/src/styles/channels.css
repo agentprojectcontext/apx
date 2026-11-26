@@ -492,6 +492,40 @@
   color: var(--apx-fg-muted);
   font-size: var(--apx-text-xs);
 }
+.chan__consult {
+  align-self: center;
+  width: min(100%, 540px);
+  min-width: 0;
+}
+.chan__consult-link {
+  width: 100%;
+  height: auto;
+  min-width: 0;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
+.chan__consult-link .apx-btn__label,
+.chan__consult-fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  max-width: 100%;
+}
+.chan__consult-link {
+  min-height: 44px;
+}
+.chan__consult-pair {
+  flex-shrink: 0;
+}
+.chan__consult-question {
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .chan__spacer {
   flex: 1;
 }
@@ -710,6 +744,13 @@
   }
   .chan__msglist {
     padding: 14px;
+  }
+  .chan__owner.has-consult > .chan__chat {
+    display: none;
+  }
+  .chan__owner.has-consult > .sidepanel {
+    width: 100%;
+    border-left: 0;
   }
 }
 

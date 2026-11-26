@@ -51,7 +51,7 @@ instructions to the agent, not a guarantee that Git changes have been merged or 
 | Policy | What it means |
 |---|---|
 | **Asks before changes** (`ask`) | The default. Edits and commands go through the usual approvals of the agent's [autonomy](/concepts/autonomy/). Codex cannot ask mid-turn, so under this policy it only reads. |
-| **Edits freely** (`auto`) | Claude Code and Codex sessions edit files inside the folder without asking (never `.apc/` or `AGENTS.md`, and nothing in `.git`, at any autonomy: git runs through commands). Commands still follow the agent's autonomy. |
+| **Edits freely** (`auto`) | Claude Code and Codex sessions edit files inside the folder without asking (never `.apx/` or `AGENTS.md`, and nothing in `.git`, at any autonomy: git runs through commands). Commands still follow the agent's autonomy. |
 | **Read-only** (`read-only`) | Only reads. Anything that would need your OK is refused. |
 
 ### Working in the folder from any chat
@@ -67,8 +67,12 @@ Open the side panel from the chat header. Three views matter most when code is i
 | Panel | What you get |
 |---|---|
 | **Terminal** | Every command the agent ran, with what it printed, foreground or background. **Open a terminal** gives you your own shell in the same folder. |
-| **Files** | The chat's folder (**Chat folder**) and its scratch files (**Temporary**). Open a file to read it; Markdown reads as a page. |
-| **Changes** | The edits the agent recorded, for the **Last turn** or **All turns**, and the **Current folder**'s git diff, file by file. |
+| **Files** | **Explorer** browses the chat's folder (**Chat folder**) and its scratch files (**Temporary**). Each file you open gets its own tab, which you close when done; Markdown reads as a page. |
+| **Changes** | The edits the agent recorded, for the **Last turn** or **All turns**, and the **Current folder**'s git diff, file by file. Unfold a file for a quick look, or open it in its own tab to see the whole file with every change marked. |
+
+The files a turn changed also show at the end of the agent's message. Each one has **View file**, which opens it in
+**Files** (in **Temporary** when the agent wrote it there), and **View changes**, which opens **Changes** with that file
+unfolded. In **Changes**, the eye on a file opens it in **Files** too.
 
 A command that cannot start appears as **Could not start**, with the reason in its output. It is no longer active;
 correct the command or the problem it reports before asking the agent to try again.
@@ -123,11 +127,18 @@ checkout code". The agent picks the engine, the project and, if you named one, t
 default), and sends the session its first task. The session shows under **External sessions** in that project, like
 one you started, and its answer comes back to the agent that asked, so you don't need to check on it.
 
-- Each start asks for your OK on a card, even in Auto. Only Total, or the agent's **irreversible** rule set to run
-  without asking, skips it ([Rules by case](/concepts/autonomy/#rules-by-case)); in Plan the agent can't start one.
+It reads as the engine's, not the agent's: the session carries the engine's name and face (Claude Code, Codex) in your
+lists, its header, its answers and its notices, and is named after the task. A small **Started by** chip with the
+agent's name takes you back to the chat that asked; in that chat its card reads "Roby → Claude Code". The session
+gets none of the agent's own: not its model (only the one the agent named, or the engine's default), memory, notes,
+skills or voice. You can read it while it works; what it answers goes back to the agent that started it.
+
+- In Auto and Total the agent starts it when you ask, without a card; it asks first when content from outside (a web
+  page, another agent, a message) is in its turn. In Manual each start asks for your OK; in Plan the agent can't
+  start one ([Rules by case](/concepts/autonomy/#rules-by-case)).
 - The session never gets more than the agent that asked: no freer write policy than its chat, no more than the
-  project's autonomy allows, and only inside the agent's folder. An agent tied to one project can't open a session in
-  another.
+  project's autonomy allows, and only inside the agent's folder. Working for you, an agent may open one in any of your
+  projects (not one being moved), and its answer says which.
 - It counts against the asking agent's spending limits: when those are reached, the session doesn't start and takes
   no new messages.
 - An agent answering another agent can't start sessions; and a session is not a teammate or a shell: it is the engine
@@ -140,6 +151,9 @@ one you started, and its answer comes back to the agent that asked, so you don't
   the session read, unless the agent's own rules ask before writing or turn it off; on Manual or Plan it runs
   read-only (and says why), unless its rules let it write on its own. A session another agent delegated with
   **Asks before changes** stays read-only for Codex even on Total, since it cannot ask.
+- Codex never reads APX's own folder. Outside a code chat it writes in your projects as the agent's mode allows, and
+  it leaves `AGENTS.md`, `.apx` and Claude Code's settings files alone unless the agent is on Total. An edit to
+  `.claude/settings.json` asks you first, whichever agent makes it.
 - The engine's checklist is APX's plan, under its answer (in a task's chat, the task's plan). Claude Code's own task
   list, subagents and questions are not offered: it uses APX's plan, delegation and questions, with their approvals.
 - Once an engine session reads outside content (a web page, a message), the rest of that session is treated as

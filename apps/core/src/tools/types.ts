@@ -6,7 +6,9 @@ import type { InputRecord } from "../domain/inputs.ts";
 import type { JobRecord } from "../domain/jobs.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Worker } from "../domain/threads.ts";
+import type { WorkflowAsk } from "../domain/workflow-plan.ts";
 import type { ToolSpec } from "../providers/types.ts";
+import type { Deletion } from "./command-deletions.ts";
 import type { FolderThread } from "./folders.ts";
 
 /**
@@ -73,6 +75,8 @@ export type ToolContext = {
     to: {
       agent?: AgentRecord | undefined;
       session?: string | undefined;
+      /** The owner's card label, separate from the delegated instructions. */
+      question?: string | undefined;
       worker?: Worker | undefined;
       project?: string | undefined;
       folder?: string | undefined;
@@ -84,6 +88,8 @@ export type ToolContext = {
     /** The call's own signal: once it aborts, the caller stops waiting and the answer comes in a new turn. */
     signal?: AbortSignal,
   ): Promise<string>;
+  /** Starts a workflow, or resumes one, and waits up to `waitMs` for its result (DECISIONS.md#d-273). */
+  workflow?(w: WorkflowAsk, waitMs: number, signal?: AbortSignal): Promise<string>;
   /**
    * Asks the owner and waits (durably) for the answer; the same machine confirmations use. Unless the agent can
    * continue without it, the question stays open after the turn stops waiting and its answer wakes the agent.
@@ -101,6 +107,16 @@ export type ToolContext = {
    * waits; undefined once the owner said yes, else the text to answer with. A grant already given answers at once.
    */
   requestGrant(prompt: string, approval: ApprovalTarget): Promise<string | undefined>;
+  /**
+   * A sign-in card, in the app only and with no free text (a password typed there would reach the agent): with `login`
+   * the owner types a username and password, which go to the core and never to the agent (DECISIONS.md#d-264); without
+   * it they pick one of `options`. Waits as askOwner does, without staying open.
+   */
+  askSignIn(
+    prompt: string,
+    login: { origin: string; kind: "username" | "password" } | undefined,
+    options?: string[],
+  ): Promise<InputRecord>;
   /** Puts one concrete action to the owner as a card to accept or decline, and waits as askOwner does. */
   proposeAction(action: string, canContinue?: boolean): Promise<InputRecord>;
   /** Takes back this agent's own open question: it ends `withdrawn` and the owner is not told anything new. */
@@ -177,6 +193,8 @@ export type Tool = {
   preview?: ((args: Record<string, unknown>, ctx: CheckContext) => Promise<FileChange | undefined>) | undefined;
   /** What the owner reads about the call when asked to confirm it, in place of arguments that say nothing (an id). */
   explain?: ((args: Record<string, unknown>) => string | undefined) | undefined;
+  /** What the call deletes when it does (a forced `rm`), resolved where it runs, for the owner's card (D-266). */
+  deletes?: ((args: Record<string, unknown>, ctx: CheckContext) => Deletion | undefined) | undefined;
   /**
    * The call changes what the owner set up (their contacts, channels, agents, settings): it runs only on the owner's
    * own word in this chat, never another agent's (DECISIONS.md#d-140); the mode, or `keepsCard`, says if it asks.
@@ -222,6 +240,7 @@ export function defineTool<S extends Args>(def: {
   outside?: (args: z.output<S>, ctx: CheckContext) => string[];
   preview?: (args: z.output<S>, ctx: CheckContext) => Promise<FileChange | undefined>;
   explain?: (args: z.output<S>) => string | undefined;
+  deletes?: (args: z.output<S>, ctx: CheckContext) => Deletion | undefined;
   ownerSetting?: (args: z.output<S>) => boolean;
   keepsCard?: (args: z.output<S>, agent: AgentRecord) => KeepsCard | undefined;
   title(args: Partial<z.input<S>>): string;
@@ -264,6 +283,9 @@ export function defineTool<S extends Args>(def: {
       ? { preview: async (a: Record<string, unknown>, ctx: CheckContext) => def.preview?.(a as z.output<S>, ctx) }
       : {}),
     ...(def.explain ? { explain: (a: Record<string, unknown>) => def.explain?.(a as z.output<S>) } : {}),
+    ...(def.deletes
+      ? { deletes: (a: Record<string, unknown>, ctx: CheckContext) => def.deletes?.(a as z.output<S>, ctx) }
+      : {}),
     ...(def.ownerSetting
       ? { ownerSetting: (a: Record<string, unknown>) => def.ownerSetting?.(a as z.output<S>) === true }
       : {}),

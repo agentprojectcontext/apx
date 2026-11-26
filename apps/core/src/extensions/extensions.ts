@@ -203,6 +203,8 @@ export function createExtensions(deps: {
     mcp: Object.keys(e.manifest.mcp).map((n) => `${e.id}-${n}`),
     connectors: connectorsOf(e.manifest),
     routines: e.manifest.routines,
+    ...(e.manifest.events ? { events: e.manifest.events } : {}),
+    ...(e.manifest.monitor ? { monitor: e.manifest.monitor } : {}),
     secrets: e.manifest.secrets.map((s) => ({
       name: s.name,
       label: s.label,
@@ -476,7 +478,7 @@ export function createExtensions(deps: {
             catalog: c.id,
             catalog_name: c.name,
             ...(e.license ? { license: e.license } : {}),
-            ...(e.publisher ? { publisher: e.publisher } : {}),
+            ...(e.publisher && e.publisher_source === "author" ? { publisher: e.publisher } : {}),
             ...(e.github ? { github: e.github } : {}),
             ...(e.homepage ? { homepage: e.homepage } : {}),
             ...(e.brings ? { brings: e.brings } : {}),
@@ -738,6 +740,7 @@ export function createExtensions(deps: {
     /** Its settings (manifest 2); a running plugin starts again with them. */
     setSettings(id: string, values: Record<string, string | number | boolean | null>): ExtensionInfo {
       v2.set(get(id), values);
+      store.extensionEvents.revoke(id);
       const e = get(id);
       if (e.enabled && e.manifest.plugin) {
         plugins.stop(id);
@@ -751,6 +754,7 @@ export function createExtensions(deps: {
     setSecret(id: string, name: string, value: string | null): ExtensionInfo {
       const e = get(id);
       if (!e.manifest.secrets.some((s) => s.name === name)) throw notFound(`secret ${name} of ${id}`);
+      store.extensionEvents.revoke(id);
       secrets.set(extSecret(id, name), value);
       // A running plugin got its secrets at start.
       if (e.enabled && e.manifest.plugin) {

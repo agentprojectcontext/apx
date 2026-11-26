@@ -1,10 +1,13 @@
 // Keeps the core's index in step with the projects' files: on register, on start, on request and while running
-// (a watcher on each project's .apc/). Files are the truth; the database is the index the rest of the core reads.
+// (a watcher on each project's .apx/). Files are the truth; the database is the index the rest of the core reads.
+
 import fs from "node:fs";
 import path from "node:path";
 import type { ModelChoice } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
 import type { Log } from "../log.ts";
+import { APX_DIR, type FolderOutcome, holdsApxHome, holdsApxHomeMessage, moveIfLegacy, ownDir } from "./folder.ts";
+import { tellFolderMove } from "./folder-notice.ts";
 import { listField, textField } from "./frontmatter.ts";
 import type { ProjectFiles, ReadProjectFiles } from "./project-reader.ts";
 import { type ApcAgent, type ApcProject, isApcProject, readAgents, readProject } from "./read.ts";
@@ -62,9 +65,13 @@ export function createApcSync(deps: {
   /** The watcher's debounce: a clock of its own, so a test's run clock counts only what the test started. */
   watchTimers?: Timers;
   readMs?: number;
+  /** APX's home: a folder holding it is never read or moved as a project (holdsApxHome). */
+  home?: string;
 }) {
   const { store, log } = deps;
   const watchers = new Map<string, fs.FSWatcher[]>();
+  // The folder (.apx or .apc) each project is watched in.
+  const watchingDir = new Map<string, string>();
   // Each folder's queued reindex, as its cancel.
   const queued = new Map<string, () => void>();
   // A folder still being read is not read a second time: one held read holds one thread.
@@ -73,6 +80,15 @@ export function createApcSync(deps: {
   // Each start-up read still inside its deadline; closing ends them.
   const waits = new Set<() => void>();
   let closed = false;
+
+  const refused = (root: string) => deps.home !== undefined && holdsApxHome(root, deps.home);
+
+  /** The owner hears what moving a project's .apc/ did, once per move. */
+  function told(projectId: string, outcome: FolderOutcome): void {
+    const project = store.projects.get(projectId);
+    if (project) tellFolderMove(store, project, outcome);
+    log.info({ project: projectId, outcome: outcome.state }, "project folder .apc/ → .apx/");
+  }
 
   /** An id for a new file's agent: the natural one unless another agent (e.g. a renamed one) already holds it. */
   function freshId(base: string, slug: string, used: string[]): string {
@@ -100,9 +116,11 @@ export function createApcSync(deps: {
     const projectId = indexed?.id ?? projectIdOf(apcId);
     if (store.agentMigrationPending.list().some((move) => move.source === projectId || move.destination === projectId))
       return { project: projectId, agents: 0, archived: 0 };
+    // A project whose .apc/ could not be moved (yet) is marked; it is read from wherever its files are.
+    store.projects.setLegacyFolder(projectId, p.legacy !== undefined);
     // An unreadable project.json says nothing about the name or kind: keep what the index knew.
     const meta = p.metaError && indexed ? indexed : p;
-    if (p.metaError) log.warn({ root: abs, err: p.metaError }, "could not read .apc/project.json");
+    if (p.metaError) log.warn({ root: abs, err: p.metaError }, "could not read .apx/project.json");
     const present = new Set(agents.map((a) => a.slug));
     return store.tx(() => {
       // A second record an earlier apx_id change left at this folder stops being listed, and its agents with it;
@@ -164,6 +182,7 @@ export function createApcSync(deps: {
   function settle(id: string, root: string, files: ProjectFiles): SyncResult | undefined {
     if (files.state === "read") {
       const r = apply(root, files.project, files.agents);
+      if (files.moved) told(r.project, files.moved);
       watch(root);
       return r;
     }
@@ -175,6 +194,11 @@ export function createApcSync(deps: {
   /** Reads one folder off the main thread; past the deadline it shows as waiting, and its answer still lands. */
   function loadOne(id: string, root: string): Promise<void> {
     const read = deps.read;
+    if (refused(root)) {
+      log.warn({ project: id, root }, "a project folder holds APX's home; not read");
+      store.projects.setPresent(id, false);
+      return Promise.resolve();
+    }
     if (!read || store.agentMigrationPending.list().some((move) => move.source === id || move.destination === id))
       return Promise.resolve();
     const generation = generations.get(root) ?? 0;
@@ -214,9 +238,14 @@ export function createApcSync(deps: {
     });
   }
 
-  /** Watches .apc/ (recursively) and the project folder itself for AGENTS.md; changes reindex, debounced. */
+  /** Watches .apx/ (recursively) and the project folder itself for AGENTS.md and .apx; changes reindex, debounced. */
   function watch(root: string): void {
-    if (watchers.has(root)) return;
+    // Watched again when the folder its files are in changes (.apc/ moved to .apx/, or made by hand).
+    const dir = ownDir(root);
+    const has = fs.existsSync(path.join(root, dir));
+    if (watchers.has(root) && (watchingDir.get(root) === dir || !has)) return;
+    for (const w of watchers.get(root) ?? []) w.close();
+    watchingDir.delete(root);
     const changed = () => {
       queued.get(root)?.();
       queued.set(
@@ -225,6 +254,7 @@ export function createApcSync(deps: {
           queued.delete(root);
           try {
             const r = syncRoot(root);
+            watch(root);
             log.info({ project: r.project, agents: r.agents }, "project files changed; reindexed");
           } catch (err) {
             log.warn({ root, err: String(err) }, "could not reindex project");
@@ -234,9 +264,11 @@ export function createApcSync(deps: {
     };
     const list: fs.FSWatcher[] = [];
     try {
-      if (fs.existsSync(path.join(root, ".apc")))
-        list.push(fs.watch(path.join(root, ".apc"), { recursive: true }, changed));
-      list.push(fs.watch(root, (_e, file) => file === "AGENTS.md" && changed()));
+      if (has) {
+        list.push(fs.watch(path.join(root, dir), { recursive: true }, changed));
+        watchingDir.set(root, dir);
+      }
+      list.push(fs.watch(root, (_e, file) => (file === "AGENTS.md" || file === APX_DIR) && changed()));
     } catch {}
     for (const w of list) w.on("error", () => w.close());
     watchers.set(root, list);
@@ -255,12 +287,15 @@ export function createApcSync(deps: {
         queued.delete(abs);
       }
     },
-    /** Registers a folder as a project (it must have .apc/ or AGENTS.md) and indexes it. */
+    /** Registers a folder as a project (it must have .apx/, AGENTS.md or .apc/ to move) and indexes it. */
     register(root: string): SyncResult {
       const abs = path.resolve(root);
       if (!fs.existsSync(abs) || !fs.statSync(abs).isDirectory()) throw new Error(`not a folder: ${abs}`);
-      if (!isApcProject(abs)) throw new Error(`not an APC project (no .apc/ or AGENTS.md): ${abs}`);
+      if (deps.home && holdsApxHome(abs, deps.home)) throw new Error(holdsApxHomeMessage(abs));
+      if (!isApcProject(abs)) throw new Error(`not a project (no .apx/ or AGENTS.md): ${abs}`);
+      const moved = moveIfLegacy(abs);
       const r = syncRoot(abs);
+      if (moved) told(r.project, moved);
       watch(abs);
       return r;
     },
@@ -271,6 +306,7 @@ export function createApcSync(deps: {
       if (project.path) {
         for (const watcher of watchers.get(project.path) ?? []) watcher.close();
         watchers.delete(project.path);
+        watchingDir.delete(project.path);
         queued.get(project.path)?.();
         queued.delete(project.path);
       }
@@ -286,7 +322,7 @@ export function createApcSync(deps: {
         if (!p.path) continue;
         // A folder still being read off the main thread may be held by the system: that read settles it.
         if (reading.has(path.resolve(p.path))) continue;
-        if (!fs.existsSync(p.path) || !isApcProject(p.path)) {
+        if (!fs.existsSync(p.path) || !isApcProject(p.path) || refused(p.path)) {
           store.projects.setPresent(p.id, false);
           continue;
         }
@@ -317,6 +353,7 @@ export function createApcSync(deps: {
       for (const cancel of queued.values()) cancel();
       queued.clear();
       watchers.clear();
+      watchingDir.clear();
     },
   };
 }

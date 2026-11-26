@@ -21,6 +21,9 @@ export type PanelKind =
   | "processes"
   | "document";
 
+/** A file a chat's agent changed: the folder it was in, its path there, and whether that is the chat's temp folder. */
+export type PanelFile = { cwd: string; path: string; scratch: boolean };
+
 type View =
   | "inbox"
   | "project"
@@ -43,6 +46,7 @@ export const CONFIG_SECTIONS = [
   "engines",
   "external",
   "router",
+  "helper-model",
   "agents",
   "memory",
   "voices",
@@ -91,6 +95,8 @@ export type NavState = {
   panelWidget: string | undefined;
   /** The terminal tab to bring forward in the terminal panel (one just opened to run a command). */
   panelTerminal: string | undefined;
+  /** The file to show in the files or changes panel (picked from a chat's list of changed files). */
+  panelFile: PanelFile | undefined;
   /** The agent the "agent" side panel shows (opened from its face or name in a chat). */
   panelAgent: string | undefined;
   panelThread: string | undefined;
@@ -252,6 +258,7 @@ export const nav = createStore<NavState>({
   panelDocument: undefined,
   panelWidget: undefined,
   panelTerminal: undefined,
+  panelFile: undefined,
   panelAgent: undefined,
   panelThread: undefined,
   panelParent: undefined,
@@ -661,6 +668,14 @@ export const go = {
   /** The terminal panel, showing that terminal. */
   terminal(terminalId: string) {
     nav.set({ panel: "terminal", panelTerminal: terminalId, panelThread: undefined, panelParent: undefined });
+  },
+  /** The files panel open on that file, in the chat's folder or its temp folder. */
+  file(file: PanelFile) {
+    nav.set({ panel: "files", panelFile: file, panelThread: undefined, panelParent: undefined });
+  },
+  /** The changes panel with that file's changes shown. */
+  change(file: PanelFile) {
+    nav.set({ panel: "changes", panelFile: file, panelThread: undefined, panelParent: undefined });
   },
   /** The documents panel: that document, or without one the chat's list of them. */
   document(mediaId?: string) {

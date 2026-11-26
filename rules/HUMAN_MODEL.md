@@ -151,6 +151,13 @@ The office clock's task lanes (`engine/task-work.ts` start times and pickup, `en
 candidates from `domain/task-lanes.ts`, which filters eligibility in SQL before any limit; the stall check walks tasks in
 progress a page at a time from a saved cursor and asks a few agents per check ([D-206](DECISIONS.md#d-206)).
 
+Installed extensions may declare observations and an opt-in MCP monitor. The owner separately chooses a personal
+chat and quiet hours; connecting alone never enables monitoring. The office clock calls only the declared observation
+tool, with no model turn per poll. SQLite receipts deduplicate stable source ids and link admission atomically through
+`threads.send`; their content remains outside data, not owner instructions. Disable revokes pending delivery;
+changed files require new approval. Existing Gmail monitoring is unchanged. See [extension observations](EXTENSION_EVENTS.md)
+for the source outbox, session, limits, local-state permissions and restart contract.
+
 ## 3. Modules and dependency direction
 
 - `packages/protocol` ← used by everything. Isomorphic: no Node-only imports.
@@ -246,7 +253,7 @@ per path), or the current Git folder. Owner-only `files.diff` reads a saved patc
 after source deletion. Older records without patches show labeled current content only when their recorded
 folder still matches the chat's work folder; escapes, Git metadata, binaries and special files are refused.
 Files live in three places ([D-054](DECISIONS.md#d-054), [D-055](DECISIONS.md#d-055)): the project's own folder (the
-repository and its `.apc/`, where the native agent works); APX's side of each project in its home, `projects/<id>` (or
+repository and its `.apx/`, where the native agent works); APX's side of each project in its home, `projects/<id>` (or
 the project's folder itself when APX made it, `projects/<name>`), where outside agents work outside code threads and
 the native agent falls back while the folder is off this machine; and each chat's temp folder (`apx-scratch-…` in the
 system's temp folder), for downloads and tries, kept with `files.keep`. `work/` is the folder of chats outside a
@@ -287,7 +294,7 @@ notice when there is no text. Tools that touch core state call protocol methods 
   maker's own site or registry, never redrawn) plus its id in `engineBrand`, or the panel shows the neutral bot; and
   the engines page in `apps/docs` (English and Spanish).
 - **Memory and long threads** (D-013): notes live in `memories` (FTS5) and reach a turn in its `[memory]` block
-  (`engine/recall.ts`); `.apc/memory.md` joins `AGENTS.md` in the system prompt. After each run `engine/upkeep.ts`
+  (`engine/recall.ts`); `.apx/memory.md` joins `AGENTS.md` in the system prompt. After each run `engine/upkeep.ts`
   titles new chats and, when the history gets long, summarizes older turns into a new epoch that
   `projectHistory` puts before the newest turns. `engine/chat-recall.ts` retrieves literal owner messages from the
   agent's own eligible chats in the same project, including old current-chat turns outside the projected context.
@@ -317,7 +324,14 @@ notice when there is no text. Tools that touch core state call protocol methods 
   Separately reviewed document grants pin one contact, agent, project, folder and document revision. Contact tools
   search only those sources; corrections remain private proposals until the owner confirms an exact diff in the app.
   Only explicitly editable records can change, with a version check and restart-safe journal; originals default to
-  read-only. Sources are data, never instructions. See D-260 and D-261.
+  read-only. Sources are data, never instructions. See D-260 and D-262.
+- **Contact project reading** (`domain/contact-project-reading.ts`): a separate per-person right, never an account
+  default. With an explicit assignment, in the agent's own project, and no other contact assigned in that project,
+  the agent searches project notes and the owner's own messages there and reads documents the owner referenced
+  (project text files, Drive links) through revocable handles revalidated before and after each read. Only
+  owner-written text lends references. New contact data can be proposed for private owner review; acceptance updates
+  a separate contact/agent/project-bound APX record, never the original Drive document or global memory. These
+  approved records are searchable under the same boundary and never lend references. See D-263.
 - **Contact requests** (`tools/contact.ts`): `pass_request` checks open requests submitted in the same contact's
   chat before writing. When candidates exist, the agent compares their original submissions with the conversation
   and updates the matching task by id, or explicitly creates a new, unrelated request. Owner edits and task notes

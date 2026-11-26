@@ -4,8 +4,10 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import type { Thread as StoredThread } from "@apx/protocol";
+import { worksForOwner } from "../domain/owner-work.ts";
 import type { Store } from "../domain/store.ts";
-import { expandHome, insideReal, isInside, real, realpath } from "../paths.ts";
+import { expandHome, insideReal, isInside, real, realpath, samePath } from "../paths.ts";
 import { namedPaths } from "./command-paths.ts";
 
 /**
@@ -74,6 +76,72 @@ export function folderInProject(store: Store, projectId: string | undefined, cwd
   if (!isInside(root, dir)) throw new Error(`${cwd} is outside the project's folder`);
   if (!fs.statSync(dir).isDirectory()) throw new Error(`${cwd} is not a folder`);
   return dir;
+}
+
+/**
+ * A folder for work done for the owner: in the project's folder (folderInProject), else in another of the owner's
+ * registered projects or one of their worktrees (`project`: that one), else anywhere but APX's home when `anywhere`
+ * (DECISIONS.md#d-271). A project whose files are restricted to its team stays its own, and a folder never holds or
+ * sits in a read-only folder of the project or of `o.readOnly` (the caller's). Throws why not.
+ */
+export function ownerFolder(
+  store: Store,
+  home: string,
+  projectId: string | undefined,
+  cwd: string | undefined,
+  o: { anywhere?: boolean; readOnly?: readonly string[] } = {},
+): { dir: string; project?: string } {
+  const found = placeFor(store, home, projectId, cwd, o.anywhere === true);
+  // A session's folder is writable to it first, so one holding or in a read-only folder would open it.
+  const locked = [...readOnlyFolders(store, { project_id: projectId }), ...(o.readOnly ?? [])].find(
+    (d) => insideReal(d, found.dir) || insideReal(found.dir, d),
+  );
+  if (locked) throw new Error(`${cwd} is in or holds a read-only folder (${locked}), which can be read, never changed`);
+  return found;
+}
+
+function placeFor(
+  store: Store,
+  home: string,
+  projectId: string | undefined,
+  cwd: string | undefined,
+  anywhere: boolean,
+): { dir: string; project?: string } {
+  let inside: Error;
+  try {
+    return { dir: folderInProject(store, projectId, cwd) };
+  } catch (err) {
+    inside = err as Error;
+  }
+  const own = projectId ? store.projects.get(projectId) : undefined;
+  const from = own?.path && own.present ? own.path : undefined;
+  const given = cwd === undefined ? undefined : expandHome(cwd);
+  if (!given || (!from && !path.isAbsolute(given))) throw inside;
+  let dir: string;
+  try {
+    dir = realpath(path.resolve(from ?? "/", given));
+  } catch {
+    throw inside;
+  }
+  if (!fs.statSync(dir).isDirectory()) throw new Error(`${cwd} is not a folder`);
+  const apx = real(home);
+  if (isInside(apx, dir) || isInside(dir, apx))
+    throw new Error(`${cwd} is in APX's own folder, which no agent may use`);
+  const holder = store.projects
+    .list()
+    .filter((p) => p.path && p.present)
+    .flatMap((p) => [p.path as string, ...projectWorktrees(store, p.id)].map((d) => ({ p, d: real(d) })))
+    .filter(({ d }) => isInside(d, dir))
+    .sort((x, y) => y.d.length - x.d.length)[0]?.p;
+  const closed = [
+    ...store.projectProtection.list().map((p) => p.project),
+    ...store.agentMigrationPending.list().flatMap((p) => [p.source, p.destination]),
+  ];
+  if (holder && holder.id !== projectId && closed.includes(holder.id))
+    throw new Error(`${cwd} belongs to a project whose files are restricted to its team`);
+  if (holder) return holder.id === projectId ? { dir } : { dir, project: holder.id };
+  if (anywhere) return { dir };
+  throw new Error(`${inside.message}, and it is in none of the owner's projects or their worktrees`);
 }
 
 /**
@@ -168,6 +236,10 @@ export type FolderThread = Parameters<typeof workDir>[2] &
     lentWrite?: boolean | undefined;
     /** Folders outside its own the owner let this agent change for good (a folder card's "always"). */
     granted?: readonly string[] | undefined;
+    /** Kept to its project's folders and its own temp folder: the system's temp folders are closed too. */
+    confined?: boolean | undefined;
+    /** A code thread's write policy: one the owner made read-only keeps to its folder. */
+    write?: StoredThread["write"];
   };
 type Thread = FolderThread;
 
@@ -178,11 +250,11 @@ export function readOnlyFolders(store: Store, thread: { project_id?: string | un
 
 /**
  * The project's linked git worktrees, wherever they sit (`git worktree add ../x`): the same repository, so the same
- * project (DECISIONS.md#d-106). Only for a thread working in the project's own folder: one kept to a worktree stays in it.
+ * project (DECISIONS.md#d-106).
  */
-function projectWorktrees(store: Store, thread: Parameters<typeof workDir>[2]): string[] {
-  if (thread.cwd || !thread.project_id) return [];
-  const p = store.projects.get(thread.project_id);
+function projectWorktrees(store: Store, projectId: string | undefined): string[] {
+  if (!projectId) return [];
+  const p = store.projects.get(projectId);
   if (!p?.path || !p.present) return [];
   const dir = path.join(p.path, ".git", "worktrees");
   let names: string[];
@@ -207,12 +279,27 @@ function projectWorktrees(store: Store, thread: Parameters<typeof workDir>[2]): 
 }
 
 /**
+ * A thread kept to the one folder it works in: a code thread the owner made read-only, a fenced agent's or a consult's.
+ * Any other code thread or worktree session reaches the owner's projects as other chats do (DECISIONS.md#d-271).
+ */
+const keptToFolder = (thread: Thread) =>
+  Boolean(thread.cwd) && (thread.write === "read-only" || thread.reach === "fenced" || thread.confined === true);
+
+/** The thread's own project beside the folder it works in: its folder (for a code thread) and its worktrees. */
+function ownProject(store: Store, thread: Thread): Root[] {
+  if (keptToFolder(thread)) return [];
+  const p = thread.project_id ? store.projects.get(thread.project_id) : undefined;
+  const dirs = [...(thread.cwd && p?.path && p.present ? [p.path] : []), ...projectWorktrees(store, thread.project_id)];
+  return dirs.map((dir) => ({ dir, write: true, scratch: false }));
+}
+
+/**
  * The owner's other projects and their worktrees, to change as freely as the agent's own folder in Auto: the owner
  * registered them, so moving between them is not acting outside (DECISIONS.md#d-108). Never one holding APX's home
  * or inside it; a thread kept to one folder stays in it.
  */
 function ownerProjects(store: Store, home: string, thread: Thread): Root[] {
-  if (thread.cwd) return [];
+  if (keptToFolder(thread)) return [];
   const apx = real(home);
   const out: Root[] = [];
   for (const p of store.projects.list()) {
@@ -220,8 +307,7 @@ function ownerProjects(store: Store, home: string, thread: Thread): Root[] {
     const at = real(p.path);
     if (isInside(at, apx) || isInside(apx, at)) continue;
     out.push({ dir: p.path, write: true, scratch: false });
-    for (const tree of projectWorktrees(store, { project_id: p.id }))
-      out.push({ dir: tree, write: true, scratch: false });
+    for (const tree of projectWorktrees(store, p.id)) out.push({ dir: tree, write: true, scratch: false });
   }
   return out;
 }
@@ -236,11 +322,43 @@ export function tempAreas(home: string): string[] {
   return out;
 }
 
-/** After a thread's own folders: other chats' temp folders stay closed, then the system's temp folders are scratch. */
-function sharedRoots(home: string): Root[] {
+/** Whether a chat (and every chat above it) works for the owner; an unknown chat does not. */
+function ownersChat(store: Store, id: string): boolean {
+  const t = store.threads.get(id);
+  return !!t && worksForOwner(store, t);
+}
+
+/**
+ * The owner's other chats' temp folders, readable and never changed, for an agent working for the owner that reads
+ * outside on its own: what the owner dropped in another chat (DECISIONS.md#d-271). A contact's, a room's, an outside
+ * app's or a chat of a project closed to this agent (`closed`) stays closed.
+ */
+function ownerChatsTemp(store: Store, home: string, thread: Thread, closed: ReadonlySet<string>): Root[] {
+  if (thread.confined || (thread.reach !== "read" && thread.reach !== "all") || !ownersChat(store, thread.id))
+    return [];
+  const root = scratchRoot(home);
+  let names: string[];
+  try {
+    names = fs.readdirSync(root);
+  } catch {
+    return [];
+  }
+  return names.flatMap((name) => {
+    const project = store.threads.get(name)?.project_id;
+    if ((project && closed.has(project)) || !ownersChat(store, name)) return [];
+    return [{ dir: path.join(root, name), write: false, scratch: true }];
+  });
+}
+
+/**
+ * After a thread's own folders: other chats' temp folders stay closed (but the owner's, read by the owner's agents),
+ * then the system's temp folders are scratch, unless the thread is confined, where they hold other chats' files too.
+ */
+function sharedRoots(store: Store, home: string, thread: Thread, closed: ReadonlySet<string>): Root[] {
   return [
+    ...ownerChatsTemp(store, home, thread, closed),
     { dir: scratchRoot(home), write: false, scratch: true, off: true },
-    ...tempAreas(home).map((dir) => ({ dir, write: true, scratch: true })),
+    ...(thread.confined ? [] : tempAreas(home).map((dir) => ({ dir, write: true, scratch: true }))),
   ];
 }
 
@@ -260,16 +378,16 @@ export function rootsOf(store: Store, home: string, thread: Thread): Root[] {
     : store.agentMigrationPending.list().flatMap((p) => [{ project: p.source }, { project: p.destination }]);
   const denied = [...restricted, ...pending].flatMap((p) => {
     const project = store.projects.get(p.project);
-    return project?.path ? [project.path, ...projectWorktrees(store, { project_id: p.project })] : [];
+    return project?.path ? [project.path, ...projectWorktrees(store, p.project)] : [];
   });
   return [
     { dir: workDir(store, home, thread), write: true, scratch: false },
     ...denied.map((dir) => ({ dir, write: false, scratch: false, off: true, protected: true })),
     { dir: scratchDir(store, home, thread), write: true, scratch: true },
     { dir: artifactSources(home, thread.project_id), write: true, scratch: false },
-    ...projectWorktrees(store, thread).map((dir) => ({ dir, write: true, scratch: false })),
+    ...ownProject(store, thread),
     ...readOnlyFolders(store, thread).map((dir) => ({ dir, write: false, scratch: false })),
-    ...sharedRoots(home),
+    ...sharedRoots(store, home, thread, new Set([...restricted, ...pending].map((p) => p.project))),
     // After the read-only folders and other chats' temp folders, which keep their own rule inside these.
     ...(thread.reach === "read"
       ? ownerProjects(store, home, thread).filter((r) => !denied.some((d) => insideReal(d, r.dir)))
@@ -284,12 +402,18 @@ export function rootsOf(store: Store, home: string, thread: Thread): Root[] {
   ];
 }
 
-/** The same folders for an outside agent, which works in harnessDir instead of the project's folder. */
+/**
+ * The same folders for an outside agent, which works in harnessDir instead of the project's folder. The project's
+ * folder stays as writable to it as to our own agents (DECISIONS.md#d-271): only its working folder moves, so the
+ * repo's settings are not loaded unchecked. Never a folder holding APX's home.
+ */
 export function harnessRoots(store: Store, home: string, thread: Thread): Root[] {
-  return [
-    { dir: harnessDir(store, home, thread), write: true, scratch: false },
-    ...rootsOf(store, home, thread).slice(1),
-  ];
+  const [work, ...rest] = rootsOf(store, home, thread);
+  const own = harnessDir(store, home, thread);
+  const apx = real(home);
+  const at = work && real(work.dir);
+  const project = at && !samePath(at, real(own)) && !isInside(at, apx) && !isInside(apx, at) ? [work] : [];
+  return [{ dir: own, write: true, scratch: false }, ...project, ...rest];
 }
 
 /**

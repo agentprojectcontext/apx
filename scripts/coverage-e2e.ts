@@ -68,6 +68,10 @@ type SuiteOptions = {
   run?: typeof coverageCommand;
   platform?: NodeJS.Platform;
   env?: NodeJS.ProcessEnv;
+  /** The panel and desktop app are already built (parts running side by side must not rebuild them under each other). */
+  prebuilt?: boolean;
+  /** Where Playwright keeps this run's results; parts running side by side each need their own. */
+  results?: string;
 };
 
 /** Local coverage uses the same six complete Playwright shards as CI, without raising per-command deadlines. */
@@ -86,21 +90,22 @@ export async function runE2ESuites(which: Suites, options: SuiteOptions): Promis
         NODE_V8_COVERAGE: options.raw,
       },
     });
-  if (!(await run(pnpm, ["build:web"]))) return true;
+  const output = options.results ? ["--output", options.results] : [];
+  if (!options.prebuilt && !(await run(pnpm, ["build:web"]))) return true;
   options.snapshot(path.join(options.root, "apps/web/dist"));
   options.snapshot(path.join(options.root, "packages/ui/dist"));
   let failed = false;
   if (which.web) {
     const shards = typeof which.web === "string" ? [which.web] : ["1/6", "2/6", "3/6", "4/6", "5/6", "6/6"];
     for (const shard of shards) {
-      if (!(await run(pnpm, ["exec", "playwright", "test", "--project", "chromium", `--shard=${shard}`])))
+      if (!(await run(pnpm, ["exec", "playwright", "test", "--project", "chromium", `--shard=${shard}`, ...output])))
         failed = true;
     }
   }
   if (!which.desktop) return failed;
-  if (!(await run(pnpm, ["--filter", "@apx/desktop", "build"]))) return true;
+  if (!options.prebuilt && !(await run(pnpm, ["--filter", "@apx/desktop", "build"]))) return true;
   options.snapshot(path.join(options.root, "apps/desktop/dist"));
-  const desktop = ["exec", "playwright", "test", "--project", "desktop"];
+  const desktop = ["exec", "playwright", "test", "--project", "desktop", ...output];
   let passed: boolean;
   if (platform === "linux" && !env.DISPLAY) {
     const launch =

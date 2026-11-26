@@ -4,3 +4,6 @@ export const SAYS_ITSELF: ReadonlySet<string> = new Set(["apx_settings", "apx_fl
 /** The card's first sentence ("Prender «Leads»"), for the line it folds into once answered. */
 export const cardLine = (detail: string) =>
   (detail.split("\n")[0] ?? "").split(/(?<=[^.]{3})\. |: /)[0]?.slice(0, 90) ?? "";
+
+/** A site as the owner reads it: the host, with the scheme only when it is not https. */
+export const siteHost = (origin: string) => (origin.startsWith("https://") ? origin.slice(8) : origin);

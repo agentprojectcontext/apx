@@ -156,10 +156,51 @@
   border-bottom: 1px solid var(--apx-border);
   overflow: hidden;
 }
-.wchanges__row {
+.wchanges__head {
   display: flex;
   align-items: center;
+}
+.wchanges__view {
+  flex: none;
+}
+.wchanges__view:last-child {
+  margin-right: 6px;
+}
+/* A changed file in its own tab: one line over the whole file, which scrolls under it. */
+.wdiff {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.wdiff__head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 12px 6px 16px;
+  border-bottom: 1px solid var(--apx-border);
+  font-size: var(--apx-text-xs);
+}
+.wdiff__path {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--apx-font-mono);
+}
+.wdiff__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.wchanges__row {
+  display: flex;
+  flex: 1;
+  align-items: center;
   gap: 6px;
+  min-width: 0;
   width: 100%;
   min-height: 32px;
   padding: 4px 10px 4px 8px;
@@ -266,25 +307,6 @@
 }
 .diff__line--hunk .diff__text {
   padding: 2px 0;
-}
-.widgetchat__preview {
-  flex: none;
-  max-height: 40%;
-  overflow: auto;
-  border: 1px solid var(--apx-border);
-  border-radius: var(--apx-radius-lg);
-}
-.widgetchat__waiting {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  padding: 14px;
-  border: 1px dashed var(--apx-border);
-  border-radius: var(--apx-radius-lg);
-  color: var(--apx-fg-muted);
-  font-size: var(--apx-text-sm);
 }
 .widgetchat__chat {
   flex: 1 1 0;
@@ -453,9 +475,6 @@
 /* The chat's own turn: its transcript is already beside the panel, nothing to open. */
 .plist .agents__row.is-own:hover {
   background: transparent;
-}
-.chatfiles > .chatfiles__note {
-  padding: 8px 14px 0;
 }
 
 /* An agent drives the screen: the page dimmed behind who it is and one button to take control. */

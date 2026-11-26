@@ -1,8 +1,10 @@
 // What APX v1 keeps on disk (~/.apx and each project's .apc/), read as v1 wrote it so the setup can bring it into v2.
 // Read-only: nothing here writes to v1's folder. Secrets are read only to be stored in v2's own secret store.
+
 import fs from "node:fs";
 import path from "node:path";
 import { ChannelRooms, type PersonRelation, RoomMode, type ServiceSettings } from "@apx/protocol";
+import { APX_DIR, LEGACY_DIR } from "../apc/folder.ts";
 
 /** A JSON file of v1's, parsed; throws like JSON.parse. Windows editors and PowerShell 5 may start it with a BOM. */
 export const jsonFile = (file: string): unknown => JSON.parse(fs.readFileSync(file, "utf8").replace(/^\uFEFF/, ""));
@@ -54,8 +56,9 @@ export function v1Projects(home: string): V1Project[] {
   const out: V1Project[] = [];
   for (const p of list(v1Config(home).projects)) {
     const dir = str(obj(p).path);
-    if (!dir || !fs.existsSync(path.join(dir, ".apc"))) continue;
-    const meta = obj(readJson(path.join(dir, ".apc", "project.json")));
+    const own = dir && [LEGACY_DIR, APX_DIR].find((f) => fs.existsSync(path.join(dir, f)));
+    if (!dir || !own) continue;
+    const meta = obj(readJson(path.join(dir, own, "project.json")));
     const id = str(meta.apx_id);
     out.push({
       path: dir,
@@ -66,10 +69,11 @@ export function v1Projects(home: string): V1Project[] {
   return out;
 }
 
-/** The agents a project defines (.apc/agents/*.md). */
+/** The agents a project defines (.apc/agents/*.md, or .apx/agents once moved). */
 export function v1AgentCount(project: V1Project): number {
+  const own = [APX_DIR, LEGACY_DIR].find((f) => fs.existsSync(path.join(project.path, f, "agents"))) ?? APX_DIR;
   try {
-    return fs.readdirSync(path.join(project.path, ".apc", "agents")).filter((f) => f.endsWith(".md")).length;
+    return fs.readdirSync(path.join(project.path, own, "agents")).filter((f) => f.endsWith(".md")).length;
   } catch {
     return 0;
   }

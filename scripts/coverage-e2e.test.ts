@@ -218,3 +218,33 @@ test("a coverage timeout closes a real descendant listener before resolving", as
     await dir.remove();
   }
 });
+
+test("a part running beside others builds nothing and keeps Playwright's results in its own folder", async () => {
+  const calls: string[][] = [];
+  const snapshots: string[] = [];
+  const failed = await runE2ESuites(
+    { web: "4/6", desktop: true },
+    {
+      root: "/repo",
+      raw: "coverage/v8",
+      snapshot: (directory) => snapshots.push(directory),
+      ports: async () => ({}),
+      platform: "linux",
+      env: { DISPLAY: ":99" },
+      prebuilt: true,
+      results: "coverage/all/parts/web-4-of-6/test-results",
+      run: async (command, args) => {
+        calls.push([command, ...args]);
+        return true;
+      },
+    },
+  );
+  assert.equal(failed, false);
+  const output = ["--output", "coverage/all/parts/web-4-of-6/test-results"];
+  assert.deepEqual(calls, [
+    ["pnpm", "exec", "playwright", "test", "--project", "chromium", "--shard=4/6", ...output],
+    ["pnpm", "exec", "playwright", "test", "--project", "desktop", ...output],
+  ]);
+  // The maps of what was built before still go into the report.
+  assert.equal(snapshots.length, 3);
+});

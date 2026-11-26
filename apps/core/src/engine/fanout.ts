@@ -1,5 +1,6 @@
 // Teammates asked in one turn answer the caller together: each answer is held until the others are in or the hold
 // runs out, kept on the caller's chat so a restart keeps it. A single delegation is not held. See DECISIONS.md#d-194
+import { consultOpen, isConsult } from "../domain/contact-consult.ts";
 import { type RunRecord, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { FanoutGroup } from "../domain/threads.ts";
@@ -9,6 +10,7 @@ import { actionsNote, delegationResult, endedAs, endNote, resultOf } from "./del
 import type { AdmitFn, RunTimers } from "./engine.ts";
 import { laterReplyTo } from "./home-channel.ts";
 import { outcomeNote } from "./run-outcome.ts";
+import { withFilesNote } from "./task-files.ts";
 
 /** A delegated run that ended, and why APX stopped going on with it (a limit cut it short), if it did. */
 export type Held = { child: RunRecord; stopped?: string | undefined };
@@ -21,9 +23,18 @@ const ANSWER_CHARS = 6000;
  * envelope. Paused, each is kept for its next turn instead, and the owner sees why.
  */
 export function deliverResults(store: Store, admit: AdmitFn, parent: RunRecord, results: readonly Held[]): void {
-  const told = results.map(({ child, stopped }) => {
+  // A consult for a contact whose chat may no longer be answered that way reaches no one (DECISIONS.md#d-269).
+  const open = results.filter(({ child }) => {
+    const sub = store.threads.get(child.thread_id);
+    return !sub || !isConsult(sub) || consultOpen(store, sub.id);
+  });
+  const told = open.map(({ child, stopped }) => {
     const { answer, outcome } = resultOf(store, child);
-    return { child, answer, result: delegationResult(store, child, stopped, outcome) };
+    return {
+      child,
+      answer: withFilesNote(store, child, answer),
+      result: delegationResult(store, child, stopped, outcome),
+    };
   });
   // The pause is the chat's: all of them are kept, or none.
   const kept = told.map(({ child, answer, result }) =>
@@ -75,15 +86,15 @@ export function createFanout(deps: {
 
   /** The caller's other delegations still to answer: queued, at work or waiting on the owner. */
   const atWork = (parent: RunRecord, except?: string): RunRecord[] =>
-    store.runs
-      .children(parent.id)
-      .filter(
-        (r) =>
-          r.id !== except &&
-          r.trigger === "a2a" &&
-          (!TERMINAL.has(r.state) || deps.running(r.id)) &&
-          store.threads.get(r.thread_id)?.parent_id === parent.thread_id,
-      );
+    store.runs.children(parent.id).filter(
+      (r) =>
+        r.id !== except &&
+        r.trigger === "a2a" &&
+        // A workflow's steps answer the workflow, never this group (DECISIONS.md#d-273).
+        !store.threads.context(r.thread_id).workflow &&
+        (!TERMINAL.has(r.state) || deps.running(r.id)) &&
+        store.threads.get(r.thread_id)?.parent_id === parent.thread_id,
+    );
 
   /** Held runs in the order the caller asked for them: its cards' order (a restart resumes them in any order). */
   function heldRuns(parent: RunRecord, held: FanoutGroup["held"]): Held[] {

@@ -17,8 +17,10 @@ export type CatalogItem = {
   category?: string | undefined;
   homepage?: string | undefined;
   license?: string | undefined;
-  /** Who makes it, as its catalog says (the plugin's author, or the catalog's owner for one kept in its repository). */
+  /** Who makes it, explicitly declared by its catalog; ownership of the catalog is not authorship. */
   publisher?: string | undefined;
+  /** The declaration behind a creator name; cached names without a source are not authorship evidence. */
+  publisher_source?: "author" | undefined;
   /** The GitHub account its code lives under, when nobody is named. */
   github?: string | undefined;
   /** A Claude Code plugin, turned into an extension when installed. */

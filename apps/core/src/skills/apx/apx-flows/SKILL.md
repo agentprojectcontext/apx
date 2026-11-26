@@ -11,6 +11,31 @@ save runs until it is published. The owner publishes it from the editor, or asks
 runs and turns the Flow on. Only publish when they asked; otherwise say it is ready for them to review and turn on.
 Never claim a Flow is on or ran until a call said so.
 
+## A one-time return to the current chat
+
+For “come back in ten minutes” or “when this task finishes, check it”, use `chat_followup`, found with
+`tool_search`, rather than a Flow, shell sleep or an open model turn. This is a one-shot continuation in Home,
+an agent/loose/code chat, or the owner's direct channel chat (not a group or a contact's conversation).
+
+- `action: "create"`, `purpose`: the bounded check requested; `condition: {kind: "time", at: "<ISO with offset>"}`
+  or `{kind: "task_done", task: "<open task id in this chat's project>"}`; `expires_at`: an explicit ISO deadline
+  within seven days, after the requested time. Resolve relative times in the owner's time zone. Explain the
+  proposed expiry; clarify consequential ambiguity rather than silently changing the request.
+- `action: "list"`: read this chat's saved requests and states. `action: "cancel", id`: cancel one pending request.
+  List first and disambiguate which one the owner means. Cancellation after admission cannot undo the execution.
+- Confirm only after the call persisted it. The chat's receipt shows when/what it awaits, expiry and Cancel.
+  Once fired it shows the execution; the result stays here even if push notifications are quiet.
+
+Waiting uses the core's existing office clock and persisted task state, not a model. A restart preserves pending
+requests; a timed request catches up only within 15 minutes and before expiry. An interrupted execution is not
+retried. Settings/membership changes invalidate its saved authority. Current tool permissions and effect approvals
+still apply; a task-completion event is not authorization. A fired follow-up cannot schedule another one.
+
+The only event source here is a task marked completed. It is not an appliance integration: never fabricate a task
+completion to stand in for a dishwasher, external webhook or other source you cannot observe. Offer a timed
+read-only check or explain the missing observation. Verify actual state before effects; if evidence or permission
+is missing, say what blocked the check in this same chat. Use a published Flow for repeating or external events.
+
 ## Calls (apx_flow, method + params)
 
 - `flows.list {project?}`: each Flow with its id, project, on/off and whether a draft waits.

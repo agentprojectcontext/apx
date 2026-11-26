@@ -9,18 +9,18 @@ import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { manualTimers, removeDir, tempDir, waitFor } from "../testkit/platform.ts";
 
 function makeProject(root: string) {
-  fs.mkdirSync(path.join(root, ".apc", "agents"), { recursive: true });
+  fs.mkdirSync(path.join(root, ".apx", "agents"), { recursive: true });
   fs.writeFileSync(
-    path.join(root, ".apc", "project.json"),
+    path.join(root, ".apx", "project.json"),
     JSON.stringify({ name: "Northwind", description: "A sample company", apx_id: "abc123def456", kind: "company" }),
   );
   fs.writeFileSync(path.join(root, "AGENTS.md"), "# Northwind\nUse metric units.\n");
   fs.writeFileSync(
-    path.join(root, ".apc", "agents", "arch.md"),
+    path.join(root, ".apx", "agents", "arch.md"),
     "---\nname: Arch\nrole: Software Architect\nmodel: fake:fake-pro\nparent: ceo\nicon: saturno\n---\n\nKeep it simple.\n",
   );
   fs.writeFileSync(
-    path.join(root, ".apc", "agents", "ceo.md"),
+    path.join(root, ".apx", "agents", "ceo.md"),
     "---\nname: Ceo\nrole: Chief Executive\n---\n\nDecide.\n",
   );
 }
@@ -36,7 +36,7 @@ test("one folder is one project: a BOM is read, a changed or unreadable project.
       .map((p) => [p.id, p.name, p.kind]);
   try {
     makeProject(root);
-    const meta = path.join(root, ".apc", "project.json");
+    const meta = path.join(root, ".apx", "project.json");
     // Windows PowerShell 5 saves UTF-8 with a BOM.
     fs.writeFileSync(meta, `\uFEFF${fs.readFileSync(meta, "utf8")}`);
     await env.client.call("projects.register", { path: root });
@@ -102,7 +102,7 @@ test("a change in a project's files is reindexed once the watcher's quiet window
     const armed = timers.armed();
     const change = () =>
       fs.writeFileSync(
-        path.join(root.path, ".apc", "project.json"),
+        path.join(root.path, ".apx", "project.json"),
         JSON.stringify({ name: "Northwind Labs", apx_id: "abc123def456" }),
       );
     // macOS drops a change made before its file events stream starts: the change is made again until it is seen.
@@ -126,7 +126,7 @@ test("a project removed from APX does not take over its folder from the project 
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-apcrm-"));
   const other = fs.mkdtempSync(path.join(os.tmpdir(), "apx-apcmv-"));
   const meta = (folder: string, apx_id: string, name: string) =>
-    fs.writeFileSync(path.join(folder, ".apc", "project.json"), JSON.stringify({ name, apx_id }));
+    fs.writeFileSync(path.join(folder, ".apx", "project.json"), JSON.stringify({ name, apx_id }));
   try {
     makeProject(root);
     await env.client.call("projects.register", { path: root });
@@ -155,7 +155,7 @@ test("an agent file saved with a BOM is edited in place, not given a second fron
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-apcbom-"));
   try {
     makeProject(root);
-    const file = path.join(root, ".apc", "agents", "ceo.md");
+    const file = path.join(root, ".apx", "agents", "ceo.md");
     fs.writeFileSync(file, `\uFEFF${fs.readFileSync(file, "utf8")}`);
     await env.client.call("projects.register", { path: root });
     const ceo = (await env.client.call("agents.list", {})).agents.find((a) => a.id === "abc123def456-ceo");
@@ -197,10 +197,10 @@ test("a registered project's agents come from its files; edits and removals foll
       model_choice: { model: "fake/fake-pro", router: false },
     });
     fs.writeFileSync(
-      path.join(root, ".apc", "agents", "arch.md"),
+      path.join(root, ".apx", "agents", "arch.md"),
       "---\nname: Arch\nrole: Principal Architect\n---\n\nSimple.\n",
     );
-    fs.rmSync(path.join(root, ".apc", "agents", "ceo.md"));
+    fs.rmSync(path.join(root, ".apx", "agents", "ceo.md"));
     const s = await env.client.call("projects.sync", { project: "p_abc123def456" });
     assert.deepEqual(s, { projects: 1, agents: 1, archived: 1 });
     ({ agents } = await env.client.call("agents.list", {}));
@@ -217,10 +217,10 @@ test("a registered project's agents come from its files; edits and removals foll
     const got = await env.settle(t.id);
     assert.deepEqual(got.messages.at(-1)?.parts, [{ type: "text", text: "saw AGENTS.md" }]);
 
-    // A folder that is not an APC project is refused with a reason.
+    // A folder that is not a project is refused with a reason.
     const empty = fs.mkdtempSync(path.join(os.tmpdir(), "apx-notapc-"));
     const err = await env.client.call("projects.register", { path: empty }).catch((e: unknown) => e);
-    assert.ok(err instanceof ApxError && /not an APC project/.test(err.message));
+    assert.ok(err instanceof ApxError && /not a project \(no \.apx\/ or AGENTS\.md\)/.test(err.message));
     await removeDir(empty);
   } finally {
     await env.core.close();
@@ -234,9 +234,9 @@ test("editing from APX writes the agent's file: create, edit, rename (same id) a
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-apcw-"));
   try {
     makeProject(root);
-    fs.appendFileSync(path.join(root, ".apc", "agents", "arch.md"), "");
+    fs.appendFileSync(path.join(root, ".apx", "agents", "arch.md"), "");
     // An unknown field another tool wrote must survive APX's edits.
-    const archFile = path.join(root, ".apc", "agents", "arch.md");
+    const archFile = path.join(root, ".apx", "agents", "arch.md");
     fs.writeFileSync(
       archFile,
       fs.readFileSync(archFile, "utf8").replace("icon: saturno", "icon: saturno\narea: engineering"),
@@ -251,7 +251,7 @@ test("editing from APX writes the agent's file: create, edit, rename (same id) a
       prompt: "Break things politely.",
     });
     assert.equal(made.id, "abc123def456-qa");
-    const qaText = fs.readFileSync(path.join(root, ".apc", "agents", "qa.md"), "utf8");
+    const qaText = fs.readFileSync(path.join(root, ".apx", "agents", "qa.md"), "utf8");
     assert.match(qaText, /^---\nname: Quinn\nrole: "QA lead: tests: everything"\n---\n\nBreak things politely\.\n$/);
 
     await env.client.call("agents.update", {
@@ -268,8 +268,8 @@ test("editing from APX writes the agent's file: create, edit, rename (same id) a
     const renamed = await env.client.call("agents.update", { agent: "abc123def456-qa", slug: "quality" });
     assert.equal(renamed.id, "abc123def456-qa", "the id survives the rename");
     assert.equal(renamed.slug, "quality");
-    assert.ok(fs.existsSync(path.join(root, ".apc", "agents", "quality.md")));
-    assert.match(fs.readFileSync(path.join(root, ".apc", "agents", "quality.md"), "utf8"), /aliases: qa/);
+    assert.ok(fs.existsSync(path.join(root, ".apx", "agents", "quality.md")));
+    assert.match(fs.readFileSync(path.join(root, ".apx", "agents", "quality.md"), "utf8"), /aliases: qa/);
     assert.equal((await env.client.call("threads.get", { thread: t.id })).thread.agent_ids[0], "abc123def456-qa");
 
     await env.client.call("agents.update", { agent: "abc123def456-qa", parent: "arch" });
@@ -280,7 +280,7 @@ test("editing from APX writes the agent's file: create, edit, rename (same id) a
       parent: "quality",
     });
     const gone = await env.client.call("agents.archive", { agent: "abc123def456-qa" });
-    assert.match((gone.moved_to ?? "").split(path.sep).join("/"), /^\.apc\/agents\/\.archived\/quality-.*\.md$/);
+    assert.match((gone.moved_to ?? "").split(path.sep).join("/"), /^\.apx\/agents\/\.archived\/quality-.*\.md$/);
     assert.ok(fs.existsSync(path.join(root, gone.moved_to ?? "")), "moved, not deleted");
     const { agents } = await env.client.call("agents.list", {});
     assert.ok(!agents.some((a) => a.id === "abc123def456-qa"));
@@ -317,7 +317,7 @@ test("an archived agent is listed apart, comes back with its file, or is deleted
     // Back: its file returns, it is active again, with what the owner set in APX.
     const back = await env.client.call("agents.restore", { agent: id });
     assert.equal(back.name, "Arch");
-    assert.ok(fs.existsSync(path.join(root, ".apc", "agents", "arch.md")));
+    assert.ok(fs.existsSync(path.join(root, ".apx", "agents", "arch.md")));
     assert.ok((await env.client.call("agents.list", {})).agents.some((a) => a.id === id));
     assert.equal((await env.client.call("agents.archived", {})).agents.length, 0);
 
@@ -325,7 +325,7 @@ test("an archived agent is listed apart, comes back with its file, or is deleted
     await assert.rejects(env.client.call("agents.delete", { agent: id }), /not archived/);
     await env.client.call("agents.archive", { agent: id });
     await env.client.call("agents.delete", { agent: id });
-    assert.deepEqual(fs.readdirSync(path.join(root, ".apc", "agents", ".archived")), []);
+    assert.deepEqual(fs.readdirSync(path.join(root, ".apx", "agents", ".archived")), []);
     assert.equal((await env.client.call("agents.archived", {})).agents.length, 0);
     assert.ok(!(await env.client.call("agents.list", {})).agents.some((a) => a.id === id));
     const notes = await env.client.call("memory.list", { scope: "agent", agent: id });
@@ -375,7 +375,7 @@ test("review fixes: an old slug can be reused after a rename; a clone with the s
 
     const outside = path.join(os.tmpdir(), `apx-secret-${process.pid}.md`);
     fs.writeFileSync(outside, "---\nname: Leak\n---\n\nsecret\n");
-    fs.symlinkSync(outside, path.join(root, ".apc", "agents", "leak.md"));
+    fs.symlinkSync(outside, path.join(root, ".apx", "agents", "leak.md"));
     await env.client.call("projects.sync", { project: "p_abc123def456" });
     assert.ok(
       !(await env.client.call("agents.list", {})).agents.some((a) => a.name === "Leak"),
@@ -411,14 +411,14 @@ test("an agent's tools and skills are set from APX: a project agent's file says 
       tools: ["files", "web_read"],
       skills: ["pdf"],
     });
-    const file = fs.readFileSync(path.join(root, ".apc", "agents", "arch.md"), "utf8");
+    const file = fs.readFileSync(path.join(root, ".apx", "agents", "arch.md"), "utf8");
     assert.match(file, /\ntools: files, web_read\n/);
     assert.match(file, /\nskills: pdf\n/);
     const arch = (await env.client.call("agents.list", {})).agents.find((a) => a.id === "abc123def456-arch");
     assert.deepEqual([arch?.tools, arch?.skills], [["files", "web_read"], ["pdf"]]);
 
     await env.client.call("agents.update", { agent: "abc123def456-arch", tools: [], skills: [] });
-    assert.doesNotMatch(fs.readFileSync(path.join(root, ".apc", "agents", "arch.md"), "utf8"), /tools:|skills:/);
+    assert.doesNotMatch(fs.readFileSync(path.join(root, ".apx", "agents", "arch.md"), "utf8"), /tools:|skills:/);
 
     await env.client.call("agents.create", { slug: "clerk", name: "Clerk" });
     await env.client.call("agents.update", { agent: "clerk", tools: ["web_search"] });
@@ -475,7 +475,7 @@ test("a long AGENTS.md reaches its agents whole, and past the safety limit says 
     const memory = Array.from({ length: 300 }, (_, i) => `Project note ${i}: keep this owner's instruction.`).join(
       "\n",
     );
-    fs.writeFileSync(path.join(root, ".apc", "memory.md"), memory);
+    fs.writeFileSync(path.join(root, ".apx", "memory.md"), memory);
     assert.ok(memory.length > 6_000 && memory.length < AGENTS_MD_LIMIT);
     assert.ok(text.length > 12_000 && text.length < AGENTS_MD_LIMIT);
     await env.client.call("projects.register", { path: root });

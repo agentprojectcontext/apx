@@ -14,14 +14,14 @@ after(async () => {
 const projects = async () => (await h.env.client.call("projects.list", {})).projects;
 
 test("projects: created and renamed once the owner approves; autonomy stays theirs", async () => {
-  await h.ask({ method: "projects.create", params: { name: "Northwind" } }, "deny");
-  const made = await h.ask({ method: "projects.create", params: { name: "Acme", kind: "company" } }, "approve");
+  await h.card({ method: "projects.create", params: { name: "Northwind" } }, "deny");
+  const made = await h.card({ method: "projects.create", params: { name: "Acme", kind: "company" } }, "approve");
   assert.equal(made.detail, 'Create the project Acme\nkind: "company"');
   const names = (await projects()).map((p) => p.name);
   assert.ok(names.includes("Acme") && !names.includes("Northwind"));
   const acme = (await projects()).find((p) => p.name === "Acme")?.id ?? "";
   assert.match((await h.ask({ method: "projects.list" })).answer, new RegExp(`- Acme \\[${acme}\\] \\(company`));
-  const { detail } = await h.ask(
+  const { detail } = await h.card(
     { method: "projects.update", params: { project: acme, name: "Acme Labs" } },
     "approve",
   );
@@ -36,29 +36,31 @@ test("projects: created and renamed once the owner approves; autonomy stays thei
 test("memory: its settings change and keep its model; the model stays the owner's", async () => {
   const settings = () => h.env.client.call("memory.settings", {});
   const aux = (await settings()).aux_model;
-  const { detail } = await h.ask({ method: "memory.set_settings", params: { auto_recall: false } }, "approve");
+  const { detail } = await h.card({ method: "memory.set_settings", params: { auto_recall: false } }, "approve");
   assert.equal(detail, "Change how memory works\nauto_recall: true → false");
   assert.equal((await settings()).auto_recall, false);
   assert.equal((await settings()).aux_model, aux);
-  await h.ask({ method: "memory.set_settings", params: { mode: "off" } }, "deny");
+  await h.card({ method: "memory.set_settings", params: { mode: "off" } }, "deny");
   assert.equal((await settings()).mode, "notes");
   const model = { method: "memory.set_settings", params: { aux_model: "fake/fake-2" } };
   assert.match((await h.ask(model)).answer, /aux_model stays the owner's/);
+  const chain = { method: "memory.set_settings", params: { aux_chain: "fake/fake-2" } };
+  assert.match((await h.ask(chain)).answer, /aux_chain stays the owner's/);
 });
 
 test("skills and servers: a skill written, turned off, and a project's global servers, each once approved", async () => {
   const content = "---\nname: acme-notes\ndescription: How Acme writes its notes.\n---\nWrite short notes.";
-  const saved = await h.ask(
+  const saved = await h.card(
     { method: "skills.save", params: { name: "acme-notes", target: "global", content } },
     "approve",
   );
   assert.match(saved.detail, /^Save the skill acme-notes\ntarget: "global"\ncontent: "---/);
   const skill = async () => (await h.env.client.call("skills.list", {})).skills.find((s) => s.name === "acme-notes");
   assert.equal((await skill())?.on, true);
-  const off = await h.ask({ method: "skills.toggle", params: { name: "acme-notes", on: false } }, "approve");
+  const off = await h.card({ method: "skills.toggle", params: { name: "acme-notes", on: false } }, "approve");
   assert.equal(off.detail, "Turn the skill acme-notes off");
   assert.equal((await skill())?.on, false);
-  await h.ask({ method: "skills.toggle", params: { name: "acme-notes", on: true } }, "deny");
+  await h.card({ method: "skills.toggle", params: { name: "acme-notes", on: true } }, "deny");
   assert.equal((await skill())?.on, false);
   const zip = {
     method: "skills.import",
@@ -68,21 +70,21 @@ test("skills and servers: a skill written, turned off, and a project's global se
 
   const acme = (await projects()).find((p) => p.name === "Acme Labs")?.id ?? "";
   const inherit = (on: boolean) => ({ method: "resources.inherit", params: { project: acme, kind: "mcp", on } });
-  await h.ask(inherit(false), "deny");
+  await h.card(inherit(false), "deny");
   const mcp = async () => (await h.env.client.call("resources.inheritance", { project: acme })).mcp;
   assert.equal(await mcp(), true);
-  const { detail } = await h.ask(inherit(false), "approve");
+  const { detail } = await h.card(inherit(false), "approve");
   assert.equal(detail, "Stop the project Acme Labs using the global MCP servers");
   assert.equal(await mcp(), false);
 });
 
 test("media services: the image defaults change only where asked", async () => {
-  const { detail } = await h.ask({ method: "services.defaults", params: { width: 1024 } }, "approve");
+  const { detail } = await h.card({ method: "services.defaults", params: { width: 1024 } }, "approve");
   assert.equal(detail, "Change the image defaults\nwidth: 512 → 1024");
   const defaults = async () => (await h.env.client.call("services.list", {})).image_defaults;
   assert.equal((await defaults()).width, 1024);
   assert.equal((await defaults()).height, 512);
-  await h.ask({ method: "services.defaults", params: { steps: 50 } }, "deny");
+  await h.card({ method: "services.defaults", params: { steps: 50 } }, "deny");
   assert.equal((await defaults()).steps, 20);
   assert.match((await h.ask({ method: "services.list" })).answer, /image defaults: .*"width":1024/);
 });
@@ -109,10 +111,10 @@ test("widgets: deleting one for good waits for the owner", async () => {
 
 test("calendar: an event's series is muted and resumed once the owner approves, and the settings list it", async () => {
   const mute = { method: "integrations.mute_event", params: { series: "merienda", title: "Merienda", muted: true } };
-  await h.ask(mute, "deny");
+  await h.card(mute, "deny");
   const muted = async () => (await h.env.client.call("integrations.settings", { id: "google-calendar" })).muted;
   assert.deepEqual(await muted(), []);
-  const { detail } = await h.ask(mute, "approve");
+  const { detail } = await h.card(mute, "approve");
   assert.equal(detail, "Stop reminders of Merienda\nmuted: false → true");
   assert.deepEqual(
     (await muted())?.map((m) => m.series),
@@ -120,6 +122,6 @@ test("calendar: an event's series is muted and resumed once the owner approves, 
   );
   const read = await h.ask({ method: "integrations.settings", params: { id: "google-calendar" } });
   assert.match(read.answer, /muted events: Merienda \[merienda\]/);
-  await h.ask({ method: "integrations.mute_event", params: { series: "merienda", muted: false } }, "approve");
+  await h.card({ method: "integrations.mute_event", params: { series: "merienda", muted: false } }, "approve");
   assert.deepEqual(await muted(), []);
 });

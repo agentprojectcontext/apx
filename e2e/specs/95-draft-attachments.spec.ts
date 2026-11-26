@@ -202,6 +202,7 @@ for (const editOrigin of [false, true]) {
       .locator('input[type="file"]')
       .first()
       .setInputFiles({ name: "retry.png", mimeType: "image/png", buffer: PNG });
+    await expect(page.locator(".attchip:not(.is-loading):not(.is-error)")).toContainText("retry.png");
     await expect(page.locator(".attchip.is-loading")).toHaveCount(0);
     let fail = () => {};
     const held = new Promise<void>((resolve) => {

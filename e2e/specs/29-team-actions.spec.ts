@@ -69,12 +69,12 @@ test("a global agent is created from the team, edited and deleted from its right
   await expect(page.getByText("El super-agente no se puede borrar")).toBeVisible();
 });
 
-test("a project agent is written to .apc/agents/ and, deleted, archived with its reports moved up", async ({
+test("a project agent is written to .apx/agents/ and, deleted, archived with its reports moved up", async ({
   page,
 }) => {
   await rpc("setup.finish", {});
   const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-e2e-team-")));
-  const agents = path.join(repo, ".apc", "agents");
+  const agents = path.join(repo, ".apx", "agents");
   fs.mkdirSync(agents, { recursive: true });
   fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Acme\n");
   fs.writeFileSync(path.join(agents, "boss.md"), "---\nname: Boss\nrole: Orchestrator\n---\n\nLead.\n");
@@ -84,7 +84,7 @@ test("a project agent is written to .apc/agents/ and, deleted, archived with its
   await page.getByRole("button", { name: "Agente", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Nuevo agente" });
   await dialog.getByLabel("Nombre", { exact: true }).fill("Ana Pérez");
-  await expect(dialog.getByText(".apc/agents/ana-perez.md")).toBeVisible();
+  await expect(dialog.getByText(".apx/agents/ana-perez.md")).toBeVisible();
   await dialog.getByRole("button", { name: "Crear agente" }).click();
   await expect.poll(() => fs.existsSync(path.join(agents, "ana-perez.md"))).toBe(true);
 

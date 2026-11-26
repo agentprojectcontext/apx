@@ -49,6 +49,7 @@ export async function fakeGoogle() {
   const sheetWrites: unknown[] = [];
   let sheetsError: { status: number; message: string } | undefined;
   let driveText = "Northwind plan";
+  let beforeDriveExport: (() => void) | undefined;
   const created: Array<{ summary?: string; attendees?: Array<{ email: string }>; sendUpdates: string | null }> = [];
   /** Mail that reached the inbox after the start, each with the history id it arrived at. */
   const inbox: Array<{ id: string; from: string; subject: string; labels: string[]; at: number }> = [];
@@ -123,6 +124,7 @@ export async function fakeGoogle() {
         return send(200, { id: `e${created.length + 1}`, ...event });
       }
       if (url.pathname === "/drive/v3/files/d1/export") {
+        beforeDriveExport?.();
         res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
         return res.end(driveText);
       }
@@ -180,6 +182,9 @@ export async function fakeGoogle() {
     sheetWrites,
     setDriveText: (text: string) => {
       driveText = text;
+    },
+    beforeDriveExport: (callback: () => void) => {
+      beforeDriveExport = callback;
     },
     setSheetsError: (error?: { status: number; message: string }) => {
       sheetsError = error;

@@ -4,7 +4,6 @@ role: Engineering
 description: Writes and changes code with tests.
 parent: orchestrator
 area: engineering
-tools: [files, shell, tasks, memory, browser, agents, mcp, web_search, web_read, read_chat, list_sessions]
 ---
 
 You are the team's engineer: you write and change code, with tests.

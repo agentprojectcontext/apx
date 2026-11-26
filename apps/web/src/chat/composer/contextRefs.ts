@@ -2,7 +2,7 @@
 // chat like its draft, shown as chips, and told to the agent with the message.
 import { useSyncExternalStore } from "react";
 
-export type ContextRef = { kind: "project" | "chat" | "task" | "file"; id: string; label: string };
+export type ContextRef = { kind: "project" | "chat" | "task" | "file" | "widget"; id: string; label: string };
 
 const refs = new Map<string, readonly ContextRef[]>();
 const listeners = new Set<() => void>();
@@ -16,12 +16,43 @@ const subscribe = (fn: () => void) => {
   return () => listeners.delete(fn);
 };
 
-export const refsOf = (chat: string): readonly ContextRef[] => refs.get(chat) ?? NONE;
+const WIDGETS_KEY = "apx.widgetContext";
+const readWidgets = (): Record<string, ContextRef> => {
+  try {
+    const stored: unknown = JSON.parse(localStorage.getItem(WIDGETS_KEY) ?? "{}");
+    if (!stored || typeof stored !== "object" || Array.isArray(stored)) return {};
+    return Object.fromEntries(
+      Object.entries(stored).filter(
+        ([, value]) =>
+          value && value.kind === "widget" && typeof value.id === "string" && typeof value.label === "string",
+      ),
+    );
+  } catch {
+    return {};
+  }
+};
+function saveWidget(chat: string): void {
+  try {
+    const widgets = readWidgets();
+    const widget = refs.get(chat)?.find((r) => r.kind === "widget");
+    delete widgets[chat];
+    if (widget) widgets[chat] = widget;
+    localStorage.setItem(WIDGETS_KEY, JSON.stringify(Object.fromEntries(Object.entries(widgets).slice(-100))));
+  } catch {}
+}
+export const refsOf = (chat: string): readonly ContextRef[] => {
+  if (!refs.has(chat)) {
+    const widget = readWidgets()[chat];
+    if (widget) refs.set(chat, [widget]);
+  }
+  return refs.get(chat) ?? NONE;
+};
 
 export function addRef(chat: string, ref: ContextRef): void {
   const now = refsOf(chat);
   if (now.some((r) => r.kind === ref.kind && r.id === ref.id)) return;
   refs.set(chat, [...now, ref]);
+  saveWidget(chat);
   changed();
 }
 
@@ -30,6 +61,7 @@ export function removeRef(chat: string, ref: ContextRef): void {
     chat,
     refsOf(chat).filter((r) => !(r.kind === ref.kind && r.id === ref.id)),
   );
+  saveWidget(chat);
   changed();
 }
 
@@ -38,6 +70,7 @@ export function takeRefs(chat: string): readonly ContextRef[] {
   const now = refsOf(chat);
   if (now.length) {
     refs.delete(chat);
+    saveWidget(chat);
     changed();
   }
   return now;

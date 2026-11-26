@@ -1,5 +1,7 @@
 // Release news worth acting on: what a release lets the super-agent do for this owner. Each entry is told once, and
 // only to an owner it applies to. See rules/DECISIONS.md#d-117
+
+import { FOLDER_MOVED } from "../apc/folder-notice.ts";
 import type { StoreSize } from "../db/db.ts";
 import type { Store } from "../domain/store.ts";
 import { NOISY_COMMENTS } from "../domain/tasks.ts";
@@ -7,26 +9,33 @@ import { computerHost } from "../environments/host.ts";
 import { CATALOG } from "../integrations/catalog.ts";
 import { ACTIVITY_REVIEW_NEWS } from "./activity-review.ts";
 import { AGENT_FALLBACKS_NEWS } from "./agent-fallbacks.ts";
+import { AGENT_FOLDER_NEWS } from "./agent-folder.ts";
 import { AGENT_MIGRATION_NEWS } from "./agent-migration.ts";
 import { AGENT_PROMPTS_NEWS } from "./agent-prompts.ts";
 import { AGENT_REVIEW_NEWS } from "./agent-review.ts";
+import { AGENTS_REACH_NEWS } from "./agents-reach.ts";
 import { APX_ACCOUNT_NEWS } from "./apx-account.ts";
 import { BROWSER_EDIT_NEWS } from "./browser-edit.ts";
 import { BROWSER_JAVASCRIPT_NEWS } from "./browser-javascript.ts";
+import { BROWSER_RECIPES_NEWS } from "./browser-recipes.ts";
 import { BROWSER_SIGN_IN_NEWS } from "./browser-sign-in.ts";
 import { CALL_SERVICES_NEWS } from "./call-services.ts";
 import { CHANNEL_AGENTS_NEWS } from "./channel-agents.ts";
+import { CHAT_CONTINUATIONS_NEWS } from "./chat-continuations.ts";
 import { CHROME_TABS_NEWS } from "./chrome-tabs.ts";
 import { COMPUTER_POINTER_NEWS } from "./computer-pointer.ts";
 import { CONTACT_AGENT_NEWS } from "./contact-agent.ts";
 import { CONTACT_BOOKING_NEWS } from "./contact-booking.ts";
-import { CONTACT_NOTES_NEWS } from "./contact-notes.ts";
+import { CONTACT_CONSULT_REFERENCE_NEWS } from "./contact-consult-reference.ts";
+import { CONTACT_NOTES_NEWS, CONTACT_PROJECT_READING_NEWS } from "./contact-notes.ts";
 import { CONTEXTUAL_RESEARCH_NEWS } from "./contextual-research.ts";
 import { EVENT_MUTE_NEWS } from "./event-mute.ts";
+import { EXTENSION_EVENTS_NEWS } from "./extension-events.ts";
 import { EXTERNAL_SESSIONS_NEWS } from "./external-sessions.ts";
 import { GOOGLE_SHEETS_NEWS } from "./google-sheets.ts";
 import { GROUP_CHATS_NEWS } from "./group-chats.ts";
 import { HEADLINE_MODELS_NEWS } from "./headline-models.ts";
+import { HELPER_MODEL_NEWS } from "./helper-model.ts";
 import { HERMES_IMPORT_NEWS } from "./hermes-import.ts";
 import { HOME_CHANNEL_SWITCH_NEWS } from "./home-channel-switch.ts";
 import { LOCAL_MODELS_NEWS } from "./local-models.ts";
@@ -43,14 +52,17 @@ import { ROOM_AGENT_NEWS } from "./room-agent.ts";
 import { ROOM_HANDOFF_NEWS } from "./room-handoff.ts";
 import { ROUTINE_PERMISSIONS_NEWS } from "./routine-permissions.ts";
 import { SIDE_QUESTION_NEWS } from "./side-question.ts";
+import { SIGN_IN_CARDS_NEWS } from "./sign-in-cards.ts";
 import { SIMPLE_PANEL_NEWS } from "./simple-panel.ts";
 import { STORE_COMPACT_NEWS } from "./store-compact.ts";
 import { SUBPROJECTS_NEWS } from "./subprojects.ts";
+import { SUPER_AGENT_SETUP_NEWS } from "./super-agent-setup.ts";
 import { TASK_COMMENTS_NEWS } from "./task-comments.ts";
 import { TASK_GOALS_NEWS } from "./task-goals.ts";
 import { TASK_REGROUP_NEWS } from "./task-regroup.ts";
 import { VOICE_CALLS_NEWS } from "./voice-calls.ts";
 import { WHATSAPP_GROUPS_NEWS } from "./whatsapp-groups.ts";
+import { WORKFLOWS_NEWS } from "./workflows.ts";
 
 /** What an entry may ask about this install before it is told. */
 export type NewsFacts = {
@@ -72,6 +84,8 @@ export type NewsFacts = {
   integrations: number;
   /** The owner's private MCP connections, including project-limited ones. */
   mcp?: number;
+  /** An installed extension declares observations the owner can opt into. */
+  extensionEvents?: boolean;
   /** This core can run the isolated Linux computer (macOS, Linux or Windows) and the owner has a project to try there. */
   computer: boolean;
   /** This core runs on a Mac and the owner has work there (a project). */
@@ -95,6 +109,8 @@ export type NewsFacts = {
   promptedAgents?: number;
   /** The chats' database is over 500 MB and keeps its free space until it is rewritten once (compacted). */
   bigStore?: boolean;
+  /** APX moved (or tried to move) a project's files from .apc/ to .apx/. */
+  agentFolder?: boolean;
   /** Projects the owner registered (the base project not counted). */
   projects?: number;
   /** A channel reads at least one room (a Discord channel, a group). */
@@ -130,6 +146,8 @@ export type NewsEntry = {
 };
 
 export const NEWS: readonly NewsEntry[] = [
+  AGENT_FOLDER_NEWS,
+  SIGN_IN_CARDS_NEWS,
   CALL_SERVICES_NEWS,
   {
     id: "email-retained-history",
@@ -158,6 +176,7 @@ export const NEWS: readonly NewsEntry[] = [
   MCP_REACH_NEWS,
   MCP_CONTEXT_NEWS,
   EVENT_MUTE_NEWS,
+  CHAT_CONTINUATIONS_NEWS,
   SUBPROJECTS_NEWS,
   ROOM_HANDOFF_NEWS,
   HOME_CHANNEL_SWITCH_NEWS,
@@ -193,10 +212,18 @@ export const NEWS: readonly NewsEntry[] = [
   VOICE_CALLS_NEWS,
   MARKETPLACE_NEWS,
   PUBLIC_ARTIFACTS_NEWS,
+  EXTENSION_EVENTS_NEWS,
   APX_ACCOUNT_NEWS,
   CONTACT_BOOKING_NEWS,
   CONTACT_NOTES_NEWS,
+  CONTACT_PROJECT_READING_NEWS,
+  CONTACT_CONSULT_REFERENCE_NEWS,
   SIMPLE_PANEL_NEWS,
+  BROWSER_RECIPES_NEWS,
+  SUPER_AGENT_SETUP_NEWS,
+  AGENTS_REACH_NEWS,
+  HELPER_MODEL_NEWS,
+  WORKFLOWS_NEWS,
   {
     id: "storage-screen",
     since: "2.13.0",
@@ -736,6 +763,7 @@ export const newsFacts = (store: Store, o: { hermes?: boolean; storeSize?: Store
   whatsapp: store.settings.read("channels").some((c) => c.type === "whatsapp"),
   integrations: connectedIntegrations(store),
   mcp: ownMcpServers(store).length,
+  extensionEvents: store.extensions.list().some((e) => Boolean(e.manifest.events?.length)),
   computer: computerHost() !== undefined && store.projects.list().length > 0,
   mac: process.platform === "darwin" && store.projects.list().length > 0,
   tasks: store.tasks.list({ state: "open", limit: 500 }).filter((t) => t.assignee).length,
@@ -743,6 +771,7 @@ export const newsFacts = (store: Store, o: { hermes?: boolean; storeSize?: Store
   localModels: store.settings.read("local_models_seen").length > 0,
   ownModels: store.agents.list().filter((a) => a.model_choice?.model).length,
   projects: store.projects.list().length,
+  agentFolder: Boolean(store.settings.get(FOLDER_MOVED)),
   routines: store.routines.list().filter((r) => r.action === "agent" || r.action === "watch").length,
   promptedAgents: store.agents.list().filter((a) => a.kind !== "secretary" && a.prompt.trim()).length,
   agents: store.agents.list().filter((a) => a.kind !== "secretary").length,

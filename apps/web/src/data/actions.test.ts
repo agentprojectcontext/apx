@@ -19,6 +19,21 @@ const initial = data.get();
 beforeEach(() => {
   data.set(initial);
 });
+test("loading all delegated chats counts only visible direct agent children, retaining external session access", async (t) => {
+  const children = [
+    { ...thread("helper"), kind: "a2a", parent_id: "parent" },
+    { ...thread("consult"), kind: "agent", parent_id: "parent" },
+    { ...thread("code"), kind: "code", engine: "claude", parent_id: "parent" },
+    { ...thread("archived"), kind: "a2a", parent_id: "parent", archived: true },
+    { ...thread("nested"), kind: "a2a", parent_id: "helper" },
+  ].map((value) => Thread.parse(value));
+  rpc(t, { "threads.list": { threads: children } });
+  await actions.loadDelegated("parent");
+  assert.equal(data.get().delegated.parent, 2);
+  assert.ok(data.get().threads.code, "external sessions are still available to their task");
+  assert.ok(data.get().threads.nested, "full descendant navigation is preserved");
+});
+
 const at = "2026-01-01T00:00:00Z";
 const thread = (id = "thr_1", state = "idle") =>
   Thread.parse({ id, title: id, kind: "loose", state, agent_ids: ["superagent"], created_at: at, updated_at: at });

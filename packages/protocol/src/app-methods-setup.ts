@@ -22,6 +22,7 @@ import { filesMethods } from "./files-methods.ts";
 import { gitMethods } from "./git-methods.ts";
 import { officeMethods } from "./office-methods.ts";
 import { resourceMethods } from "./resource-methods.ts";
+import { SecretField } from "./resource-methods-schemas.ts";
 import { teamMethods } from "./team-methods.ts";
 
 /** What a simple setup leaves ready on its own: memory by meaning, APX's voice for notes and calls, images. */
@@ -117,7 +118,7 @@ export const appSetupMethods = {
   ...filesMethods,
   ...gitMethods,
   /**
-   * Read-only import from a local APX v1: registers the project folders it knows (their .apc/ is read from disk)
+   * Read-only import from a local APX v1: registers the project folders it knows (each one's .apc/ is moved to .apx/, as registering any project does)
    * and, when asked, copies once into v2's own home: its model API keys (`keys`), its skills (`skills`), and its image
    * engines and voices (`services`).
    */
@@ -362,8 +363,18 @@ export const appSetupMethods = {
         .object({
           /** The same shape `secret://NAME` references accept (an MCP env var name like GH_TOKEN works as is). */
           name: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/),
-          /** null removes it. */
-          value: z.string().min(1).max(16384).nullable(),
+          /** null removes it. Absent with `login`, or to change only what it is for (`field`). */
+          value: z.string().min(1).max(16384).nullable().optional(),
+          /**
+           * A sign-in: a username and a password kept as one variable. A part left out keeps the one stored, so the
+           * owner changes a password without typing the username again.
+           */
+          login: z
+            .object({ username: z.string().max(1024).optional(), password: z.string().min(1).max(4096).optional() })
+            .strict()
+            .optional(),
+          /** What it is for; null makes it a plain variable again. `login` sets "login". */
+          field: SecretField.nullable().optional(),
           /** A project's own value, over the global one for that project's MCP servers. */
           project: Id.optional(),
         })
@@ -395,7 +406,7 @@ export const appSetupMethods = {
     effect: false,
   }),
   /**
-   * Creates an agent. With a project it is written as .apc/agents/<slug>.md in that project's folder (the file is
+   * Creates an agent. With a project it is written as .apx/agents/<slug>.md in that project's folder (the file is
    * the definition); without one it is a global agent kept by APX.
    */
   "agents.create": deferMethod({
@@ -423,7 +434,7 @@ export const appSetupMethods = {
     effect: true,
     access: "human",
   }),
-  /** Removes an agent: a project agent's file moves to .apc/agents/.archived/ (never deleted); threads keep it. */
+  /** Removes an agent: a project agent's file moves to .apx/agents/.archived/ (never deleted); threads keep it. */
   "agents.archive": deferMethod({
     params: () =>
       z
@@ -454,7 +465,7 @@ export const appSetupMethods = {
     effect: false,
     access: "human",
   }),
-  /** Brings an archived agent back: a project agent's file returns to .apc/agents/ and it shows again. */
+  /** Brings an archived agent back: a project agent's file returns to .apx/agents/ and it shows again. */
   "agents.restore": deferMethod({
     params: () =>
       z
@@ -580,7 +591,10 @@ export const appSetupMethods = {
           autonomy: Autonomy.nullable().optional(),
           parent: z.string().max(64).optional(),
           blob: z.string().max(40).optional(),
-          /** The tools (or groups) it may use, and the skills it works with; [] goes back to all of them. */
+          /**
+           * The tools (or groups) it uses first, the rest staying reachable when needed, and the skills it works with;
+           * [] puts all of them first again.
+           */
           tools: z.array(z.string().trim().min(1).max(80)).max(200).optional(),
           skills: z.array(z.string().trim().min(1).max(120)).max(200).optional(),
           /** Runs its team (false clears it). */

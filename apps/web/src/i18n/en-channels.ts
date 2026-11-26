@@ -185,7 +185,13 @@ export const enChannels = {
     "When they ask for something only you can do (a purchase, a favor, calling someone), it becomes a task for you and you are told right away. Your agent never does it for you.",
   "ch.perm.notes": "Answer from my notes",
   "ch.perm.notesHint":
-    "Let this person get answers from your general notes. If you choose an agent for them, this also shares that agent's notes in its project. Read only; no files or other chats.",
+    "Let this person get answers from your general notes and, if you choose an agent, that agent's project notes. This option alone does not share files or conversations.",
+  "ch.perm.projectReading": "Consult the agent’s project",
+  "ch.perm.projectReadingHint":
+    "Let {agent} consult their memories, conversations and documents in {project} to answer this person. Read only.",
+  "ch.perm.projectReadingChoose": "Choose an agent to enable this option.",
+  "ch.perm.projectReadingUnavailable": "This agent has no available project.",
+  "ch.perm.projectReadingReset": "Changing the agent turns this off. Enable it again to share the new project.",
   "ch.may.help": "About what this conversation may do",
   "ch.may.helpTitle": "What each option lets your agent do with this person",
   "ch.may.close":

@@ -14,7 +14,7 @@ Publish one original, useful article in English and Spanish every two days. SEO 
 
 ## Shared author
 
-`src/data/blog-author.mjs` is the single source for the author name, handle, biography and links in both languages. `src/assets/people/manu.png` supplies the owner-approved portrait. All existing and future articles use the shared layout: do not paste separate author biographies into Markdown. Preserve original dates on existing articles.
+`src/data/blog-author.mjs` is the single source for the author name, handle, biography and links in both languages. `src/assets/people/author.png` supplies the owner-approved portrait. All existing and future articles use the shared layout: do not paste separate author biographies into Markdown. Preserve original dates on existing articles.
 
 ## Cover art: continuity with variation
 

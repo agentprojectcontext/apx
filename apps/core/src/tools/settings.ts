@@ -1,5 +1,5 @@
 // apx_settings: the super-agent changes what the owner sets up in APX for them, through the owner's own methods, each
-// change at the owner's word, asked first as the agent's mode says (DECISIONS.md#d-203). One tool for every setting,
+// change at the owner's word, run in Auto unless outside content is in the turn (DECISIONS.md#d-267). One tool for every setting,
 // read on demand, so the prompt does not grow with the panel (rules/PROMPT_SIZE.md). Which methods it reaches is
 // settings-reach.ts's to say. See DECISIONS.md#d-138
 // Flows and their tables are the owner's work, not settings: they have apx_flow (flow-tool.ts), built on areaTool here.
@@ -11,7 +11,9 @@ import type { ProfileRoot } from "../engine/profiles.ts";
 import { USAGE } from "./plan-usage.ts";
 import { CONTACT_SOURCES } from "./settings-contact-sources.ts";
 import { EMAIL } from "./settings-email.ts";
-import type { Params, Setting, SettingsDeps } from "./settings-kit.ts";
+import type { Asks, Params, Setting, SettingsDeps } from "./settings-kit.ts";
+import { MEDIA } from "./settings-media.ts";
+import { MODELS } from "./settings-models.ts";
 import { PEOPLE } from "./settings-people.ts";
 import { PUBLIC_ARTIFACTS } from "./settings-public-artifacts.ts";
 import { TEAM } from "./settings-team.ts";
@@ -24,6 +26,8 @@ export const SETTINGS: Readonly<Record<string, Setting>> = {
   ...CONTACT_SOURCES,
   ...TEAM,
   ...WORK,
+  ...MEDIA,
+  ...MODELS,
   ...EMAIL,
   ...USAGE,
   ...PUBLIC_ARTIFACTS,
@@ -53,6 +57,10 @@ const AREA: Readonly<Record<string, string>> = {
   mcp: "an MCP server",
   extensions: "an extension",
   services: "the media services",
+  embeddings: "memory's embedding engine",
+  models: "the models",
+  voice: "APX's voice",
+  transcription: "transcription",
   surfaces: "a widget",
   stickers: "the stickers",
   environments: "the isolated computer",
@@ -141,8 +149,8 @@ export type AreaToolSpec = {
   areas: Readonly<Record<string, string>>;
   /** The card's title for a look. */
   looked: string;
-  /** How a change asks when its method does not say (Setting.asks); none: as the agent's mode says. */
-  asks?: "card";
+  /** How a change asks when its method does not say (Setting.asks); none: `untrusted` (DECISIONS.md#d-267). */
+  asks?: Asks;
   /** The index's last line: what lives elsewhere. */
   elsewhere: string;
 };
@@ -203,8 +211,16 @@ export function areaTool(spec: AreaToolSpec, deps: SettingsDeps): Tool {
     description: spec.description,
     args,
     effect: "local",
-    // A change follows the agent's mode like any strong action; a few keep the owner's card (DECISIONS.md#d-203).
-    confirm: (a) => (real(a) ? (asks(a) === "untrusted" ? "untrusted" : "always") : drafts(a) ? "untrusted" : "never"),
+    // What the owner asked runs in Auto unless outside content is in the turn; what cannot be undone asks there, and a
+    // few keep the owner's card in every mode (DECISIONS.md#d-267).
+    confirm: (a) =>
+      real(a)
+        ? asks(a) === undefined || asks(a) === "untrusted"
+          ? "untrusted"
+          : "always"
+        : drafts(a)
+          ? "untrusted"
+          : "never",
     // Only at the owner's own word, whatever the mode (DECISIONS.md#d-140).
     ownerSetting: real,
     keepsCard: (a) => (real(a) && asks(a) === "card" ? "card" : undefined),
@@ -289,7 +305,7 @@ export function settingsTools(
         areas: AREA,
         looked: "Looked at the settings",
         elsewhere:
-          "Agents' definitions, routines, Flows and the shared limits have tools of their own. Keys, sign-ins, models, how far agents may act and the machine APX runs on stay the owner's, in Settings.",
+          "Agents' definitions, routines, Flows and the shared limits have tools of their own. Keys, sign-ins, how far agents may act and the machine APX runs on stay the owner's, in Settings.",
       },
       deps,
     ),

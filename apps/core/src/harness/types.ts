@@ -70,6 +70,8 @@ export type TurnIO = {
     /** The tool's raw input when the agent sends it (a command to run, a file and its diff). */
     input?: unknown;
   }): Promise<boolean>;
+  /** Why `approve` said no to that call, for the external agent to read (the owner declined, or did not answer in time). */
+  refusal?(callId: string): string | undefined;
   /** An external agent's own tool call, shown as a card and recorded as a step (effects are not ours to know). */
   observe(ev: {
     callId: string;

@@ -33,6 +33,10 @@ export function projectName(projects: Project[], id: string | undefined): string
 /** The base project's name as the owner set it ("Default" until then): the label of what has no project. */
 export const baseName = (): string => data.get().base.name;
 
+/** Chats displayed under their caller; external sessions keep their own row in their task or Chats. */
+export const isDelegated = (t: Pick<Thread, "kind" | "parent_id" | "archived">) =>
+  (t.kind === "a2a" || t.kind === "agent") && !!t.parent_id && !t.archived;
+
 /** Delegated chats shown under their caller before "N more" (and how many the list loads per chat). */
 export const DELEGATED_SHOWN = 5;
 
@@ -104,6 +108,8 @@ export type ProjectEntry = {
   kind?: string | undefined;
   /** A subproject's parent (DEFAULT_PID for the base project): it works with the parent's agents and resources. */
   parent?: string | undefined;
+  /** Its agents and settings are still in .apc/: the overview offers the move to .apx/. */
+  legacyFolder?: boolean | undefined;
 };
 
 /** Sidebar order: the base space first, then the real projects as the core lists them. */
@@ -112,7 +118,15 @@ export function projectEntries(projects: Project[]): ProjectEntry[] {
     { id: DEFAULT_PID, name: baseName(), path: undefined, isDefault: true, kind: data.get().base.kind },
     ...projects
       .filter((p) => p.registered !== false)
-      .map((p) => ({ id: p.id, name: p.name, path: p.path, isDefault: false, kind: p.kind, parent: p.parent })),
+      .map((p) => ({
+        id: p.id,
+        name: p.name,
+        path: p.path,
+        isDefault: false,
+        kind: p.kind,
+        parent: p.parent,
+        legacyFolder: p.legacy_folder,
+      })),
   ];
 }
 

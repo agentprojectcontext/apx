@@ -1,5 +1,5 @@
-// The agent editor's access pages: which tools and skills it may use (with a search), and what the owner granted
-// it for good, narrowed to a condition or given an end date.
+// The agent editor's access pages: which tools it uses first and which skills it works with (with a search), and what
+// the owner granted it for good, narrowed to a condition or given an end date.
 import {
   type Agent,
   type Autonomy,
@@ -105,10 +105,11 @@ export function ToolsTab({
   const set = (next: Set<string>, nextMcp = mcp) => onChange(compact(next, groups, [...nextMcp, ...unknown]));
   // A grant with a condition still asks outside it, so only a whole grant counts here.
   const freely = new Set(granted.filter((g) => !g.condition).map((g) => g.tool));
+  // An unticked tool is not first but still reachable, so it shows the rule it runs under like any other.
   const policyOf = (x: Catalog[number]): ToolPolicy => {
     if (x.kept) return "kept";
     const rule = effectiveRule(draft, projectAutonomy, x.risk);
-    if (!has(x.name) || rule === "off") return "off";
+    if (rule === "off") return "off";
     return freely.has(x.name) && rule === "ask" ? "granted" : rule;
   };
   const query = q.trim().toLowerCase();

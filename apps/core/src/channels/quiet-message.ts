@@ -25,6 +25,7 @@ export function quietMessage(store: Store) {
     history?: {
       at?: string | undefined;
       historical?: boolean;
+      attachmentNotes?: string[] | undefined;
       deferEvent?: boolean;
       /** Kept for the owner only (marked mail): shown with this tag, never in the agent's context. */
       mark?: MailMark | undefined;
@@ -38,7 +39,11 @@ export function quietMessage(store: Store) {
         ...(history?.at ? { at: history.at } : {}),
         quiet: history?.deferEvent === true,
         parts: [
-          { type: "text", text },
+          {
+            type: "text",
+            text,
+            ...(history?.attachmentNotes?.length ? { attachment_notes: history.attachmentNotes } : {}),
+          },
           ...attachments.flatMap((id) => {
             const m = store.media.get(id);
             return m ? [partOfMedia(m)] : [];

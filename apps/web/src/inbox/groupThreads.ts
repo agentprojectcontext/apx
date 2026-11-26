@@ -1,15 +1,10 @@
 import type { Thread } from "@apx/protocol";
-import { inInbox, inProject, isTopLevel } from "../data/identity.ts";
+import { inInbox, inProject, isDelegated, isTopLevel } from "../data/identity.ts";
+
+export { isDelegated } from "../data/identity.ts";
 
 /** `routines`: routine runs that told something are listed too. */
 type Filter = { projectId?: string; query?: string; routines?: boolean };
-
-/**
- * A chat that hangs under the chat it came from: one an agent delegated, or what a call asked the super-agent (an
- * agent's chat inside the call).
- */
-export const isDelegated = (t: Pick<Thread, "kind" | "parent_id" | "archived">) =>
-  (t.kind === "a2a" || t.kind === "agent") && !!t.parent_id && !t.archived;
 
 const delegatedCache = new WeakMap<Record<string, Thread>, Map<string, Thread[]>>();
 
@@ -23,6 +18,32 @@ export function delegatedByChat(threads: Record<string, Thread>): Map<string, Th
   for (const list of out.values()) list.sort(newest);
   delegatedCache.set(threads, out);
   return out;
+}
+
+/**
+ * The teammates asked on a task: what its home and each of its chats delegated, newest first (a chat of the task itself
+ * is listed as a chat, not again here). `total` counts what the core has past the few it loads; `short` are the chats
+ * whose teammates are not all loaded yet.
+ */
+export function taskTeammates(
+  threads: Record<string, Thread>,
+  home: string | undefined,
+  taskChats: Thread[],
+  counted: Record<string, number>,
+): { kids: Thread[]; total: number; short: string[]; chats: string[] } {
+  const chats = [...new Set([...(home ? [home] : []), ...taskChats.map((t) => t.id)])];
+  const nested = delegatedByChat(threads);
+  const own = new Set(chats);
+  const kids: Thread[] = [];
+  const short: string[] = [];
+  let total = 0;
+  for (const chat of chats) {
+    const under = (nested.get(chat) ?? []).filter((k) => !own.has(k.id));
+    kids.push(...under);
+    total += Math.max(counted[chat] ?? 0, under.length);
+    if ((counted[chat] ?? 0) > under.length) short.push(chat);
+  }
+  return { kids: kids.sort(newest), total, short, chats };
 }
 
 /**
@@ -107,7 +128,7 @@ export const unreadWhere = (threads: Record<string, Thread>, keep: (t: Thread) =
 
 /** The archived chats, most recent first: shown apart, under Archived. */
 export function archivedThreads(threads: Record<string, Thread>, opts: Filter): Thread[] {
-  return visible(threads, opts, (t) => !!t.archived && isTopLevel(t)).sort(newest);
+  return visible(threads, opts, (t) => !!t.archived && !t.task_id && isTopLevel(t)).sort(newest);
 }
 
 /** A row of a chat list: a chat, or (`task`) every chat the agents keep for one task, together. */

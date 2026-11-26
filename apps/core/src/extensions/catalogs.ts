@@ -218,7 +218,6 @@ export function createCatalogs(deps: {
     const entries: CatalogItem[] = [];
     const skipped: CatalogSkip[] = [];
     const plugins = (raw as { plugins?: unknown[] }).plugins ?? [];
-    const owner = nameOf((raw as { owner?: unknown }).owner);
     const ids = catalogPluginIds(plugins, previous);
     const one = async (p0: unknown, index: number) => {
       const p = p0 as {
@@ -246,7 +245,7 @@ export function createCatalogs(deps: {
         | { source?: string; url?: string; repo?: string; path?: string; ref?: string; sha?: string }
         | string
         | undefined;
-      // Who makes it: its author; else the catalog's owner for a plugin kept in the catalog's own repository.
+      // Catalog ownership does not establish authorship of the packages it contains.
       const author = nameOf(p.author);
       if (typeof src === "string") {
         const rel = src.replace(/^\.\//, "");
@@ -257,13 +256,12 @@ export function createCatalogs(deps: {
         const license = pluginLicense(files, repoLicense);
         if (!license) return skipped.push({ name, reason: "license" });
         const version = p.version ?? pluginVersion(files);
-        const by = author ?? owner;
         const read = summarizePlugin(files, { ...base, version: version ?? base.version });
         if (read?.empty) return skipped.push({ name, reason: "empty" });
         return entries.push({
           ...base,
           ...(version ? { version } : {}),
-          ...(by ? { publisher: by } : {}),
+          ...(author ? { publisher: author, publisher_source: "author" as const } : {}),
           license,
           via: { type: "path", path: rel },
           ...(read ? { contents: read.contents, brings: read.brings, needs: read.needs } : {}),
@@ -284,7 +282,7 @@ export function createCatalogs(deps: {
       const account = githubRepo(url)?.[0];
       return entries.push({
         ...base,
-        ...(author ? { publisher: author } : account ? { github: account } : {}),
+        ...(author ? { publisher: author, publisher_source: "author" as const } : account ? { github: account } : {}),
         license,
         via,
         ...(await remoteBrings(url, src.sha, base, via.path)),

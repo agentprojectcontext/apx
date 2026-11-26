@@ -9,6 +9,18 @@ export const esWelcome: Record<WelcomeKey, string> = {
   "welcome.cta": "Vamos",
   "welcome.soundOn": "Activar el sonido",
   "welcome.soundOff": "Silenciar",
+  "welcome.free-agents.title": "Agentes sin paredes",
+  "welcome.free-agents.text":
+    "Tus agentes ya trabajan en todos tus proyectos, no solo en el suyo. Su rol dice en qué son buenos, y cada resultado te dice en qué proyecto quedó.",
+  "welcome.workflows.title": "Un pedido, muchos agentes",
+  "welcome.workflows.text":
+    "Un agente puede repartir un pedido en un workflow: hasta cuatro agentes trabajan a la vez y cada paso sigue apenas termina el anterior. La tarjeta muestra a cada uno en vivo y la podés frenar.",
+  "welcome.engine-sessions.title": "Claude Code, con su propia cara",
+  "welcome.engine-sessions.text":
+    "Cuando un agente abre una sesión de Claude Code o Codex, la ves con la cara y el nombre de esa app, y un chip que dice quién la empezó.",
+  "welcome.agent-folder.title": ".apc/ ahora es .apx/",
+  "welcome.agent-folder.text":
+    "APX mueve solo la carpeta .apc/ de cada proyecto a .apx/, después de revisar cada archivo, y te avisa una vez.",
   "welcome.marketplace.title": "El Marketplace",
   "welcome.marketplace.text":
     "Todo lo que pueden usar tus agentes, en un solo lugar y con una etiqueta que dice de dónde viene. Agregás y conectás cada extensión en el mismo cuadro, hasta emparejar tu tele.",

@@ -110,7 +110,7 @@ export function agentSetOf(
   return agentPatch(agent, pairs, promptFile ? { prompt: readFile(promptFile) } : {});
 }
 
-/** apx agents show|new|set|archive: a project agent's changes land in its .apc/agents/<slug>.md. */
+/** apx agents show|new|set|archive: a project agent's changes land in its .apx/agents/<slug>.md. */
 export async function agentEdit(
   client: ApxClient,
   [sub, ...args]: string[],
@@ -129,7 +129,7 @@ export async function agentEdit(
     const fields: [string, string | undefined][] = [
       ["Role", a.role || undefined],
       ["Project", a.project_id],
-      ["File", a.source === "apc" && a.slug ? `.apc/agents/${a.slug}.md` : undefined],
+      ["File", a.source === "apc" && a.slug ? `.apx/agents/${a.slug}.md` : undefined],
       ["Reports to", a.parent],
       ["Area", a.area],
       ["Model", a.model_choice ? show(a.model_choice) : "install default"],
@@ -154,7 +154,7 @@ export async function agentEdit(
       ...(o.project ? { project_id: o.project } : {}),
       ...(o.role ? { role: o.role } : {}),
     });
-    console.log(`${a.name} (${a.id})${a.source === "apc" ? " · written to .apc/agents/" : ""}`);
+    console.log(`${a.name} (${a.id})${a.source === "apc" ? " · written to .apx/agents/" : ""}`);
     return;
   }
   if (sub === "set") {

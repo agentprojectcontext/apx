@@ -33,6 +33,7 @@ import {
   SkillsPart,
   SubthreadPart,
   SurfacePart,
+  WorkflowPart,
 } from "../lazy.ts";
 import { go } from "../shell/nav.ts";
 import { copyableQuote } from "./CopyableQuote.tsx";
@@ -300,6 +301,7 @@ function cardKey(p: Part, i: number): string {
   if (p.type === "input") return `i:${p.input_id}`;
   if (p.type === "flow") return `f:${p.flow}`;
   if (p.type === "plan") return "plan";
+  if (p.type === "workflow") return `w:${p.workflow_id}`;
   return `${p.type}:${i}`;
 }
 
@@ -338,6 +340,12 @@ function renderCard(p: Part, agent: Agent | undefined, message: Msg, ended: bool
       );
     case "plan":
       return <PlanPart part={p} ended={ended} />;
+    case "workflow":
+      return (
+        <Suspense fallback={<span>{p.name}</span>}>
+          <WorkflowPart part={p} />
+        </Suspense>
+      );
     case "input":
       return (
         <Suspense fallback={null}>

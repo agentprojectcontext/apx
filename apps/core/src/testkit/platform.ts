@@ -161,3 +161,14 @@ export function assertPath(actual: string | undefined, expected: string, message
     message ?? `expected ${String(actual)} to be ${expected}`,
   );
 }
+
+/**
+ * Every file under `dir` a test may read whole while the core still runs it. SQLite's `-shm` is left out: it is the
+ * write-ahead log's index, no rows, and Windows keeps part of it locked (a read fails EBUSY).
+ */
+export function filesUnder(dir: string): string[] {
+  return fs
+    .readdirSync(dir, { withFileTypes: true, recursive: true })
+    .filter((e) => e.isFile() && !e.name.endsWith("-shm"))
+    .map((e) => path.join(e.parentPath, e.name));
+}

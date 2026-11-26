@@ -52,6 +52,10 @@ const EVENT_KEY: Record<HistoryLine["key"], Key> = {
   undue: "tkEvUndue",
   project: "tkEvProject",
   edit: "tkEvEdit",
+  note: "tkEvNote",
+  asked: "tkEvAsked",
+  planStep: "tkEvPlanStep",
+  plan: "tkEvPlan",
 };
 const OUTCOME_KEY: Record<NonNullable<Task["outcome"]>, Key> = {
   kept: "tkOutcomeKept",

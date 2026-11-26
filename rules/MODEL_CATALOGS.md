@@ -25,9 +25,29 @@ provider's own agents: `NOT_CHAT`), when the provider says it takes no tools (Op
 gives no text (`architecture.output_modalities`). Groq models with `active: false` are left out. A model being listed
 does not mean the owner's key may use it for free.
 
+Discovered `bge-m3`, `voyage-4` and `voyage-code-4` IDs (including namespaces and local tags) are embeddings,
+not agent chat models: see the [BGE M3 model card](https://huggingface.co/BAAI/bge-m3) and
+[Voyage text embeddings](https://docs.voyageai.com/docs/embeddings). Similar chat names are not excluded.
+These discovery rules do not reinterpret configured or harness lists, or old cached classifications;
+a successful refresh applies them to a discovered provider list without changing saved selections.
+
 The starter model a new router chain gets (`models/starter.ts`) is picked from the provider's list by name, never named.
 A provider's own router over its free models (an id ending in `/free`, such as OpenRouter's) is the starter and heads
 that provider's list: a new account may have no credit, and a paid model would fail its first turn.
+
+## ChatGPT and Codex client versions
+
+The ChatGPT plan endpoint filters its response by `client_version`. APX sends the greater of the installed
+Codex version and its verified compatibility floor (`models/codex-version.ts`, currently `0.172.0`). This is a
+client version, not a model allowlist: only models returned by the authenticated source are offered. The installed
+version is checked on each uncached plan fetch, so a CLI upgrade is visible on the next explicit refresh without
+a core restart. An absent, broken or older CLI uses the compatibility floor.
+
+The external Codex catalog still comes from the installed `codex debug models`, not from the plan provider's list.
+An old CLI can therefore offer fewer models than the ChatGPT app or the current CLI. Update that CLI separately,
+then run `apx models --refresh`; never add guessed model IDs or rewrite saved selections to compensate.
+A successful catalog response proves listing only, not inference access. A model available in the ChatGPT app is
+not by itself proof that the Codex transport offers it to the same account.
 
 ## What a refresh never changes
 
@@ -113,7 +133,7 @@ replaces an already reported concrete model. See [Claude Code model configuratio
 The owner's APX runs a daily routine on the APX project that:
 
 1. Runs `node scripts/model-catalog-check.ts` (pre-command): it refreshes every list through `apx models --refresh
-   --json` and prints what appeared or left since the last run (kept in `.apc/model-catalog-last.json`), agent and
+   --json` and prints what appeared or left since the last run (kept in `.apx/model-catalog-last.json`), agent and
    router choices their provider no longer lists, and pinned ids missing from their provider's list.
 2. Reads the official model and deprecation pages: [Gemini models](https://ai.google.dev/gemini-api/docs/models),
    [Gemini deprecations](https://ai.google.dev/gemini-api/docs/deprecations),

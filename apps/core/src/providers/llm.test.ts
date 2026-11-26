@@ -476,6 +476,8 @@ test("a usage limit stops the chain with the earliest reset any model gave, what
   assert.match(err.message, /pb\/m3: .*quota/);
   // A plan's "usage_limit_reached" is its quota, not a pause to retry after.
   assert.equal(seen.filter((m) => m === "m1").length, 1);
+  // m2 was only down: the turn may ask the chain again before it waits for the reset.
+  assert.equal(err.passing, true);
 });
 
 test("a model at its usage limit is passed over until its reset, then asked again", async () => {
@@ -517,6 +519,7 @@ test("a model at its usage limit is passed over until its reset, then asked agai
   const alone = await call(["pa/m1"]);
   assert.ok(alone instanceof ProviderError && alone.limit);
   assert.equal(alone.resetsAt, reset);
+  assert.equal(alone.passing, false, "a chain that is only limited waits for the reset");
   assert.equal(seen.length, 3);
   // Past the reset it answers again.
   clock = Date.parse(reset) + 1000;

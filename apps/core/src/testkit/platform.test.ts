@@ -6,6 +6,7 @@ import { test } from "node:test";
 import {
   assertPath,
   autoAdvance,
+  filesUnder,
   manualTimers,
   removeDir,
   scaled,
@@ -92,5 +93,18 @@ test("paths are asserted as the system compares them", () => {
     assert.throws(() => assertPath(undefined, dir.path));
   } finally {
     fs.rmdirSync(dir.path);
+  }
+});
+
+test("files under a core's home leave out SQLite's locked index and keep every other file, nested too", async () => {
+  const dir = tempDir("apx-files-");
+  try {
+    fs.mkdirSync(path.join(dir.path, "apx", "logs"), { recursive: true });
+    for (const f of ["apx/apx.db", "apx/apx.db-wal", "apx/apx.db-shm", "apx/logs/core.log", "secrets.json"])
+      fs.writeFileSync(path.join(dir.path, f), "x");
+    const found = filesUnder(dir.path).map((f) => path.relative(dir.path, f).split(path.sep).join("/"));
+    assert.deepEqual(found.sort(), ["apx/apx.db", "apx/apx.db-wal", "apx/logs/core.log", "secrets.json"]);
+  } finally {
+    await dir.remove();
   }
 });

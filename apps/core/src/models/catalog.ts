@@ -20,6 +20,7 @@ import { NO_KEY } from "../providers/llm.ts";
 import { localModelIds } from "../providers/local-models.ts";
 import type { Secrets } from "../secrets.ts";
 import { EMBED_NAME } from "../services/local-embed.ts";
+import { codexVersion } from "./codex-version.ts";
 import { FREE_ROUTER, starterModel } from "./starter.ts";
 
 const run = promisify(execFile);
@@ -56,7 +57,7 @@ export function cachedCatalog(store: Store, id: string): CatalogEngine | undefin
 // Ids that name models an agent's turn cannot run on (speech, embeddings, images, music, live audio, guards,
 // providers' own agents…); they stay listed but are not offered for agents.
 const NOT_CHAT =
-  /(embed|tts|audio|speech|transcri|whisper|image|imagen|veo|dall-e|moderation|aqa|realtime|lyria|nano-banana|omni|robotics|computer-use|deep-research|antigravity|guard|orpheus|translate|(^|[-/])live([-/]|$)|(^|[/])gemini-decision-\d+(?:[-:]|$)|(^|[/])flux2-klein(?:[-:]|$))/i;
+  /(embed|tts|audio|speech|transcri|whisper|image|imagen|veo|dall-e|moderation|aqa|realtime|lyria|nano-banana|omni|robotics|computer-use|deep-research|antigravity|guard|orpheus|translate|(^|[-/])live([-/]|$)|(^|[/])gemini-decision-\d+(?:[-:]|$)|(^|[/])flux2-klein(?:[-:]|$)|(^|[/])(?:bge-m3|voyage-(?:code-)?4)(?::[^/]+)?$)/i;
 
 const WORLD_MODEL = /(^|[/])genie-4$/i;
 
@@ -192,17 +193,6 @@ async function planModels(base: string, creds: PlanCredentials, fetchImpl: typeo
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return fromCodexList(((await res.json()) as { models?: CodexListed[] }).models);
-}
-
-const KNOWN_CODEX = "0.160.0";
-let codexVersionSeen: string | undefined;
-async function codexVersion(): Promise<string> {
-  if (codexVersionSeen) return codexVersionSeen;
-  const bin = await which("codex");
-  const out = bin ? await run(bin, ["--version"], { timeout: 10_000 }).catch(() => undefined) : undefined;
-  const v = out?.stdout.match(/\d+\.\d+\.\d+/)?.[0];
-  codexVersionSeen = v && v.localeCompare(KNOWN_CODEX, undefined, { numeric: true }) > 0 ? v : KNOWN_CODEX;
-  return codexVersionSeen;
 }
 
 /** Opens a session in an empty folder only to read the models it offers, then closes it. */

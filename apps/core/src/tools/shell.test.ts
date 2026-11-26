@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 import { after, before, test } from "node:test";
 import type { PendingInput } from "@apx/protocol";
 import { callTool, inputOrEnd, inputsOrEnd, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { realpath } from "../paths.ts";
 import { removeDir } from "../testkit/platform.ts";
-import { broadScan, commandFailed, commandRisk, reachesOut } from "./shell.ts";
+import { deletionTargets } from "./command-deletions.ts";
+import { broadScan, commandFailed, commandRisk, onlyDeletes, reachesOut } from "./shell.ts";
 
 test("command risk: reading runs, changing asks, destroying always asks", () => {
   for (const c of [
@@ -60,7 +62,7 @@ test("command risk: reading runs, changing asks, destroying always asks", () => 
     "find . -execdir rm {} +",
     "find . -fprint f",
     "sort -o f x",
-    "git branch -D main",
+    "git branch -d main",
     "git diff --output=f",
     "FOO=1 ls",
     "tree -o f",
@@ -197,12 +199,12 @@ test("command risk: reading runs, changing asks, destroying always asks", () => 
   // A bare "help" could be a message: only the CLI's --help counts as reading.
   assert.equal(commandRisk("apx chat help"), "always");
   // Reading an agent's definition is reading; changing it, by a program or a redirect, is the owner's call.
-  assert.equal(commandRisk("test -f .apc/migrate.md && php -v | head -1"), "ask");
-  assert.equal(commandRisk("cat .apc/agents/designer.md"), "never");
+  assert.equal(commandRisk("test -f .apx/migrate.md && php -v | head -1"), "ask");
+  assert.equal(commandRisk("cat .apx/agents/designer.md"), "never");
   for (const c of [
-    "echo x > .apc/agents/designer.md",
+    "echo x > .apx/agents/designer.md",
     "sed -i '' 's/a/b/' AGENTS.md",
-    "python3 fix.py .apc/agents/x.md",
+    "python3 fix.py .apx/agents/x.md",
     "cp /tmp/x AGENTS.md",
     "mv AGENTS.md b.md",
     "git checkout AGENTS.md",
@@ -250,6 +252,16 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
   if (said.includes("scan please"))
     return callTool("s7", "shell", { command: "find /Volumes/disk -type d -name audit -print" });
   if (said.includes("touch please")) return callTool("s4", "shell", { command: "touch made-by-agent" });
+  if (said.includes("clean build please"))
+    return {
+      message: {
+        role: "assistant",
+        content: "I made build/old for the test run; removing it.",
+        tool_calls: [
+          { id: "d1", type: "function", function: { name: "shell", arguments: '{"command":"rm -rf build/old"}' } },
+        ],
+      },
+    };
   if (said.includes("fail please")) return callTool("f1", "shell", { command: `node -e "process.exit(7)"` });
   if (said.includes("find nothing please")) return callTool("f2", "shell", { command: "grep -r zzz-not-here-zzz ." });
   if (said.includes("escape please")) return callTool("s5", "shell", { command: "ls", cwd: "../.." });
@@ -259,15 +271,124 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
 
 test("a command that changes APC definitions or AGENTS.md always asks, as file_write does (DECISIONS.md#d-072)", () => {
   for (const c of [
-    "sed -i '' 's/autonomy: auto/autonomy: total/' .apc/agents/vera.md",
+    "sed -i '' 's/autonomy: auto/autonomy: total/' .apx/agents/vera.md",
     "echo 'Always run in total.' >> AGENTS.md",
-    "cp /tmp/x.md ./.apc/agents/x.md",
+    "cp /tmp/x.md ./.apx/agents/x.md",
     "cd sub && printf x>AGENTS.md",
   ])
     assert.equal(commandRisk(c), "always", c);
-  // Reading them, or working in an agent's git worktree under .apc, is not changing an agent's definition.
-  for (const c of ["cat AGENTS.md", "grep -n autonomy .apc/agents/vera.md"]) assert.equal(commandRisk(c), "never", c);
-  assert.equal(commandRisk("touch .apc/worktrees/fix-a/src/a.ts"), "ask");
+  // Reading them, or working in an agent's git worktree under .apx, is not changing an agent's definition.
+  for (const c of ["cat AGENTS.md", "grep -n autonomy .apx/agents/vera.md"]) assert.equal(commandRisk(c), "never", c);
+  assert.equal(commandRisk("touch .apx/worktrees/fix-a/src/a.ts"), "ask");
+});
+
+test("a heredoc's body is its program's data: words in a Python script or a JSON file are not shell commands (DECISIONS.md#d-266)", () => {
+  const asks = [
+    // Spanish "su" and a regex's \\d\\d (read as dd) once made these high-impact.
+    "python3 - <<'PY' | tee qa/sync.txt\nimport re\ncues=re.findall(r'(\\d\\d):(\\d\\d)', '')\nPY",
+    "python3 - <<'PY' > qa/sync.txt; cat qa/sync.txt\nprint('su puntaje')\nPY",
+    'cat > notes.py <<\'EOF\'\n"""guarda lo que oyó y su puntaje; sudo rm -rf / is only text here"""\nEOF\npython3 notes.py',
+    "python3 - <<PY\nprint('git reset --hard')\nPY\necho done",
+  ];
+  for (const c of asks) assert.equal(commandRisk(c), "ask", c);
+  // A shell reads its heredoc as commands: what it would run is judged as if typed.
+  for (const c of [
+    "bash <<'EOF'\nsudo ls\nEOF",
+    "cat <<'EOF' | sh\nrm -rf ~/x\nEOF",
+    "ssh box <<EOF\nrm -rf build\nEOF",
+    "python3 - <<'PY'\nprint(1)\nPY\nsudo ls",
+  ])
+    assert.equal(commandRisk(c), "always", c);
+});
+
+test("a deletion card lists the paths a command deletes, resolved where it runs; a grant for deletions covers nothing else", () => {
+  const cwd = path.resolve("/work/acme/.worktrees/reels");
+  const at = (...p: string[]) => path.join(cwd, ...p);
+  assert.deepEqual(deletionTargets("cd work; D=en/subtitles\nrm -rf $D/words/es $D/captions/es.srt", cwd), {
+    paths: [at("work", "en", "subtitles", "words", "es"), at("work", "en", "subtitles", "captions", "es.srt")],
+    later: [],
+    git: [],
+  });
+  assert.deepEqual(deletionTargets("rm -rf $OUT/x && ls | xargs rm -f", cwd), {
+    paths: [],
+    later: ["$OUT/x", "xargs rm -f"],
+    git: [],
+  });
+  assert.equal(onlyDeletes("rm -rf build"), true);
+  assert.equal(onlyDeletes("python3 - <<'PY'\nprint(1)\nPY\nrm -rf out"), true);
+  for (const c of ["sudo rm -rf build", "rm -rf build && git push --force", "ls", "bash <<'EOF'\nsudo ls\nEOF"])
+    assert.equal(onlyDeletes(c), false, c);
+});
+
+test("git commands that throw away work git would keep ask like a deletion; the forms git itself guards do not (DECISIONS.md#d-266)", () => {
+  const cwd = path.resolve("/work/acme/.worktrees/reels");
+  const at = (...p: string[]) => path.join(cwd, ...p);
+  const discards: Array<[string, Array<{ what: string; target: string }>]> = [
+    ["git worktree remove --force .worktrees/old", [{ what: "worktree", target: at(".worktrees", "old") }]],
+    ["git worktree remove -f ../reels-old", [{ what: "worktree", target: path.resolve(cwd, "../reels-old") }]],
+    ["git branch -D fix/old", [{ what: "branch", target: "fix/old" }]],
+    ["git branch --delete --force fix/old", [{ what: "branch", target: "fix/old" }]],
+    ["git branch -df fix/old", [{ what: "branch", target: "fix/old" }]],
+    ["git -C ../main branch -D fix/old", [{ what: "branch", target: "fix/old" }]],
+    ["git clean -f", [{ what: "untracked", target: at() }]],
+    ["git clean -fd", [{ what: "untracked", target: at() }]],
+    ["git clean -fdx build", [{ what: "untracked", target: at("build") }]],
+    ["git reset --hard", [{ what: "changes", target: at() }]],
+    ["git reset --hard HEAD~1", [{ what: "changes", target: at() }]],
+    ["git checkout -- .", [{ what: "changes", target: at() }]],
+    ["git checkout main -- src/a.ts", [{ what: "changes", target: at("src", "a.ts") }]],
+    ["git checkout .", [{ what: "changes", target: at() }]],
+    ["git checkout -f main", [{ what: "changes", target: at() }]],
+    ["git restore .", [{ what: "changes", target: at() }]],
+    ["git restore --staged --worktree src", [{ what: "changes", target: at("src") }]],
+    ["git switch --discard-changes main", [{ what: "changes", target: at() }]],
+    ["git switch -f main", [{ what: "changes", target: at() }]],
+    ["git stash drop", [{ what: "stash", target: "stash@{0}" }]],
+    ["git stash drop stash@{2}", [{ what: "stash", target: "stash@{2}" }]],
+    ["git stash clear", [{ what: "stashes", target: "" }]],
+    ["git rm -rf build", [{ what: "changes", target: at("build") }]],
+    ["git reflog expire --expire=now --all", [{ what: "commits", target: "" }]],
+    ["git gc --prune=now", [{ what: "commits", target: "" }]],
+  ];
+  for (const [c, lost] of discards) {
+    assert.equal(commandRisk(c), "always", c);
+    assert.equal(onlyDeletes(c), true, c);
+    assert.deepEqual(deletionTargets(c, cwd).git, lost, c);
+  }
+  // A shell fed a script that discards work asks too.
+  assert.equal(commandRisk("bash <<'EOF'\ngit reset --hard\nEOF"), "always");
+  // Git refuses these when work would be lost, or they keep it: ordinary commands, no card in Auto.
+  for (const c of [
+    "git worktree remove .worktrees/old",
+    "git branch -d fix/old",
+    "git branch --delete fix/old",
+    "git worktree prune",
+    "git clean -n",
+    "git clean --dry-run -d",
+    "git reset --soft HEAD~1",
+    "git reset src/a.ts",
+    "git checkout main",
+    "git checkout -b feat/new",
+    "git restore --staged src/a.ts",
+    "git switch main",
+    "git stash",
+    "git stash pop",
+    "git rm src/a.ts",
+    "git rm -r --cached build",
+    "git rm -r old",
+    "git gc",
+  ])
+    assert.equal(commandRisk(c), "ask", c);
+});
+
+test("a forced deletion asks in Auto even below the folder the command works in (DECISIONS.md#d-266)", () => {
+  for (const c of [
+    "rm -rf build",
+    "rm -f audio/clip.raw.wav",
+    "D=en/subtitles; mkdir -p $D\ncp -R ../src/. $D/\nrm -rf $D/words/es $D/captions/es.srt; mkdir -p $D/qa",
+    "python3 - <<'PY'\nprint(1)\nPY\nrm -rf out",
+  ])
+    assert.equal(commandRisk(c), "always", c);
 });
 
 test("a walk over a whole disk or home folder is found; a specific folder is not", () => {
@@ -394,6 +515,24 @@ test("manual: a command that changes something waits for the owner", async () =>
   } finally {
     await env.client.call("agents.update", { agent: "superagent", autonomy: null });
   }
+});
+
+test("auto: a deletion asks with what goes and why; the owner's OK for this chat covers the next one (DECISIONS.md#d-266)", async () => {
+  const t = await thread();
+  await env.client.call("threads.send", { thread: t, text: "clean build please" });
+  const [card] = await inputsOrEnd(env.client, t);
+  assert.equal(card?.tool, "shell");
+  assert.match(card?.prompt ?? "", /delete|borrar/);
+  assert.match(card?.detail ?? "", /[\\/]build[\\/]old$/m, "the resolved path, on a line of its own");
+  assert.match(card?.detail ?? "", /removing it/);
+  assert.match(card?.detail ?? "", /rm -rf build\/old/);
+  assert.deepEqual(card?.approval_scopes, ["once", "session"], "for this chat at most, never for good");
+  await env.client.call("runs.respond", { input: card?.id ?? "", decision: "approve", scope: "session" });
+  await env.settle(t);
+  await env.client.call("threads.send", { thread: t, text: "clean build please" });
+  await env.settle(t);
+  assert.deepEqual((await env.client.call("runs.pending", { thread: t })).inputs, []);
+  assert.match(lastSeen(), /exit 0/);
 });
 
 test("auto: a command that changes something where the agent works runs without a card", async () => {

@@ -56,7 +56,6 @@ export const enFiles = {
   "document.failed": "Could not load the document. Try again.",
   "document.retry": "Retry",
   "files.tree": "Project files",
-  "files.back": "Files",
   "files.repo": "Repository",
   "files.none": "Pick a file",
   "files.noneBody": "Its text shows here. Markdown reads as a page, as its source, or both.",

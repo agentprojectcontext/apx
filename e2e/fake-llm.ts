@@ -1,12 +1,13 @@
 // An OpenAI-compatible model on localhost: it answers at once and always the same way, so a test can read the reply
 // ("Got it: <the last line you wrote>"). Streams like a real one when asked. It calls two tools: "start a worker"
 // delegates to a worker, which answers with a long report ("start two workers" delegates twice in one turn, "start a
-// worker in <project id>" into that project, "start four slow workers" four at once, held until the test releases them,
-// so one waits for a slot; "ask three staggered workers" three at once that answer a few seconds apart, so their answers wait
+// worker in <project id>" into that project, "start four slow workers" four at once, each taking a few seconds, so one
+// waits for a slot; "ask three staggered workers" three at once that answer a few seconds apart, so their answers wait
 // for each other; "start a worker and keep going" hands one off and takes a while to answer, so the worker's result
 // waits behind that turn); "write an email" answers with an email draft; "make a note file" runs a command that
 // needs the owner's OK; "look around the parent folder" reads outside the project's folder (a folder card); "show a
-// widget" makes one; "open a report" writes one and opens it as a document; "show a table for task_…" answers with a wide table whose last
+// widget" makes one; "open a report" writes one and opens it as a document; "write a scratch note" writes one in the
+// chat's temp folder; "show a table for task_…" answers with a wide table whose last
 // column holds that task's chip; "connect <app> for me" offers that app or channel to connect; "draw a flow in
 // <project id>" makes a Flow there with apx_flow (a draft the chat shows as a card); asked from a Flow's editor,
 // "add a cleanup step" adds one to that Flow's draft and "make this flow" makes the new one in its project. It also
@@ -14,6 +15,7 @@
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { fakeDiscoveryReply } from "./fake-contextual-research.ts";
+import { reviewTool } from "./review-tool.test-support.ts";
 
 /** A landing longer than a window: a full-height hero, two tall bands and a footer at the end. */
 export const LONG_PAGE = `<!doctype html><html><head><meta name="viewport" content="width=device-width"><style>
@@ -33,7 +35,7 @@ function lastWords(messages: Message[]): string {
       : Array.isArray(last?.content)
         ? last.content.map((p) => (p as { text?: string }).text ?? "").join("\n")
         : "";
-  const lines = text
+  const lines = (text.split("\n\n[context the owner added]")[0] ?? "")
     .split("\n")
     .map((l) => l.trim())
     .filter((l) => l && !l.startsWith("[") && !l.startsWith("<") && !l.startsWith("(This is"));
@@ -126,6 +128,8 @@ function reviewTable(said: string): string | undefined {
   ].join("\n");
 }
 
+/** How long a slow worker takes to answer. */
+const SLOW_MS = 2500;
 /** How long a caller that handed work off keeps its turn going ("start a worker and keep going"). */
 const KEEP_GOING_MS = 10_000;
 const KEEP_GOING = /^start a worker and keep going/i;
@@ -174,6 +178,8 @@ function signIn(messages: Message[], said: string): { name: string; arguments: s
 
 /** A tool call to make instead of answering, if the conversation asks for one. */
 function toolCall(messages: Message[], said: string): { name: string; arguments: string } | undefined {
+  const review = reviewTool(messages, said);
+  if (review || said.startsWith("review my profile note")) return review;
   const signing = signIn(messages, said);
   if (signing || /^sign in to /i.test(said)) return signing;
   if (/^evaluate browser three times/i.test(said)) {
@@ -207,6 +213,14 @@ function toolCall(messages: Message[], said: string): { name: string; arguments:
     if (done === 1)
       return { name: "open_document", arguments: JSON.stringify({ path: "notes/report.md", title: "Quarter report" }) };
     return undefined;
+  }
+  // A note written in the chat's temp folder, which the system prompt names.
+  if (/^write a scratch note/i.test(said)) {
+    const temp = /your temp folder, (.+?), never/.exec(textOf(messages.find((m) => m.role === "system")))?.[1];
+    const sinceOwner = messages.slice(messages.findLastIndex((m) => m.role === "user"));
+    return temp && !sinceOwner.some((m) => m.role === "tool")
+      ? { name: "file_write", arguments: JSON.stringify({ path: `${temp}/note.md`, content: "# Scratch note\n" }) }
+      : undefined;
   }
   const worker = { name: "Researcher", instructions: "Check every source and list it." };
   const delegate = { name: "delegate", arguments: JSON.stringify({ worker, task: "check the sources" }) };
@@ -387,79 +401,26 @@ function toolCall(messages: Message[], said: string): { name: string; arguments:
   return /^start a worker/i.test(said) ? delegate : undefined;
 }
 
-function answerText(
-  res: http.ServerResponse,
-  stream: boolean | undefined,
-  text: string,
-  said: string,
-  usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number },
-  slowAnswers: Set<() => void>,
-) {
-  if (!stream) {
-    res.writeHead(200, { "content-type": "application/json" });
-    return res.end(
-      JSON.stringify({
-        id: "fake",
-        choices: [{ index: 0, message: { role: "assistant", content: text }, finish_reason: "stop" }],
-        usage,
-      }),
-    );
-  }
-  res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" });
-  const send = (o: unknown) => res.write(`data: ${JSON.stringify(o)}\n\n`);
-  const chunks = text.match(/[\s\S]{1,12}/g) ?? [text];
-  const end = () => {
-    send({ id: "fake", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] });
-    send({ id: "fake", choices: [], usage });
-    res.end("data: [DONE]\n\n");
-  };
-  // "think first": a reasoning model's thinking, said aloud a piece at a time, then the answer.
-  if (/^think first/i.test(said)) {
-    const thoughts = ["**Reading the ask**\n\nThe owner wants a plan. ", "**Checking the dates**\n\nLaunch is close."];
-    const next = (i: number) => {
-      if (res.writableEnded) return;
-      if (i < thoughts.length) {
-        send({
-          id: "fake",
-          choices: [{ index: 0, delta: { reasoning_content: thoughts[i] }, finish_reason: null }],
-        });
-        return void setTimeout(() => next(i + 1), 1200);
-      }
-      for (const part of chunks)
-        send({ id: "fake", choices: [{ index: 0, delta: { content: part }, finish_reason: null }] });
-      end();
-    };
-    return next(0);
-  }
-  // The browser acknowledges seeing the partial answer before the model sends its final words.
-  if (/^write slowly/i.test(said)) {
-    send({ id: "fake", choices: [{ index: 0, delta: { content: text.slice(0, -5) }, finish_reason: null }] });
-    const finish = () => {
-      slowAnswers.delete(finish);
-      if (res.writableEnded || res.destroyed) return;
-      send({ id: "fake", choices: [{ index: 0, delta: { content: "Done." }, finish_reason: null }] });
-      end();
-    };
-    slowAnswers.add(finish);
-    res.on("close", () => slowAnswers.delete(finish));
-    return;
-  }
-  for (const part of chunks)
-    send({ id: "fake", choices: [{ index: 0, delta: { content: part }, finish_reason: null }] });
-  end();
-}
-
 export async function fakeLlm() {
   const calls: Array<{ model: string; said: string }> = [];
+  let holdWorkers = false;
+  const workerAnswers = new Set<() => void>();
+  const workerGate = (hold: boolean) => {
+    holdWorkers = hold;
+    if (!hold) {
+      for (const answer of workerAnswers) answer();
+      workerAnswers.clear();
+    }
+  };
+  const streamGates = new Map<string, (() => void) | undefined>();
+  const streamGate = (text: string, action: "hold" | "next" | "clear") => {
+    const next = streamGates.get(text);
+    if (action === "clear") streamGates.delete(text);
+    else streamGates.set(text, undefined);
+    if (action !== "hold") next?.();
+  };
   /** Every request's body as sent: what a test looks for in what reached the model. */
   const bodies: string[] = [];
-  const slowAnswers = new Set<() => void>();
-  const slowWorkers = new Set<() => void>();
-  let workersHeld = false;
-  const holdWorkers = (hold: boolean) => {
-    workersHeld = hold;
-    if (!hold) for (const finish of slowWorkers) finish();
-  };
   const server = http.createServer((req, res) => {
     let raw = "";
     req.on("data", (c) => {
@@ -550,20 +511,83 @@ export async function fakeLlm() {
         res.write(`data: ${JSON.stringify({ id: "fake", choices: [], usage })}\n\n`);
         return res.end("data: [DONE]\n\n");
       }
-      const answer = () => answerText(res, body.stream, text, said, usage, slowAnswers);
+      const answer = () => {
+        if (!body.stream) {
+          res.writeHead(200, { "content-type": "application/json" });
+          return res.end(
+            JSON.stringify({
+              id: "fake",
+              choices: [{ index: 0, message: { role: "assistant", content: text }, finish_reason: "stop" }],
+              usage,
+            }),
+          );
+        }
+        res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" });
+        const send = (o: unknown) => res.write(`data: ${JSON.stringify(o)}\n\n`);
+        const chunks = text.match(/[\s\S]{1,12}/g) ?? [text];
+        const end = () => {
+          send({ id: "fake", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] });
+          send({ id: "fake", choices: [], usage });
+          res.end("data: [DONE]\n\n");
+        };
+        // "think first": a reasoning model's thinking, said aloud a piece at a time, then the answer.
+        if (/^think first/i.test(said)) {
+          const thoughts = [
+            "**Reading the ask**\n\nThe owner wants a plan. ",
+            "**Checking the dates**\n\nLaunch is close.",
+          ];
+          const next = (i: number) => {
+            if (res.writableEnded) return;
+            if (i < thoughts.length) {
+              send({
+                id: "fake",
+                choices: [{ index: 0, delta: { reasoning_content: thoughts[i] }, finish_reason: null }],
+              });
+              if (streamGates.has(said)) streamGates.set(said, () => next(i + 1));
+              else setTimeout(() => next(i + 1), 1200);
+              return;
+            }
+            for (const part of chunks)
+              send({ id: "fake", choices: [{ index: 0, delta: { content: part }, finish_reason: null }] });
+            end();
+          };
+          return next(0);
+        }
+        // A held stream advances only after the browser has observed its partial answer.
+        if (/^write slowly/i.test(said) && streamGates.has(said)) {
+          send({ id: "fake", choices: [{ index: 0, delta: { content: text.slice(0, -5) }, finish_reason: null }] });
+          streamGates.set(said, () => {
+            send({ id: "fake", choices: [{ index: 0, delta: { content: text.slice(-5) }, finish_reason: null }] });
+            end();
+          });
+          return;
+        }
+        // "write slowly": a piece every 150 ms for callers that do not hold the stream.
+        if (/^write slowly/i.test(said)) {
+          const next = (i: number) => {
+            if (res.writableEnded) return;
+            if (i >= chunks.length) return end();
+            send({ id: "fake", choices: [{ index: 0, delta: { content: chunks[i] }, finish_reason: null }] });
+            setTimeout(() => next(i + 1), 150);
+          };
+          return next(0);
+        }
+        for (const part of chunks)
+          send({ id: "fake", choices: [{ index: 0, delta: { content: part }, finish_reason: null }] });
+        end();
+      };
       const keepGoing = KEEP_GOING.test(said) && body.messages?.at(-1)?.role === "tool";
       const long = system.startsWith("Take your time");
-      if (slow && workersHeld) {
-        const finish = () => {
-          slowWorkers.delete(finish);
-          if (!res.writableEnded && !res.destroyed) answer();
-        };
-        slowWorkers.add(finish);
-        res.on("close", () => slowWorkers.delete(finish));
-      } else if (staggered || keepGoing || long) {
+      if (slow && holdWorkers) {
+        workerAnswers.add(answer);
+        res.on("close", () => workerAnswers.delete(answer));
+      } else if (slow || staggered || keepGoing || long) {
         const asked = JSON.stringify(body.messages?.findLast((m) => m.role === "user")?.content);
         const part = Number(/check part (\d)/.exec(asked)?.[1] ?? 1);
-        const timer = setTimeout(answer, long ? LONG_MS : staggered ? part * STAGGER_MS : KEEP_GOING_MS);
+        const timer = setTimeout(
+          answer,
+          long ? LONG_MS : slow ? SLOW_MS : staggered ? part * STAGGER_MS : KEEP_GOING_MS,
+        );
         // A caller that gave up (a stopped Flow run) leaves nothing to answer.
         res.on("close", () => clearTimeout(timer));
       } else answer();
@@ -573,16 +597,10 @@ export async function fakeLlm() {
   return {
     url: `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`,
     calls,
-    holdWorkers,
-    finishSlowAnswers: () => {
-      for (const finish of slowAnswers) finish();
-    },
+    streamGate,
+    workerGate,
     /** Whether any request so far carried this text. */
     carried: (text: string) => bodies.some((b) => b.includes(text)),
-    close: () => {
-      holdWorkers(false);
-      for (const finish of slowAnswers) finish();
-      return new Promise<void>((r) => server.close(() => r()));
-    },
+    close: () => new Promise<void>((r) => server.close(() => r())),
   };
 }

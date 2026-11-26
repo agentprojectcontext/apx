@@ -49,7 +49,12 @@ const GROUPS: Record<string, (name: string) => boolean> = {
   browser: (n) => n.startsWith("browser_"),
   widgets: (n) => n.endsWith("_widget"),
   agents: (n) =>
-    n === "list_agents" || n === "delegate" || n === "grant_tool" || n === "agent_set" || n === "start_session",
+    n === "list_agents" ||
+    n === "delegate" ||
+    n === "workflow" ||
+    n === "grant_tool" ||
+    n === "agent_set" ||
+    n === "start_session",
   shell: (n) => n.startsWith("shell"),
   files: (n) => n.startsWith("file_") || n === "send_file" || n === "open_document",
   mcp: (n) => n.startsWith("mcp_") || BRIDGE.has(n),
@@ -80,8 +85,8 @@ export function toolCatalog(
 }
 
 /**
- * The agent's `tools:` list as a filter. A list that names nothing APX knows (a file written for another tool) is
- * not a restriction: an agent left with no tools at all would be a silent break.
+ * What an agent may use at all: its rules and the super-agent's own tools decide, not its `tools:` list, which only
+ * says what it uses first (`focusOf`; DECISIONS.md#d-271).
  */
 export function allowedTools(agent: AgentRecord, tools: Tool[]): Tool[] {
   const allows = toolFilter(agent, tools);
@@ -89,11 +94,11 @@ export function allowedTools(agent: AgentRecord, tools: Tool[]): Tool[] {
 }
 
 /**
- * The same filter as a test on names, decided on `tools` and kept for tools that join later (MCP's, found by
- * tool_search). MCP's two bridge tools count as naming MCP: a list of MCP tools alone still restricts.
+ * The same as a test on names, decided on `tools` and kept for tools that join later (MCP's, found by tool_search).
+ * `walled`: the `tools:` list keeps out what it does not name, for a turn that does not work for the owner.
  */
-function toolFilter(agent: AgentRecord, tools: Tool[]): (name: string) => boolean {
-  const listed = byList(agent, tools);
+function toolFilter(agent: AgentRecord, tools: Tool[], walled = false): (name: string) => boolean {
+  const listed = walled ? byList(agent, tools) : () => true;
   // A risk its rules turn off takes its tools out of the turn; what every agent keeps stays.
   const off = new Set(
     tools.filter((t) => !ALWAYS.has(t.name) && agent.rules?.[toolRisk(t)] === "off").map((t) => t.name),
@@ -102,12 +107,21 @@ function toolFilter(agent: AgentRecord, tools: Tool[]): (name: string) => boolea
   return (name) => (agent.kind === "secretary" || !SUPER_AGENT_TOOLS.has(name)) && !off.has(name) && listed(name);
 }
 
+/**
+ * The tools an agent's `tools:` list names (with the bridge and what every agent keeps): sent in its turns, the rest
+ * found with tool_search. A list that names nothing APX knows (a file written for another tool) is no focus: all sent.
+ */
+function focusOf(agent: AgentRecord, tools: Tool[]): (name: string) => boolean {
+  const listed = byList(agent, tools);
+  return (name) => BRIDGE.has(name) || listed(name);
+}
+
 function byList(agent: AgentRecord, tools: Tool[]): (name: string) => boolean {
   const wanted = agent.tools?.map((t) => t.trim().toLowerCase()).filter(Boolean) ?? [];
   if (!wanted.length) return () => true;
   const bridge = (name: string) => BRIDGE.has(name) && wanted.some((w) => w === "mcp" || w.startsWith("mcp_"));
   const match = (name: string) => wanted.some((w) => w === name || GROUPS[w]?.(name)) || bridge(name);
-  if (!tools.some((t) => !ALWAYS.has(t.name) && match(t.name))) return () => true;
+  if (!tools.some((t) => !ALWAYS.has(t.name) && match(t.name)) && ![...BRIDGE].some(match)) return () => true;
   return (name) => ALWAYS.has(name) || match(name);
 }
 
@@ -154,7 +168,7 @@ export const keepsCard = (tool: Tool, args: Record<string, unknown>, agent: Agen
 
 const URL_DATA = "the URL carries data, and content from outside (web, another agent or a message) is in this turn";
 
-const PLAN_KEEPS = new Set([...ALWAYS, "delegate", "list_agents", "list_sessions"]);
+const PLAN_KEEPS = new Set([...ALWAYS, "delegate", "workflow", "list_agents", "list_sessions"]);
 
 const OUTSIDE = "content from outside (web, another agent or a message) is in this turn";
 
@@ -250,17 +264,25 @@ export function withProjectAutonomy(store: Store, agent: AgentRecord): AgentReco
 /**
  * A delegated run works in its caller's mode, not its own (DECISIONS.md#d-106): the owner's agents act for the owner,
  * so a helper asked by an agent on total does not stop for what its caller would not. Down the chain from the top,
- * each keeps its own rules over the mode it gets, and a rule turning a risk off anywhere above stays off. Tools are
- * the ones every agent up the chain may use.
+ * each keeps its own rules over the mode it gets, and a rule turning a risk off anywhere above stays off. `focus`: the
+ * agent's own list, sent first; callers' lists never narrow it (DECISIONS.md#d-271). `walled`, for a turn that does
+ * not work for the owner: every list up the chain keeps out what it does not name.
  */
 export function inherit(
   agent: AgentRecord,
   callers: AgentRecord[],
   tools: Tool[],
-): { agent: AgentRecord; tools: Tool[]; allows: (name: string) => boolean } {
-  const filters = [agent, ...callers].map((a) => toolFilter(a, tools));
+  walled = false,
+): {
+  agent: AgentRecord;
+  tools: Tool[];
+  allows: (name: string) => boolean;
+  focus: (name: string) => boolean;
+} {
+  const filters = [agent, ...callers].map((a) => toolFilter(a, tools, walled));
   const allows = (name: string) => filters.every((f) => f(name));
-  return { agent: actingAs(agent, callers), tools: tools.filter((t) => allows(t.name)), allows };
+  const focus = walled ? () => true : focusOf(agent, tools);
+  return { agent: actingAs(agent, callers), tools: tools.filter((t) => allows(t.name)), allows, focus };
 }
 
 /** The agent with the mode and rules it acts with under its callers (nearest first), as `inherit` gives it. */

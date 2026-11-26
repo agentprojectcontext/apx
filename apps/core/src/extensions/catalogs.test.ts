@@ -545,10 +545,58 @@ test("an added catalog lists what it may, leaves out what it may not (license, u
   assert.equal(notes?.provenance, "third_party");
   assert.equal(notes?.license, "MIT");
   assert.equal(notes?.version, "0.4.0");
-  // Who makes each: the catalog's owner for one kept in its repository; the GitHub account of one kept elsewhere.
-  assert.equal(notes?.publisher, "Acme");
+  // Owning the catalog does not declare authorship of a plugin it contains.
+  assert.equal(notes?.publisher, undefined);
   const pinned = entries.find((e) => e.id === "pinned");
   assert.deepEqual([pinned?.publisher, pinned?.github], [undefined, "acme"]);
+});
+
+test("a plugin's declared creator is independent of the catalog's owner", async () => {
+  const folder = tempDir("catalog-authorship-");
+  let id: string | undefined;
+  put(folder.path, {
+    ".claude-plugin/marketplace.json": JSON.stringify({
+      name: "Acme catalog",
+      owner: { name: "Acme" },
+      plugins: [
+        { name: "declared", source: "./plugin", author: { name: "Northwind" } },
+        { name: "unknown", source: "./plugin" },
+      ],
+    }),
+    "plugin/.claude-plugin/plugin.json": JSON.stringify({ name: "plugin", license: "MIT" }),
+    "plugin/skills/work/SKILL.md": "---\nname: work\ndescription: Work.\n---\nWork.\n",
+  });
+  try {
+    const added = await env.client.call("extensions.catalog_add", { source: folder.path });
+    id = added.id;
+    const { entries } = await env.client.call("extensions.catalog", {});
+    const local = entries.filter((e) => e.catalog === id);
+    assert.equal(local.find((e) => e.name === "declared")?.publisher, "Northwind");
+    assert.equal(local.find((e) => e.name === "unknown")?.publisher, undefined);
+    assert.equal(local.find((e) => e.name === "unknown")?.github, undefined);
+    const saved = env.core.store.extensionCatalogs.get(id);
+    assert.ok(saved);
+    env.core.store.extensionCatalogs.put({
+      ...saved,
+      entries: saved.entries.map((e) => ({
+        ...e,
+        publisher: "Acme",
+        publisher_source: undefined,
+      })),
+    });
+    const cached = (await env.client.call("extensions.catalog", {})).entries.filter((e) => e.catalog === id);
+    assert.ok(
+      cached.every((e) => e.publisher === undefined),
+      "an unsourced cached name is not an author",
+    );
+    await env.client.call("extensions.catalog_sync", { id });
+    const refreshed = (await env.client.call("extensions.catalog", {})).entries.filter((e) => e.catalog === id);
+    assert.equal(refreshed.find((e) => e.name === "declared")?.publisher, "Northwind");
+    assert.equal(refreshed.find((e) => e.name === "unknown")?.publisher, undefined);
+  } finally {
+    if (id) await env.client.call("extensions.catalog_remove", { id });
+    await folder.remove();
+  }
 });
 
 test("an added catalog's entry is filed in APX's category and says what it brings before it is added", async () => {

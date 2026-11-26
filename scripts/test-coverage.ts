@@ -198,6 +198,9 @@ export const AREA_FILES = 160;
 /** How long one area (or part of one) may run: a slow runner gets room, a hung test still ends the run. */
 const AREA_MS = 10 * 60_000;
 
+/** Test files the unit part runs at once when it shares the machine with panel parts (`--together`). */
+const TOGETHER_CONCURRENCY = 12;
+
 export type UnitArea = { name: string; dir: string; files: string[] };
 
 /**
@@ -221,10 +224,9 @@ export function unitAreas(files: readonly string[], max = AREA_FILES): UnitArea[
   });
 }
 
-/** The unit suites, area by area, then the mobile app's own; their coverage lands in `raw` and `nativeOutput`. */
-function runUnitSuites(root: string, raw: string, nativeOutput: string, snapshot: (directory: string) => void) {
-  const failedAreas: string[] = [];
-  const allTests = testFiles(root).filter(
+/** The Node unit test files the unit part runs (absolute): every package's own, so verify need not run them again. */
+export function unitTestFiles(root: string): string[] {
+  return testFiles(root).filter(
     (file) =>
       file.includes(".test.") &&
       !file.startsWith(path.join(root, "e2e")) &&
@@ -234,30 +236,47 @@ function runUnitSuites(root: string, raw: string, nativeOutput: string, snapshot
       // The extension's tests run through its own runner, which hides the agent CLIs this computer has.
       !file.startsWith(path.join(root, "apps/chrome-extension")),
   );
+}
+
+/** The unit suites, area by area, then the mobile app's own; their coverage lands in `raw` and `nativeOutput`. */
+function runUnitSuites(
+  root: string,
+  raw: string,
+  nativeOutput: string,
+  snapshot: (directory: string) => void,
+  prebuilt: boolean,
+) {
+  const failedAreas: string[] = [];
+  const allTests = unitTestFiles(root);
   // UI tests consume the public build, including JSX and the design-system export boundary.
-  const build = spawnSync(process.execPath, ["scripts/build.mjs"], {
-    cwd: path.join(root, "packages/ui"),
-    stdio: "inherit",
-  });
-  if (build.status !== 0) failedAreas.push("packages/ui build");
+  if (!prebuilt) {
+    const build = spawnSync(process.execPath, ["scripts/build.mjs"], {
+      cwd: path.join(root, "packages/ui"),
+      stdio: "inherit",
+    });
+    if (build.status !== 0) failedAreas.push("packages/ui build");
+  }
   snapshot(path.join(root, "packages/ui/dist"));
   // The Worker's tests run the module it uploads, with the public viewer embedded: `pnpm test` there builds it first.
-  const worker = spawnSync(
-    process.platform === "win32" ? "pnpm.cmd" : "pnpm",
-    ["--filter", "@apx/artifact-worker", "build"],
-    {
-      cwd: root,
-      stdio: "inherit",
-      shell: process.platform === "win32",
-    },
-  );
-  if (worker.status !== 0) failedAreas.push("apps/artifact-worker build");
+  if (!prebuilt) {
+    const worker = spawnSync(
+      process.platform === "win32" ? "pnpm.cmd" : "pnpm",
+      ["--filter", "@apx/artifact-worker", "build"],
+      { cwd: root, stdio: "inherit", shell: process.platform === "win32" },
+    );
+    if (worker.status !== 0) failedAreas.push("apps/artifact-worker build");
+  }
   for (const area of unitAreas(allTests.map((file) => path.relative(root, file)))) {
     console.log(`\nCoverage: ${area.name} (${area.files.length} files)`);
     const cwd = area.dir === "scripts" ? root : path.join(root, area.dir);
     const run = spawnSync(
       process.execPath,
-      ["--test", ...area.files.map((file) => path.relative(cwd, path.join(root, file)))],
+      [
+        "--test",
+        // Beside panel parts (coverage-parallel.ts) all-core concurrency starves their browsers and sandbox cores.
+        ...(prebuilt ? [`--test-concurrency=${TOGETHER_CONCURRENCY}`] : []),
+        ...area.files.map((file) => path.relative(cwd, path.join(root, file))),
+      ],
       {
         cwd,
         env: { ...process.env, NODE_V8_COVERAGE: raw, APX_UI_TEST_COVERAGE_DIR: raw },
@@ -275,12 +294,14 @@ function runUnitSuites(root: string, raw: string, nativeOutput: string, snapshot
     else if (run.error) console.error(run.error.message);
   }
   // The extension's tests open the built panel in Chrome: a part that builds nothing else builds it first.
-  const panel = spawnSync(process.platform === "win32" ? "pnpm.cmd" : "pnpm", ["build:web"], {
-    cwd: root,
-    stdio: "inherit",
-    shell: process.platform === "win32",
-  });
-  if (panel.status !== 0) failedAreas.push("apps/web build");
+  if (!prebuilt) {
+    const panel = spawnSync(process.platform === "win32" ? "pnpm.cmd" : "pnpm", ["build:web"], {
+      cwd: root,
+      stdio: "inherit",
+      shell: process.platform === "win32",
+    });
+    if (panel.status !== 0) failedAreas.push("apps/web build");
+  }
   const extension = spawnSync(process.execPath, ["apps/chrome-extension/run-tests.ts"], {
     cwd: root,
     env: { ...process.env, NODE_V8_COVERAGE: raw },
@@ -442,10 +463,15 @@ async function main() {
     for (const map of snapshotSourceMaps(directory)) sourceMaps.set(map.url, map);
     fs.writeFileSync(path.join(output, "source-maps.json"), JSON.stringify([...sourceMaps.values()]));
   };
+  // `--together`: this part runs beside the others on one machine (scripts/coverage-parallel.ts), which built first.
+  const together = process.argv.includes("--together");
   let failed = false;
-  if (part.unit) failed = runUnitSuites(root, raw, path.join(output, "mobile"), snapshot) || failed;
-  if (part.web || part.desktop)
-    failed = (await runE2ESuites(part, { root, raw, snapshot, ports: sandboxPorts })) || failed;
+  if (part.unit) failed = runUnitSuites(root, raw, path.join(output, "mobile"), snapshot, together) || failed;
+  if (part.web || part.desktop) {
+    const e2e = { root, raw, snapshot, ports: sandboxPorts, prebuilt: together };
+    const results = together ? path.join(output, "test-results") : undefined;
+    failed = (await runE2ESuites(part, { ...e2e, results })) || failed;
+  }
   const status = {
     failed,
     suites: [...(part.unit ? ["unit"] : []), ...(part.web ? ["web"] : []), ...(part.desktop ? ["desktop"] : [])],

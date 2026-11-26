@@ -21,7 +21,7 @@ separate controls in **Settings › Memory**; saved quotes and changes are visib
 | **Project** | One project: decisions, conventions, how things are done there. | Every agent, in every chat of that project. |
 | **Agent** | One agent's own notebook. | Only that agent. |
 
-And then there is `.apc/memory.md`, a file in the project that **you** write by hand. Agents always read it and
+And then there is `.apx/memory.md`, a file in the project that **you** write by hand. Agents always read it and
 never write it: it is the place for fixed rules you don't want any agent to edit. See [Projects](/concepts/projects/).
 
 ## Who writes notes
@@ -117,7 +117,8 @@ Original owner messages are retrieved automatically; `read_chat` can expand thei
 
 For search by meaning, add an embedding engine under **Embedding engines**: a local Ollama, or Gemini or OpenAI with
 a key. They are tried in order and the first that answers is used. **Index now** indexes your existing notes and
-**Try a search** lets you check what a question would bring back.
+**Try a search** lets you check what a question would bring back. You can also ask your super-agent to set it up: it
+picks the Ollama model that fits this computer, downloads it if needed and switches memory to it.
 
 <Shot name="settings-memory" alt="Settings, Memory: the three modes, the embedding engines, skill picking and long-chat options" caption="Settings › Memory" />
 
@@ -125,8 +126,8 @@ The same screen holds two related switches:
 
 - **Pick skills by meaning**: each message is compared with your skills and the ones that fit are offered to the
   agent. See [Skills](/extend/skills/).
-- **Summarize long chats** and the **Helper model** that writes the summaries and chat titles (Automatic, a model
-  you choose, or Off). See [Conversations](/concepts/conversations/#compaction).
+- **Summarize long chats**. See [Conversations](/concepts/conversations/#compaction). The summaries, chat titles and
+  automatic notes are written by the [helper model](/concepts/models/#the-helper-model), set in its own section.
 
 ## AutoDream and limits
 

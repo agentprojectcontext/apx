@@ -1,7 +1,9 @@
 import path from "node:path";
 import { type Author, CHROME_VIA, type Task, type Thread } from "@apx/protocol";
+import type { AgentRecord } from "../domain/agents.ts";
 import { ownerActsOn } from "../domain/channels.ts";
-import { canReadChat } from "../domain/chat-access.ts";
+import { canReadChat, canReadOwnScope } from "../domain/chat-access.ts";
+import { ownerAgentOf } from "../domain/owner-work.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import { engineOf } from "../domain/refs.ts";
 import { type Attachment, ownerOrigin, publicRun, TERMINAL } from "../domain/runs.ts";
@@ -18,9 +20,11 @@ import { answersOwner } from "../engine/task-inbox.ts";
 import { addComment, assignedTaskOf, consultMentioned, sessionFor, startHeld } from "../engine/task-work.ts";
 import type { Upkeep } from "../engine/upkeep.ts";
 import { badRequest, conflict, notFound, unauthorized } from "../errors.ts";
+import { engineLabel } from "../harness/labels.ts";
 import { insideReal } from "../paths.ts";
 import { folderInProject } from "../tools/folders.ts";
 import type { CallContext } from "./context.ts";
+import { checkExtensionReceipt } from "./extension-event-admission.ts";
 
 type SendMode = "queue" | "interrupt" | "steer";
 type ChannelSender = NonNullable<CallContext["channel"]>;
@@ -79,7 +83,9 @@ function createThread(
   return store.tx(() => {
     const t = store.threads.create({
       kind,
-      title: title ?? (folder ? `${engine ?? agent.name} · ${path.basename(folder)}` : agent.name),
+      title:
+        title ??
+        (folder ? `${engine ? engineLabel(store, engine) : agent.name} · ${path.basename(folder)}` : agent.name),
       agent_ids: [agent.id],
       project_id: pid,
       ...(folder ? { cwd: folder, write: write ?? "ask" } : {}),
@@ -122,6 +128,12 @@ export function threadHandlers(
     return { thread, agent };
   };
 
+  /** The owner's agents working for the owner read the owner's chats anywhere; any other caller keeps its own scope. */
+  function chatReader(ctx: CallContext): (agent: AgentRecord, thread: Thread) => boolean {
+    const wide = Boolean(ownerAgentOf(store, ctx));
+    return (agent, thread) => (wide ? canReadChat : canReadOwnScope)(store, agent, thread);
+  }
+
   /** An outside app reads and writes only in the chats it started. */
   function ownClientThread(threadId: string, ctx: CallContext): void {
     if (ctx.client && store.threads.context(threadId).client !== ctx.client.id)
@@ -135,6 +147,7 @@ export function threadHandlers(
     author: Author,
     steer: boolean,
     admit: Omit<Admit, "thread_id" | "text">,
+    attachmentNotes?: string[],
   ) {
     const files = admit.attachments ?? [];
     return store.tx(() => {
@@ -148,7 +161,7 @@ export function threadHandlers(
               ? CHROME_VIA
               : undefined,
         parts: [
-          { type: "text", text },
+          { type: "text", text, ...(attachmentNotes?.length ? { attachment_notes: attachmentNotes } : {}) },
           ...files.map((f) =>
             f.kind === "image"
               ? ({ type: "image", media_id: f.media_id, mime: f.mime, alt: f.name } as const)
@@ -265,6 +278,7 @@ export function threadHandlers(
           role: ch.role,
         },
       },
+      ch.attachmentNotes,
     );
   }
 
@@ -285,11 +299,12 @@ export function threadHandlers(
     "threads.list": ({ project_id, root_thread, include_subthreads, delegated, include_archived, engine }, ctx) => {
       const agent = ctx.agent && store.agents.get(ctx.agent.id);
       const protectedProjects = new Set(store.projectProtection.list().map((p) => p.project));
+      const readable = chatReader(ctx);
       const visible = (thread: Thread) =>
         !thread.project_id ||
         !protectedProjects.has(thread.project_id) ||
         (ctx.actor === "human" && !ctx.agent) ||
-        !!(agent && canReadChat(store, agent, thread));
+        !!(agent && readable(agent, thread));
       if (!root_thread) {
         const threads = store.threads
           .list({
@@ -325,7 +340,7 @@ export function threadHandlers(
       ownClientThread(thread, ctx);
       if (ctx.agent) {
         const agent = store.agents.get(ctx.agent.id);
-        if (!agent || !canReadChat(store, agent, t)) throw notFound(`thread ${thread}`);
+        if (!agent || !chatReader(ctx)(agent, t)) throw notFound(`thread ${thread}`);
       } else if (
         ctx.actor !== "human" &&
         t.project_id &&
@@ -435,25 +450,31 @@ export function threadHandlers(
       // never steers a running turn.
       if (ctx.actor === "agent")
         return store.tx(() => {
+          if (ctx.extensionEvent) checkExtensionReceipt(store, ctx.extensionEvent, thread);
           const sent = post(thread, text, { kind: "system" }, false, {
             agent_id: agent.id,
             trigger: "channel",
             origin: {
               kind: "agent",
-              id: ctx.flowEvent
-                ? `client:flow:${ctx.flowEvent.flow}`
-                : ctx.client
-                  ? `client:${ctx.client.id}`
-                  : "external",
-              name: ctx.flowEvent
-                ? "an external Flow event"
-                : ctx.client
-                  ? `${ctx.client.name} (an outside app)`
-                  : "an external agent client",
+              id: ctx.extensionEvent
+                ? `client:extension:${ctx.extensionEvent.extension}`
+                : ctx.flowEvent
+                  ? `client:flow:${ctx.flowEvent.flow}`
+                  : ctx.client
+                    ? `client:${ctx.client.id}`
+                    : "external",
+              name: ctx.extensionEvent
+                ? `an observation from extension ${ctx.extensionEvent.extension}`
+                : ctx.flowEvent
+                  ? "an external Flow event"
+                  : ctx.client
+                    ? `${ctx.client.name} (an outside app)`
+                    : "an external agent client",
               thread_id: thread,
               run_id: "",
             },
           });
+          if (ctx.extensionEvent) store.extensionEvents.admitted(ctx.extensionEvent.receipt, sent.run.id);
           if (ctx.flowEvent?.graph)
             store.flowGraphRuns.linkRun({ ...ctx.flowEvent, ...ctx.flowEvent.graph }, sent.run.id, thread);
           else if (ctx.flowEvent) store.flows.admitted(ctx.flowEvent.flow, ctx.flowEvent.event, sent.run.id);

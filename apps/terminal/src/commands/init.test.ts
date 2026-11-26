@@ -21,7 +21,7 @@ function fakeCore(registered: string[] = []) {
       const dir = String(params.path);
       if (!fs.existsSync(path.join(dir, "AGENTS.md")))
         fs.writeFileSync(path.join(dir, "AGENTS.md"), `# ${path.basename(dir)}\n`);
-      fs.mkdirSync(path.join(dir, ".apc"), { recursive: true });
+      fs.mkdirSync(path.join(dir, ".apx"), { recursive: true });
       return { project: { id: "p1", name: path.basename(dir), present: true, path: dir }, agents: 0 };
     },
   } as unknown as ApxClient;
@@ -35,13 +35,13 @@ test("apx init registers this folder by default, through the core, and says what
   const out = await printed(() => init(client, [], { cwd: dir }));
   assert.deepEqual(calls.at(-1), ["projects.register", { path: dir, init: true }]);
   assert.match(out, /^Registered northwind \(p1\) · 0 agents/);
-  assert.match(out, /Created AGENTS\.md\n {2}Created \.apc\//);
+  assert.match(out, /Created AGENTS\.md\n {2}Created \.apx\//);
   assert.match(out, /Next: apx agents new <slug> "<Name>" --project p1/);
 });
 
 test("apx init on a registered folder with its files writes nothing and says so", async () => {
   const dir = path.join(root, "acme");
-  fs.mkdirSync(path.join(dir, ".apc"), { recursive: true });
+  fs.mkdirSync(path.join(dir, ".apx"), { recursive: true });
   fs.writeFileSync(path.join(dir, "AGENTS.md"), "# Acme\n\nUse metric units.\n");
   const { client } = fakeCore([dir]);
   const out = await printed(() => init(client, ["acme"], { cwd: root }));

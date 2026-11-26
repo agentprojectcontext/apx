@@ -49,6 +49,8 @@ export type Prefs = {
   inboxHiddenChannels: string[];
   /** The Inbox lists each channel account's chats together, under one row that unfolds. */
   inboxByChannel: boolean;
+  /** The owner's order of the Inbox's task sections (ids from inbox/taskSections.ts; the rest keep their place after). */
+  inboxTaskOrder: string[];
   /** The Tasks screen shows one project's tasks (a nav project id) or every project's (""). */
   tasksProject: string;
   /** Columns the owner resized (px; 0 = the default) or folded away. */
@@ -125,6 +127,7 @@ const DEFAULTS: Prefs = {
   inboxRoutines: true,
   inboxHiddenChannels: [],
   inboxByChannel: false,
+  inboxTaskOrder: [],
   tasksProject: "",
   sidebarW: 0,
   sidebarCollapsed: false,
@@ -177,6 +180,7 @@ function load(): Prefs {
       inboxRoutines: raw.inboxRoutines !== false,
       inboxHiddenChannels: idsOf(raw.inboxHiddenChannels),
       inboxByChannel: raw.inboxByChannel === true,
+      inboxTaskOrder: idsOf(raw.inboxTaskOrder),
       tasksProject: typeof raw.tasksProject === "string" ? raw.tasksProject : "",
       sidebarW: typeof raw.sidebarW === "number" ? raw.sidebarW : 0,
       sidebarCollapsed: raw.sidebarCollapsed === true,

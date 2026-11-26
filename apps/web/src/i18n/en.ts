@@ -47,6 +47,7 @@ import { enTeamShared } from "./team-shared-en.ts";
 import type { enThreadDialogs } from "./thread-dialogs-en.ts";
 import { enTopbar } from "./topbar-en.ts";
 import type { enVoice } from "./voice-en.ts";
+import type { enWidgetChat } from "./widget-chat-en.ts";
 
 // UI strings, English: the source of truth. Every key lives here; `{name}` placeholders are filled by t().
 export const en = {
@@ -223,6 +224,8 @@ export const en = {
   "engine.resumeHint": "Go on with it here: {engine} picks up its own session",
   "engine.resuming": "Opening…",
   "engine.newTitle": "{engine} session",
+  "engine.startedBy": "Started by {name}",
+  "engine.startedByOpen": "Open {name}'s chat",
   "engine.settings": "Set up the engine",
   "engine.search": "Search sessions",
   "engine.empty": "No {engine} sessions yet",
@@ -542,6 +545,13 @@ export const en = {
   "inbox.tabNews": "{count} unread",
   "inbox.tabWorking": "{count} running",
   "inbox.pinned": "Pinned",
+  "inbox.taskSections.doing": "In progress",
+  "inbox.taskSections.waiting": "Waiting for you",
+  "inbox.taskSections.pending": "Pending",
+  "inbox.taskSections.dropped": "Dropped",
+  "inbox.taskSections.done": "Done",
+  "inbox.taskSections.count": "Tasks in this list",
+  "inbox.taskSections.loading": "Loading tasks",
   "inbox.recent": "Recent",
   "inbox.tabEmpty.tasks": "No task chats here yet",
   "inbox.tabEmpty.routines": "No routine has run yet",
@@ -659,6 +669,7 @@ export const en = {
   "chat.notFound.title": "We couldn't find this chat",
   "chat.notFound.body": "It may have been deleted, or the core is not available.",
   "chat.readOnly": "Conversation between agents · read only",
+  "chat.readOnlyEngine": "{engine} working for {name} · read only",
   "chat.with": "Chat with {name}",
   "chat.startHint": "Write below to get started.",
   "chat.toBottom": "Go to the latest message",
@@ -699,15 +710,14 @@ export const en = {
   "artifact.delete.title": "Delete it for good?",
   "widget.delete.body": "It is deleted for good, with what it remembers. The chats that showed it keep their messages.",
   "widget.delete.what": "“{title}” will be deleted.",
-  "widget.chatOf": "Chat of the widget {title}",
-  "widget.chatOpen": "Open the whole chat",
-  "widget.chatNew": "New session for this widget",
+  "widget.chatOpenError":
+    "Could not open the chat. Choose the agent again to retry. Your current chat and draft are unchanged.",
   "widget.chatShort": "Ask for changes",
   "widget.askTitle": "New widget",
   "widget.askDraft": "Make a widget for this project's board and pin it to the board: ",
   "widget.askWaiting": "The widget shows here as soon as the agent makes it.",
   "widget.chatNoAgent": "There is no agent to keep this widget.",
-  "widget.chatDraft": 'Keep editing the widget "{title}" (name: {name}): ',
+  "widget.chatDraft": 'Keep editing "{title}": ',
   "widget.openApp": "Open full screen",
   "widget.installApp": "Pin to Apps",
   "widget.unavailable": "Widget not available",
@@ -909,6 +919,10 @@ export const en = {
   "changes.none": "No changes",
   "changes.noneBody": "Everything in the folder is committed. What the agent (or you) changes shows here.",
   "changes.new": "New",
+  "changes.viewFile": "View file",
+  "changes.viewChanges": "View changes",
+  "changes.openTab": "Open the whole file with its changes",
+  "changes.wholeStale": "The file changed again after this: only what changed here is shown.",
   "changes.deleted": "Deleted",
   "changes.binary": "Binary file: not shown",
   "changes.empty": "No differences to show",
@@ -1015,7 +1029,7 @@ export const en = {
   "project.basePath": "Base space · APX work folder",
   "project.settings": "Project settings",
   "project.settings.title": "{name} settings",
-  "project.settings.body": "Kept in the project's .apc/project.json, so they travel with the folder.",
+  "project.settings.body": "Kept in the project's .apx/project.json, so they travel with the folder.",
   "project.settings.baseBody":
     "The base project has no folder: APX keeps its name and kind, and its agents work anywhere. To work in a folder, make a project out of it.",
   "project.settings.baseNameHint": "It stays the base project whatever you name it.",
@@ -1035,7 +1049,7 @@ export const en = {
   "project.autonomy.plan.hint": "Reads and proposes changes; changes nothing until you switch the mode.",
   "project.autonomy.total.hint": "Asks you nothing, in any folder but APX's. Only for projects you fully trust.",
   "project.settings.folder": "Folder",
-  "project.settings.folderHint": "Chats that work in the folder use it, and its .apc/ holds the agents and settings.",
+  "project.settings.folderHint": "Chats that work in the folder use it, and its .apx/ holds the agents and settings.",
   "project.settings.folderMissing": "The folder is not on disk right now (moved, or a drive that is not mounted).",
   "project.settings.folderWaiting":
     "This folder has not opened for APX yet. If your Mac asks whether “node” can access it, choose Allow: APX reads the folder as soon as it can.",
@@ -1180,6 +1194,7 @@ export const en = {
   "mcp.status.needsSignIn": "Needs you to sign in",
   "mcp.status.error": "Error",
   "config.router": "Router",
+  "config.helperModel": "Helper model",
   "router.default": "Default",
   "local.title": "Transcription on this machine",
   "local.active": "In use: {model}",
@@ -1463,7 +1478,7 @@ export const en = {
   "mem.auto_recall.hint": "Relevant owner statements from this agent’s chats in the same project, with their source.",
   "mem.auto_capture": "Save durable memories",
   "mem.auto_capture.hint":
-    "The auxiliary model selects exact owner quotes. Memories stay private to this agent and project.",
+    "The helper model selects exact owner quotes. Memories stay private to this agent and project.",
   "mem.auto_dream": "AutoDream",
   "mem.auto_dream.hint":
     "Once a day, tidies each agent's notebook and the notes a project or your agents share: merges duplicates and retires what a newer note corrects. Your own notes stay as they are; changes can be undone.",
@@ -1786,15 +1801,34 @@ export const en = {
   "mem.skillPickerNoEngine": "Needs an embedding engine: add one below.",
   "mem.autoCompact": "Summarize long chats",
   "mem.autoCompactHint": "When a chat gets long, its older turns become a summary; the newest stay word for word.",
-  "mem.aux": "Helper model",
-  "mem.auxHint.auto":
-    "Titles chats and summarizes long ones. Automatic: uses the agent's API model or, if it has none, the router's.",
-  "mem.auxHint.pick": "Titles chats and summarizes long ones with the model you pick. A fast API model works best.",
-  "mem.auxHint.off": "Off: chats get no title and long ones are not summarized.",
-  "mem.aux.auto": "Automatic",
-  "mem.aux.pick": "Chosen",
-  "mem.aux.off": "Off",
-  "mem.aux.pickOne": "Pick a model",
+  "mem.helperPointer": "Writes titles, summaries and automatic memory. It is set in its own section.",
+  "mem.helperOpen": "Open",
+  "helperModel.lead":
+    "A separate model for background work, so your agents don't spend their main model on small jobs. A small, fast one fits best: for example a small ChatGPT model from your plan, with a local one as backup.",
+  "helperModel.does": "What it does",
+  "helperModel.job.titles": "Titles chats and summarizes long ones.",
+  "helperModel.job.memory": "Saves what's worth remembering from each chat and tidies your agents' notes.",
+  "helperModel.job.judge":
+    "Decides which emails are worth telling you about and which group messages are worth an answer.",
+  "helperModel.job.images": "Describes the images and stickers people send you, when it can read images.",
+  "helperModel.job.groups": "Picks which agent answers in a group chat.",
+  "helperModel.job.drafts": "Suggests reply drafts when the agent has no other model for it.",
+  "helperModel.job.review": "Reviews activity to suggest improvements.",
+  "helperModel.job.backup": "Stands in for an agent's model in short notices and when reading chats you import.",
+  "helperModel.which": "Which model it uses",
+  "helperModel.hint.auto":
+    "Automatic: uses the agent's model or, if it has none, the router's. It works, but spends your main model.",
+  "helperModel.hint.pick": "Uses the first in the list; if it doesn't answer, tries the next.",
+  "helperModel.hint.off":
+    "Off: chats get no title, long ones aren't summarized, memory isn't saved on its own and emails and group messages aren't checked.",
+  "helperModel.mode.auto": "Automatic",
+  "helperModel.mode.pick": "Chosen",
+  "helperModel.mode.off": "Off",
+  "helperModel.pickOne": "Pick a model",
+  "helperModel.addBackup": "Add a backup",
+  "helperModel.remove": "Remove",
+  "helperModel.first": "First",
+  "helperModel.backup": "Backup",
   "svc.embedding.empty": "No engine yet. Add a local one or an API.",
   "svc.transcription.empty": "No transcription engine yet: voice notes arrive as “could not be heard”.",
   "time.tomorrowAt": "Tomorrow · {time}",
@@ -2017,6 +2051,7 @@ export type MessageKey =
   | keyof typeof enVoice
   | keyof typeof enSignIn
   | keyof typeof enMove
+  | keyof typeof enWidgetChat
   | keyof typeof enMemoryPanel
   | keyof typeof enEmailSignatures
   | keyof typeof enThreadDialogs

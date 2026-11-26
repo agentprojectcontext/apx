@@ -3,7 +3,7 @@
 What the Team screen's "Import" dialog offers, beside the owner's v1 vault (`~/.apx/agents`, read-only).
 
 - A folder with `TEAM.md` is a team: its frontmatter gives the `name` and `description`, and every `<slug>.md` beside
-  it is a member, written in the same format as `.apc/agents/<slug>.md`. A member without a `parent` inside the team
+  it is a member, written in the same format as `.apx/agents/<slug>.md`. A member without a `parent` inside the team
   is its lead.
 - A loose `<slug>.md` here is a single agent. Every team member is also offered on its own.
 - `area:` groups agents in the Team view.
@@ -11,7 +11,14 @@ What the Team screen's "Import" dialog offers, beside the owner's v1 vault (`~/.
   or `{ "kind": "every", "minutes" }`, `prompt`, optional `action` `agent` or `watch`). Installing the agent adds them
   to the project, on; the executive team ships its weekly rituals this way. Templates are written in English only.
 
-Installing copies the file into the project's `.apc/agents/` as written, with two changes: `parent` (to hang the team
+Bundled templates name no `tools:` list: each agent has every tool its mode and rules allow. A role and an area say
+what an agent is good at and where it usually works; they never make it refuse. Reporting lines organize work; they
+do not require CEO approval for an owner's direct request. Specialists carry out what the owner or a teammate asks;
+the owner's modes, rules and confirmations stay in force. A `tools:` list the owner adds later is the agent's focus:
+those tools are sent first, the rest are found when needed. Installing again skips existing agents: it does not
+replace customized prompts or restrictions.
+
+Installing copies the file into the project's `.apx/agents/` as written, with two changes: `parent` (to hang the team
 under the project's orchestrator when the owner asks), and the name. A template's `name` is a job ("Senior
 Developer"): the installed agent gets a person's name nobody else uses and that job as its `role`. Agents from the v1
 vault keep their own names.

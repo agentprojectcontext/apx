@@ -157,7 +157,7 @@ export function AgentDetail({
       {fromFile && (
         <>
           <dt>{t("team.file")}</dt>
-          <dd className="teamdetail__mono">.apc/agents/{agent.slug}.md</dd>
+          <dd className="teamdetail__mono">.apx/agents/{agent.slug}.md</dd>
         </>
       )}
     </dl>
@@ -268,7 +268,7 @@ export function AgentDetail({
                   name: agent.name,
                   from: nameOf(agent.parent),
                   to: nameOf(pending || undefined),
-                  file: `.apc/agents/${agent.slug}.md`,
+                  file: `.apx/agents/${agent.slug}.md`,
                 })
               : t("team.parent.confirmBodyGlobal", {
                   name: agent.name,

@@ -51,6 +51,7 @@ async function start(
   decision?: "approve" | "deny",
   agent = "superagent",
   callerCwd?: string,
+  mode: "auto" | "manual" | "total" = decision ? "manual" : "total",
 ) {
   args = { engine: "claude", project, task: "review the change", ...options };
   const caller = await env.client.call("threads.create", {
@@ -60,7 +61,7 @@ async function start(
     ...(callerCwd ? { cwd: callerCwd } : {}),
   });
   if (write) await env.client.call("threads.update", { thread: caller.id, write });
-  await env.client.call("agents.update", { agent, autonomy: decision ? "auto" : "total" });
+  await env.client.call("agents.update", { agent, autonomy: mode });
   await env.client.call("threads.send", { thread: caller.id, text: "start it" });
   if (decision) {
     const pending = await inputsOrEnd(env.client, caller.id);
@@ -96,6 +97,22 @@ test("the tool starts a visible external session on its engine default, linked t
   assert.deepEqual(env.core.store.threads.context(started.thread).model_choice, { model: "claude", router: false });
 });
 
+test("the session reads as its engine: named after the task, its card says the engine (DECISIONS.md#d-274)", async () => {
+  const { caller, done, result } = await start({ task: "Review the login change\nmore detail for the engine" });
+  const started = JSON.parse(result) as { thread: string };
+  await env.settle(started.thread);
+  const thread = (await env.client.call("threads.get", { thread: started.thread })).thread;
+  assert.equal(thread.title, "Review the login change");
+  assert.equal(
+    thread.parent_id,
+    caller.id,
+    "the caller stays linked: its budget, permissions and the answer's way back",
+  );
+  const card = done.messages.flatMap((m) => m.parts).find((p) => p.type === "subthread");
+  assert.equal(card?.type === "subthread" && card.engine, "claude");
+  assert.equal(card?.type === "subthread" && card.agent_id, "superagent");
+});
+
 test("an explicit model and reasoning effort reach the harness unchanged; another engine works too", async () => {
   for (const engine of ["claude", "codex"]) {
     const model = `${engine}/review-model#medium`;
@@ -124,13 +141,21 @@ test("mismatched models, missing projects, escaping folders and permission escal
   }
 });
 
-test("the owner can decline starting an external engine, or approve it outside total mode", async () => {
+test("in manual the owner can decline starting an external engine, or approve it", async () => {
   const count = seen.length;
   assert.match((await start({}, undefined, "deny")).result, /declined/);
   assert.equal(seen.length, count);
   const started = JSON.parse((await start({}, undefined, "approve")).result) as { thread: string };
   await env.settle(started.thread);
   assert.ok(seen.some((io) => io.thread.id === started.thread));
+});
+
+test("in auto an agent starts an external session in its project without a card (DECISIONS.md#d-266)", async () => {
+  const { done, result } = await start({}, undefined, undefined, "superagent", undefined, "auto");
+  const started = JSON.parse(result) as { thread: string };
+  await env.settle(started.thread);
+  assert.ok(seen.some((io) => io.thread.id === started.thread));
+  assert.ok(!done.messages.some((m) => m.parts.some((p) => p.type === "input")), "no card was raised");
 });
 
 test("an external engine cannot edit from a read-only session", async () => {
@@ -200,7 +225,7 @@ test("an external session keeps its caller's folder by default and refuses roots
   }
 });
 
-test("a project agent cannot launch a session in another project", async () => {
+test("a project agent working for the owner launches a session in another project, saying where, never in one being moved", async () => {
   const other = tempDir("apx-other-project-");
   try {
     const otherId = (await env.client.call("projects.register", { path: other.path, init: true })).project.id;
@@ -214,12 +239,23 @@ test("a project agent cannot launch a session in another project", async () => {
       prompt: "",
       browser_profile: "shared",
     });
+    // A role and a home project are a hat, not a fence (DECISIONS.md#d-271).
+    const started = JSON.parse((await start({ project: otherId }, undefined, undefined, "scoped-reviewer")).result) as {
+      thread: string;
+      where?: string;
+    };
+    assert.match(started.where ?? "", /^project /);
+    assert.equal(env.core.store.threads.get(started.thread)?.project_id, otherId);
+    await env.settle(started.thread);
+    // A project being moved stays closed to other projects' agents.
+    env.core.store.projectProtection.protect("move_other", otherId);
     const count = seen.length;
     assert.match(
       (await start({ project: otherId }, undefined, undefined, "scoped-reviewer")).result,
       /another project/,
     );
     assert.equal(seen.length, count);
+    env.core.store.projectProtection.restore("move_other");
   } finally {
     await other.remove();
   }

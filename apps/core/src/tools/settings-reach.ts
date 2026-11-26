@@ -12,6 +12,7 @@ export const BY_TOOL: Readonly<Record<string, string>> = {
   "agents.set_limits": "agent_limits",
   "threads.go_on": "agent_limits",
   "routines.set": "routine_set",
+  "continuations.create": "chat_followup",
   "routines.run": "routine_set",
   "pairing.respond": "answer_contact_request",
   "browser.import_cookies": "browser_use_my_login",
@@ -26,13 +27,15 @@ export const BY_TOOL: Readonly<Record<string, string>> = {
  */
 export const TOTAL_SKIPS: Readonly<Record<string, string>> = {
   routine_set: "the owner's decision: routines change freely for an agent they set to Total",
+  chat_followup:
+    "the owner's decision: a bounded follow-up stays in the same chat and uses current permissions when it runs",
   agent_set:
     "the owner's decision: the team changes at their word in the super-agent's mode; autonomy and the main model stay theirs (DECISIONS.md#d-203)",
   asana: "a write to the owner's Asana acts in their name, which Total lets run like a send (DECISIONS.md#d-047)",
 };
 
 const SECRET = "carries a key, a password or a sign-in the owner types themselves";
-const POWER = "what agents may do or which model runs them stays the owner's (DECISIONS.md#d-060)";
+const POWER = "how far agents may act stays the owner's (DECISIONS.md#d-060, DECISIONS.md#d-268)";
 const MACHINE = "installs or controls this computer and its devices";
 const PANEL = "the panel's own view of chats, files, git and the terminal; agents have tools of their own for these";
 const AS_OWNER = "the owner's own word: their answer, their send, their read";
@@ -42,6 +45,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "email.signature_import": "it only fills the owner's signature editor with Gmail's; saving it is theirs",
   "engines.set_usage": "the owner chooses whether APX queries and displays their external account limits",
   "secrets.set": SECRET,
+  "secrets.provide_login": SECRET,
   "account.start": SECRET,
   "account.finish": SECRET,
   "account.rename": "the owner's public account name is theirs to choose",
@@ -60,7 +64,6 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "secrets.set_sites":
     "where agents may sign in with a stored secret is the owner's to say; an agent asks with its own card (DECISIONS.md#d-193)",
   "providers.set": SECRET,
-  "services.set": SECRET,
   "clients.create": SECRET,
   "clients.revoke": SECRET,
   "public_routes.rotate": SECRET,
@@ -77,16 +80,17 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "mcp.signIn": SECRET,
   "extensions.set_secret": SECRET,
   "extensions.settings": SECRET,
+  "extensions.events_emit":
+    "observations come from an extension's monitor or the owner's authenticated CLI, not an agent inventing appliance state",
   "extensions.add_agent": "the Add agent button on an extension's page; agents make an agent with agent_set",
   "access.set": POWER,
   "webhooks.set": MACHINE,
-  "models.set_config": POWER,
-  "threads.model": POWER,
   "threads.group": "the owner picks who is in a group chat in the panel (D-218)",
   "threads.group_set": "the owner changes a group chat's members and models in its card (D-218)",
-  "tools.grant_set": POWER,
-  "tools.revoke": POWER,
-  "mcp.trust": POWER,
+  "tools.grant_set":
+    "narrowing a grant to a condition or a date is the owner's, in Resources; agents grant with grant_tool",
+  "tools.revoke":
+    "the owner takes back any grant, a chat's too, in Resources; agents take back one agent's with grant_tool revoke",
   // A drawing is published and run by hand through apx_flow's card or in the panel's Flows editor (DECISIONS.md#d-184).
   "flows.draft_discard": "the owner deletes a Flow draft on purpose",
   "flows.cancel_run": "the owner stops a Flow run they are looking at",
@@ -94,12 +98,12 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "flows.test_stop": "the owner stops waiting for the test event they started",
   "flows.history_restore": "the owner brings back an earlier drawing from the Flow's page, having looked at it",
   "flows.path_set": "a new address stops the old one, which the services that call it still use",
-  "mcp.approveTool": POWER,
-  "mcp.toolMode": POWER,
   "environments.enable": POWER,
   "environments.bind": POWER,
   "telemetry.set": POWER,
   "storage.clear": "the owner frees space from Settings › Storage, having seen what it removes (DECISIONS.md#d-185)",
+  "projects.move_folder":
+    "a retry of the move APX runs by itself at start; it deletes files in the owner's folder, so the owner presses Try again on the project or runs apx doctor --fix (DECISIONS.md#d-275)",
   "storage.compact":
     "it blocks the core while it rewrites the database; the owner runs it from Settings › Storage › Compact or apx doctor --fix (DECISIONS.md#d-200)",
   "storage.computers.delete":
@@ -140,10 +144,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "extensions.catalog_sync": MACHINE,
   "extensions.catalog_remove": MACHINE,
   "profiles.install": MACHINE,
-  "embeddings.install": MACHINE,
-  "transcription.install": MACHINE,
   "voice.install": MACHINE,
-  "voice.set": `${POWER}; APX's voice and the model calls talk with are set in Settings › Voice and calls`,
   "files.keep": PANEL,
   "files.open": PANEL,
   "files.rename": PANEL,

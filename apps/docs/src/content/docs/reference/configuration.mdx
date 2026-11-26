@@ -37,7 +37,7 @@ APX keeps all its state in one folder: `~/.apx/v2` unless `APX_HOME` says otherw
   - app/ the installed bundle, on a server: versions/ and the current link
 </FileTree>
 
-Your projects themselves stay where they are: a project is a folder with `AGENTS.md` and/or `.apc/`, and APX reads and
+Your projects themselves stay where they are: a project is a folder with `AGENTS.md` and/or `.apx/`, and APX reads and
 writes its agents, memory and skills there ([Projects](/concepts/projects/)).
 
 <Aside type="caution">
@@ -81,6 +81,8 @@ The process environment always wins over the file. The core reads it when it sta
 | `APX_APP` | `~/.apx/v2/app` | Where the install script puts the bundle (its versions and `current`). |
 | `APX_AGENT_NAME` | a random one | Home's name on a fresh install. |
 | `APX_LLM_TIMEOUT_MS` | `45000` | How long the core waits for the first byte of a model's answer. |
+| `APX_LLM_RETRY_MS` | `800` | First wait before a model that failed for a passing reason is tried again; it doubles on each try. |
+| `APX_STEP_PATIENCE_MS` | `5000,15000,45000` | Waits before the whole model list is asked again when every model failed for a passing reason. |
 | `APX_IMESSAGE` | on | `off` hides the iMessage tools (Mac only). |
 | `APX_HEADLESS` | on | `off`: no headless Chrome when no desktop app lends a browser. |
 | `APX_CHROME` | found on its own | The Chrome, Chromium or Edge binary for the headless browser. |

@@ -1,0 +1,53 @@
+.inboxsec__heading {
+  margin: 6px 0 0;
+  font-size: inherit;
+}
+.inbox .inboxsec__tasktoggle {
+  width: 100%;
+  justify-content: flex-start;
+  gap: 6px;
+  min-height: 28px;
+  padding: 4px 10px;
+  color: var(--apx-fg-subtle);
+  font-size: 11.5px;
+  font-weight: var(--apx-weight-regular);
+}
+.inboxsec__tasktoggle .apx-btn__label {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+}
+.inboxsec__count {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+.inboxsec__tasks:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.inboxsec__heading {
+  -webkit-touch-callout: none;
+}
+.inboxsec.is-moving {
+  transition: transform var(--apx-duration) ease;
+}
+.inboxsec.is-held {
+  position: relative;
+  z-index: 1;
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-surface-raised);
+  box-shadow: var(--apx-shadow-md);
+  cursor: grabbing;
+}
+.inboxtasks.is-sorting {
+  user-select: none;
+  -webkit-user-select: none;
+}
+.inbox .inboxsec__more {
+  align-self: flex-start;
+  padding: 4px 10px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}

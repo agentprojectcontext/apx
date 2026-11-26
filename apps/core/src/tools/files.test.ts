@@ -165,13 +165,13 @@ test("APC files named through cwd still wait for the owner; the temp folder thro
   const write = parallelFiles.find((t) => t.name === "file_write");
   assert.ok(write);
   assert.equal(write.confirm({ path: "AGENTS.md", content: "", cwd: ".worktrees/issue-1" }), "always");
-  assert.equal(write.confirm({ path: "agents/a.md", content: "", cwd: ".apc" }), "always");
+  assert.equal(write.confirm({ path: "agents/a.md", content: "", cwd: ".apx" }), "always");
   assert.equal(write.confirm({ path: "docs/a.md", content: "", cwd: ".worktrees/issue-1" }), "untrusted");
-  // A worktree an agent keeps under .apc is a checkout of the code, not the project's APC definitions.
-  assert.equal(write.confirm({ path: ".apc/worktree/issue-1/src/a.ts", content: "" }), "untrusted");
-  assert.equal(write.confirm({ path: "src/a.ts", content: "", cwd: ".apc/worktrees/issue-1" }), "untrusted");
-  assert.equal(write.confirm({ path: ".apc/worktree/issue-1/AGENTS.md", content: "" }), "always");
-  assert.equal(write.confirm({ path: ".apc/agents/a.md", content: "" }), "always");
+  // A worktree an agent keeps under .apx is a checkout of the code, not the project's APC definitions.
+  assert.equal(write.confirm({ path: ".apx/worktree/issue-1/src/a.ts", content: "" }), "untrusted");
+  assert.equal(write.confirm({ path: "src/a.ts", content: "", cwd: ".apx/worktrees/issue-1" }), "untrusted");
+  assert.equal(write.confirm({ path: ".apx/worktree/issue-1/AGENTS.md", content: "" }), "always");
+  assert.equal(write.confirm({ path: ".apx/agents/a.md", content: "" }), "always");
   const scratch = path.join(scratchRoot(env.home), "some-chat");
   assert.equal(write.confirm({ path: "a.md", content: "", cwd: scratch }), "never");
 });
@@ -196,14 +196,16 @@ test("a file write waiting for the owner shows the patch it would make, and noth
   assert.equal(await tool("file_write")?.preview?.({ path: "../outside.md", content: "x" }, ctx), undefined);
 });
 
-test("the files an agent writes in a turn show in its answer, with the lines added and removed", async () => {
+test("the files an agent writes in a turn show in its answer, with the lines added and removed and their folder", async () => {
   const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "card" });
   await env.client.call("threads.send", { thread: t.id, text: "write new" });
   let { messages } = await env.settle(t.id);
   const card = () => messages.at(-1)?.parts.find((p) => p.type === "changes");
+  // Named as the files panel names the folder, so a file on the card opens there (a temp home is often behind a link).
+  const { root } = await env.client.call("files.tree", { thread: t.id });
   assert.deepEqual(card(), {
     type: "changes",
-    cwd: path.join(env.home, "work"),
+    cwd: root,
     edits: true,
     files: [
       {

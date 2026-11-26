@@ -2,6 +2,7 @@ import type { Notification } from "@apx/protocol";
 import { AgentAvatar, Button, EngineIcon, Icons } from "@apx/ui";
 import { useMemo } from "react";
 import { shortWhen } from "../common/format.ts";
+import { useEngineLabel } from "../common/useEngineLabel.ts";
 import { pairingChannel } from "../data/channels.ts";
 import { client } from "../data/client.ts";
 import { blobOf, DEFAULT_PID, projectName, threadAgent } from "../data/identity.ts";
@@ -135,10 +136,11 @@ function NoticeButton({ notice: n, onOpen }: { notice: Notification; onOpen: () 
   const thread = useData((s) => (n.thread_id ? s.threads[n.thread_id] : undefined));
   const agent = useData((s) => threadAgent(thread, s.agents));
   const projects = useData((s) => s.projects);
-  const engine = useData((s) => (thread?.engine ? s.engines.find((e) => e.id === thread.engine) : undefined));
+  const engine = useEngineLabel(thread?.engine);
   const Icon = KIND_ICON[n.kind];
   const kind = t(`attention.kind.${n.kind}`);
-  const who = agent?.name ?? (thread?.engine ? (engine?.label ?? thread.engine) : undefined);
+  // An engine session speaks as its engine, not as the agent that started it.
+  const who = engine ?? agent?.name;
   // A notice titled after its agent says what happened instead; the agent's name goes to the foot.
   const titled = n.title !== who;
   const meta = [titled ? kind : undefined, who, thread ? projectName(projects, thread.project_id) : undefined].filter(
@@ -146,10 +148,10 @@ function NoticeButton({ notice: n, onOpen }: { notice: Notification; onOpen: () 
   );
   return (
     <button type="button" className={n.read_at ? "attention__row" : "attention__row is-unread"} onClick={onOpen}>
-      {agent ? (
-        <AgentAvatar name={agent.name} blob={blobOf(agent)} size={28} animated={false} />
-      ) : thread?.engine ? (
+      {thread?.engine ? (
         <EngineIcon engine={thread.engine} tile size={28} />
+      ) : agent ? (
+        <AgentAvatar name={agent.name} blob={blobOf(agent)} size={28} animated={false} />
       ) : (
         <span className={`attention__icon is-${n.level}`}>
           <Icon size={14} />

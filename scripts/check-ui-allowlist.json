@@ -238,7 +238,7 @@
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
     "apps/web/src/project/files/FilesPane.tsx": {
-      "count": 3,
+      "count": 2,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
     "apps/web/src/project/files/GitFiles.tsx": {

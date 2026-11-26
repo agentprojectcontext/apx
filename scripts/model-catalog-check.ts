@@ -1,7 +1,7 @@
 // The daily model catalog check (rules/MODEL_CATALOGS.md#daily-check): asks the running core for every engine's list,
 // then prints JSON for the agent that reviews it: what appeared or left since the last run, agent and router choices a
 // provider no longer lists, and pinned defaults gone from their provider's list.
-//   node scripts/model-catalog-check.ts [--state .apc/model-catalog-last.json] [--no-refresh]
+//   node scripts/model-catalog-check.ts [--state .apx/model-catalog-last.json] [--no-refresh]
 import { execFile } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -71,7 +71,7 @@ async function main() {
   const args = process.argv.slice(2);
   const repo = path.resolve(import.meta.dirname, "..");
   const at = args.indexOf("--state");
-  const state = path.resolve(repo, at >= 0 ? (args[at + 1] ?? "") : ".apc/model-catalog-last.json");
+  const state = path.resolve(repo, at >= 0 ? (args[at + 1] ?? "") : ".apx/model-catalog-last.json");
   const cli = path.join(repo, "apps/terminal/src/main.ts");
   const { stdout } = await promisify(execFile)(
     process.execPath,

@@ -34,13 +34,27 @@ test("a project chat shows its folder's changes, files and a terminal, and can w
   await panel.getByRole("button", { name: /app\.ts/ }).click();
   await expect(panel.locator(".diff__line--del")).toContainText("export const a = 1;");
   await expect(panel.locator(".diff__line--add")).toContainText("export const a = 2;");
+  // The whole file in a tab of its own, with the change marked in place.
+  await panel.getByRole("button", { name: "Abrir el archivo completo con sus cambios" }).click();
+  await expect(panel.getByRole("tab", { name: "app.ts" })).toHaveAttribute("aria-selected", "true");
+  await expect(panel.locator(".wdiff .diff__line--add")).toContainText("export const a = 2;");
+  await panel.getByRole("button", { name: "Cerrar app.ts" }).click();
+  await expect(panel.getByRole("tab", { name: "Archivos (1)" })).toHaveAttribute("aria-selected", "true");
 
-  // Files: the folder's tree, a file opened and back to the tree.
+  // Files: the Explorer, each file opened in its own tab, and back to the tree with its folders still open.
   await page.goto(`/#thread=${chat.id}&panel=files`);
   await panel.getByRole("button", { name: "AGENTS.md" }).click();
+  await expect(panel.getByRole("tab", { name: "AGENTS.md" })).toHaveAttribute("aria-selected", "true");
   await expect(panel.getByRole("heading", { name: "Northwind" })).toBeVisible();
-  await panel.getByRole("button", { name: "Archivos" }).click();
-  await expect(panel.getByRole("button", { name: "src" })).toBeVisible();
+  await panel.getByRole("tab", { name: "Explorador" }).click();
+  await panel.getByRole("button", { name: "src" }).click();
+  await panel.getByRole("button", { name: "app.ts" }).click();
+  await expect(panel.getByRole("tab", { name: "AGENTS.md" })).toBeVisible();
+  await expect(panel.getByRole("tab", { name: "app.ts" })).toHaveAttribute("aria-selected", "true");
+  await panel.getByRole("button", { name: "Cerrar app.ts" }).click();
+  await expect(panel.getByRole("tab", { name: "AGENTS.md" })).toHaveAttribute("aria-selected", "true");
+  await panel.getByRole("tab", { name: "Explorador" }).click();
+  await expect(panel.getByRole("button", { name: "app.ts" })).toBeVisible();
 
   // Temporales: the agent's temp folder; what the owner keeps is copied into the project.
   const temp = await rpc<{ root: string }>("files.tree", { thread: chat.id, scratch: true });

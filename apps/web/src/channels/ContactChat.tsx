@@ -1,8 +1,8 @@
 import "../styles/screens.css";
 import type { ChannelInfo, Person, Thread } from "@apx/protocol";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useChannels } from "../data/channels.ts";
-import { go } from "../shell/nav.ts";
+import { go, useNav } from "../shell/nav.ts";
 import { ChannelConversation } from "./ChannelConversation.tsx";
 import { ContactPanel } from "./ContactPanel.tsx";
 import { useThreadPerson } from "./useThreadPerson.ts";
@@ -38,7 +38,12 @@ function ContactPane({
   onOpened?: (threadId: string) => void;
 }) {
   // The card sits beside the chat on wide screens; on narrow ones it covers it, so it starts closed there.
-  const [card, setCard] = useState(() => window.innerWidth >= 1280);
+  const [showCard, setCard] = useState(() => window.innerWidth >= 1280);
+  const consulting = useNav((s) => Boolean(thread && s.panel === "agents" && s.panelParent === thread.id));
+  useEffect(() => {
+    if (consulting) setCard(false);
+  }, [consulting]);
+  const card = showCard && !consulting;
   return (
     <section className={`chan chan--single has-chat${card && person ? " has-card" : ""}`} aria-label={channel.label}>
       <ChannelConversation
@@ -47,7 +52,10 @@ function ContactPane({
         presence={undefined}
         channel={channel}
         card={card}
-        onToggleCard={() => setCard((c) => !c)}
+        onToggleCard={() => {
+          if (consulting) go.panel(null);
+          setCard((c) => !c);
+        }}
         onBack={go.showList}
         {...(onOpened ? { onOpened } : {})}
       />

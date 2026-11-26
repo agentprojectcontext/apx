@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { ExtensionInfo, McpServerStatus } from "@apx/protocol";
 import type { Item } from "../resources/extensionItems.ts";
-import { accessLines, authText, kindText, nameFor, newest, nextStep, waitReason } from "./itemText.ts";
+import { accessLines, authText, fromText, kindText, nameFor, newest, nextStep, waitReason } from "./itemText.ts";
 
 // The key with its values, so a test reads what the screen would say without the dictionaries.
 const t = (key: string, vars?: Record<string, string | number>) =>
@@ -39,6 +39,16 @@ const ext = (extra: Partial<ExtensionInfo> = {}): ExtensionInfo =>
     runs_code: false,
     ...extra,
   }) as ExtensionInfo;
+
+test("authorship does not come from review, a brand, a GitHub account or who added it", () => {
+  assert.equal(fromText(item({ name: "Acme service", publisher: "Northwind" }), t), "mkt.from(Northwind)");
+  assert.equal(fromText(item({ label: "third", publisher: "Northwind" }), t), "mkt.from(Northwind)");
+  assert.equal(fromText(item({ label: "own", publisher: "Northwind" }), t), "mkt.from(Northwind)");
+  assert.equal(fromText(item({ name: "Acme service" }), t), "mkt.creatorUnknown");
+  assert.equal(fromText(item({ label: "third" }), t), "mkt.creatorUnknown");
+  assert.equal(fromText(item({ github: "acme" }), t), "mkt.from.github(acme)");
+  assert.equal(fromText(item({ label: "own" }), t), "mkt.from.you");
+});
 
 test("one next step per state: add, connect, pair a device, then done", () => {
   assert.equal(nextStep(item()), "add");

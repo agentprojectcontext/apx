@@ -4,8 +4,10 @@
 import type { Message, Thread } from "@apx/protocol";
 import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
-import { canReadChat as canRead } from "../domain/chat-access.ts";
+import { canReadChat, canReadOwnScope } from "../domain/chat-access.ts";
+import { consultReadsChat, isConsult } from "../domain/contact-consult.ts";
 import { messageQuery } from "../domain/messages.ts";
+import { placeName, worksForOwner } from "../domain/owner-work.ts";
 import { worksIn } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import { cap, untrusted } from "./result.ts";
@@ -15,20 +17,31 @@ const MESSAGE_CHARS = 1500;
 /** A found tool call shows the head of its arguments and of its result: enough to recognise it. */
 const CALL_CHARS = 300;
 
-const readableChats = (store: Store, agent: AgentRecord) =>
+/**
+ * Working for the owner, an agent reads any of the owner's chats (DECISIONS.md#d-271); a turn for someone else keeps
+ * the narrow rule, and a consult only its project's own chats (DECISIONS.md#d-269).
+ */
+const canRead = (store: Store, agent: AgentRecord, current: Thread, t: Thread) =>
+  worksForOwner(store, current)
+    ? canReadChat(store, agent, t)
+    : canReadOwnScope(store, agent, t) && (!isConsult(current) || consultReadsChat(store, current, t));
+
+const readableChats = (store: Store, agent: AgentRecord, current: Thread) =>
   store.threads
     .list({ include_subthreads: true, include_archived: true, limit: null })
-    .filter((t) => canRead(store, agent, t));
+    .filter((t) => canRead(store, agent, current, t));
 
 const wordsOf = (text: string): string[] => messageQuery(text)?.match(/[\p{L}\p{N}]+/gu) ?? [];
 
 /** Agent names identify participants, rather than words that must occur in the message body. */
-function searchScope(store: Store, agent: AgentRecord, query: string) {
+function searchScope(store: Store, agent: AgentRecord, current: Thread, query: string) {
   const words = wordsOf(query);
   const used = new Set<number>();
   const named = store.agents
     .list()
-    .filter((a) => !a.project_id || worksIn(store.projects, a.project_id, agent.project_id))
+    .filter(
+      (a) => worksForOwner(store, current) || !a.project_id || worksIn(store.projects, a.project_id, agent.project_id),
+    )
     .map((a) => ({ agent: a, words: wordsOf(a.name) }))
     .sort((a, b) => b.words.length - a.words.length)
     .filter((a) => {
@@ -41,7 +54,7 @@ function searchScope(store: Store, agent: AgentRecord, query: string) {
     .map((a) => a.agent);
   const names = new Set(named.flatMap((a) => wordsOf(a.name)));
   const text = words.filter((w) => !names.has(w)).join(" ");
-  const chats = readableChats(store, agent).filter((t) => named.every((a) => t.agent_ids.includes(a.id)));
+  const chats = readableChats(store, agent, current).filter((t) => named.every((a) => t.agent_ids.includes(a.id)));
   return { text, chats };
 }
 
@@ -60,6 +73,23 @@ const textOf = (m: Message) =>
     .join("\n")
     .trim();
 
+/** What the owner asked forgotten, here or in the project the found text comes from. */
+const forgotten = (
+  store: Store,
+  agent: AgentRecord,
+  current: Thread,
+  from: Thread | undefined,
+  text: string,
+  source: { message_id?: string; run_id?: string },
+) =>
+  [...new Set([current.project_id, from?.project_id])].some((project_id) =>
+    store.memories.excluded({ agent_id: agent.id, project_id }, text, source),
+  );
+
+/** A found chat by name and id, and where it is when that is another project than this chat's. */
+const chatLabel = (store: Store, t: Thread, current: Thread) =>
+  `${t.title} · chat ${t.id}${t.project_id === current.project_id ? "" : ` · ${placeName(store, t.project_id)}`}`;
+
 const when = (iso: string) => iso.slice(0, 16).replace("T", " ");
 
 /** A chat named by its id, or by its title ("#general", "Home"): exact first, then the latest that contains it. */
@@ -70,9 +100,9 @@ function findChat(
   name: string,
 ): Thread | { ambiguous: Thread[] } | undefined {
   const byId = store.threads.get(name);
-  if (byId) return canRead(store, agent, byId) ? byId : undefined;
+  if (byId) return canRead(store, agent, current, byId) ? byId : undefined;
   const q = name.trim().toLowerCase();
-  const all = readableChats(store, agent);
+  const all = readableChats(store, agent, current);
   const exact = all.find((t) => t.title.toLowerCase() === q);
   if (exact) return exact;
   const sessions = all.filter((t) => t.session?.toLowerCase() === q);
@@ -101,7 +131,7 @@ export function chatTools(store: Store): Tool[] {
       deadlineMs: 5_000,
       title: (a) => `Searched chats for “${a.query}”`,
       async run(a, ctx) {
-        const scope = searchScope(store, ctx.agent, a.query);
+        const scope = searchScope(store, ctx.agent, ctx.thread, a.query);
         // This chat counts only when the turn says what of it the model already sees; that part is not searched.
         const inView = [...(ctx.inView?.() ?? [])];
         const others = scope.chats.filter((t) => t.id !== ctx.thread.id);
@@ -120,30 +150,28 @@ export function chatTools(store: Store): Tool[] {
           })
           .filter(
             ({ message: m }) =>
-              !store.memories.excluded({ agent_id: ctx.agent.id, project_id: ctx.thread.project_id }, textOf(m), {
+              !forgotten(store, ctx.agent, ctx.thread, byId.get(m.thread_id), textOf(m), {
                 message_id: m.id,
                 ...(m.run_id ? { run_id: m.run_id } : {}),
               }),
           )
           .map(({ message: m, snippet }) => {
             const t = byId.get(m.thread_id) as Thread;
-            return `- [${t.title} · chat ${t.id}] ${when(m.created_at)} ${authorOf(store, m)}: ${snippet} (message ${m.id})`;
+            return `- [${chatLabel(store, t, ctx.thread)}] ${when(m.created_at)} ${authorOf(store, m)}: ${snippet} (message ${m.id})`;
           });
         const calls = store.runs
           .searchSteps(wordsOf(scope.text), [...byId.keys()], a.limit ?? 10, inView)
           .filter(
             (c) =>
-              !store.memories.excluded(
-                { agent_id: ctx.agent.id, project_id: ctx.thread.project_id },
-                `${c.args} ${c.result ?? ""}`,
-                { run_id: c.run_id },
-              ),
+              !forgotten(store, ctx.agent, ctx.thread, byId.get(c.thread_id), `${c.args} ${c.result ?? ""}`, {
+                run_id: c.run_id,
+              }),
           )
           .map((c) => {
             const t = byId.get(c.thread_id) as Thread;
             const who = store.agents.get(c.agent_id)?.name ?? c.agent_id;
             const result = c.result ? ` → ${cap(c.result, CALL_CHARS)}` : "";
-            return `- [${t.title} · chat ${t.id}] ${when(c.started_at)} ${who} called ${c.tool} ${cap(c.args, CALL_CHARS)}${result}`;
+            return `- [${chatLabel(store, t, ctx.thread)}] ${when(c.started_at)} ${who} called ${c.tool} ${cap(c.args, CALL_CHARS)}${result}`;
           });
         const found = [...rows, ...(calls.length ? ["Tool calls:", ...calls] : [])];
         return found.length
@@ -172,7 +200,7 @@ export function chatTools(store: Store): Tool[] {
             `Ambiguous session name; read_chat with one chat id:\n${t.ambiguous.map((x) => `- ${x.title} (chat ${x.id})`).join("\n")}`,
           );
         if (!t) {
-          const known = readableChats(store, ctx.agent)
+          const known = readableChats(store, ctx.agent, ctx.thread)
             .slice(0, 15)
             .map((x) => `- ${x.title} (chat ${x.id})`);
           return `no chat named "${a.chat}" that you can read. Use list_agents and delegate to ask the named agent for context. Recent chats:\n${known.join("\n")}`;
@@ -185,7 +213,7 @@ export function chatTools(store: Store): Tool[] {
         const lines = messages
           .filter(
             (m) =>
-              !store.memories.excluded({ agent_id: ctx.agent.id, project_id: ctx.thread.project_id }, textOf(m), {
+              !forgotten(store, ctx.agent, ctx.thread, t, textOf(m), {
                 message_id: m.id,
                 ...(m.run_id ? { run_id: m.run_id } : {}),
               }),
@@ -200,7 +228,10 @@ export function chatTools(store: Store): Tool[] {
             const content = [cap(text, MESSAGE_CHARS), cap(attachments, MESSAGE_CHARS)].filter(Boolean).join("\n");
             return content ? [`${when(m.created_at)} ${authorOf(store, m)}: ${content}`] : [];
           });
-        return untrusted("chat", { title: t.title, id: t.id }, lines.length ? lines.join("\n\n") : "(no messages)");
+        // A chat of another project says where it is, so the owner can see where the agent read.
+        const attrs: Record<string, string> = { title: t.title, id: t.id };
+        if (t.project_id !== ctx.thread.project_id) attrs.place = placeName(store, t.project_id);
+        return untrusted("chat", attrs, lines.length ? lines.join("\n\n") : "(no messages)");
       },
     }),
   ];

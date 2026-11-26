@@ -221,6 +221,68 @@ Las correcciones se revisan con `contacts.source_updates.list` y `.resolve` (`ac
 resolver siempre requieren tu confirmación en la app, incluso en Total. Marcá sólo registros editables con
 `allow_updates: true`; de entrada son de sólo lectura. Ninguna corrección escribe en la memoria global.
 
+#### Leer el proyecto del agente asignado
+
+Si esta persona debe recibir respuestas como las que te da ese agente a vos, abrí su tarjeta de contacto y prendé
+**Consultar el proyecto del agente**, dentro de **Qué puede hacer esta conversación**. Primero elegí un agente
+específico; la opción no está disponible si no tiene un proyecto disponible. Es independiente de **Contestar desde mis
+notas**. Cambiar el agente asignado o moverlo a otro proyecto apaga la consulta; volvé a habilitarla para la nueva
+asignación si querés compartir ese proyecto.
+
+La consulta del proyecto viene apagada y se elige sólo para una persona: lo que una cuenta da por defecto nunca lo prende. Funciona sólo mientras
+elegiste un agente específico para esta persona, su chat lo atiende ese agente en su propio proyecto, la memoria está
+encendida y ningún otro contacto tiene asignado un agente de ese proyecto. Si otro contacto tiene asignado cualquier
+agente del mismo proyecto, la lectura se corta para todos ahí hasta que cada proyecto atienda a un solo contacto. Las
+salas y los grupos nunca la tienen.
+
+El agente puede buscar como lo haría para vos, sólo leyendo:
+
+- las notas vigentes del proyecto y su propia libreta en ese proyecto (sin notas pendientes, olvidadas ni sin
+  confirmar);
+- lo que escribiste en tus propios chats con ese agente en ese proyecto (no sus respuestas, ni chats de otras
+  personas, salas, chats delegados u otros proyectos);
+- los documentos que mencionaste ahí: un archivo de texto, Markdown o CSV dentro de la carpeta del proyecto, o un
+  enlace de Google Drive, leído como está ahora a través de tu conexión con Drive. Cita el chat, la nota o el
+  documento que usó.
+
+Sólo cuentan las referencias que escribiste vos: nunca se abren enlaces o nombres de archivo que mande el contacto,
+que escriba un agente o que aparezcan dentro de un documento. Se ignoran archivos ocultos, administrativos o que
+parecen secretos, archivos fuera de la carpeta del proyecto y enlaces a otros sitios. Una referencia deja de funcionar
+apenas apagás el permiso, asignás a otro agente, movés el chat, borrás u olvidás el mensaje que la tenía o cambiás el
+proyecto. Una lectura en curso se descarta si pasa eso. Deshabilitar Drive para el proyecto también descarta una
+lectura de Drive que todavía no terminó. No puede cambiar el documento original, enviar, ejecutar ni navegar nada.
+Lo que ya se respondió no se puede retirar.
+
+Si el contacto aporta datos nuevos sobre un documento, el agente puede proponer una actualización a un **registro
+privado del proyecto en APX**. Nada cambia hasta que revises el contacto, el canal, el mensaje original, la fuente y
+el texto antes/después y la aceptes. Rechazar deja el registro igual; repetir la misma propuesta no crea otra.
+Los datos aceptados quedan disponibles para el agente asignado al consultar el proyecto, no en la memoria global.
+El informe original y el documento de Drive nunca se editan. Revisá estas propuestas con `contacts.source_updates.list`
+y `.resolve`, como arriba; no requieren el permiso de notas. Quitar la referencia del dueño al documento bloquea
+la aprobación pendiente. La propuesta conserva la versión de la fuente leída al crearla; aceptarla no edita ni
+vuelve a leer el informe original. Los registros largos admiten reemplazar un pasaje o agregar datos con su versión,
+sin reconstruir todo el texto. Las propuestas para documentos locales registrados
+explícitamente como editables siguen siendo un circuito separado.
+
+Cuando lo que puede leer no le alcanza para responder (un documento que nunca enlazaste en ese chat, algo que sólo
+sabe tu lado), el agente le pregunta a tu superagente. La pregunta va a un subhilo del chat del contacto, marcada como
+palabras de un contacto; ahí el superagente la busca en ese proyecto y responde sólo lo que esa persona puede saber.
+Ahí sólo puede leer: los chats de ese proyecto con vos, su carpeta, sus notas y los archivos de Drive que esos chats ya
+usaron; no puede enviar, escribir, ejecutar comandos ni abrir tus otros proyectos y chats, ni archivos que tus otros
+chats dejaron en carpetas temporales. Responde sin el perfil ni las instrucciones de tu superagente, ni lo que
+escribiste sobre vos. Si duda de si algo se puede
+compartir, primero te pregunta en la app. Si mientras tanto le quitás la lectura del proyecto a esa persona, la
+respuesta nunca le llega. Su respuesta vuelve al agente, en el mismo turno o un momento después, y el
+agente le escribe a la persona. Volver a preguntar mientras trabaja sigue la misma consulta.
+
+En el chat del contacto dentro del panel, una referencia compacta muestra quién le preguntó a quién y un fragmento
+de la pregunta. Seleccionala para leer la consulta real en el panel lateral, sin salir del chat del contacto. Estas
+referencias de supervisión sólo las ves vos en la app; no son mensajes enviados al contacto. La actividad anterior
+sin una conversación vinculada sigue como una nota de texto.
+
+Para los agentes, se prende con `apx_settings` `contacts.set` y `perms: { project_reading: true }` para esa persona;
+siempre pregunta en la app.
+
 Lo que recibe de entrada cada contacto de una cuenta está en la configuración de esa cuenta, **Contactos › Para tus
 contactos, por defecto**: todo apagado hasta que prendas algo. Lo que elijas para un contacto le gana, en esa cuenta y
 en cualquier otra.

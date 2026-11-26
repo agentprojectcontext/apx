@@ -4,18 +4,20 @@
 import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import type { EngineStatus, HarnessId } from "@apx/protocol";
+import { worksForOwner } from "../domain/owner-work.ts";
 import { engineOf, harnessOf } from "../domain/refs.ts";
 import type { Store } from "../domain/store.ts";
+import { createPermissions } from "../engine/permissions.ts";
 import { unauthorized } from "../errors.ts";
 import { cachedCatalog } from "../models/catalog.ts";
 import { modelSettings } from "../models/choice.ts";
 import type { Llm } from "../providers/llm.ts";
 import { mediaData } from "../services/uploads.ts";
-import { harnessDir } from "../tools/folders.ts";
+import { harnessDir, harnessRoots } from "../tools/folders.ts";
 import { acpAgents, acpEngine } from "./acp/agents.ts";
 import { acpHarness } from "./acp/harness.ts";
 import { claudeHarness } from "./claude.ts";
-import { codexHarness, type McpCommand } from "./codex.ts";
+import { type CodexPlace, codexHarness, type McpCommand } from "./codex.ts";
 import { type CliStatus, detectClaude, detectCodex, which } from "./detect.ts";
 import { nativeHarness } from "./native.ts";
 import { ONESHOT, oneshotHarness, oneshotStatus } from "./oneshot.ts";
@@ -26,6 +28,24 @@ const STATUS_CACHE_MS = 60_000;
 /** A run's tools, reachable out of process (Codex's MCP proxy) only with the run's token. */
 type Gate = Pick<TurnIO, "tools" | "execute" | "run">;
 
+/**
+ * Where Codex's sandbox reaches: the folders the rule gives the agent as it acts, as Auto has them even in Total
+ * (Codex never asks, so never every folder) and without folders lent or granted for good (DECISIONS.md#d-271).
+ */
+export function codexPlaceFor(store: Store, home: string): (io: Pick<TurnIO, "agent" | "thread">) => CodexPlace {
+  const permissions = createPermissions({ store, home });
+  const ownersTurn = (id: string): boolean => {
+    const t = store.threads.get(id);
+    return !!t && worksForOwner(store, t);
+  };
+  return (io) => {
+    const scope = permissions.scope(io.agent, io.thread);
+    const reach = scope.reach === "all" ? "read" : scope.reach;
+    const roots = harnessRoots(store, home, { ...scope, reach, granted: undefined, lent: undefined });
+    return { home, roots, reach: scope.reach, forOwner: ownersTurn(io.thread.id) };
+  };
+}
+
 export function createHarnesses(deps: {
   store: Store;
   llm: Llm;
@@ -33,6 +53,8 @@ export function createHarnesses(deps: {
   /** How a child process reaches this core's tool gate (the MCP proxy command, minus the token). */
   mcpProxy: () => { command: string; args: string[]; env: Record<string, string> };
   overrides?: Partial<Record<HarnessId, Harness>>;
+  /** Waits before the native loop asks its model list again (default in native.ts). */
+  stepPatienceMs?: readonly number[] | undefined;
   /** Told each time the CLIs are asked again whether they are here and signed in. */
   onDetected?(found: { claude: CliStatus; codex: CliStatus }): void;
 }) {
@@ -57,7 +79,8 @@ export function createHarnesses(deps: {
     return { command, close: () => gates.delete(token) };
   };
   const registry: Record<HarnessId, Harness> = {
-    native: deps.overrides?.native ?? nativeHarness(llm),
+    native:
+      deps.overrides?.native ?? nativeHarness(llm, deps.stepPatienceMs ? { patienceMs: deps.stepPatienceMs } : {}),
     aider: deps.overrides?.aider ?? oneshotHarness("aider", { cwd }),
     antigravity: deps.overrides?.antigravity ?? oneshotHarness("antigravity", { cwd }),
     claude:
@@ -68,6 +91,7 @@ export function createHarnesses(deps: {
       codexHarness({
         codexPath: bin("codex"),
         cwd,
+        place: codexPlaceFor(store, deps.home),
         gate: proxyFor,
       }),
     acp:

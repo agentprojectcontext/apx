@@ -53,7 +53,7 @@ agente, no una garantía de que Git ya haya integrado o limpiado los cambios aut
 | Política | Qué significa |
 |---|---|
 | **Pregunta antes de cambiar** (`ask`) | La de siempre. Las ediciones y los comandos pasan por las aprobaciones de la [autonomía](/es/concepts/autonomy/) del agente. Codex no puede preguntar en medio de un turno, así que con esta política solo lee. |
-| **Edita libremente** (`auto`) | Las sesiones de Claude Code y Codex editan archivos dentro de la carpeta sin preguntar (nunca `.apc/` ni `AGENTS.md`, y nada en `.git`, con ninguna autonomía: git se usa con comandos). Los comandos siguen la autonomía del agente. |
+| **Edita libremente** (`auto`) | Las sesiones de Claude Code y Codex editan archivos dentro de la carpeta sin preguntar (nunca `.apx/` ni `AGENTS.md`, y nada en `.git`, con ninguna autonomía: git se usa con comandos). Los comandos siguen la autonomía del agente. |
 | **Sólo lectura** (`read-only`) | Solo lee. Lo que necesitaría tu OK se rechaza. |
 
 ### Trabajar en la carpeta desde cualquier chat
@@ -69,8 +69,12 @@ Abrí el panel lateral desde el encabezado del chat. Cuando hay código de por m
 | Panel | Qué tenés |
 |---|---|
 | **Terminal** | Cada comando que corrió el agente, con lo que imprimió, en primer plano o de fondo. **Abrir una terminal** te da tu propia terminal en la misma carpeta. |
-| **Archivos** | La carpeta del chat (**Carpeta del chat**) y sus archivos de trabajo (**Temporales**). Abrí un archivo para leerlo; el Markdown se lee como página. |
-| **Cambios** | Las ediciones que registró el agente, del **Último turno** o de **Todos los turnos**, y el diff de git de la **Carpeta actual**, archivo por archivo. |
+| **Archivos** | **Explorador** recorre la carpeta del chat (**Carpeta del chat**) y sus archivos de trabajo (**Temporales**). Cada archivo que abrís queda en su propia pestaña, que cerrás cuando terminás; el Markdown se lee como página. |
+| **Cambios** | Las ediciones que registró el agente, del **Último turno** o de **Todos los turnos**, y el diff de git de la **Carpeta actual**, archivo por archivo. Desplegá un archivo para un vistazo rápido, o abrilo en su propia pestaña para ver el archivo entero con cada cambio marcado. |
+
+Los archivos que cambió un turno también aparecen al final del mensaje del agente. Cada uno tiene **Ver archivo**, que
+lo abre en **Archivos** (en **Temporales** si el agente lo escribió ahí), y **Ver cambios**, que abre **Cambios** con ese
+archivo desplegado. En **Cambios**, el ojo de un archivo también lo abre en **Archivos**.
 
 Un comando que no pudo arrancar figura como **No se pudo iniciar**, con el motivo en su salida. Ya no está activo;
 corregí el comando o el problema que indica antes de pedirle al agente que vuelva a intentarlo.
@@ -126,12 +130,19 @@ lectura para revisar el código del checkout". El agente elige el motor, el proy
 externas** dentro de ese proyecto, como una que abriste vos, y su respuesta vuelve al agente que la pidió, así que no
 hace falta que la vigiles.
 
-- Cada inicio te pide el OK en una tarjeta, aun en Auto. Sólo Total, o la regla **irreversible** del agente puesta en
-  correr sin preguntar, lo saltea ([Reglas por caso](/es/concepts/autonomy/#reglas-por-caso)); en Plan el agente no
-  puede abrir una.
+Se ve como del motor, no del agente: la sesión lleva el nombre y la cara del motor (Claude Code, Codex) en tus listas,
+su encabezado, sus respuestas y sus avisos, y se llama como la tarea. Un pequeño chip **Iniciada por** con el nombre del
+agente te lleva al chat que la pidió; en ese chat su tarjeta dice "Roby → Claude Code". La sesión no recibe nada propio
+del agente: ni su modelo (sólo el que el agente nombró, o el predeterminado del motor), ni su memoria, notas, skills o
+voz. Podés leerla mientras trabaja; lo que responde vuelve al agente que la abrió.
+
+- En Auto y Total el agente la abre cuando se lo pedís, sin tarjeta; pregunta antes si en su turno hay contenido de
+  afuera (una página web, otro agente, un mensaje). En Manual cada inicio te pide el OK; en Plan el agente no puede
+  abrir una ([Reglas por caso](/es/concepts/autonomy/#reglas-por-caso)).
 - La sesión nunca tiene más que el agente que la pidió: ninguna política de escritura más libre que la de su chat,
-  nada más allá de lo que permite la autonomía del proyecto, y sólo dentro de la carpeta del agente. Un agente atado
-  a un proyecto no puede abrir una sesión en otro.
+  nada más allá de lo que permite la autonomía del proyecto, y sólo dentro de la carpeta del agente. Trabajando para
+  vos, un agente puede abrir una en cualquiera de tus proyectos (no en uno que se está mudando), y su respuesta dice en
+  cuál.
 - Cuenta para los límites de gasto del agente que la pidió: cuando se alcanzan, la sesión no arranca y no toma
   mensajes nuevos.
 - Un agente que le está respondiendo a otro no puede abrir sesiones; y una sesión no es un compañero ni una terminal:
@@ -146,6 +157,9 @@ hace falta que la vigiles.
   Manual o Plan corre en sólo lectura (y explica por qué), salvo que sus reglas lo dejen escribir solo. Una sesión que
   otro agente delegó con **Pregunta antes de cambiar** queda en sólo lectura para Codex aun en Total, porque no puede
   preguntar.
+- Codex nunca lee la carpeta propia de APX. Fuera de un chat de código escribe en tus proyectos según lo permita el
+  modo del agente, y no toca `AGENTS.md`, `.apx` ni los archivos de configuración de Claude Code salvo que el agente
+  esté en Total. Editar `.claude/settings.json` te pregunta antes, lo haga el agente que lo haga.
 - La lista de pasos del motor es el plan de APX, debajo de su respuesta (en el chat de una tarea, el plan de la tarea).
   Claude Code no tiene su propia lista de tareas, subagentes ni preguntas: usa el plan, las delegaciones y las preguntas
   de APX, con sus aprobaciones.

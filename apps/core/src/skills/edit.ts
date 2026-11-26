@@ -1,9 +1,11 @@
 // Reading and writing a skill's SKILL.md for the Resources screen. The owner's skills live in APX's home; a project's
-// in `.apc/skills/`, written without following a symlink out of the repo. APX's, extensions' and the other apps' skills
+// in `.apx/skills/`, written without following a symlink out of the repo. APX's, extensions' and the other apps' skills
 // are read-only here (one of those is copied into APX to be changed).
+
 import fs from "node:fs";
 import path from "node:path";
 import type { SkillInfo } from "@apx/protocol";
+import { ownDir } from "../apc/folder.ts";
 import type { Store } from "../domain/store.ts";
 import { realpath, writeAtomic } from "../paths.ts";
 import { NO_GLOBALS, type Skill, skillOn, skillPath, skillsOff } from "./skills.ts";
@@ -42,7 +44,7 @@ const isLink = (p: string) => {
 };
 
 /**
- * Writes SKILL.md in folder `folder`: the project's `.apc/skills/<folder>/` (refusing any symlink on the way) or the
+ * Writes SKILL.md in folder `folder`: the project's `.apx/skills/<folder>/` (refusing any symlink on the way) or the
  * owner's `<home>/skills/<folder>/` (which may be a link the owner made; the write goes to its target). The folder,
  * not the frontmatter `name`, says which skill it is: the two may differ.
  */
@@ -55,7 +57,7 @@ export function writeSkill(o: {
 }): string {
   if (o.target === "project") {
     if (!o.projectRoot) throw new Error("a project skill needs a project whose folder is on disk");
-    const parts = [".apc", "skills", o.folder, "SKILL.md"];
+    const parts = [ownDir(o.projectRoot), "skills", o.folder, "SKILL.md"];
     for (let i = 1; i <= parts.length; i++) {
       const p = path.join(o.projectRoot, ...parts.slice(0, i));
       if (isLink(p)) throw new Error(`refusing to write through a symlink: ${parts.slice(0, i).join("/")}`);

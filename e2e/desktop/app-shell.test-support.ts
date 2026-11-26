@@ -66,6 +66,8 @@ export async function launchDesktop(home: string): Promise<ElectronApplication> 
     XDG_CONFIG_HOME: path.join(home, ".config"),
     APX_DESKTOP_DATA: path.join(home, "desktop"),
     APX_QUIT_CONFIRM: "off",
+    APX_TELEMETRY: "off",
+    DO_NOT_TRACK: "1",
     APX_CONNECTION: "local",
     APX_URL: "",
     APX_HOME: (await world.info()).home,

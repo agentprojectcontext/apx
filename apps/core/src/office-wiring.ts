@@ -9,10 +9,12 @@
 import { channelTexts } from "./channels/texts.ts";
 import type { Presentation } from "./domain/channels.ts";
 import { ownerTimeZone } from "./domain/owner.ts";
+import type { RunRecord } from "./domain/runs.ts";
 import type { Store } from "./domain/store.ts";
 import { previewOf } from "./domain/threads.ts";
 import type { Attention } from "./engine/attention.ts";
 import { type BackgroundCheck, createBackground } from "./engine/background.ts";
+import { finishContinuation, tickContinuations } from "./engine/continuations.ts";
 import type { AdmitFn } from "./engine/engine.ts";
 import { createNudges } from "./engine/nudges.ts";
 import { createStallNotices, LIMIT_RESUME_EVERY_MS, resetLabel, resumeLimited } from "./engine/provider-limit.ts";
@@ -89,6 +91,7 @@ export function officeScheduler(deps: {
     log: deps.log,
     ...(deps.now ? { now: deps.now } : {}),
     eachTick: (at) => {
+      tickContinuations(store, deps.admit, at);
       background.tick(at);
       handOwnerComments(store, deps.admit, at);
       // A task given a start time begins then, not at the next hourly pickup.
@@ -153,5 +156,13 @@ export function officeScheduler(deps: {
     },
     ...(deps.now ? { now: deps.now } : {}),
   });
-  return Object.assign(scheduler, { nudges, stalls });
+  const routineAfterRun = scheduler.afterRun;
+  return Object.assign(scheduler, {
+    nudges,
+    stalls,
+    afterRun: (run: RunRecord) => {
+      finishContinuation(store, run);
+      routineAfterRun(run);
+    },
+  });
 }

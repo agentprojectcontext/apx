@@ -30,9 +30,9 @@ const llm = () =>
 async function setup() {
   const env = await startCore({ llm: llm() });
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-grants-"));
-  fs.mkdirSync(path.join(root, ".apc"));
+  fs.mkdirSync(path.join(root, ".apx"));
   fs.writeFileSync(
-    path.join(root, ".apc", "mcps.json"),
+    path.join(root, ".apx", "mcps.json"),
     JSON.stringify({
       mcpServers: { notes: { command: process.execPath, args: [SERVER] } },
     }),
@@ -315,6 +315,7 @@ test("a tool that becomes destructive on reconnection cannot use its old reading
           delegate: unused,
           askOwner: unused,
           requestGrant: unused,
+          askSignIn: unused,
           proposeAction: unused,
           withdrawQuestion: () => {
             throw new Error("unused");

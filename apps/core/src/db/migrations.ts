@@ -92,12 +92,12 @@ export const MIGRATIONS: readonly string[] = [
   ) WHERE harness IS NOT NULL;
   `,
   `
-  -- Projects are folders registered by path; their AGENTS.md and .apc/ are the source of truth for definitions.
+  -- Projects are folders registered by path; their AGENTS.md and .apx/ are the source of truth for definitions.
   ALTER TABLE projects ADD COLUMN description TEXT;
   ALTER TABLE projects ADD COLUMN kind TEXT;
   ALTER TABLE projects ADD COLUMN context TEXT;
   ALTER TABLE projects ADD COLUMN present INTEGER NOT NULL DEFAULT 1;
-  -- Agents mirrored from .apc/agents/<slug>.md carry source 'apc'; one whose file is gone is archived, not deleted
+  -- Agents mirrored from .apx/agents/<slug>.md carry source 'apc'; one whose file is gone is archived, not deleted
   -- (threads and runs still point at it).
   ALTER TABLE agents ADD COLUMN slug TEXT;
   ALTER TABLE agents ADD COLUMN source TEXT NOT NULL DEFAULT 'local';
@@ -208,7 +208,7 @@ export const MIGRATIONS: readonly string[] = [
     INSERT INTO memories_fts(memories_fts, rowid, text) VALUES ('delete', old.n, old.text);
     INSERT INTO memories_fts(rowid, text) VALUES (new.n, new.text);
   END;
-  -- A project's .apc/memory.md, written by the owner: project context like AGENTS.md.
+  -- A project's .apx/memory.md, written by the owner: project context like AGENTS.md.
   ALTER TABLE projects ADD COLUMN memory_md TEXT;
   `,
   `
@@ -1294,4 +1294,79 @@ export const MIGRATIONS: readonly string[] = [
   ARCHIVE_MODEL_CONTEXT,
   // A stable source identity prevents another package with the same id from inheriting its settings and secrets.
   `ALTER TABLE extensions ADD COLUMN origin_key TEXT;`,
+  `
+  CREATE TABLE extension_event_configs (
+    extension TEXT PRIMARY KEY REFERENCES extensions(id) ON DELETE CASCADE,
+    generation TEXT NOT NULL,
+    config TEXT NOT NULL,
+    revision TEXT NOT NULL,
+    error TEXT
+  );
+  CREATE TABLE extension_events (
+    receipt TEXT PRIMARY KEY,
+    extension TEXT NOT NULL REFERENCES extensions(id) ON DELETE CASCADE,
+    generation TEXT NOT NULL,
+    event TEXT NOT NULL,
+    external_id TEXT NOT NULL,
+    revision TEXT NOT NULL,
+    data TEXT NOT NULL,
+    thread TEXT NOT NULL,
+    state TEXT NOT NULL CHECK(state IN ('pending', 'admitted', 'canceled')),
+    created_at TEXT NOT NULL,
+    run_id TEXT,
+    UNIQUE(extension, generation, event, external_id)
+  );
+  CREATE INDEX extension_events_pending ON extension_events(state, created_at);
+  CREATE INDEX extension_events_rate ON extension_events(extension, created_at);
+  `,
+  `
+  -- Workflows an agent started (DECISIONS.md#d-273): the plan, where it stands, and each agent call of it. A step's
+  -- output is what a later stage and a resume read; its session is the sub-thread its delegation opened.
+  CREATE TABLE workflows (
+    id TEXT PRIMARY KEY,
+    thread_id TEXT NOT NULL,
+    agent_id TEXT NOT NULL,
+    run_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    plan TEXT NOT NULL,
+    state TEXT NOT NULL CHECK(state IN ('running', 'done', 'failed', 'stopped')),
+    reason TEXT,
+    result TEXT,
+    deadline_at TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX workflows_thread ON workflows(thread_id, created_at);
+  CREATE INDEX workflows_state ON workflows(state);
+  CREATE TABLE workflow_steps (
+    workflow_id TEXT NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+    key TEXT NOT NULL,
+    state TEXT NOT NULL CHECK(state IN ('pending', 'working', 'done', 'skipped', 'failed', 'canceled')),
+    thread_id TEXT,
+    output TEXT,
+    error TEXT,
+    tries INTEGER NOT NULL DEFAULT 0,
+    started_at TEXT,
+    ended_at TEXT,
+    PRIMARY KEY (workflow_id, key)
+  );
+  `,
+  `
+  CREATE TABLE chat_continuations (
+    id TEXT PRIMARY KEY,
+    thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+    agent_id TEXT NOT NULL,
+    project_id TEXT,
+    purpose TEXT NOT NULL,
+    condition TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    state TEXT NOT NULL CHECK(state IN ('pending','admitted','completed','canceled','expired','blocked','failed')),
+    run_id TEXT UNIQUE,
+    reason TEXT,
+    authority TEXT NOT NULL
+  );
+  CREATE INDEX chat_continuations_state ON chat_continuations(state, created_at);
+  CREATE INDEX chat_continuations_thread ON chat_continuations(thread_id, created_at);
+  `,
 ];

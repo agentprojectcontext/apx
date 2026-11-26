@@ -25,7 +25,7 @@ before(async () => {
   skill(path.join(home, "skills"), "brief", "Writes a morning brief.");
   env = await startCore({ llm: scriptedLlm(() => say("ok")), home });
   repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-res-repo-")));
-  fs.mkdirSync(path.join(repo, ".apc"), { recursive: true });
+  fs.mkdirSync(path.join(repo, ".apx"), { recursive: true });
   fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Acme\n");
   project = (await env.client.call("projects.register", { path: repo })).project.id;
 });
@@ -55,7 +55,7 @@ test("a global skill turned off in one project is off only there; agents there n
 });
 
 test("a project's own skill turned off in its subproject says so, and stays on in the project", async () => {
-  skill(path.join(repo, ".apc", "skills"), "ship", "Ships Acme's release.");
+  skill(path.join(repo, ".apx", "skills"), "ship", "Ships Acme's release.");
   const sub = (await env.client.call("projects.create", { name: "Acme web", parent: project })).project.id;
   await env.client.call("skills.toggle", { name: "ship", project: sub, on: false });
   const own = (await env.client.call("skills.list", { project })).skills.find((s) => s.name === "ship");
@@ -80,14 +80,14 @@ test("editing a global skill from a project as a copy leaves the original untouc
     content: "---\nname: brief\ndescription: Acme's own brief.\n---\n\nShorter.\n",
   });
   assert.equal(saved.skill.scope, "project", "the project's copy takes its place there");
-  assert.match(fs.readFileSync(path.join(repo, ".apc", "skills", "brief", "SKILL.md"), "utf8"), /Acme's own/);
+  assert.match(fs.readFileSync(path.join(repo, ".apx", "skills", "brief", "SKILL.md"), "utf8"), /Acme's own/);
   assert.match(fs.readFileSync(path.join(home, "skills", "brief", "SKILL.md"), "utf8"), /morning brief/);
   const global = (await env.client.call("skills.list", {})).skills.find((s) => s.name === "brief");
   assert.equal(global?.description, "Writes a morning brief.");
 });
 
 test("a project skill is never written through a symlink", async () => {
-  fs.symlinkSync(os.tmpdir(), path.join(repo, ".apc", "skills", "linked"));
+  fs.symlinkSync(os.tmpdir(), path.join(repo, ".apx", "skills", "linked"));
   await assert.rejects(
     env.client.call("skills.save", { name: "linked", target: "project", project, content: "x" }),
     /symlink/,
@@ -168,7 +168,7 @@ test("mcp: a global server off in one project, a test run, and no test before a 
   assert.ok(r.tools.length > 0);
 
   fs.writeFileSync(
-    path.join(repo, ".apc", "mcps.json"),
+    path.join(repo, ".apx", "mcps.json"),
     JSON.stringify({ mcpServers: { local: { command: process.execPath, args: [SERVER] } } }),
   );
   const refused = await env.client.call("mcp.test", { scope: "project", server: "local", project });
@@ -190,7 +190,7 @@ test("a skill whose folder and name differ is edited in its own folder", async (
 });
 
 test("a planted temp-file symlink cannot redirect a skill write", async () => {
-  const dir = path.join(repo, ".apc", "skills", "safe");
+  const dir = path.join(repo, ".apx", "skills", "safe");
   fs.mkdirSync(dir, { recursive: true });
   const outside = path.join(os.tmpdir(), `apx-outside-${process.pid}.txt`);
   fs.writeFileSync(outside, "untouched");
@@ -237,7 +237,7 @@ test("a variable never goes in a server's args, where the process list shows it"
 });
 
 test("a project can take none of the owner's global skills or servers; its own still count", async () => {
-  skill(path.join(repo, ".apc", "skills"), "acme-only", "Acme's own way.");
+  skill(path.join(repo, ".apx", "skills"), "acme-only", "Acme's own way.");
   skill(path.join(home, "skills"), "digest", "A weekly digest.");
   assert.deepEqual(await env.client.call("resources.inheritance", { project }), { skills: true, mcp: true });
   await env.client.call("mcp.set", { name: "inherit-probe", server: { command: process.execPath, args: [SERVER] } });

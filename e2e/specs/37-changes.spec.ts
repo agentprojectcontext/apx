@@ -59,7 +59,7 @@ test("cambios: lista unificada, diff expandible en vivo, historial y registros a
     await page.getByRole("button", { name: "Enviar", exact: true }).click();
     await expect(panel.getByRole("tab", { name: "Archivos (1)" })).toBeVisible();
     const guide = panel.locator(".wchanges__file").filter({ has: page.getByRole("button", { name: /Guide\.md/ }) });
-    await guide.getByRole("button").click();
+    await guide.getByRole("button", { name: /Guide\.md/ }).click();
     await expect(guide.locator(".diff__line--add")).toContainText(["# Guía", "", "Original"]);
     advance();
     await expect(page.locator(".transcript").getByText("Done", { exact: true })).toHaveCount(1);
@@ -69,15 +69,24 @@ test("cambios: lista unificada, diff expandible en vivo, historial y registros a
     await expect(guide.locator(".diff__line--add")).toContainText(["# Guía", "", "Final"]);
     await expect(guide).not.toContainText("Original");
     const code = panel.locator(".wchanges__file").filter({ has: page.getByRole("button", { name: /src\/app\.ts/ }) });
-    await code.getByRole("button").click();
+    await code.getByRole("button", { name: /src\/app\.ts/ }).click();
     await expect(code.locator(".diff__line--del")).toContainText('const status = "Old";');
     await expect(code.locator(".diff__line--add")).toContainText('const status = "New";');
     await expect(code.locator(".diff__line--add .diff__n")).toHaveText("1");
     await expect(panel.locator(".diff")).toHaveCount(2);
-    await code.getByRole("button").click();
+    await code.getByRole("button", { name: /src\/app\.ts/ }).click();
     await expect(code.locator(".diff")).toHaveCount(0);
-    await code.getByRole("button").click();
+    await code.getByRole("button", { name: /src\/app\.ts/ }).click();
     await page.screenshot({ path: "/tmp/apx-changes.png", fullPage: true });
+    // A file in the chat's folder, from the turn's card: open in its own tab in Files, not just the Explorer.
+    await page
+      .locator(".transcript .changes__file")
+      .filter({ hasText: "src/app.ts" })
+      .getByRole("button", { name: "Ver archivo" })
+      .click();
+    await expect(panel.getByRole("tab", { name: "app.ts" })).toHaveAttribute("aria-selected", "true");
+    await expect(panel.locator(".files__path")).toHaveText("src/app.ts");
+    await page.goto(`${env.core.url}/#thread=${thread.id}&panel=changes`);
     await env.client.call("threads.send", { thread: thread.id, text: "single" });
     await env.settle(thread.id);
     await expect(panel.getByRole("tab", { name: "Archivos (1)" })).toBeVisible();
@@ -86,7 +95,7 @@ test("cambios: lista unificada, diff expandible en vivo, historial y registros a
     fs.unlinkSync(path.join(work, "Guide.md"));
     await page.reload();
     await pickScope(page, "Todos los turnos");
-    await guide.getByRole("button").click();
+    await guide.getByRole("button", { name: /Guide\.md/ }).click();
     await expect(guide.locator(".diff__line--add")).toContainText(["# Guía", "", "Final"]);
     const legacy = env.core.store.messages.add({
       thread_id: thread.id,
@@ -97,7 +106,7 @@ test("cambios: lista unificada, diff expandible en vivo, historial y registros a
     });
     await pickScope(page, "Último turno");
     await expect(panel.locator(".wchanges__file")).toHaveCount(1);
-    await code.getByRole("button").click();
+    await code.getByRole("button", { name: /src\/app\.ts/ }).click();
     await expect(
       panel.getByText("Contenido actual: este cambio no guardó diff histórico.", { exact: true }),
     ).toBeVisible();
@@ -111,7 +120,7 @@ test("cambios: lista unificada, diff expandible en vivo, historial y registros a
     fs.writeFileSync(path.join(work, "src", "app.ts"), "Current after timeout\n");
     legacy.parts = [legacyPart];
     env.core.store.messages.setPart(legacy, 0);
-    await expect(code.getByRole("button")).toHaveAttribute("aria-expanded", "true");
+    await expect(code.getByRole("button", { name: /src\/app\.ts/ })).toHaveAttribute("aria-expanded", "true");
     await expect(code.locator(".wchanges__notice")).toBeVisible();
     await expect(code.locator(".diff__line--ctx")).toContainText(["Current after timeout"]);
   } finally {

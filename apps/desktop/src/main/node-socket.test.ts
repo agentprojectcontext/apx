@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import http from "node:http";
 import type { Duplex } from "node:stream";
 import { test } from "node:test";
+import { WebSocketServer } from "ws";
 import { waitFor } from "../../../core/src/testkit/platform.ts";
 import { nodeSocket } from "./node-socket.ts";
 
@@ -66,6 +67,68 @@ test("a node can cancel its transport before the connection opens", async () => 
     assert.equal(socket.readyState, 3);
   } finally {
     socket.close();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+});
+
+test("revocation discards late replies before the deferred native teardown", async () => {
+  const received: string[] = [];
+  let peerClosed = false;
+  const server = new WebSocketServer({ host: "127.0.0.1", port: 0 });
+  server.on("connection", (peer) => {
+    peer.on("error", () => {});
+    peer.on("message", (data) => received.push(data.toString()));
+    peer.on("close", () => {
+      peerClosed = true;
+    });
+  });
+  await new Promise<void>((resolve) => server.once("listening", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  const socket = nodeSocket(`ws://127.0.0.1:${address.port}`);
+  socket.addEventListener("error", () => {});
+  try {
+    await waitFor(() => socket.readyState === 1, "the reply transport to open");
+    socket.send("Before revocation");
+    await waitFor(() => received.length === 1, "the authorized reply to reach its peer");
+    socket.close();
+    socket.send("After revocation");
+    await waitFor(() => socket.readyState === 3 && peerClosed, "the revoked reply transport to finish");
+    assert.deepEqual(received, ["Before revocation"]);
+  } finally {
+    socket.close();
+    for (const peer of server.clients) peer.terminate();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+});
+
+test("revocation during an incoming batch closes both peers without a native read error", async () => {
+  const server = new WebSocketServer({ host: "127.0.0.1", port: 0 });
+  let peerClosed = false;
+  server.on("connection", (peer) => {
+    peer.on("error", () => {});
+    peer.on("close", () => {
+      peerClosed = true;
+    });
+    for (let i = 0; i < 100; i++) peer.send("Queued browser request");
+  });
+  await new Promise<void>((resolve) => server.once("listening", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  const socket = nodeSocket(`ws://127.0.0.1:${address.port}`);
+  let messages = 0;
+  socket.addEventListener("error", () => {});
+  socket.addEventListener("message", () => {
+    messages++;
+    socket.close();
+    assert.equal(socket.readyState, 2);
+  });
+  try {
+    await waitFor(() => socket.readyState === 3 && peerClosed, "the revoked incoming transport to finish");
+    assert.ok(messages > 0);
+  } finally {
+    socket.close();
+    for (const peer of server.clients) peer.terminate();
     await new Promise<void>((resolve) => server.close(() => resolve()));
   }
 });

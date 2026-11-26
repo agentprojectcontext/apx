@@ -40,6 +40,20 @@ test("threads get shows a code thread's folder and write policy, and --json prin
   assert.equal(json.thread.cwd, "~/work/acme");
 });
 
+test("threads folder changes an existing session through the protocol and reports failures", async () => {
+  const cwd = path.resolve("checkout");
+  const { client, calls } = recordingClient({ "threads.update": { id: "thr_c", cwd } });
+  assert.equal(await printed(() => threads(client, ["folder", "thr_c", "checkout"])), `Working folder: ${cwd}`);
+  assert.deepEqual(calls, [["threads.update", { thread: "thr_c", cwd }]]);
+  await assert.rejects(threads(client, ["folder", "thr_c"]), /usage: apx threads folder/);
+  await assert.rejects(threads(client, ["folder", "thr_c", "one", "two"]), /usage: apx threads folder/);
+  const failed = recordingClient({ "threads.update": new Error("stop it first") });
+  const output = await printed(async () => {
+    await assert.rejects(threads(failed.client, ["folder", "thr_c", "checkout"]), /stop it first/);
+  });
+  assert.equal(output, "");
+});
+
 test("projects list says when a project's AGENTS.md is past the limit agents get whole", async () => {
   const { client } = recordingClient({
     "projects.list": {

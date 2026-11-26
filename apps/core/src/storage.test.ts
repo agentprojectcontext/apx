@@ -155,7 +155,7 @@ test("clearing removes only what APX rebuilds, never chats, memory, secrets, pro
     write(h, "media/uploads/2026-01-01/b.pdf", 8 * KB, 400),
     write(h, "media/sent/2026-01-01/c.ogg", 8 * KB, 400),
     write(h, "artifacts/global/x/memory.json", 8 * KB, 400),
-    write(h, "projects/acme/.apc/memory.md", 8 * KB, 400),
+    write(h, "projects/acme/.apx/memory.md", 8 * KB, 400),
     write(h, "skills/notes/SKILL.md", 8 * KB, 400),
     write(h, "secrets.json", KB, 400),
     write(h, "backups/apx-before.db", 8 * KB, 400),

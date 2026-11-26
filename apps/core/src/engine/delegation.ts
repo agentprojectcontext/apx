@@ -3,13 +3,14 @@
 // a new input. See DECISIONS.md#d-009
 import { DEFAULT_AUTONOMY, type Message, type Part, type Thread, type WritePolicy } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
+import { placeName, worksForOwner } from "../domain/owner-work.ts";
 import { worksIn } from "../domain/projects.ts";
 import { type DelegationResult, type Origin, type RunRecord, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
-import { previewOf, strictestWrite, type Worker, worksInFolder } from "../domain/threads.ts";
+import { strictestWrite, type Worker, worksInFolder } from "../domain/threads.ts";
 import { agentReply } from "../tools/agents.ts";
-import { folderInProject } from "../tools/folders.ts";
-import { modeOf, withProjectAutonomy } from "../tools/policy.ts";
+import { folderInProject, ownerFolder, readOnlyFolders } from "../tools/folders.ts";
+import { modeOf, reachOf, withProjectAutonomy } from "../tools/policy.ts";
 import { fromTeam, inlineName } from "../tools/result.ts";
 import { ancestors } from "./ancestry.ts";
 import { agentTripped, heldNotice, tellStuck, tripped } from "./breaker.ts";
@@ -18,6 +19,8 @@ import type { Admit } from "./engine.ts";
 import { MAX_ACTIVE_DELEGATIONS, MAX_DEPTH } from "./limits.ts";
 import { MAX_AUTO_PARTS, stalled } from "./progress.ts";
 import { answerOf as answered, type Outcome, outcomeNote, outcomeOf } from "./run-outcome.ts";
+import { soFar } from "./so-far.ts";
+import { withFilesNote } from "./task-files.ts";
 import { runLineage } from "./task-handoff.ts";
 
 /** A teammate's newer words reaching the turn already working on what it asked before (DECISIONS.md#d-222). */
@@ -25,7 +28,14 @@ function teamAddsMidTurn(from: string, text: string): string {
   return `${fromTeam("agent_message", { from }, text)}\n${inlineName(from)}, who asked for the work you are doing, wrote this while you were at it. It is newer than that request: if it pauses, stops or changes it, follow it before your next step, and say what you stopped.`;
 }
 
-export type Caller = { run: RunRecord; agent: AgentRecord; display: Display };
+/** `display`: the answer the caller is writing; a workflow resumed by the owner has none (its card is updated in place). */
+export type Caller = { run: RunRecord; agent: AgentRecord; display?: Display | undefined };
+
+/** A session a workflow's step opened: its end goes to the workflow (DECISIONS.md#d-273). */
+export type WorkflowMark = { id: string; key: string };
+
+/** A delegation that was opened: its session, its run and what the caller is told about where it works. */
+export type Opened = { sub: Thread; child: RunRecord; name: string; who: string; at: string; queued: boolean };
 
 /**
  * Whom to ask: an agent (its latest session here, else a new one), a session by name or id (the same agent, with its context), or both. A
@@ -34,6 +44,8 @@ export type Caller = { run: RunRecord; agent: AgentRecord; display: Display };
 export type DelegateTo = {
   agent?: AgentRecord | undefined;
   session?: string | undefined;
+  /** Display text only; the complete task remains the child's input. */
+  question?: string | undefined;
   worker?: Worker | undefined;
   /** The project the task is about: the session works in its folder. */
   project?: string | undefined;
@@ -49,9 +61,22 @@ export type DelegateTo = {
 type Workspace = { cwd: string; write: WritePolicy };
 
 /**
+ * Whether every agent in a delegation reaches every folder on its own (total, or acting outside on its own): only then
+ * may a session work in a folder that is none of the owner's projects. Each agent's own mode, never one narrower.
+ */
+function chainReachesAll(store: Store, parent: Thread, agents: AgentRecord[]): boolean {
+  const above = [parent, ...ancestors(store, parent.id)];
+  if (above.some((t) => store.threads.context(t.id).flow_step || store.threads.context(t.id).routine_autonomy))
+    return false;
+  const chain = [...agents, ...above.flatMap((t) => store.agents.get(t.agent_ids[0] ?? "") ?? [])];
+  return chain.every((a) => reachOf(withProjectAutonomy(store, a)) === "all");
+}
+
+/**
  * The folder a delegation works in, when the caller named one or a write policy (then the project's root), or why
  * not. Its write policy is the strictest of the caller's thread, the caller's autonomy (its project's when it has
- * none) and the one asked for: a delegation never gets further than its caller (DECISIONS.md#d-104).
+ * none) and the one asked for: a delegation never gets further than its caller (DECISIONS.md#d-104). Working for the
+ * owner, the folder may be in any of the owner's projects or their worktrees (`where` names it, DECISIONS.md#d-271).
  */
 export function workspaceOf(
   store: Store,
@@ -60,12 +85,22 @@ export function workspaceOf(
   parent: Thread,
   projectId: string | undefined,
   req: Pick<DelegateTo, "folder" | "write">,
-): Workspace | undefined | string {
+  home?: string,
+): (Workspace & { where?: string }) | undefined | string {
   // Asked for nothing, no folder of its own: our loop works in its project anyway, an outside engine on APX's side.
   if (req.folder === undefined && !req.write) return undefined;
   let cwd: string;
+  let where: string | undefined;
   try {
-    cwd = folderInProject(store, projectId, req.folder);
+    if (home && worksForOwner(store, parent)) {
+      const anywhere = chainReachesAll(store, parent, [caller, callee]);
+      const found = ownerFolder(store, home, projectId, req.folder, {
+        anywhere,
+        readOnly: readOnlyFolders(store, parent),
+      });
+      cwd = found.dir;
+      if (found.project) where = placeName(store, found.project);
+    } else cwd = folderInProject(store, projectId, req.folder);
   } catch (err) {
     const why = (err as Error).message;
     return `refused: ${why.startsWith("needs") ? `a folder to work in ${why}` : why}`;
@@ -78,7 +113,7 @@ export function workspaceOf(
     writeOfMode(modeOf(withProjectAutonomy(store, callee))),
     writeOfMode(store.projects.get(projectId ?? "")?.autonomy ?? DEFAULT_AUTONOMY),
   );
-  return { cwd, write: strictestWrite(ceiling, req.write ?? ceiling) };
+  return { cwd, write: strictestWrite(ceiling, req.write ?? ceiling), ...(where ? { where } : {}) };
 }
 
 /** The most a mode lets an agent change files: plan reads, manual asks, the rest go ahead. */
@@ -250,6 +285,10 @@ export function createDelegations(deps: {
   ended(run: RunRecord): void;
   /** A delegated run's first deadline in a thread, written to its row until its clock moves it. */
   windowMs(threadId: string): number;
+  /** APX's home, never a session's folder; without it a session's folder keeps to its project. */
+  home?: string | undefined;
+  /** A run in a workflow's session ended (DECISIONS.md#d-273). */
+  workflowEnded?(run: RunRecord): void;
   /**
    * Hands `framed` words to the running turn of `a.agent_id` in `a.thread_id` when its loop takes words mid-turn;
    * undefined when none can. A turn that ends before taking them runs `a` instead.
@@ -486,12 +525,11 @@ export function createDelegations(deps: {
     const sub = store.threads.get(child.thread_id);
     const caller = store.agents.get(parent.agent_id)?.name ?? parent.agent_id;
     const limit = child.end_reason === "step_limit" ? "steps" : "time";
-    const session = sub?.session ?? child.thread_id;
     const task = (resultCard(store, child.id)?.title ?? sub?.title ?? "").slice(0, 120);
-    const sofar = previewOf(answer).slice(0, 200);
+    const sofar = soFar(answer);
     const text =
       how === "continued"
-        ? `${who} ran out of ${limit} on “${task}” and is making progress; APX had it go on in session ${session}. So far: ${sofar}`
+        ? `${who} hit the ${limit === "steps" ? "step" : "time"} limit on “${task}” and keeps going in the same conversation, since it is making progress. So far: ${sofar}`
         : how === "stopped"
           ? `${who} ran out of ${limit} on “${task}” and its last part made no progress, so APX did not go on by itself. Continue if it should. So far: ${sofar}`
           : `${who} ran out of ${limit} on “${task}”. ${caller} has its report and decides how to go on. So far: ${sofar}`;
@@ -508,7 +546,6 @@ export function createDelegations(deps: {
             variant: `${how}${limit === "steps" ? "Steps" : "Time"}`,
             who,
             task,
-            session,
             caller,
             sofar,
             subthread: child.thread_id,
@@ -527,191 +564,227 @@ export function createDelegations(deps: {
     });
   }
 
-  return {
-    async delegate(from: Caller, req: DelegateTo, task: string, waitMs: number, signal?: AbortSignal): Promise<string> {
-      const parentThread = store.threads.get(from.run.thread_id);
-      if (!parentThread) return "refused: the thread is gone";
-      if (parentThread.kind === "a2a" || ancestors(store, parentThread.id).length >= MAX_DEPTH)
-        return "refused: you are answering another agent, so you do it yourself and ask no one else.";
-      // Sessions are stored under a slug of the name the caller gave: look them up the same way (or by id).
-      // One conversation per teammate: a new name for an agent that already has a free session here goes on there.
-      const own = req.worker
+  /**
+   * Every check of a delegation, then its session and run (not started yet): a refusal, words handed to a session
+   * already at work (`sent`), or what was opened. `wf`: a workflow's step, which opens its own session, shows no card
+   * of its own and never queues (the workflow keeps its own cap).
+   */
+  function open(from: Caller, req: DelegateTo, task: string, wf?: WorkflowMark): Opened | { sent: string } | string {
+    const parentThread = store.threads.get(from.run.thread_id);
+    if (!parentThread) return "refused: the thread is gone";
+    if (parentThread.kind === "a2a" || ancestors(store, parentThread.id).length >= MAX_DEPTH)
+      return "refused: you are answering another agent, so you do it yourself and ask no one else.";
+    // Sessions are stored under a slug of the name the caller gave: look them up the same way (or by id).
+    // One conversation per teammate: a new name for an agent that already has a free session here goes on there.
+    const own = wf
+      ? undefined
+      : req.worker
         ? workerSession(parentThread.id, req.worker.name, from.agent.id)
         : req.agent
           ? agentSession(parentThread.id, req.agent.id, from.agent.id)
           : undefined;
-      let existing = req.session ? (sessionOf(store, parentThread.id, req.session) ?? own) : own;
-      const kept = existing ? store.threads.context(existing.id).worker : undefined;
-      if (existing && req.worker && !kept)
-        return `refused: session "${existing.session ?? existing.id}" is with an agent, not a worker; name a new session.`;
-      const worker = kept ?? (existing ? undefined : req.worker);
-      if (worker && req.agent) return "refused: give an agent or a worker, not both.";
-      // A worker is the caller itself, under the worker's instructions: no self or cycle check applies.
-      const toId = worker ? from.agent.id : (existing?.agent_ids[0] ?? req.agent?.id);
-      if (existing && req.agent && req.agent.id !== toId)
-        return `refused: session "${existing.session ?? existing.id}" is with another agent; leave agent out to continue it, or name a new session.`;
-      const to = toId ? store.agents.get(toId) : undefined;
-      if (!to)
-        return req.session
-          ? `refused: no session "${req.session}" in this thread; give an agent to start one (see list_sessions).`
-          : "refused: say which agent to ask, or describe a worker.";
-      if (!worker && to.id === from.agent.id)
-        return "refused: you cannot delegate to yourself; complete this task directly with your own tools.";
-      if (!worker && chainAgents(parentThread.id).includes(to.id))
-        return `refused: ${to.name} is already part of this delegation chain (cycle).`;
-      // A session asked to work in another project, folder or write policy is left as it was, and a new one with the
-      // same agent opens there instead of a refusal (DECISIONS.md#d-106).
-      let moved: string | undefined;
-      if (existing && req.project && existing.project_id !== req.project) {
+    let existing = req.session ? (sessionOf(store, parentThread.id, req.session) ?? own) : own;
+    const kept = existing ? store.threads.context(existing.id).worker : undefined;
+    if (existing && req.worker && !kept)
+      return `refused: session "${existing.session ?? existing.id}" is with an agent, not a worker; name a new session.`;
+    const worker = kept ?? (existing ? undefined : req.worker);
+    if (worker && req.agent) return "refused: give an agent or a worker, not both.";
+    // A worker is the caller itself, under the worker's instructions: no self or cycle check applies.
+    const toId = worker ? from.agent.id : (existing?.agent_ids[0] ?? req.agent?.id);
+    if (existing && req.agent && req.agent.id !== toId)
+      return `refused: session "${existing.session ?? existing.id}" is with another agent; leave agent out to continue it, or name a new session.`;
+    const to = toId ? store.agents.get(toId) : undefined;
+    if (!to)
+      return req.session
+        ? `refused: no session "${req.session}" in this thread; give an agent to start one (see list_sessions).`
+        : "refused: say which agent to ask, or describe a worker.";
+    if (!worker && to.id === from.agent.id)
+      return "refused: you cannot delegate to yourself; complete this task directly with your own tools.";
+    if (!worker && chainAgents(parentThread.id).includes(to.id))
+      return `refused: ${to.name} is already part of this delegation chain (cycle).`;
+    // A session asked to work in another project, folder or write policy is left as it was, and a new one with the
+    // same agent opens there instead of a refusal (DECISIONS.md#d-106).
+    let moved: string | undefined;
+    if (existing && req.project && existing.project_id !== req.project) {
+      moved = existing.session ?? existing.id;
+      existing = undefined;
+    }
+    // The project named, else this chat's, else the agent's own: its folder is where the session reads and works.
+    const projectId = existing
+      ? existing.project_id
+      : // A project's agent works in its own project, wherever it is asked from (asked in one of its project's
+        // subprojects, in that one); a worker or a global agent in the chat's.
+        (req.project ??
+        (worker || worksIn(store.projects, to.project_id, parentThread.project_id)
+          ? parentThread.project_id
+          : to.project_id));
+    const dispatched = store.threads.context(parentThread.id).task_dispatches;
+    const assigned =
+      !worker && !req.independent && dispatched && runLineage(store, from.run).includes(dispatched.run)
+        ? dispatched.tasks.find((t) => t.agent === to.id && t.project === projectId)
+        : undefined;
+    if (assigned)
+      return `refused: ${to.name} already received task ${assigned.task} in this turn. Its task session is the executor; do not open a duplicate delegation. Use task_get for its existing sessions and report, not another executor. Only for a genuinely different goal, set independent=true and explain the separate outcome in task; never use it to retry this work.`;
+    const found = workspaceOf(store, from.agent, worker ? from.agent : to, parentThread, projectId, req, deps.home);
+    if (typeof found === "string") return found;
+    const place = found && { cwd: found.cwd, write: found.write };
+    if (existing && place && (existing.cwd !== place.cwd || existing.write !== place.write)) {
+      // Same project, another folder or policy: a free session takes it and keeps its context; a busy one is left.
+      if (store.threads.busy([existing.id])) {
         moved = existing.session ?? existing.id;
         existing = undefined;
+      } else existing = store.threads.workIn(existing.id, place);
+    } else if (existing && !place && existing.write === "read-only" && !store.threads.busy([existing.id])) {
+      // A consult opened read-only does not keep a later "go on" that says nothing about writing from doing the work:
+      // it goes back to what caller, callee and project allow. See HISTORY.md#read-only-continuation
+      const lifted = workspaceOf(
+        store,
+        from.agent,
+        worker ? from.agent : to,
+        parentThread,
+        existing.project_id ?? undefined,
+        {
+          write: "auto",
+        },
+      );
+      if (typeof lifted === "object" && lifted.write !== "read-only")
+        existing = store.threads.workIn(existing.id, { cwd: existing.cwd ?? lifted.cwd, write: lifted.write });
+    }
+    const paused = tripped(store, parentThread.id);
+    if (paused) {
+      tellStuck(store, parentThread.id);
+      holdDelegation(parentThread.id, from.agent.id, worker?.name ?? to.name, task);
+      return `refused: ${paused}. Tell the owner what you were about to delegate; if they let agents go on you get a new turn, and you delegate it again then.`;
+    }
+    // Past its own budget only this agent waits: the caller picks another or tells the owner (no hold, no notice).
+    const spentOwn = agentTripped(store, parentThread.id, to.id, worker?.name ?? to.name);
+    if (spentOwn)
+      return `refused: ${spentOwn}. Give this work to another agent (list_agents shows what each has left), or tell the owner.`;
+    // A session still at work on an earlier ask takes the caller's newer words at its next step, as the owner's Enter
+    // does: a pause or a change of plan must not wait behind the turn it is about. Two tasks in one fan-out still
+    // queue (DECISIONS.md#d-222).
+    const atWork = existing
+      ? store.runs.list(existing.id, 5).find((r) => r.state === "working" && r.agent_id === to.id)
+      : undefined;
+    if (existing && atWork && !wf && atWork.parent_run_id !== from.run.id) {
+      const origin = {
+        kind: "agent" as const,
+        id: from.agent.id,
+        name: from.agent.name,
+        thread_id: parentThread.id,
+        run_id: from.run.id,
+      };
+      const into = deps.steer?.(
+        {
+          thread_id: existing.id,
+          agent_id: to.id,
+          trigger: "a2a",
+          origin,
+          text: task,
+          parent_run_id: from.run.id,
+          depth: from.run.depth + 1,
+        },
+        teamAddsMidTurn(from.agent.name, task),
+      );
+      if (into) {
+        store.messages.add({
+          thread_id: existing.id,
+          author: { kind: "agent", id: from.agent.id },
+          parts: [{ type: "text", text: req.question ?? task }],
+        });
+        if (req.question) {
+          store.threads.patch(existing.id, {
+            title: `${from.agent.name} → ${worker?.name ?? to.name}: ${req.question.slice(0, 60)}`,
+          });
+          from.display?.upsert((p) => p.type === "subthread" && p.thread_id === existing.id, {
+            type: "subthread",
+            thread_id: existing.id,
+            agent_id: to.id,
+            title: req.question.slice(0, 2000),
+            question: req.question.slice(0, 2000),
+            state: atWork.state,
+          });
+        }
+        const name = existing.session ?? existing.id;
+        return {
+          sent: `sent: ${worker?.name ?? to.name} was still working in session "${name}" and takes this at its next step, inside that turn. Its answer comes back like the earlier one: do not delegate it again or wait for it; tell the owner and go on.`,
+        };
       }
-      // The project named, else this chat's, else the agent's own: its folder is where the session reads and works.
-      const projectId = existing
-        ? existing.project_id
-        : // A project's agent works in its own project, wherever it is asked from (asked in one of its project's
-          // subprojects, in that one); a worker or a global agent in the chat's.
-          (req.project ??
-          (worker || worksIn(store.projects, to.project_id, parentThread.project_id)
-            ? parentThread.project_id
-            : to.project_id));
-      const dispatched = store.threads.context(parentThread.id).task_dispatches;
-      const assigned =
-        !worker && !req.independent && dispatched && runLineage(store, from.run).includes(dispatched.run)
-          ? dispatched.tasks.find((t) => t.agent === to.id && t.project === projectId)
-          : undefined;
-      if (assigned)
-        return `refused: ${to.name} already received task ${assigned.task} in this turn. Its task session is the executor; do not open a duplicate delegation. Use task_get for its existing sessions and report, not another executor. Only for a genuinely different goal, set independent=true and explain the separate outcome in task; never use it to retry this work.`;
-      const place = workspaceOf(store, from.agent, worker ? from.agent : to, parentThread, projectId, req);
-      if (typeof place === "string") return place;
-      if (existing && place && (existing.cwd !== place.cwd || existing.write !== place.write)) {
-        // Same project, another folder or policy: a free session takes it and keeps its context; a busy one is left.
-        if (store.threads.busy([existing.id])) {
-          moved = existing.session ?? existing.id;
-          existing = undefined;
-        } else existing = store.threads.workIn(existing.id, place);
-      } else if (existing && !place && existing.write === "read-only" && !store.threads.busy([existing.id])) {
-        // A consult opened read-only does not keep a later "go on" that says nothing about writing from doing the work:
-        // it goes back to what caller, callee and project allow. See HISTORY.md#read-only-continuation
-        const lifted = workspaceOf(
-          store,
-          from.agent,
-          worker ? from.agent : to,
-          parentThread,
-          existing.project_id ?? undefined,
-          {
-            write: "auto",
-          },
-        );
-        if (typeof lifted === "object" && lifted.write !== "read-only")
-          existing = store.threads.workIn(existing.id, { cwd: existing.cwd ?? lifted.cwd, write: lifted.write });
-      }
-      const paused = tripped(store, parentThread.id);
-      if (paused) {
-        tellStuck(store, parentThread.id);
-        holdDelegation(parentThread.id, from.agent.id, worker?.name ?? to.name, task);
-        return `refused: ${paused}. Tell the owner what you were about to delegate; if they let agents go on you get a new turn, and you delegate it again then.`;
-      }
-      // Past its own budget only this agent waits: the caller picks another or tells the owner (no hold, no notice).
-      const spentOwn = agentTripped(store, parentThread.id, to.id, worker?.name ?? to.name);
-      if (spentOwn)
-        return `refused: ${spentOwn}. Give this work to another agent (list_agents shows what each has left), or tell the owner.`;
-      // A session still at work on an earlier ask takes the caller's newer words at its next step, as the owner's Enter
-      // does: a pause or a change of plan must not wait behind the turn it is about. Two tasks in one fan-out still
-      // queue (DECISIONS.md#d-222).
-      const atWork = existing
-        ? store.runs.list(existing.id, 5).find((r) => r.state === "working" && r.agent_id === to.id)
-        : undefined;
-      if (existing && atWork && atWork.parent_run_id !== from.run.id) {
-        const origin = {
-          kind: "agent" as const,
+    }
+    // Past the cap it waits in a durable queue rather than being refused: a refusal was easy to drop. See DECISIONS.md#d-096
+    const queued = !wf && store.runs.activeDelegations(parentThread.id) >= MAX_ACTIVE_DELEGATIONS;
+    if (!wf && from.display) deps.live.set(from.run.id, from.display);
+    const who = worker?.name ?? to.name;
+    const name = existing?.session ?? sessionName(parentThread.id, moved ? who : (req.session ?? who));
+    let sub = existing;
+    if (!sub) {
+      sub = store.threads.create({
+        kind: "a2a",
+        title: `${from.agent.name} → ${who}: ${(req.question ?? task).slice(0, 60)}`,
+        agent_ids: worker ? [to.id] : [to.id, from.agent.id],
+        project_id: projectId,
+        parent_id: parentThread.id,
+        session: name,
+        ...(place ?? {}),
+      });
+      if (worker) store.threads.mergeContext(sub.id, { worker });
+      if (wf) store.threads.mergeContext(sub.id, { workflow: wf });
+    } else {
+      // A session asked again reads as its latest request in the lists, not the first one it was opened for.
+      store.threads.patch(sub.id, { title: `${from.agent.name} → ${who}: ${(req.question ?? task).slice(0, 60)}` });
+    }
+    store.messages.add({
+      thread_id: sub.id,
+      author: { kind: "agent", id: from.agent.id },
+      parts: [{ type: "text", text: req.question ?? task }],
+    });
+    const subId = sub.id;
+    if (!wf)
+      from.display?.upsert((p) => p.type === "subthread" && p.thread_id === subId, {
+        type: "subthread",
+        thread_id: sub.id,
+        agent_id: to.id,
+        title: req.question?.slice(0, 2000) ?? task.slice(0, 120),
+        ...(req.question ? { question: req.question.slice(0, 2000) } : {}),
+        state: queued ? "queued" : "working",
+        ...(worker ? { worker: worker.name } : {}),
+      });
+    const child = store.runs.create({
+      thread_id: sub.id,
+      agent_id: to.id,
+      trigger: "a2a",
+      input: {
+        origin: {
+          kind: "agent",
           id: from.agent.id,
           name: from.agent.name,
           thread_id: parentThread.id,
           run_id: from.run.id,
-        };
-        const into = deps.steer?.(
-          {
-            thread_id: existing.id,
-            agent_id: to.id,
-            trigger: "a2a",
-            origin,
-            text: task,
-            parent_run_id: from.run.id,
-            depth: from.run.depth + 1,
-          },
-          teamAddsMidTurn(from.agent.name, task),
-        );
-        if (into) {
-          store.messages.add({
-            thread_id: existing.id,
-            author: { kind: "agent", id: from.agent.id },
-            parts: [{ type: "text", text: task }],
-          });
-          const name = existing.session ?? existing.id;
-          return `sent: ${worker?.name ?? to.name} was still working in session "${name}" and takes this at its next step, inside that turn. Its answer comes back like the earlier one: do not delegate it again or wait for it; tell the owner and go on.`;
-        }
-      }
-      // Past the cap it waits in a durable queue rather than being refused: a refusal was easy to drop. See DECISIONS.md#d-096
-      const queued = store.runs.activeDelegations(parentThread.id) >= MAX_ACTIVE_DELEGATIONS;
-      deps.live.set(from.run.id, from.display);
-      const who = worker?.name ?? to.name;
-      const name = existing?.session ?? sessionName(parentThread.id, moved ? who : (req.session ?? who));
-      let sub = existing;
-      if (!sub) {
-        sub = store.threads.create({
-          kind: "a2a",
-          title: `${from.agent.name} → ${who}: ${task.slice(0, 60)}`,
-          agent_ids: worker ? [to.id] : [to.id, from.agent.id],
-          project_id: projectId,
-          parent_id: parentThread.id,
-          session: name,
-          ...(place ?? {}),
-        });
-        if (worker) store.threads.mergeContext(sub.id, { worker });
-      } else {
-        // A session asked again reads as its latest request in the lists, not the first one it was opened for.
-        store.threads.patch(sub.id, { title: `${from.agent.name} → ${who}: ${task.slice(0, 60)}` });
-      }
-      store.messages.add({
-        thread_id: sub.id,
-        author: { kind: "agent", id: from.agent.id },
-        parts: [{ type: "text", text: task }],
-      });
-      const subId = sub.id;
-      from.display.upsert((p) => p.type === "subthread" && p.thread_id === subId, {
-        type: "subthread",
-        thread_id: sub.id,
-        agent_id: to.id,
-        title: task.slice(0, 120),
-        state: queued ? "queued" : "working",
-        ...(worker ? { worker: worker.name } : {}),
-      });
-      const child = store.runs.create({
-        thread_id: sub.id,
-        agent_id: to.id,
-        trigger: "a2a",
-        input: {
-          origin: {
-            kind: "agent",
-            id: from.agent.id,
-            name: from.agent.name,
-            thread_id: parentThread.id,
-            run_id: from.run.id,
-          },
-          text: task,
-          ...(req.independent ? { task_independent: true } : {}),
         },
-        parent_run_id: from.run.id,
-        depth: from.run.depth + 1,
-        deadline_at: new Date(Date.now() + deps.windowMs(sub.id)).toISOString(),
-        ...(queued ? { state: "queued" as const } : {}),
-      });
-      const at = `${
-        place
-          ? `\nIt works in ${place.cwd}, writes: ${place.write}${req.write && req.write !== place.write ? ` (${req.write} would go further than you may)` : ""}.`
-          : ""
-      }${moved ? `\nSession "${moved}" works elsewhere, so this is a new session "${name}" without its context: continue it with session="${name}".` : ""}`;
+        text: task,
+        ...(req.independent ? { task_independent: true } : {}),
+      },
+      parent_run_id: from.run.id,
+      depth: from.run.depth + 1,
+      deadline_at: new Date(Date.now() + deps.windowMs(sub.id)).toISOString(),
+      ...(queued ? { state: "queued" as const } : {}),
+    });
+    const at = `${
+      place
+        ? `\nIt works in ${place.cwd}${found?.where ? ` (${found.where})` : ""}, writes: ${place.write}${req.write && req.write !== place.write ? ` (${req.write} would go further than you may)` : ""}.`
+        : ""
+    }${moved ? `\nSession "${moved}" works elsewhere, so this is a new session "${name}" without its context: continue it with session="${name}".` : ""}`;
+    return { sub, child, name, who, at, queued };
+  }
+
+  return {
+    open,
+
+    async delegate(from: Caller, req: DelegateTo, task: string, waitMs: number, signal?: AbortSignal): Promise<string> {
+      const opened = open(from, req, task);
+      if (typeof opened === "string") return opened;
+      if ("sent" in opened) return opened.sent;
+      const { sub, child, name, who, at, queued } = opened;
       if (queued) {
         // A session still answering an earlier task keeps showing that it works.
         if (store.threads.get(sub.id)?.state !== "working") store.threads.patch(sub.id, { state: "queued" });
@@ -738,7 +811,7 @@ export function createDelegations(deps: {
       inline.delete(child.id);
       const resume = `(session "${name}": delegate with session="${name}" to continue it with ${who}, who keeps the context)`;
       if (quick && TERMINAL.has(quick.state))
-        return `${agentReply(who, answerOf(quick), endedAs(quick))}\n${endNote(quick, { session: name })}${outcomeNote(outcomeFor(quick))}${actionsNote(actionsOf(store, quick))}\n${REDIRECT_NOTE}\n${resume}${at}`;
+        return `${agentReply(who, withFilesNote(store, quick, answerOf(quick)), endedAs(quick))}\n${endNote(quick, { session: name })}${outcomeNote(outcomeFor(quick))}${actionsNote(actionsOf(store, quick))}\n${REDIRECT_NOTE}\n${resume}${at}`;
       return `${who} keeps working in session "${name}". You will get the result in a new turn: do not wait or ask for its status; tell the owner and go on.${at}`;
     },
 
@@ -748,6 +821,12 @@ export function createDelegations(deps: {
      */
     childEnded(child: RunRecord): void {
       const from = TERMINAL.has(child.state) ? store.threads.get(child.thread_id)?.parent_id : undefined;
+      // A workflow's step reports to its workflow, which shows it on its own card (DECISIONS.md#d-273).
+      if (store.threads.context(child.thread_id).workflow) {
+        if (TERMINAL.has(child.state)) deps.workflowEnded?.(child);
+        if (from) release(from);
+        return;
+      }
       const parent = child.parent_run_id ? store.runs.get(child.parent_run_id) : undefined;
       if (!parent) {
         if (from) release(from);

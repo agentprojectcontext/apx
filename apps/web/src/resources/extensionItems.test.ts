@@ -195,7 +195,34 @@ test("each one says where it comes from: included, official, third party or the 
     [],
   );
   assert.equal(label("ext:acme-docs"), "official");
-  assert.equal(own.find((i) => i.key === "ext:weather")?.publisher, "APX");
+  assert.equal(own.find((i) => i.key === "ext:weather")?.publisher, undefined);
+});
+
+test("review does not imply authorship, and creators survive installation and local ownership", () => {
+  const listing = { publisher: { name: "Northwind", verified: true } } as CatalogEntry["listing"];
+  const catalog = [entry("community", "1.0.0", { listing }), entry("unknown", "1.0.0")];
+  const offered = buildItems({ ...sources, catalog, installed: [] });
+  assert.equal(offered.find((i) => i.id === "community")?.publisher, "Northwind");
+  assert.equal(offered.find((i) => i.id === "community")?.label, "official");
+  assert.equal(offered.find((i) => i.id === "unknown")?.publisher, undefined);
+  const installed = buildItems({
+    ...sources,
+    catalog,
+    installed: [
+      ext("community", { listing }),
+      ext("unknown"),
+      ext("local", {
+        listing,
+        provenance: "third_party",
+        source: "/work/local",
+      }),
+    ],
+  });
+  assert.equal(installed.find((i) => i.id === "community")?.publisher, "Northwind");
+  assert.equal(installed.find((i) => i.id === "unknown")?.publisher, undefined);
+  assert.equal(installed.find((i) => i.id === "local")?.publisher, "Northwind");
+  assert.equal(installed.find((i) => i.id === "local")?.label, "own");
+  assert.equal(installed.find((i) => i.channel)?.publisher, "APX");
 });
 
 test("filters by words and by what it brings", () => {

@@ -47,6 +47,10 @@ const SETTING_AREA: Record<string, string> = {
   mcp: "un servidor MCP",
   extensions: "una extensión",
   services: "los servicios de medios",
+  embeddings: "el motor de embeddings de la memoria",
+  models: "los modelos",
+  voice: "la voz de APX",
+  transcription: "la transcripción",
   surfaces: "un widget",
   stickers: "los stickers",
 };
@@ -59,6 +63,9 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
   search_owner_notes: (a) => `Buscó «${str(a.query, 60)}» en tus notas`,
   consult_contact_sources: () => "Consultó los documentos autorizados",
   propose_contact_update: () => "Propuso una corrección para revisar",
+  search_project_context: (a) => `Buscó «${str(a.query, 60)}» en el proyecto`,
+  read_project_document: () => "Leyó un documento del proyecto",
+  consult_super_agent: () => "Consultó al superagente",
   book_appointment: (a) => (a.start ? `Agendó un turno: ${str(a.start).replace("T", " ")}` : "Buscó horarios libres"),
   cancel_my_appointment: () => "Canceló su turno",
   contact_requests: () => "Revisó quién está esperando",
@@ -67,6 +74,12 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
   search_chats: (a) => `Buscó «${str(a.query, 60)}» en los chats`,
   read_chat: (a) => `Leyó el chat ${str(a.chat)}`,
   channel_list: () => "Revisó los canales",
+  chat_followup: (a) =>
+    a.action === "create"
+      ? "Programó una continuación"
+      : a.action === "cancel"
+        ? "Canceló una continuación"
+        : "Revisó las continuaciones",
   routine_list: (a) => (a.routine ? `Revisó la rutina ${str(a.routine)}` : "Revisó las rutinas"),
   routine_set: (a) => (a.routine ? `Cambió la rutina ${str(a.routine)}` : `Creó la rutina ${str(a.name)}`),
   agent_limits: (a) =>
@@ -77,6 +90,7 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
         : "Revisó los límites de los agentes",
   contact_list: () => "Revisó los contactos",
   sticker_list: () => "Revisó los stickers",
+  plan_usage: () => "Consultó el consumo de tus planes de IA",
   apx_settings: (a) => {
     const { act, area } = settingAct(a);
     const what = SETTING_AREA[area] ?? "la configuración";
@@ -97,23 +111,26 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
           ? `Cambió a ${str(a.agent)}`
           : `Miró a ${str(a.agent)}`,
   grant_tool: (a) =>
-    `Dejó que ${str(a.agent ?? "un agente")} use ${(Array.isArray(a.tools) ? a.tools : []).join(", ").slice(0, 60)}`,
+    `${a.revoke ? "Le quitó a" : "Dejó que"} ${str(a.agent ?? "un agente")} ${a.revoke ? "" : "use "}${(Array.isArray(a.tools) ? a.tools : []).join(", ").slice(0, 60)}`,
   delegate: (a) => {
     const worker = a.worker as { name?: unknown } | undefined;
     return `Le pidió a ${str(worker?.name ?? a.agent ?? a.session)}`;
   },
   list_sessions: () => "Buscó sesiones",
   start_session: (a) => `Abrió una sesión de ${str(a.engine)}`,
+  workflow: (a) =>
+    a.resume ? `Retomó el flujo de trabajo ${str(a.resume)}` : `Lanzó el flujo de trabajo ${str(a.name ?? "")}`,
   stop_session: (a) => `Detuvo la sesión ${str(a.session)}`,
   browser_open: (a) => `Abrió ${host(a.url)}`,
   browser_snapshot: () => "Leyó la página",
   browser_evaluate: () => "Ejecutó JavaScript en el navegador",
   browser_text: () => "Leyó el texto",
+  browser_do: (a) => (a.recipe ? `Usó la receta ${str(a.recipe)}` : "Hizo varios pasos en el navegador"),
   browser_click: (a) => `Hizo clic en ${str(a.ref)}`,
   browser_type: (a) => `Escribió en ${str(a.ref)}`,
   browser_use_my_login: (a) => `Usó tu sesión en ${str(a.domain)}`,
   browser_handoff: (a) => `Te pidió: ${str(a.reason, 60)}`,
-  browser_sign_in: (a) => `Inició sesión con ${str(a.secret, 60)}`,
+  browser_sign_in: (a) => (a.secret ? `Inició sesión con ${str(a.secret, 60)}` : "Inició sesión"),
   message_contact: (a) => `Le escribió a ${str(a.to ?? "un contacto")}`,
   channel_post: (a) => (a.room ? `Publicó en #${str(a.room).replace(/^#/, "")}` : "Publicó en una sala"),
   open_document: (a) => `Abrió el documento ${a.title ? str(a.title) : file(a.path, "")}`,

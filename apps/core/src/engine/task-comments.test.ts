@@ -1,6 +1,7 @@
-// A task's comments are read by people: agents post when the plan is done or to ask someone, helpers answer whoever
-// asked them, whoever works a task asks for help only at the end, and the super-agent can clean what piled up before
-// (DECISIONS.md#d-202).
+// A task's comments are read by people: agents post when the plan is done or to ask someone, progress is noted where it
+// lives, helpers answer whoever asked them, whoever works a task for the owner may ask a teammate mid-plan (recorded on
+// the task) while an outside app's chat still may not, and the super-agent can clean what piled up before
+// (DECISIONS.md#d-202, DECISIONS.md#d-271).
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import type { AssistantItem } from "../providers/types.ts";
@@ -10,7 +11,16 @@ import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 /** What each tool call answered, by the marker of the case that made it. */
 const results = new Map<string, string[]>();
 const taskOf = (text: string) => /Task (task_\w+):/.exec(text)?.[1] ?? "";
-const CASES = ["NOTE-CASE", "HELPER-CASE", "MIDPLAN-CASE", "WORKER-CASE", "DONE-CASE", "BLANKS-CASE", "TIDY-CASE"];
+const CASES = [
+  "NOTE-CASE",
+  "HELPER-CASE",
+  "OUTSIDE-MIDPLAN-CASE",
+  "MIDPLAN-CASE",
+  "WORKER-CASE",
+  "DONE-CASE",
+  "BLANKS-CASE",
+  "TIDY-CASE",
+];
 
 const llm = scriptedLlm((req, { system, said, afterTool }) => {
   const all = JSON.stringify(req.messages);
@@ -40,8 +50,13 @@ const llm = scriptedLlm((req, { system, said, afterTool }) => {
       if (tools === 1) return callTool("h1", "delegate", { agent: "scout", task: "Review the doors." });
       return say("Reviewed.");
     }
-    if (marker === "MIDPLAN-CASE") {
-      if (tools === 0) return callTool("m0", "plan", { steps: "- [~] Paint the hall\n- [ ] Review it" });
+    if (marker === "MIDPLAN-CASE" || marker === "OUTSIDE-MIDPLAN-CASE") {
+      if (tools === 0) {
+        // This work chat belongs to an outside app: its agent works for that app, not for the owner.
+        const [chat] = marker === "OUTSIDE-MIDPLAN-CASE" ? (env?.core.store.threads.byTask(task) ?? []) : [];
+        if (chat) env.core.store.threads.mergeContext(chat.id, { client: "external" });
+        return callTool("m0", "plan", { steps: "- [~] Paint the hall\n- [ ] Review it" });
+      }
       if (tools === 1) return callTool("m1", "delegate", { agent: "scout", task: "Which paint is best?" });
       return say("Painting.");
     }
@@ -114,25 +129,55 @@ async function work(title: string, marker: string) {
   return { task, chat: chat?.id ?? "" };
 }
 
-test("a progress note is not posted on a turn APX started; a question for the owner is", async () => {
+test("a progress note on a turn APX started goes in the task's history; a question for the owner is posted", async () => {
   const { task } = await work("Count the shelves", "NOTE-CASE");
   assert.deepEqual(agentComments(task.thread_id), ["@owner should I count the back room too, or only the shop floor?"]);
-  assert.match(results.get("NOTE-CASE")?.[0] ?? "", /not posted: progress goes in your plan/);
+  assert.match(
+    results.get("NOTE-CASE")?.[0] ?? "",
+    /^noted in the task's history, not posted as a comment\. progress lives in your plan/,
+  );
+  const noted = env.core.store.tasks.events(task.id).filter((e) => e.data.note === "Step one done: half counted.");
+  assert.deepEqual(
+    noted.map((e) => [e.op, e.by]),
+    [["update", "vera"]],
+  );
 });
 
 test("a helper answers whoever asked it instead of commenting on the task", async () => {
   const { task, chat } = await work("Fix the doors", "HELPER-CASE");
-  await waitFor(() => (results.get("HELPER-CASE") ?? []).some((r) => r.includes("goes back to them")), "refused");
+  await waitFor(
+    () =>
+      (results.get("HELPER-CASE") ?? []).some((r) =>
+        /^not posted on the task: you are answering Vera, so this is part of your answer to them/.test(r),
+      ),
+    "routed to its answer",
+  );
   const [sub] = env.core.store.threads.sessions(chat);
   assert.ok(sub, "Scout was asked, once the rest of the plan was done");
   await env.settle(sub.id);
   assert.deepEqual(agentComments(task.thread_id), [], "nothing of the helper's on the task");
 });
 
-test("whoever works a task is not given helpers mid-plan", async () => {
-  const { chat } = await work("Paint the hall", "MIDPLAN-CASE");
-  assert.match(String(results.get("MIDPLAN-CASE")), /not asked: you do this task.s work yourself/);
+test("whoever works a task for the owner may ask a teammate mid-plan, recorded on the task", async () => {
+  const { task, chat } = await work("Paint the hall", "MIDPLAN-CASE");
+  assert.doesNotMatch(String(results.get("MIDPLAN-CASE")), /not asked/);
+  const [sub] = env.core.store.threads.sessions(chat);
+  assert.ok(sub, "Scout was asked");
+  await env.settle(sub.id);
+  const asked = env.core.store.tasks
+    .events(task.id)
+    .filter((e) => e.data.note === "asked Scout for: Which paint is best?");
+  assert.deepEqual(
+    asked.map((e) => [e.op, e.by]),
+    [["update", "vera"]],
+  );
+});
+
+test("whoever works a task in an outside app's chat is not given helpers mid-plan", async () => {
+  const { task, chat } = await work("Paint the porch", "OUTSIDE-MIDPLAN-CASE");
+  assert.match(String(results.get("OUTSIDE-MIDPLAN-CASE")), /not asked: you do this task.s work yourself/);
   assert.deepEqual(env.core.store.threads.sessions(chat), [], "no session opened");
+  assert.ok(!env.core.store.tasks.events(task.id).some((e) => String(e.data.note ?? "").startsWith("asked ")));
 });
 
 test("whoever works a task may use a worker of its own mid-plan: help with the work, not another owner of it", async () => {

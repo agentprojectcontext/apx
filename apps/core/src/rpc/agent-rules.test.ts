@@ -37,7 +37,7 @@ test("an agent's orchestrator mark and rules by risk are written to its file and
     rules: { write: "auto", irreversible: "off" },
   });
   assert.deepEqual(ruled.rules, { write: "auto", irreversible: "off" });
-  const file = fs.readFileSync(path.join(root, ".apc", "agents", "lead.md"), "utf8");
+  const file = fs.readFileSync(path.join(root, ".apx", "agents", "lead.md"), "utf8");
   assert.match(file, /^orchestrator: true$/m);
   assert.match(file, /^rules: write=auto, irreversible=off$/m);
 
@@ -45,7 +45,7 @@ test("an agent's orchestrator mark and rules by risk are written to its file and
   assert.equal(cleared.rules, undefined);
   // Unmarked on purpose: written as false, so its role no longer makes it the head.
   assert.equal(cleared.orchestrator, false);
-  const after = fs.readFileSync(path.join(root, ".apc", "agents", "lead.md"), "utf8");
+  const after = fs.readFileSync(path.join(root, ".apx", "agents", "lead.md"), "utf8");
   assert.doesNotMatch(after, /^rules:/m);
   assert.match(after, /^orchestrator: false$/m);
 });

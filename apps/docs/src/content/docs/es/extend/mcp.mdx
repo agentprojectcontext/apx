@@ -23,9 +23,9 @@ Codex u otro cliente MCP, mirá [Clientes externos](/es/extend/outside-clients/)
 - Los **globales** son tuyos. Los heredan todos los proyectos; un proyecto puede apagar uno para sí mismo, o dejar
   de usar los globales del todo. Su entorno y sus headers pueden usar tus
   [variables](/es/extend/integrations/#variables-y-secretos) como `secret://NOMBRE`.
-- Los **de proyecto** se declaran en `.apc/mcps.json` del proyecto, que se commitea con el repositorio:
+- Los **de proyecto** se declaran en `.apx/mcps.json` del proyecto, que se commitea con el repositorio:
 
-```json title=".apc/mcps.json"
+```json title=".apx/mcps.json"
 {
   "mcpServers": {
     "docs": { "command": "npx", "args": ["-y", "@acme/docs-mcp"] },
@@ -35,7 +35,7 @@ Codex u otro cliente MCP, mirá [Clientes externos](/es/extend/outside-clients/)
 ```
 
 Un repositorio puede nombrar cualquier comando, así que **un servidor de proyecto arranca solo después de que aprobás
-esa definición exacta**. Si el archivo cambia, hay que aprobarlo de nuevo. `.apc/mcps.json` nunca guarda tokens: una
+esa definición exacta**. Si el archivo cambia, hay que aprobarlo de nuevo. `.apx/mcps.json` nunca guarda tokens: una
 definición que menciona `secret://` ahí se ignora.
 
 ### Servidores privados para un proyecto (versión de desarrollo)
@@ -57,7 +57,7 @@ deja como estaban. Las conexiones del repositorio siguen perteneciendo a su repo
 
 Antes de hacerlo global, comprobá que sus variables existan donde lo vas a usar. Las variables del proyecto no se
 copian al almacenamiento global. El editor indica qué variables necesitan un valor en el ámbito elegido; podés
-guardar la conexión mientras preparás esos valores. Esto no mueve una definición del archivo `.apc/mcps.json` del repositorio.
+guardar la conexión mientras preparás esos valores. Esto no mueve una definición del archivo `.apx/mcps.json` del repositorio.
 
 ### Variables y enlaces desde el chat (versión de desarrollo)
 
@@ -163,7 +163,8 @@ abrirlo. Pasá el mouse sobre su punto para ver qué significa: lleno, corriendo
 agente lo usa); ámbar, te necesita (aprobalo o iniciá sesión); rojo, no arrancó. Tocá una de sus variables para
 abrirla en **Variables**.
 
-Encima de eso siguen valiendo la autonomía de cada agente y su lista `tools:`, y lo que aprobaste "siempre" para un
+Encima de eso siguen valiendo la autonomía de cada agente y sus reglas por caso (su lista `tools:` dice qué usa
+primero, no hasta dónde llega), y lo que aprobaste "siempre" para un
 agente o un chat aparece en **Permitidas para un agente o un chat**. Mirá [Autonomía](/es/concepts/autonomy/).
 
 ## Por qué los agentes ven solo dos tools de MCP

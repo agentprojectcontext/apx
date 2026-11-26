@@ -3,6 +3,7 @@ import fs from "node:fs";
 import { test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { createLog } from "../log.ts";
+import { taskAssets } from "./task-assets.ts";
 
 const png = Buffer.from("89504e470d0a1a0a00000000", "hex");
 const upload = (name = "screen.png") => ({ name, mime: "image/png", data: png.toString("base64") });
@@ -50,6 +51,37 @@ test("selected task snapshots survive source chat deletion, pagination and resta
     await env.client.call("tasks.detach", { task: task.id, media_id: asset.media_id });
     assert.equal(fs.existsSync(path), false);
     assert.deepEqual((await env.client.call("tasks.get", { task: task.id })).attachments, []);
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});
+
+test("automatic sharing preserves different filenames and MIME types even when bytes match", async () => {
+  const env = await startCore({ llm: scriptedLlm(() => say("Done")) });
+  try {
+    const task = await env.client.call("tasks.create", { title: "Distinct deliverables" });
+    const assets = taskAssets(env.core.store, env.home);
+    const uploadCopy = async (name: string, mime: string) => {
+      const { media } = await env.client.call("media.upload", {
+        name,
+        mime,
+        data: Buffer.from('{"caption":"Hello"}').toString("base64"),
+      });
+      const source = env.core.store.media.get(media.id);
+      assert.ok(source);
+      return assets.write((_, share) => share(task, [source], "superagent"))[0];
+    };
+    const first = await uploadCopy("copy.txt", "text/plain");
+    const renamed = await uploadCopy("captions.txt", "text/plain");
+    const retyped = await uploadCopy("copy.txt", "application/json");
+    assert.ok(first && renamed && retyped);
+    assert.notEqual(renamed.id, first.id);
+    assert.equal(renamed.prompt, "captions.txt");
+    assert.notEqual(retyped.id, first.id);
+    assert.equal(retyped.mime, "application/json");
+    assert.equal((await uploadCopy("copy.txt", "application/json"))?.id, retyped.id);
+    assert.equal((await env.client.call("tasks.get", { task: task.id })).attachments.length, 3);
   } finally {
     await env.core.close();
     await env.cleanup();
@@ -121,7 +153,7 @@ test("missing or oversized sources leave no partial task or attachment metadata"
   }
 });
 
-test("live agents reuse readable media but cannot export contact, client or foreign-project assets", async () => {
+test("live agents reuse readable media but cannot export contact, client or a moving project's assets", async () => {
   const env = await startCore({ llm: scriptedLlm(() => say("Done")) });
   const { store } = env.core;
   const runs: ReturnType<typeof store.runs.create>[] = [];
@@ -177,6 +209,8 @@ test("live agents reuse readable media but cannot export contact, client or fore
       (await env.core.dispatch("tasks.attach", { task: task.id, media_ids: [media.id] }, ctx, "task-readable")).ok,
       true,
     );
+    // Another of the owner's projects is readable to the owner's agents unless it is being moved (DECISIONS.md#d-271).
+    store.projectProtection.protect("move_northwind", "northwind");
     const foreign = store.threads.create({
       kind: "loose",
       title: "Evidence chat",
@@ -194,8 +228,10 @@ test("live agents reuse readable media but cannot export contact, client or fore
     store.threads.mergeContext(client.id, { client: "outside" });
     const robyChat = store.threads.create({ kind: "loose", title: "Evidence chat", agent_ids: ["superagent"] });
     const superCtx = context("superagent", robyChat.id);
+    let foreignMedia = "";
     for (const thread of [foreign, sealed, client]) {
       const m = (await env.client.call("media.upload", { ...upload(), thread: thread.id })).media;
+      if (thread === foreign) foreignMedia = m.id;
       for (const caller of thread === foreign ? [ctx] : [ctx, superCtx]) {
         assert.equal((await env.core.dispatch("media.get", { id: m.id }, caller)).ok, false);
         assert.equal(
@@ -213,8 +249,23 @@ test("live agents reuse readable media but cannot export contact, client or fore
           ).ok,
           false,
         );
+        const comment = await env.core.dispatch(
+          "tasks.comment",
+          { task: task.id, text: "@owner Is this the final version?", attachments: [m.id] },
+          caller,
+          `comment-deny-${thread.id}-${caller.agent.id}`,
+        );
+        assert.match(
+          comment.ok ? "" : comment.error.message,
+          /media unavailable/,
+          "a comment does not export it either",
+        );
       }
     }
+    assert.ok(
+      store.messages.list(task.thread_id).every((m) => !m.parts.some((p) => p.type === "file" || p.type === "image")),
+      "nothing refused reached the task's conversation",
+    );
     const foreignTask = await env.client.call("tasks.create", {
       title: "Foreign evidence",
       project: "northwind",
@@ -225,6 +276,12 @@ test("live agents reuse readable media but cannot export contact, client or fore
     assert.equal(
       (await env.core.dispatch("media.attach", { path: foreignAsset.media_id }, ctx, "foreign-task")).ok,
       false,
+    );
+    store.projectProtection.restore("move_northwind");
+    assert.equal((await env.core.dispatch("media.get", { id: foreignMedia }, ctx)).ok, true);
+    assert.equal(
+      (await env.core.dispatch("media.attach", { path: foreignAsset.media_id }, ctx, "foreign-task-moved")).ok,
+      true,
     );
     assert.equal((await env.core.dispatch("media.attach", { path: media.id }, superCtx, "super-readable")).ok, true);
     const ended = store.runs.get(ctx.agent.run_id);

@@ -16,9 +16,9 @@ let to = "";
 const repo = (agents: Record<string, string>) => {
   const dir = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-clone-")));
   repos.push(dir);
-  fs.mkdirSync(path.join(dir, ".apc", "agents"), { recursive: true });
+  fs.mkdirSync(path.join(dir, ".apx", "agents"), { recursive: true });
   for (const [slug, text] of Object.entries(agents))
-    fs.writeFileSync(path.join(dir, ".apc", "agents", `${slug}.md`), text);
+    fs.writeFileSync(path.join(dir, ".apx", "agents", `${slug}.md`), text);
   return dir;
 };
 

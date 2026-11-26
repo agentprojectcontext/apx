@@ -40,7 +40,8 @@ function relatedToTask(note: Memory, task: string): boolean {
 
 /**
  * `from`: the oldest model log seq still in the model's view. `delegated`: a helper's turn or a task's chat, about its task:
- * no standing global notes, and a global match only when it shares words with the task.
+ * no standing global notes, and a global match only when it shares words with the task. `project`: only that project's
+ * notes (a consult for a contact, DECISIONS.md#d-269).
  * Returns the block and, when something changed, the bookkeeping to store once the input's seq is known.
  */
 export async function recallFor(
@@ -51,7 +52,7 @@ export async function recallFor(
   text: string,
   ctx: ThreadContext,
   from: number,
-  delegated = false,
+  delegated: boolean | "project" = false,
 ): Promise<{ text?: string | undefined; shown?: ((at: number) => ThreadContext) | undefined }> {
   const all = ctx.memory_shown ?? {};
   const since = ctx.memory_since ?? {};
@@ -77,7 +78,10 @@ export async function recallFor(
     });
     // What came over from v1 is mostly old session reports that share a code task's words: recall reaches it.
     const forTask = (m: Memory) => m.scope !== "global" || (m.source !== "imported" && relatedToTask(m, text));
-    add(delegated ? found.filter(forTask).slice(0, MATCHES) : found);
+    const inProject = (m: Memory) => m.scope === "project" && m.project_id === thread.project_id;
+    add(
+      delegated === "project" ? found.filter(inProject) : delegated ? found.filter(forTask).slice(0, MATCHES) : found,
+    );
   }
   const matched = notes.length;
   if (!before) {
@@ -86,7 +90,7 @@ export async function recallFor(
     if (delegated && thread.project_id)
       add(store.memories.list({ view, scope: "project", project_id: thread.project_id, sources, limit: STANDING }));
     else if (!delegated) add(store.memories.list({ view, scope: "global", pending: false, sources, limit: STANDING }));
-    add(store.memories.list({ view, scope: "agent", agent_id: agentId, limit: STANDING }));
+    if (delegated !== "project") add(store.memories.list({ view, scope: "agent", agent_id: agentId, limit: STANDING }));
   }
   // The owner's turns also get a hook per own note not shown yet in this thread, so a note phrased unlike the message
   // is still known to exist; later turns add only the new ones.

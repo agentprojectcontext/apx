@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { ownDir } from "../apc/folder.ts";
 import { withoutAgentParent } from "../apc/move-agent-text.ts";
 import { readAgents } from "../apc/read.ts";
 import {
@@ -52,7 +53,7 @@ export function buildMigrationPlan(
       },
     );
   }
-  const definition = `.apc/agents/${agent.slug}.md`;
+  const definition = `.apx/agents/${agent.slug}.md`;
   const sourceFile = migrationFilePath(work.source, definition);
   const targetFile = migrationFilePath(work.destination, definition);
   if (fs.existsSync(targetFile))
@@ -81,7 +82,7 @@ export function buildMigrationPlan(
     .filter((a) => a.project_id === inventory.source && (a.parent === agent.id || a.parent === agent.slug));
   for (const child of children) {
     if (!child.slug) throw badRequest("A subordinate has no project definition");
-    const relative = `.apc/agents/${child.slug}.md`;
+    const relative = `.apx/agents/${child.slug}.md`;
     const before = readMigrationFile(migrationFilePath(work.source, relative), 1024 * 1024).toString("utf8");
     changes?.push({ root: "source", relative, after: Buffer.from(withoutAgentParent(before)) });
   }
@@ -106,7 +107,7 @@ export function buildMigrationPlan(
     }
     groups.push(group);
   }
-  const sourceSkills = path.join(work.source, ".apc", "skills");
+  const sourceSkills = path.join(work.source, ownDir(work.source), "skills");
   for (const name of agent.skills ?? []) {
     if (fs.existsSync(migrationFilePath(sourceSkills, name))) blockers.push("project_skill_requires_selection");
   }

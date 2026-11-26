@@ -11,6 +11,7 @@ import type { Store } from "../domain/store.ts";
 import { expandHome } from "../paths.ts";
 import { pruneUploads, saveUpload } from "../services/uploads.ts";
 import type { SignIn } from "../sign-in.ts";
+import { browserDoTool } from "./browser-do.ts";
 import { browserEvaluateTool } from "./browser-evaluate.ts";
 import { browserSignInTool } from "./browser-sign-in.ts";
 import { folderAccess } from "./folders.ts";
@@ -137,6 +138,7 @@ export function browserTools(
   const attachable = attachableIn(store, home, vm);
   return [
     browserEvaluateTool(store, home, own, vm),
+    browserDoTool(store, home, own, card, attachable),
     browserSignInTool(store, signIn, own, vm),
     defineTool({
       needsCap: BROWSER_CAP,
@@ -238,7 +240,7 @@ export function browserTools(
       needsCap: BROWSER_CAP,
       name: "browser_type",
       description:
-        "Type text into a field by ref; in a list, the option to pick; in a file field, a local file's full path to attach. Password, 2FA and card fields are refused: use browser_sign_in with a stored secret, or browser_handoff.",
+        "Type text into a field by ref; in a list, the option to pick; in a file field, a local file's full path to attach. Password, 2FA and card fields are refused: use browser_sign_in, or browser_handoff.",
       args: z.object({
         tab: tabArg,
         ref: refArg,
@@ -321,7 +323,7 @@ export function browserTools(
       needsCap: BROWSER_CAP,
       name: "browser_handoff",
       description:
-        "Hand the tab to the owner and wait until they press Done (up to 5 min), then go on in it yourself: a login, password, 2FA, captcha or a site that blocks you is a handoff, not a reason to give up or go another way. Just before it, tell the owner in one line what they must do and that you take the tab back after. Never ask for passwords in chat.",
+        "Hand the tab to the owner and wait until they press Done (up to 5 min), then go on in it yourself: a login browser_sign_in could not fill, 2FA by SMS, a captcha or a site that blocks you is a handoff, not a reason to give up or go another way. Just before it, tell the owner in one line what they must do and that you take the tab back after. Never ask for passwords in chat.",
       args: z.object({ tab: tabArg, reason: z.string().max(300).describe("what the owner must do, short") }),
       effect: "none",
       deadlineMs: (HANDOFF_S + 20) * 1000,

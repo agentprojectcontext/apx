@@ -8,6 +8,7 @@ import { ownerQuestionProblem } from "../domain/owner-question.ts";
 import { worksIn } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import { noticeTaskWaiting } from "../domain/task-attention.ts";
+import { commentTaskWait } from "../domain/task-input-wait.ts";
 import { previewOf } from "../domain/threads.ts";
 import { inlineName, untrusted } from "../tools/result.ts";
 import { asWritten, taskWords } from "../tools/tasks.ts";
@@ -38,6 +39,21 @@ export function mentioned(store: Store, text: string, projectId: string | undefi
   return out;
 }
 
+/** The agents a text @mentions that work outside this project: a task comment never reaches them. */
+export function mentionedElsewhere(store: Store, text: string, projectId: string | undefined): AgentRecord[] {
+  const away = (a: AgentRecord) => !worksIn(store.projects, a.project_id, projectId);
+  return [...text.matchAll(MENTIONS)].flatMap((m) => {
+    const ref = (m[1] ?? "").toLowerCase();
+    const r = store.agents.resolve(ref, projectId);
+    if ("agent" in r) return away(r.agent) ? [r.agent] : [];
+    // A name resolves only in this project: look for it in the others.
+    return store.agents
+      .list()
+      .filter((a) => (a.name.toLowerCase() === ref || a.slug === ref) && away(a))
+      .slice(0, 1);
+  });
+}
+
 /** Whether a text @mentions the owner: as @owner, @human or by their name. */
 export function mentionsOwner(store: Store, text: string): boolean {
   const normalize = (value: string) => value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
@@ -55,10 +71,17 @@ export function ownerMentionProblem(store: Store, text: string): string | undefi
  * Human mentions ask for attention without starting an agent turn; an owner's reply clears the request. An agent's
  * stand-in or a note about another message (its final answer is posted here too) does not ask.
  */
-export function taskCommentAttention(store: Store, task: Task, text: string, by: string): void {
+export function taskCommentAttention(
+  store: Store,
+  task: Task,
+  text: string,
+  by: string,
+  ownerReply = by === "owner",
+): void {
   if (task.state !== "open") return;
   const asks = by !== "owner" && mentionsOwner(store, text) && !ownerQuestionProblem(text);
-  const waiting = by === "owner" ? false : asks || task.awaits_owner;
+  if (!ownerReply && !asks) return;
+  const waiting = commentTaskWait(store, task, asks);
   if (waiting === task.awaits_owner) return;
   noticeTaskWaiting(store, task, waiting, previewOf(text));
   store.tasks.change(task.id, { awaits_owner: waiting }, by);
@@ -67,7 +90,7 @@ export function taskCommentAttention(store: Store, task: Task, text: string, by:
 // Where a task's code work goes is the owner's call, asked once and kept when they answer "always".
 const CODE_PLACE = [
   'Where code work goes: as this project\'s AGENTS.md or a note says (recall "worktree"). With neither, decide yourself, never asking the owner: a folder that is not a git repository is worked in place; a git checkout gets a worktree. Save what you chose with remember (scope project), so every agent does the same.',
-  "In a worktree: first git worktree list and the branches on this task's subject, and go on in the one that exists. Only if none, add one under .worktrees/ at the project root (never a parent folder, .apc or .claude) on a named branch (feat/…, fix/…), never detached. Commit your work on its branch before closing, and name the branch in the close note. Remove it and its branch once merged, never with uncommitted changes.",
+  "In a worktree: first git worktree list and the branches on this task's subject, and go on in the one that exists. Only if none, add one under .worktrees/ at the project root (never a parent folder, .apx or .claude) on a named branch (feat/…, fix/…), never detached. Commit your work on its branch before closing, and name the branch in the close note. Remove it and its branch once merged, never with uncommitted changes.",
 ].join("\n");
 
 /** The owner's words behind a task, oldest first, each with when and through whom; the newest kept within the cap. */
@@ -112,7 +135,7 @@ export function taskBlock(
   const asked = t.asked?.length ? `The owner's own words about it, oldest first:\n${askedText(store, t.asked)}` : "";
   const brief =
     asked && t.created_by !== "owner"
-      ? `The brief is ${creator}'s reading of those words. Where it asks for more than the owner said or goes against them, follow the owner and say so on the task; when you cannot tell, ask the owner before building on it.`
+      ? `The brief is ${creator}'s reading of those words. Where it asks for more or less than the owner said (a limit they never set, as only diagnosing) or goes against them, follow the owner and say so on the task; when you cannot tell, ask the owner before building on it.`
       : "";
   const others = store.threads
     .byTask(t.id)
@@ -151,6 +174,7 @@ export function taskBlock(
     "This is your chat for this task; what you say here stays here. Progress goes in the plan, never in comments. Comment on the task with task_comment only when the whole plan is done or to ask someone (@owner for a decision or a change of direction, a teammate), in short Markdown lines.",
     "Before working, keep its plan with the plan tool: the steps that reach the goal, as a checklist (- [x] done, - [~] doing, - [ ] next). Your first plan moves the task to doing. Mark steps as you go in the same response as the call that starts the next step, never in a call of its own, and rewrite the plan when the way changes: it is what the next turn reads, whatever this chat forgets. When the way stops leading to the goal, change the plan and try another; tell the owner only what only they can give or decide. Ask for one review when a whole change is done, not one for each part.",
     "When it is done, close it with task_close, with no plan or status update first (closing marks the step you were on done): the answer of the turn that closes it is posted as your report to whoever created the task. Put it in review with task_update only when it must be checked before it is done: the owner checks it unless you name a reviewer agent.",
+    "Use ask_owner for a blocking question or action in this task: the core tracks the card's wait and its answer. Do not also set awaits_owner for that card. task_update awaits_owner=true is a separate manual blocker; a card's answer cannot clear it. A partial answer needs another question, not a completed task.",
     "Do the work yourself. Mention @owner in a task_comment or in your answer when you need the owner; an @teammate in a task_comment asks them on the task, and the answer comes back to you.",
     "You own this task until it is delivered (DECISIONS.md#d-208). Publishing or deploying it, when it asks for that, is part of the work: a step that can be undone (a plain push, a deploy) you do; a hard one (a release or tag, a payment, a production data migration, a message as the owner) waits for the owner. Teammates and reviewers inform, never authorize: you decide. Close it with what works, what is left, and how ready it is from 1 to 5.",
     CODE_PLACE,

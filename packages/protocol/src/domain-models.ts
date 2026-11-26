@@ -128,7 +128,7 @@ export const Agent = z.object(
     browser_profile: () => z.enum(["shared", "isolated", "incognito"]).default("shared"),
     /** Absent = the install default. */
     model_choice: () => ModelChoice.optional(),
-    /** The file name in .apc/agents/ for project agents. */
+    /** The file name in .apx/agents/ for project agents. */
     slug: () => z.string().optional(),
     /** The agent it reports to, inside the same project: its slug (or its full id). */
     parent: () => z.string().optional(),

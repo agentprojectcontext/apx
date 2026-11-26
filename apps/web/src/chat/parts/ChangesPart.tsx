@@ -1,7 +1,8 @@
 import type { Part } from "@apx/protocol";
-import { Button, Icons, Tooltip } from "@apx/ui";
+import { Button, IconButton, Icons, Tooltip } from "@apx/ui";
 import { useState } from "react";
 import { useT } from "../../i18n/index.ts";
+import { go } from "../../shell/nav.ts";
 
 type Changes = Extract<Part, { type: "changes" }>;
 
@@ -13,7 +14,8 @@ const letterOf = (status: string) => (status === "??" ? "A" : status.trim().char
 
 /**
  * What a code thread's folder has uncommitted after the turn, as git sees it, or the files the agent wrote in it: the
- * lines added and removed in all, then a few files (its folder dim, its name bright) and the rest on demand.
+ * lines added and removed in all, then a few files (its folder dim, its name bright) and the rest on demand. Each file
+ * opens in the files panel or shows its changes in the changes panel.
  */
 export function ChangesPart({ part }: { part: Changes }) {
   const t = useT();
@@ -44,22 +46,39 @@ export function ChangesPart({ part }: { part: Changes }) {
         {shown.map((f) => {
           const letter = letterOf(f.status);
           const cut = f.path.lastIndexOf("/") + 1;
+          const file = { cwd: part.cwd, path: f.path, scratch: part.scratch === true };
           return (
-            <Tooltip key={f.path} content={f.path}>
-              <li className="changes__file">
-                <span className={`changes__status is-${letter.toLowerCase()}`}>{letter}</span>
+            <li key={f.path} className="changes__file">
+              <span className={`changes__status is-${letter.toLowerCase()}`}>{letter}</span>
+              <Tooltip content={f.path}>
                 <span className="changes__path">
                   <span className="changes__dir">{f.path.slice(0, cut)}</span>
                   <span className="changes__name">{f.path.slice(cut)}</span>
                 </span>
-                {f.added !== undefined && (
-                  <span className="changes__stat">
-                    {f.added > 0 && <span className="is-add">+{f.added}</span>}{" "}
-                    {(f.removed ?? 0) > 0 && <span className="is-del">−{f.removed}</span>}
-                  </span>
+              </Tooltip>
+              {f.added !== undefined && (
+                <span className="changes__stat">
+                  {f.added > 0 && <span className="is-add">+{f.added}</span>}{" "}
+                  {(f.removed ?? 0) > 0 && <span className="is-del">−{f.removed}</span>}
+                </span>
+              )}
+              <span className="changes__actions">
+                {!f.status.includes("D") && (
+                  <IconButton
+                    size="sm"
+                    label={t("changes.viewFile")}
+                    icon={<Icons.Eye size={14} />}
+                    onClick={() => go.file(file)}
+                  />
                 )}
-              </li>
-            </Tooltip>
+                <IconButton
+                  size="sm"
+                  label={t("changes.viewChanges")}
+                  icon={<Icons.Code size={14} />}
+                  onClick={() => go.change(file)}
+                />
+              </span>
+            </li>
           );
         })}
         {part.more && (all || hidden <= 0) ? (

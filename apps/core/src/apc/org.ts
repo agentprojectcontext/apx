@@ -1,14 +1,16 @@
-// A project's areas and roles: `.apc/organization.json`, the same file APX v1 wrote. Read leniently (v1 wrote nulls,
+// A project's areas and roles: `.apx/organization.json`, the same file APX v1 wrote. Read leniently (v1 wrote nulls,
 // a hand edit may break one entry): an entry that does not fit is skipped, not the whole file.
+
 import fs from "node:fs";
 import path from "node:path";
 import { OrgArea, type Organization, OrgRole } from "@apx/protocol";
 import { writeAtomic } from "../paths.ts";
+import { projectDir } from "./folder.ts";
 import { withoutBom } from "./read.ts";
 
 const EMPTY_ORG: Organization = { areas: [], roles: [] };
 
-const orgFile = (root: string) => path.join(root, ".apc", "organization.json");
+const orgFile = (root: string) => path.join(projectDir(root), "organization.json");
 const isLink = (p: string) => {
   try {
     return fs.lstatSync(p).isSymbolicLink();
@@ -37,7 +39,7 @@ export function readOrganization(root: string): Organization {
 }
 
 export function writeOrganization(root: string, org: Organization): void {
-  const dir = path.join(root, ".apc");
+  const dir = projectDir(root);
   for (const p of [dir, orgFile(root)])
     if (isLink(p)) throw new Error(`refusing to write through a symlink: ${path.relative(root, p)}`);
   fs.mkdirSync(dir, { recursive: true });

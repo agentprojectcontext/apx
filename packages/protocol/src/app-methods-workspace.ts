@@ -17,6 +17,7 @@ import {
   ProjectKind,
   Run,
   Thread,
+  WorkflowView,
   WritePolicy,
 } from "./domain.ts";
 
@@ -103,7 +104,7 @@ export const appWorkspaceMethods = {
     result: () => Organization,
     effect: false,
   }),
-  /** Replaces a project's areas and roles: written to its .apc/organization.json (the base project's: in APX). */
+  /** Replaces a project's areas and roles: written to its .apx/organization.json (the base project's: in APX). */
   "org.set": deferMethod({
     params: () =>
       z
@@ -116,13 +117,13 @@ export const appWorkspaceMethods = {
     effect: true,
     access: "human",
   }),
-  /** Registers a folder as a project and reads its AGENTS.md and .apc/ (never writes them). */
+  /** Registers a folder as a project and reads its AGENTS.md and .apx/ (never writes them). */
   "projects.register": deferMethod({
     params: () =>
       z
         .object({
           path: z.string().min(1).max(1024),
-          /** A plain folder becomes a project: an AGENTS.md naming it and an empty .apc/ are written there. */
+          /** A plain folder becomes a project: an AGENTS.md naming it and an empty .apx/ are written there. */
           init: z.boolean().default(false),
         })
         .strict(),
@@ -135,8 +136,31 @@ export const appWorkspaceMethods = {
     access: "human",
   }),
   /**
-   * A new project: in a folder (made if missing; a plain one gets an AGENTS.md and .apc/), or, without one, in a folder
-   * of its own inside APX's home (`projects/<name>`). Name, kind and description go to its .apc/project.json; a project
+   * Retries moving a project's agents and settings from `.apc/`, the folder earlier versions used, to `.apx/` (the core
+   * does it by itself at start and on register): copies them, checks every file arrived equal, removes them from `.apc/`
+   * and reads the project again. Safe to run again: a file
+   * `.apx/` already has with other content stops it before anything is removed. Git worktrees in `.apc/` stay.
+   */
+  "projects.move_folder": deferMethod({
+    params: () => z.object({ project: Id }).strict(),
+    result: () =>
+      z.object({
+        project: Project,
+        agents: z.number().int(),
+        /** Files now in `.apx/` that came from `.apc/`. */
+        files: z.number().int(),
+        /** `.apc/` is gone, or holds only the worktrees in `kept`. */
+        done: z.boolean(),
+        kept: z.array(z.string()),
+        /** Files `.apx/` already has with other content: nothing was removed until the owner settles them. */
+        conflicts: z.array(z.string()),
+      }),
+    effect: true,
+    access: "human",
+  }),
+  /**
+   * A new project: in a folder (made if missing; a plain one gets an AGENTS.md and .apx/), or, without one, in a folder
+   * of its own inside APX's home (`projects/<name>`). Name, kind and description go to its .apx/project.json; a project
    * in a folder with no name given keeps the folder's. With `parent` it is a subproject of that project
    * (BASE_PROJECT_ID: of the base project); without a path its folder goes inside the parent's (the base project's:
    * in APX's home, as above).
@@ -162,7 +186,7 @@ export const appWorkspaceMethods = {
     access: "human",
   }),
   /**
-   * Renames a project, or changes its description or kind, in its .apc/project.json (every other key there stays).
+   * Renames a project, or changes its description or kind, in its .apx/project.json (every other key there stays).
    * An empty string or null removes the field. The base project has no folder and cannot be changed.
    */
   "projects.update": deferMethod({
@@ -596,6 +620,28 @@ export const appWorkspaceMethods = {
       z.object({
         canceled: z.boolean(),
       }),
+    effect: true,
+  }),
+  /** A workflow an agent started: its phases and agents, and each step's output once done (DECISIONS.md#d-273). */
+  "workflows.get": deferMethod({
+    params: () => z.object({ workflow: Id }).strict(),
+    result: () =>
+      z.object({
+        workflow: WorkflowView.extend({ id: Id, thread_id: Id }),
+        outputs: z.array(z.object({ key: z.string(), output: z.string() })),
+      }),
+    effect: false,
+  }),
+  /** Stops a running workflow: its agents at work are canceled and no step starts after them. */
+  "workflows.stop": deferMethod({
+    params: () => z.object({ workflow: Id }).strict(),
+    result: () => z.object({ stopped: z.boolean() }),
+    effect: true,
+  }),
+  /** Runs a stopped or failed workflow again: done steps keep their output, the rest run again. */
+  "workflows.resume": deferMethod({
+    params: () => z.object({ workflow: Id }).strict(),
+    result: () => z.object({ resumed: z.boolean() }),
     effect: true,
   }),
   /** Whether the ChatGPT plan is signed in for APX's own loop, and a sign-in in progress. */

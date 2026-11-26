@@ -1,4 +1,4 @@
-import { isInside } from "./migration-path.ts";
+import { isInside } from "../../data/paths.ts";
 
 export function toggleMigrationPath(paths: string[], path: string, checked: boolean): string[] {
   const rest = paths.filter((p) => !isInside(path, p));

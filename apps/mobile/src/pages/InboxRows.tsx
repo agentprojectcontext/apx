@@ -4,15 +4,16 @@ import { isSkipAnswer } from "../chat/signals";
 import { listWhen } from "../format";
 import { channelIdentity, channelName, chatPreview, chatTitle, isWorking, routineName } from "../hooks/chatSelectors";
 import { type InboxNode, nodeFailed, nodeThreads } from "../hooks/inboxTree";
-import type { Agent, Task, Thread, Workspace } from "../hooks/useWorkspace";
-import { type Key, t } from "../i18n";
+import { rowState } from "../hooks/rowState";
+import type { Agent, Thread, Workspace } from "../hooks/useWorkspace";
+import { t } from "../i18n";
 import { scheduleText } from "../routines/view";
 import { ChannelMark } from "../ui/ChannelMark";
 import { EngineIcon } from "../ui/EngineIcon";
 import { Icon } from "../ui/Icon";
 import { AgentAvatar, AgentPair, CountBadge, Spinner, useType } from "../ui/kit";
 import { PersonAvatar } from "../ui/PersonAvatar";
-import { type ColorKey, makeStyles, useTheme } from "../ui/theme";
+import { makeStyles, useTheme } from "../ui/theme";
 
 const agentOf = (id: string | undefined, agents: Agent[]) => agents.find((agent) => agent.id === id);
 /** One face in the list: small enough that more chats fit, big enough to tell agents apart. */
@@ -109,8 +110,8 @@ export const InboxRow = memo(function InboxRow({
   open: (thread: Thread) => void;
   /** A long press: the chat's own actions (read, archive, delete…). */
   menu?: (thread: Thread) => void;
-  /** A long press on a task's row: the task's options instead of its latest chat's. */
-  taskMenu?: (taskId: string) => void;
+  /** A long press on a task's row: the task's options instead of its latest chat's, with every chat it holds. */
+  taskMenu?: (taskId: string, threads: Thread[]) => void;
   searching?: boolean;
   caller?: string | undefined;
   /** Under another row: a smaller face, the same two lines. */
@@ -152,7 +153,7 @@ export const InboxRow = memo(function InboxRow({
   const longPress = channel
     ? undefined
     : node.kind === "task" && taskMenu
-      ? () => taskMenu(node.ref)
+      ? () => taskMenu(node.ref, threads)
       : menu
         ? () => menu(node.thread)
         : undefined;
@@ -266,23 +267,6 @@ export const InboxRow = memo(function InboxRow({
     </View>
   );
 });
-
-/** Where a task or a routine stands, as the panel's Inbox shows it: what its runs did, or the task's place. */
-export function rowState(
-  kind: "task" | "routine",
-  at: { task?: Task | undefined; busy: boolean; waiting: boolean; failed: boolean },
-): { label: Key; color: ColorKey } {
-  if (kind === "routine") {
-    if (at.busy) return { label: "stateRunning", color: "info" };
-    return at.failed ? { label: "inboxFailed", color: "danger" } : { label: "stateDone", color: "brand" };
-  }
-  if (at.task?.state === "dropped") return { label: "stateDropped", color: "danger" };
-  if (at.task && at.task.state !== "open") return { label: "stateDone", color: "brand" };
-  if (at.waiting || at.task?.awaits_owner) return { label: "waitsForYou", color: "warning" };
-  if (at.busy || at.task?.status === "doing") return { label: "stateRunning", color: "info" };
-  if (at.failed) return { label: "inboxFailed", color: "danger" };
-  return { label: "statePending", color: "fgSubtle" };
-}
 
 /** A chat kept for a task (the task's own or one an agent works it in), not a session one of them started. */
 const sameTask = (thread: Thread) => Boolean(thread.task_id) || thread.kind === "task";

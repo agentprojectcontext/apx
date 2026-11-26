@@ -70,7 +70,7 @@ export function mcpHandlers(mcp: Mcp, store: Store, switchable: (name: string) =
     "mcp.list": ({ project }) => ({ servers: mcp.status(project) }),
     "mcp.trust": async ({ project, server, trusted }) => {
       const d = mcp.find(project ? "project" : "global", server, project);
-      if (!d) throw badRequest(`no server ${server} in that project's .apc/mcps.json`);
+      if (!d) throw badRequest(`no server ${server} in that project's .apx/mcps.json`);
       mcp.config.setTrust(d, trusted);
       if (!trusted) await mcp.drop(d);
       const s = mcp.status(project).find((x) => x.scope === (project ? "project" : "global") && x.name === server);
@@ -126,7 +126,7 @@ export function mcpHandlers(mcp: Mcp, store: Store, switchable: (name: string) =
       if (!store.projects.get(project)?.path) throw notFound(`project ${project}`);
       // A repo's file never holds the owner's secrets: whoever can read the repo would get them.
       if (server && JSON.stringify(server).includes("secret://"))
-        throw badRequest("a project's .apc/mcps.json cannot use your variables (secret://); use a server of your own");
+        throw badRequest("a project's .apx/mcps.json cannot use your variables (secret://); use a server of your own");
       const old = mcp.find("project", name, project);
       if (old) await mcp.drop(old);
       mcp.config.setProject(project, name, server);

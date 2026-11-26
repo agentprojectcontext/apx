@@ -1,5 +1,6 @@
 import { DEFAULT_AUTONOMY, ModelRef, WritePolicy } from "@apx/protocol";
 import { z } from "zod";
+import { placeName, worksForOwner } from "../domain/owner-work.ts";
 import { worksIn } from "../domain/projects.ts";
 import { engineOf } from "../domain/refs.ts";
 import type { Store } from "../domain/store.ts";
@@ -9,6 +10,11 @@ import { defineTool, type Tool } from "./types.ts";
 
 const writeOfMode = (mode: string): z.infer<typeof WritePolicy> =>
   mode === "plan" ? "read-only" : mode === "manual" ? "ask" : "auto";
+
+const titleOf = (task: string): string => {
+  const line = task.trim().split("\n")[0]?.trim() ?? "";
+  return line.length > 80 ? `${line.slice(0, 79)}…` : line || "Session";
+};
 
 export function externalSessionTools(store: Store): Tool[] {
   return [
@@ -25,7 +31,9 @@ export function externalSessionTools(store: Store): Tool[] {
         task: z.string().min(1).max(50_000),
       }),
       effect: "external",
-      confirm: "always",
+      // Its calls pass the same policy in the caller's mode and its write is never more than the caller's: like a
+      // delegation it runs in Auto, unless outside content in the turn could have asked for it (DECISIONS.md#d-266).
+      confirm: "untrusted",
       deadlineMs: 15_000,
       when: () => store.projects.list().length > 0,
       title: (a) => `Started a ${a.engine} session`,
@@ -40,8 +48,11 @@ export function externalSessionTools(store: Store): Tool[] {
         if (matches.length !== 1) return "refused: name one registered project by its id or exact, unique name";
         const project = matches[0];
         if (!project) return "refused: no project";
+        // Working for the owner, any of the owner's projects not being moved (DECISIONS.md#d-271).
+        const moving = store.projectProtection.list().some((p) => p.project === project.id);
+        const ownersWork = worksForOwner(store, ctx.thread) && !moving;
         if (
-          !worksIn(store.projects, ctx.agent.project_id, project.id) ||
+          !(worksIn(store.projects, ctx.agent.project_id, project.id) || ownersWork) ||
           (ctx.thread.reach === "fenced" && project.id !== ctx.thread.project_id)
         )
           return "refused: this agent cannot start a session in another project";
@@ -52,7 +63,7 @@ export function externalSessionTools(store: Store): Tool[] {
           (ctx.thread.write === "ask" && write === "auto") ||
           (ctx.agent.rules?.write === "off" && write !== "read-only")
         )
-          return "refused: a session cannot have more write permission than its caller";
+          return `refused: a session cannot have more write permission than its caller (${ctx.agent.rules?.write === "off" ? "writing off" : (ctx.thread.write ?? "ask")})`;
         // A global caller in total mode cannot lift a destination project's ceiling (D-126).
         write = strictestWrite(
           write,
@@ -64,6 +75,8 @@ export function externalSessionTools(store: Store): Tool[] {
           agent_id: ctx.agent.id,
           project_id: project.id,
           engine: a.engine,
+          // Named after what it was asked, as a delegation is: the engine's name is its face, not its title.
+          title: titleOf(a.task),
           write,
           ...(a.cwd !== undefined ? { cwd: a.cwd } : {}),
           ...(a.model ? { model: a.model } : {}),
@@ -74,6 +87,7 @@ export function externalSessionTools(store: Store): Tool[] {
             type: "subthread",
             thread_id: thread.id,
             agent_id: ctx.agent.id,
+            engine: a.engine,
             title: thread.title,
             state: sent.run.state === "queued" ? "queued" : "working",
           });
@@ -84,6 +98,7 @@ export function externalSessionTools(store: Store): Tool[] {
             model: a.model ?? "default",
             write,
             state: sent.run.state,
+            ...(project.id === ctx.thread.project_id ? {} : { where: placeName(store, project.id) }),
           });
         } catch (err) {
           return `session ${thread.id} was created but not started: ${err instanceof Error ? err.message : String(err)}; do not create a duplicate`;

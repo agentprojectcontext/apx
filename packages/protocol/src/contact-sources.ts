@@ -21,6 +21,28 @@ export const ContactSourceUpdate = z.object({
   message: z.string().optional(),
   revision: z.string(),
   result_revision: z.string().optional(),
+  project_record: z
+    .object({
+      agent: z.string(),
+      project: z.string(),
+      label: z.string(),
+      source_revision: z.string(),
+      request_key: z.string().optional(),
+      reference: z
+        .object({
+          origin: z.discriminatedUnion("kind", [
+            z.object({ kind: z.literal("message"), id: z.string() }),
+            z.object({ kind: z.literal("memory"), id: z.string() }),
+            z.object({ kind: z.literal("project") }),
+          ]),
+          target: z.discriminatedUnion("kind", [
+            z.object({ kind: z.literal("drive"), id: z.string() }),
+            z.object({ kind: z.literal("file"), path: z.string() }),
+          ]),
+        })
+        .optional(),
+    })
+    .optional(),
   old: z.string(),
   replacement: z.string(),
   state: z.enum(["pending", "applying", "accepted", "rejected", "unresolved"]),

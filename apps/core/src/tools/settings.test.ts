@@ -92,13 +92,16 @@ test("a declined change saves nothing", async () => {
   assert.ok(!p?.rules && !p?.note);
 });
 
-test("in Auto, a contact the owner asks for changes at once; their own profile still asks (DECISIONS.md#d-203)", async () => {
+test("in Auto, what the owner asks for changes at once; what cannot be undone still asks (DECISIONS.md#d-267)", async () => {
   await h.env.client.call("contacts.set", { id: northwind, name: "Northwind Sister", note: "", rules: "" });
   const { answer } = await h.ask(tellHer());
   assert.match(answer, /^done: - Northwind Sister/);
   assert.equal((await sister())?.note, "My sister");
-  const { detail } = await h.ask({ method: "owner.set", params: { name: "Acme Owner" } }, "deny");
-  assert.match(detail, /name: .* → "Acme Owner"/);
+  const before = (await h.env.client.call("owner.get", {})).name;
+  assert.match((await h.ask({ method: "owner.set", params: { name: "Acme Owner" } })).answer, /^done/);
+  assert.equal((await h.env.client.call("owner.get", {})).name, "Acme Owner");
+  await h.env.client.call("owner.set", { name: before ?? "" });
+  // Deleting for good still asks in Auto: settings-team.test.ts covers tasks and routines.
 });
 
 test("on Total, what the owner asks for runs, but an address of their own keeps its card (DECISIONS.md#d-203)", async () => {

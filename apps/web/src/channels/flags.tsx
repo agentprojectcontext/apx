@@ -11,7 +11,12 @@ export type Flag = { key: string; icon: ReactNode; label: string; off?: boolean 
 const rightOn = (v: unknown) => v !== undefined && v !== false && v !== "off";
 const APPOINTMENT_FLAG = { note: "ch.flag.appointmentsNote", book: "ch.flag.appointmentsBook" } as const;
 
-const ACCOUNT_PERMS: Array<{ key: keyof Person["perms"]; icon: ReactNode; label: MessageKey; no: MessageKey }> = [
+const ACCOUNT_PERMS: Array<{
+  key: keyof NonNullable<ChannelInfo["contacts"]>;
+  icon: ReactNode;
+  label: MessageKey;
+  no: MessageKey;
+}> = [
   {
     key: "appointments",
     icon: <Icons.Calendar size={12} />,
@@ -74,6 +79,7 @@ const PERM_FLAGS: Array<{ key: keyof Person["perms"]; icon: ReactNode; label: Me
   { key: "appointments", icon: <Icons.Calendar size={12} />, label: "ch.perm.appointments" },
   { key: "requests", icon: <Icons.ListChecks size={12} />, label: "ch.perm.requests" },
   { key: "notes", icon: <Icons.BookOpen size={12} />, label: "ch.perm.notes" },
+  { key: "project_reading", icon: <Icons.FileText size={12} />, label: "ch.perm.projectReading" },
 ];
 
 /** What is set for a contact, as small marks: silenced, rules of their own, and each thing their chat may do here. */

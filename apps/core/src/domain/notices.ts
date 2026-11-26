@@ -32,6 +32,7 @@ export function followsOwner(origin: Origin | undefined): boolean {
     case "input_answer":
     case "delegation_result":
     case "delegation_results":
+    case "workflow_result":
     case "go_on":
     case "terminal":
     case "connected":
@@ -40,6 +41,7 @@ export function followsOwner(origin: Origin | undefined): boolean {
     case "agent":
     case "surface":
     case "hours_began":
+    case "continuation":
     case "routine":
     case "mail":
     case "job":

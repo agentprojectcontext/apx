@@ -1,6 +1,32 @@
 import type { NoticeKey } from "./notices-en.ts";
 
 export const noticeEs: Record<NoticeKey, string> = {
+  "notice.continuation.scheduled": "Programado",
+  "notice.continuation.waiting": "En espera",
+  "notice.continuation.started": "En curso",
+  "notice.continuation.completed": "Completado",
+  "notice.continuation.canceled": "Cancelado",
+  "notice.continuation.expired": "Venció la espera",
+  "notice.continuation.blocked": "No pude continuar",
+  "notice.continuation.failed": "La comprobación se detuvo",
+  "notice.continuation.at": "El {date} a las {time}",
+  "notice.continuation.whenTask": "Cuando termine «{when}»",
+  "notice.continuation.until": "Hasta el {date} a las {time}",
+  "notice.continuation.expiredDetail": "No empezó antes de que venciera el plazo.",
+  "notice.continuation.expiredEvent": "No terminó «{when}» antes del plazo.",
+  "notice.continuation.expiredEventUnknown": "La tarea no terminó antes del plazo.",
+  "notice.continuation.accessDetail": "Cambió el acceso. Pedilo de nuevo si todavía querés esta comprobación.",
+  "notice.continuation.blockedDetail": "No pude iniciar esta comprobación. Pedila de nuevo si todavía la querés.",
+  "notice.continuation.unavailableDetail":
+    "El agente no pudo iniciar esta comprobación. Pedila de nuevo cuando esté disponible.",
+  "notice.continuation.taskDetail": "No pude confirmar que terminara. Elegí una tarea disponible y pedilo de nuevo.",
+  "notice.continuation.failedDetail":
+    "No pudo terminar la comprobación. Mirá el resultado acá. No se reintentará automáticamente.",
+  "notice.continuation.alreadyStarted": "Ya empezó.",
+  "notice.continuation.cancel": "Cancelar",
+  "notice.continuation.cancelLabel": "Cancelar: {purpose}",
+  "notice.continuation.cancelError": "No se pudo cancelar. Volvé a intentar.",
+  "notice.continuation.view": "Ver ejecución",
   "notice.run.stepLimit":
     "Se quedó sin pasos en este turno: es un informe de lo hecho y lo que falta, no una respuesta final.",
   "notice.run.noModel": "Sin modelo disponible: ninguno de los modelos pudo responder (sin cupo, sin sesión o caído).",
@@ -43,9 +69,9 @@ export const noticeEs: Record<NoticeKey, string> = {
   "notice.breaker.release": "Liberar en esta ronda",
   "notice.breaker.wentOn": "Los agentes siguieron",
   "notice.delegation.limit.continuedSteps":
-    "{who} se quedó sin pasos con «{task}» y viene avanzando; APX lo hizo seguir en la sesión {session}. Hasta ahora: {sofar}",
+    "{who} llegó al límite de pasos con «{task}» y sigue en la misma conversación, porque viene avanzando. Hasta ahora: {sofar}",
   "notice.delegation.limit.continuedTime":
-    "{who} se quedó sin tiempo con «{task}» y viene avanzando; APX lo hizo seguir en la sesión {session}. Hasta ahora: {sofar}",
+    "{who} llegó al límite de tiempo con «{task}» y sigue en la misma conversación, porque viene avanzando. Hasta ahora: {sofar}",
   "notice.delegation.limit.stoppedSteps":
     "{who} se quedó sin pasos con «{task}» y su último tramo no avanzó, así que APX no siguió solo. Tocá Continuar si tiene que seguir. Hasta ahora: {sofar}",
   "notice.delegation.limit.stoppedTime":

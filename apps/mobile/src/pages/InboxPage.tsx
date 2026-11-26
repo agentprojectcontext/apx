@@ -6,6 +6,7 @@ import type { InboxAction, InboxItem } from "../hooks/inboxItems";
 import type { Notice, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import type { Answer } from "../protocol";
+import { EngineIcon } from "../ui/EngineIcon";
 import { Icon } from "../ui/Icon";
 import { AgentAvatar, Button, Card, EmptyState, PageTitle, Screen, Tag, useType } from "../ui/kit";
 import { makeStyles, useTheme } from "../ui/theme";
@@ -88,7 +89,9 @@ function InboxCard({
         <Text style={type.meta}>{listWhen(item.at)}</Text>
       </View>
       <View style={s.body}>
-        {agent && !item.icon ? (
+        {(item.engine === "claude" || item.engine === "codex") && !item.icon ? (
+          <EngineIcon engine={item.engine} size={32} />
+        ) : agent && !item.icon ? (
           <AgentAvatar name={agent.name} blob={agent.blob} id={agent.id} size={32} />
         ) : (
           <View style={s.iconCircle}>

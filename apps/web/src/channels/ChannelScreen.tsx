@@ -6,6 +6,7 @@ import { ChatView } from "../chat/ChatView.tsx";
 import { shortWhen } from "../common/format.ts";
 import { loadChannels, loadPresence, type PresenceState, useChannels } from "../data/channels.ts";
 import { useData } from "../data/state.ts";
+import { useThreadPreview } from "../data/threadPreview.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { SidePanel } from "../panel/SidePanel.tsx";
 import { ListColumn } from "../shell/ListColumn.tsx";
@@ -71,6 +72,10 @@ export function ChannelScreen() {
   const [mailView, setMailView] = useState<MailView>("people");
   // The card sits beside the chat on wide screens; on narrow ones it covers it, so it starts closed there.
   const [card, setCard] = useState(() => window.innerWidth >= 1280);
+  const consultParent = useNav((s) => (s.panel === "agents" ? s.panelParent : undefined));
+  useEffect(() => {
+    if (consultParent) setCard(false);
+  }, [consultParent]);
   // Someone new may write while this list is open: it is read again every few seconds, as the settings do.
   useEffect(() => {
     void loadChannels();
@@ -151,6 +156,7 @@ export function ChannelScreen() {
   const room = picked ? rooms.find((th) => th.id === picked) : undefined;
   const roomOpen = Boolean(room);
   const current = rows.find((r) => r.key === picked);
+  const consulting = Boolean(consultParent && consultParent === current?.thread?.id);
   const waiting = pairing.filter((r) => r.channel === channelId);
   const linked = ownerOn(persons, channelId ?? "");
   const ownThread = useMemo(() => {
@@ -245,7 +251,7 @@ export function ChannelScreen() {
 
   return (
     <section
-      className={`chan${current || ownerOpen || roomOpen ? " has-chat" : ""}${current && !room && card && !ownerOpen ? " has-card" : ""}`}
+      className={`chan${current || ownerOpen || roomOpen ? " has-chat" : ""}${current && !room && card && !ownerOpen && !consulting ? " has-card" : ""}`}
       style={{ "--chan-list-w": `${listW}px` } as CSSProperties}
       aria-label={channel.label}
     >
@@ -259,17 +265,23 @@ export function ChannelScreen() {
         <OpenChat threadId={room.id} />
       ) : current ? (
         <>
-          <ChannelConversation
-            key={`chat:${current.person?.id ?? current.key}`}
-            thread={current.thread}
-            person={current.person}
-            presence={current.person ? presence[current.person.id] : undefined}
-            channel={channel}
-            card={card}
-            onToggleCard={() => setCard((c) => !c)}
-            onBack={() => go.channel(channel.id, undefined)}
-          />
-          {card && current.person && (
+          <div className={`chan__owner${consulting ? " has-consult" : ""}`}>
+            <ChannelConversation
+              key={`chat:${current.person?.id ?? current.key}`}
+              thread={current.thread}
+              person={current.person}
+              presence={current.person ? presence[current.person.id] : undefined}
+              channel={channel}
+              card={card && !consulting}
+              onToggleCard={() => {
+                if (consulting) go.panel(null);
+                setCard((c) => !c);
+              }}
+              onBack={() => go.channel(channel.id, undefined)}
+            />
+            <ContactConversationPanel threadId={current.thread?.id} />
+          </div>
+          {card && current.person && !consulting && (
             <ContactPanel
               key={current.person.id}
               person={current.person}
@@ -287,6 +299,11 @@ export function ChannelScreen() {
       )}
     </section>
   );
+}
+
+function ContactConversationPanel({ threadId }: { threadId?: string }) {
+  const open = useNav((s) => s.panel === "agents" && s.panelParent === threadId && Boolean(threadId));
+  return open ? <SidePanel /> : null;
 }
 
 /**
@@ -386,6 +403,7 @@ function RoomRow({
   onPick(): void;
 }) {
   const t = useT();
+  const preview = useThreadPreview(thread);
   const mode = channel.rooms?.rooms.find((r) => r.id === thread.channel?.conversation)?.mode;
   return (
     <li>
@@ -404,7 +422,7 @@ function RoomRow({
             <span className="chan__rowtime">{shortWhen(thread.updated_at)}</span>
           </span>
           <span className="chan__rowtop">
-            <span className="chan__preview">{thread.preview}</span>
+            <span className="chan__preview">{preview}</span>
             {thread.unread > 0 && <span className="chan__unread">{thread.unread}</span>}
           </span>
           <span className="chan__rowtop chan__rowanswer">

@@ -110,7 +110,7 @@ function ProjectTeam({ project, switcher }: { project: ProjectEntry; switcher?: 
             ) : (
               <>
                 {t("team.definedInBefore")}
-                <code>.apc/agents/</code>
+                <code>.apx/agents/</code>
                 {t("team.definedInAfter")}
               </>
             )}

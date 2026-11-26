@@ -25,8 +25,8 @@ before(async () => {
   fs.symlinkSync("/etc", path.join(vault, "linked"));
   env = await startCore({ llm: scriptedLlm(() => say("ok")), home });
   repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-team-repo-")));
-  fs.mkdirSync(path.join(repo, ".apc", "agents"), { recursive: true });
-  fs.writeFileSync(path.join(repo, ".apc", "agents", "boss.md"), "---\nname: Boss\nrole: Orchestrator\n---\n\nLead.\n");
+  fs.mkdirSync(path.join(repo, ".apx", "agents"), { recursive: true });
+  fs.writeFileSync(path.join(repo, ".apx", "agents", "boss.md"), "---\nname: Boss\nrole: Orchestrator\n---\n\nLead.\n");
   project = (await env.client.call("projects.register", { path: repo })).project.id;
 });
 after(async () => {
@@ -57,7 +57,7 @@ test("templates: APX's teams with their lead, and single agents from APX and the
 });
 
 test("install: the team keeps its shape, its lead hangs under the orchestrator, existing slugs are skipped", async () => {
-  const before = fs.readFileSync(path.join(repo, ".apc", "agents", "boss.md"), "utf8");
+  const before = fs.readFileSync(path.join(repo, ".apx", "agents", "boss.md"), "utf8");
   const r = await env.client.call("agents.install", {
     project_id: project,
     templates: ["apx:product-team:orchestrator", "apx:product-team:qa-engineer", "apx:product-team:security"],
@@ -76,10 +76,10 @@ test("install: the team keeps its shape, its lead hangs under the orchestrator, 
     `each member gets a person's name: ${names.join(", ")}`,
   );
   assert.equal(new Set(names).size, names.length, "no two members share a name");
-  const file = fs.readFileSync(path.join(repo, ".apc", "agents", "security.md"), "utf8");
+  const file = fs.readFileSync(path.join(repo, ".apx", "agents", "security.md"), "utf8");
   assert.match(file, new RegExp(`^name: ${bySlug.security?.name}$`, "m"), "the name is in the agent's file");
   assert.match(file, /area: quality/, "the template's other fields are kept");
-  assert.equal(fs.readFileSync(path.join(repo, ".apc", "agents", "boss.md"), "utf8"), before, "nothing else changes");
+  assert.equal(fs.readFileSync(path.join(repo, ".apx", "agents", "boss.md"), "utf8"), before, "nothing else changes");
 
   const again = await env.client.call("agents.install", {
     project_id: project,
@@ -87,6 +87,47 @@ test("install: the team keeps its shape, its lead hangs under the orchestrator, 
   });
   assert.equal(again.installed.length, 0);
   assert.match(again.skipped[0]?.reason ?? "", /already has security/);
+});
+
+test("bundled teams keep full default tools and direct owner work without changing installed restrictions", async () => {
+  const { project: fresh } = await env.client.call("projects.create", { name: "Acme defaults" });
+  const executive = await env.client.call("agents.install", {
+    project_id: fresh.id,
+    templates: ["cmo", "cfo", "coo", "chro", "gc"].map((slug) => `apx:executive-team:${slug}`),
+  });
+  for (const agent of executive.installed) {
+    const { prompt } = await env.client.call("agents.get", { agent: agent.id });
+    assert.match(prompt, /carrying out requested work/);
+    assert.match(prompt, /Answer the owner directly/);
+    assert.match(prompt, /no CEO approval is needed for a direct request/);
+    assert.match(prompt, /explicit restrictions and confirmations/);
+    assert.ok(!agent.tools?.length);
+    if (agent.slug === "gc") assert.match(prompt, /never gives final legal advice/);
+  }
+  const product = await env.client.call("agents.install", {
+    project_id: fresh.id,
+    templates: ["architect", "developer", "qa-engineer", "security"].map((slug) => `apx:product-team:${slug}`),
+  });
+  assert.equal(product.installed.length, 4);
+  for (const agent of product.installed) assert.ok(!agent.tools?.length, `${agent.slug} has full contextual defaults`);
+  const qa = product.installed.find((a) => a.slug === "qa-engineer");
+  assert.ok(qa);
+  assert.match((await env.client.call("agents.get", { agent: qa.id })).prompt, /try to break a change/);
+  await env.client.call("agents.update", {
+    agent: qa.id,
+    tools: ["browser"],
+    prompt: "Review only; do not change code.",
+  });
+  const customized = await env.client.call("agents.get", { agent: qa.id });
+  assert.match(customized.prompt, /Review only; do not change code\./);
+  const again = await env.client.call("agents.install", {
+    project_id: fresh.id,
+    templates: ["apx:product-team:qa-engineer"],
+  });
+  assert.equal(again.installed.length, 0);
+  const kept = await env.client.call("agents.get", { agent: qa.id });
+  assert.deepEqual(kept.agent.tools, ["browser"]);
+  assert.equal(kept.prompt, customized.prompt);
 });
 
 test("install refuses a parent that is not in the project", async () => {
@@ -130,12 +171,12 @@ test("the owner sets an agent's autonomy: kept for a global agent, written to a 
   const boss = agents.find((a) => a.project_id === project && a.slug === "boss");
   assert.ok(boss);
   assert.equal((await env.client.call("agents.update", { agent: boss.id, autonomy: "manual" })).autonomy, "manual");
-  assert.match(fs.readFileSync(path.join(repo, ".apc", "agents", "boss.md"), "utf8"), /^autonomy: manual$/m);
+  assert.match(fs.readFileSync(path.join(repo, ".apx", "agents", "boss.md"), "utf8"), /^autonomy: manual$/m);
 });
 
 test("install: a parent that is skipped never adopts a member; the member hangs under hang_under", async () => {
   // The project's own, unrelated "pm".
-  fs.writeFileSync(path.join(repo, ".apc", "agents", "pm.md"), "---\nname: Someone else\n---\n\nNot the team's.\n");
+  fs.writeFileSync(path.join(repo, ".apx", "agents", "pm.md"), "---\nname: Someone else\n---\n\nNot the team's.\n");
   await env.client.call("projects.sync", { project });
   const r = await env.client.call("agents.install", {
     project_id: project,
@@ -159,7 +200,7 @@ test("an agent's prompt, area and description are read and edited; its activity 
   );
   assert.ok(boss);
   await env.client.call("agents.update", { agent: boss.id, area: "leadership" });
-  const file = fs.readFileSync(path.join(repo, ".apc", "agents", "boss.md"), "utf8");
+  const file = fs.readFileSync(path.join(repo, ".apx", "agents", "boss.md"), "utf8");
   assert.match(file, /^area: leadership$/m, "a project agent's area goes to its file");
   assert.equal((await env.client.call("agents.get", { agent: boss.id })).prompt.trim(), "Lead.");
 
@@ -196,7 +237,7 @@ test("install: an executive comes with its routines, on, in the project; install
   }
   // The executive team makes the project a company, with its members' areas and a role each.
   assert.equal(r.project_kind, "company");
-  assert.equal(JSON.parse(fs.readFileSync(path.join(repo, ".apc", "project.json"), "utf8")).kind, "company");
+  assert.equal(JSON.parse(fs.readFileSync(path.join(repo, ".apx", "project.json"), "utf8")).kind, "company");
   const org = await env.client.call("org.get", { project });
   assert.deepEqual(
     org.areas.map((a) => [a.slug, a.name]),
@@ -243,8 +284,8 @@ test("the base project takes a team as global agents: its shape, its routines, a
   assert.match(again.skipped[0]?.reason ?? "", /already has cfo/);
 });
 
-test("projects.update: name, description and kind go to .apc/project.json, keeping its other keys", async () => {
-  const file = path.join(repo, ".apc", "project.json");
+test("projects.update: name, description and kind go to .apx/project.json, keeping its other keys", async () => {
+  const file = path.join(repo, ".apx", "project.json");
   fs.writeFileSync(file, JSON.stringify({ tool: { x: 1 } }));
   const id = project;
   const r = await env.client.call("projects.update", {

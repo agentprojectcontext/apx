@@ -5,7 +5,7 @@ import path from "node:path";
 
 import type { MethodName, Params, Result, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
-import { type ApprovalTarget, strictApproval } from "../domain/approvals.ts";
+import { type ApprovalTarget, DELETE_GRANT, deleteApproval, strictApproval } from "../domain/approvals.ts";
 import type { InputRecord } from "../domain/inputs.ts";
 import type { JobRecord } from "../domain/jobs.ts";
 import { ownerAsked, type RunRecord } from "../domain/runs.ts";
@@ -13,17 +13,18 @@ import type { Store } from "../domain/store.ts";
 import { worksInFolder } from "../domain/threads.ts";
 import { errorMessage } from "../errors.ts";
 import type { TurnIO } from "../harness/index.ts";
+import { deletionTargets } from "../tools/command-deletions.ts";
 import { foundLater, TOOL_RUN, TOOL_SEARCH, unwrapCall } from "../tools/mcp-bridge.ts";
 import { authorize, type Decision, decide, keepsCard, modeOf, sessionGate } from "../tools/policy.ts";
 import { cap, UNTRUSTED_MARK } from "../tools/result.ts";
-import { commandRisk } from "../tools/shell.ts";
+import { commandRisk, onlyDeletes } from "../tools/shell.ts";
 import type { CheckContext, Confirm, ScopedThread, Tool, ToolContext } from "../tools/types.ts";
 import { prepareBrowserConsent } from "./browser-consent.ts";
 import type { Display } from "./display.ts";
 import { folderBinding, type Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
-import { confirmPrompt, folderPrompt, ownerCardPrompt } from "./owner-words.ts";
-import { guarded, inGitFolder, namesApc, pathsOf } from "./paths.ts";
+import { confirmPrompt, deletePrompt, deletionDetail, folderPrompt, ownerCardPrompt } from "./owner-words.ts";
+import { guarded, inGitFolder, namesAgentFiles, pathsOf } from "./paths.ts";
 import type { Permissions } from "./permissions.ts";
 import { handedOff } from "./task-handoff.ts";
 import { toolTitle } from "./tool-titles.ts";
@@ -105,6 +106,12 @@ const STORED_OUTPUT_CHARS = 2_000_000;
 const STEP_SUMMARY_CHARS = 4000;
 const CARD_DETAIL_CHARS = 300;
 
+/** What the agent said just before a call: its reason, as the owner reads it on a deletion card (D-266). */
+function lastWords(display: Display): string | undefined {
+  const text = display.message.parts.findLast((p) => p.type === "text");
+  return text?.type === "text" ? text.text.slice(-400) : undefined;
+}
+
 /** The call's arguments for the confirmation card, whole. */
 function describe(args: Record<string, unknown>): string {
   return Object.entries(args)
@@ -118,7 +125,7 @@ function describe(args: Record<string, unknown>): string {
 const CUT_SHORT =
   "stopped part way: the owner sent you a message to read now. It may have done part of its work; check before repeating it.";
 
-function unanswered(answer: InputRecord): { card: string; text: string } | undefined {
+export function unanswered(answer: InputRecord): { card: string; text: string } | undefined {
   if (answer.state === "pending")
     return {
       card: "waiting for the owner",
@@ -135,6 +142,7 @@ function unanswered(answer: InputRecord): { card: string; text: string } | undef
 export type Executor = {
   execute: TurnIO["execute"];
   approve: TurnIO["approve"];
+  refusal: NonNullable<TurnIO["refusal"]>;
   observe: TurnIO["observe"];
   readonly toolsRan: number;
   /** Whether outside content is in the turn so far. */
@@ -171,6 +179,7 @@ export function createExecutor(o: {
     as: { run: RunRecord; callId: string; owner?: boolean },
   ): Promise<Result<M>>;
   delegate: ToolContext["delegate"];
+  workflow?: ToolContext["workflow"];
   jobs: Jobs;
   /** Work in progress the turn waits on: its idle deadline is held until the returned function is called. */
   busy?: (() => () => void) | undefined;
@@ -286,9 +295,12 @@ export function createExecutor(o: {
     const { name, args: raw } = called === TOOL_RUN ? unwrapCall(given) : { name: called, args: given };
     // A tool found through the bridge (an MCP server's, a connected app's) joins on first use, named either way.
     if (called === TOOL_RUN || name === "grant_tool" || !byName.has(name)) await join();
+    // Not offered directly: joined from `late`, which holds only what the turn's policy allows (an agent's focus).
     const bridged =
       called !== TOOL_RUN ||
-      ((name.startsWith("mcp_") || foundLater(name)) && name !== TOOL_RUN && name !== TOOL_SEARCH);
+      ((name.startsWith("mcp_") || foundLater(name) || !offered.has(name)) &&
+        name !== TOOL_RUN &&
+        name !== TOOL_SEARCH);
     const tool = bridged ? byName.get(name) : undefined;
     const title = tool ? toolTitle(store, tool, raw) : name;
     const began = now();
@@ -403,20 +415,25 @@ export function createExecutor(o: {
       !granted &&
       (target?.browser || !o.inputs.takeGrant(thread.id, agent.id, name, raw, target?.key))
     ) {
+      // A deletion shows what goes and why, in the agent's words just before the call (DECISIONS.md#d-266).
+      const gone = target?.key === DELETE_GRANT ? tool.deletes?.(args, { agent, thread: callThread }) : undefined;
       const answer = await o.inputs.ask({
         run,
         agent,
         display,
         callId,
         kind: "confirm",
-        prompt:
-          tool.ownerSetting?.(args) && tool.explain
+        prompt: gone
+          ? deletePrompt(store, agent.name)
+          : tool.ownerSetting?.(args) && tool.explain
             ? ownerCardPrompt(store, agent.name)
             : confirmPrompt(store, gate.why, agent.name, name),
         tool: name,
         approval: target,
         args: raw,
-        detail: tool.explain?.(args) ?? describe(args),
+        detail: gone
+          ? deletionDetail(store, gone, lastWords(display), String(args.command ?? ""))
+          : (tool.explain?.(args) ?? describe(args)),
         // A preview that fails only costs the patch: the owner still sees the arguments.
         change: await tool.preview?.(args, { agent, thread: callThread }).catch(() => undefined),
         external: o.external(),
@@ -522,6 +539,7 @@ export function createExecutor(o: {
           }
         : {}),
       delegate: o.delegate,
+      ...(o.workflow ? { workflow: o.workflow } : {}),
       askOwner: (prompt, options, canContinue, multi, appOnly) =>
         o.inputs.ask({
           run,
@@ -535,6 +553,22 @@ export function createExecutor(o: {
           ...(appOnly ? { appOnly: true as const } : {}),
           external: o.external(),
           stays: !canContinue,
+          signal,
+        }),
+      askSignIn: (prompt, login, options) =>
+        o.inputs.ask({
+          run,
+          agent,
+          display,
+          callId,
+          kind: "question",
+          prompt,
+          tool: "browser_sign_in",
+          args: login ? { login } : {},
+          options,
+          appOnly: true,
+          external: o.external(),
+          stays: false,
           signal,
         }),
       // No tool on the card: the owner accepts the action itself, and the calls it takes still pass their own checks.
@@ -604,8 +638,8 @@ export function createExecutor(o: {
     // Fetching sends something out; in a code thread it could carry the code with it.
     if (kind === "fetch") return worksInFolder(thread) ? "ask" : "untrusted";
     if (kind === "execute" && typeof command === "string") return commandRisk(command, o.apxPort());
-    // APC files and AGENTS.md define agents and their modes: changing them is high impact, as file_write's.
-    if (paths.some((p) => namesApc(p) || guarded(o.workDir, p))) return "always";
+    // Agent files and AGENTS.md define agents and their modes: changing them is high impact, as file_write's.
+    if (paths.some((p) => namesAgentFiles(p) || guarded(o.workDir, p))) return "always";
     return "ask";
   }
 
@@ -639,7 +673,7 @@ export function createExecutor(o: {
     // Outside the folders it may use, the owner says yes unless its mode lets it on its own.
     const level = inside || own === "always" ? own : "ask";
     // A read-only code thread lets only reading run. Otherwise the agent's mode decides, as for our own tools: an edit
-    // where it may write is a local change like file_edit, never to git's config, APC files or AGENTS.md.
+    // where it may write is a local change like file_edit, never to git's config, agent files or AGENTS.md.
     if (worksInFolder(thread) && thread.write === "read-only" && level !== "never") return false;
     const workspace = inside && (req.kind === "edit" || req.kind === "execute") && !paths.some((p) => guarded(base, p));
     // A command that only reads here is risk read, as the shell tool's (DECISIONS.md#d-098).
@@ -649,22 +683,59 @@ export function createExecutor(o: {
     const decision = sessionGate(thread, decide(level, effect, agent, untrusted, workspace), changes);
     if (decision.kind === "allow") return allow();
     if (decision.kind === "deny") return false;
+    // A deletion is the owner's to ask for: its card says what goes and why, and their OK for this chat covers the next
+    // one in the folders it may change (a deletion elsewhere asks each time).
+    const deletion = decision.why === "always" && ran && onlyDeletes(command, o.apxPort());
+    const grantable = deletion && inside;
+    if (grantable && store.approvals.allows(deleteApproval, thread.id, agent.id)) return allow();
+    // A change outside its folders is the same folder card as ours: once, or always for this agent (DECISIONS.md#d-108).
+    const offered = [...new Set(judged.flatMap((r) => ("refused" in r && r.offer ? [r.offer] : [])))];
+    // A command that only reads keeps the plain card, and so does one asking to read first (its offer may be a read).
+    const changing = !reading && !deletion && own !== "always" && own !== "never" && (!ran || scope.reach === "read");
+    const folders = changing && offered.length ? offered : undefined;
+    const reason = (req.input as { description?: unknown } | undefined)?.description;
     const answer = await o.inputs.ask({
       run: o.run(),
       agent,
       display,
       callId: req.callId,
       kind: "confirm",
-      prompt: confirmPrompt(store, decision.why, agent.name, req.title),
+      prompt: deletion
+        ? deletePrompt(store, agent.name)
+        : folders
+          ? folderPrompt(store, agent.name, folders, true)
+          : confirmPrompt(store, decision.why, agent.name, req.title),
       tool: req.kind,
-      ...(req.detail ? { detail: req.detail } : {}),
+      ...(grantable ? { approval: deleteApproval } : {}),
+      ...(folders ? { folders, write: true } : {}),
+      ...(deletion
+        ? {
+            detail: deletionDetail(
+              store,
+              deletionTargets(command, base),
+              typeof reason === "string" ? reason : undefined,
+              command,
+            ),
+          }
+        : req.detail
+          ? { detail: req.detail }
+          : {}),
       // The external agent's own tool is not ours to run later: past the wait it counts as no.
       external: false,
       stays: false,
       signal,
     });
+    const no = unanswered(answer);
+    // Past its wait the card counts as no: the agent reads why and goes on another way, the run never hangs on it.
+    if (no)
+      refused.set(
+        req.callId,
+        `Not approved: ${no.card}${answer.answer ? ` (their note: ${answer.answer})` : ""}. Do not retry it; continue another way that needs no approval, or end your answer saying what is left for the owner.`,
+      );
     return answer.state === "approved" && allow();
   };
+  /** Why the owner's answer was no, per external call (see approve). */
+  const refused = new Map<string, string>();
 
   /** When each of an external agent's tool calls began. */
   const seen = new Map<string, number>();
@@ -700,6 +771,7 @@ export function createExecutor(o: {
   return {
     execute,
     approve,
+    refusal: (callId) => refused.get(callId),
     observe,
     get toolsRan() {
       return toolsRan;

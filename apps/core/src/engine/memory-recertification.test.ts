@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import { test } from "node:test";
 import { canUseChatMemory } from "../domain/chat-access.ts";
 import { memoryClaimKey, memorySourceWindow } from "../domain/memory-evidence.ts";
@@ -93,7 +95,9 @@ test("a reviewed claim cannot certify a target outside its private notebook", as
       assert.equal(env.core.store.memories.get(note.id)?.revision, 1);
       assert.deepEqual(env.core.store.memories.get(note.id)?.evidence ?? [], []);
     }
-    const { project } = await env.client.call("projects.register", { path: env.home, init: true });
+    const folder = path.join(env.home, "projects", "notebook");
+    fs.mkdirSync(folder, { recursive: true });
+    const { project } = await env.client.call("projects.register", { path: folder, init: true });
     const note = env.core.store.memories.add({
       scope: "agent",
       agent_id: "superagent",
@@ -138,7 +142,9 @@ test("other project notes cannot crowd out a repairable personal note", async ()
       source: "agent",
       text: fact,
     });
-    const { project } = await env.client.call("projects.register", { path: env.home, init: true });
+    const folder = path.join(env.home, "projects", "notebook");
+    fs.mkdirSync(folder, { recursive: true });
+    const { project } = await env.client.call("projects.register", { path: folder, init: true });
     for (let i = 0; i < 501; i++)
       env.core.store.memories.add({
         scope: "agent",

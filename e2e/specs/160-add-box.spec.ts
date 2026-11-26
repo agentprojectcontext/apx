@@ -186,9 +186,9 @@ test("Explore says what each one is, filters by kind and keeps the channels toge
   await expect(filters.getByRole("radio", { name: /^Canales/ })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Incluidas con APX" })).toHaveCount(0);
   const channels = page.locator(".mkt-section", { has: page.getByRole("heading", { name: "Canales", exact: true }) });
-  await expect(channels.getByText("Canal · De APX").first()).toBeVisible();
+  await expect(channels.getByText("Canal · Creada por APX").first()).toBeVisible();
   await page.screenshot({ path: info.outputPath("explore-kinds.png"), fullPage: true });
   await filters.getByRole("radio", { name: /^Canales/ }).click();
-  await expect(page.getByText("Conector · De APX")).toHaveCount(0);
-  await expect(page.getByText("Canal · De APX").first()).toBeVisible();
+  await expect(page.getByText("Conector · Creada por APX")).toHaveCount(0);
+  await expect(page.getByText("Canal · Creada por APX").first()).toBeVisible();
 });

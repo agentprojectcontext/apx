@@ -28,7 +28,7 @@ Ask your super-agent to review an agent in its destination project, especially a
 Shared project facts belong in AGENTS.md, not in reusable instructions that carry another project's paths or people.
 
 APX groups changed agents into review notices. Internal creation, edits, clones and imports are covered, as are
-external changes to registered projects' `.apc/agents/*.md` files once the existing project watcher indexes them.
+external changes to registered projects' `.apx/agents/*.md` files once the existing project watcher indexes them.
 It does not scan arbitrary Markdown or unregistered folders. Existing agents are baselined when the detector first
 starts; later changes, including changes found after restarting, become pending reviews. An alert means the definition
 changed, not that APX found an error. No model is called for each save, and the notice never blocks work.
@@ -44,8 +44,8 @@ background semantic review runs merely because a file was saved.
 
 ## Keep project context with the work
 
-APX projects follow [APC (Agent Project Context)](/concepts/projects/): a root `AGENTS.md` and an `.apc/` folder.
-Project agent definitions live in individual Markdown files under `.apc/agents/`. Shared instructions, curated notes
+A [project](/concepts/projects/) has a root `AGENTS.md` and an `.apx/` folder.
+Project agent definitions live in individual Markdown files under `.apx/agents/`. Shared instructions, curated notes
 and project skills can be read and versioned alongside the work.
 
 APX keeps chats, runs, tasks, routines and notes in its local database. Project files are the source of truth for
@@ -74,7 +74,7 @@ Some agents work with you everywhere, some belong to one project, and some exist
     you to every channel. It knows who you are, does small and medium work itself, hands long project work to that project's agent and cannot be deleted.
   </Card>
   <Card title="Project agents" icon="document">
-    Live in a project's `.apc/agents/` folder, one markdown file each. They read the project's `AGENTS.md`, work in
+    Live in a project's `.apx/agents/` folder, one markdown file each. They read the project's `AGENTS.md`, work in
     its folder and travel with the repo.
   </Card>
   <Card title="Global agents" icon="puzzle">
@@ -94,13 +94,13 @@ write it in the agent's file as `icon:` or set it with `apx agents set <agent> b
 
 ## An agent is a markdown file
 
-A project agent is `.apc/agents/<slug>.md`: a frontmatter block with its fields, then a body with its instructions.
-The file is the source of truth. APX watches `.apc/`, so a saved edit shows up in the app right away, and changes you
+A project agent is `.apx/agents/<slug>.md`: a frontmatter block with its fields, then a body with its instructions.
+The file is the source of truth. APX watches `.apx/`, so a saved edit shows up in the app right away, and changes you
 make in the app are written back to the same file.
 
 Here is Lucía, the product manager of Acme Store:
 
-```markdown title=".apc/agents/lucia.md"
+```markdown title=".apx/agents/lucia.md"
 ---
 name: Lucía
 role: Product manager
@@ -128,12 +128,12 @@ and follow up until they close. When a decision needs the owner, ask once, clear
 | `icon` | The agent's blobo (`orbita`, `menta`, `cobalto`…). |
 | `emoji` | An optional emoji, kept with the agent (files written by other tools often have one). |
 | `parent` | The agent it reports to, by its slug (or its full id). Leave it out and the agent reports to Home. APX tells the agent who it answers to and its `area`, so its instructions never need to name people. |
-| `area` | The area it belongs to, for the org chart (`product`, `engineering`…). |
+| `area` | Where it usually works, for the org chart (`product`, `engineering`…). It guides who gets what; it never stops the agent from doing what you ask. |
 | `autonomy` | Its permission mode: `manual`, `auto` (the default), `accept_edits`, `plan` or `total`. See [Autonomy and safety](/concepts/autonomy/). |
 | `personality` | How it sounds, apart from what it does. Up to 1,000 characters. |
 | `orchestrator` | `true` marks an agent that leads the agents reporting to it. With no `parent`, it heads the whole team: it goes on top of the chart and gets the project's work first; with one, it leads only its own sub-team (a **Team lead** chip). `false` says it is not, whatever its role suggests; with no marked head, the head is guessed among agents with no parent by role (orchestrator, CEO, lead), or is the only one. |
 | `rules` | Its own rule per kind of action, over its autonomy: `read`, `write`, `outside` or `irreversible`, each `auto`, `ask` or `off` (`rules: write=auto, outside=ask`). A kind left out follows the autonomy. |
-| `tools` | Limits the agent to these tools or groups. Leave it out for every tool. |
+| `tools` | The tools or groups it uses first. The rest stay within reach when it needs them, under the same mode and rules. Leave it out and every tool is at hand. |
 | `skills` | Limits which skills it is offered. Leave it out for all of them. |
 | `aliases` | Old slugs. Rename the file, list the old slug here, and the agent keeps its chats. |
 | `model` | `engine:model`, as APX v1 wrote it. Read when the agent first appears; after that, set the model from the app or `apx agents model`. `inherit` means the install default. |
@@ -141,10 +141,15 @@ and follow up until they close. When a decision needs the owner, ask once, clear
 The body is the agent's own instructions. Write it like a note to a new colleague: what they own, how they work,
 what they should never do alone.
 
-**Tool groups** you can name in `tools:`: `browser`, `widgets`, `agents` (list agents, delegate, grant a tool),
-`shell`, `files`, `mcp`, `memory`, `images`, `tasks`. You can also name single tools. A few tools stay no matter
-what the list says, because they only read or ask you: reading output, asking you a question, loading a skill and
-recalling notes.
+**Tool groups** you can name in `tools:`: `browser`, `widgets`, `agents` (list agents, delegate, run a workflow, grant a tool),
+`shell`, `files`, `mcp`, `memory`, `images`, `tasks`. You can also name single tools. The list is the agent's focus,
+not a fence: what it names comes with every turn, and the agent finds any other tool when the work needs it, which
+keeps its turns light. Its mode and its rules by case still decide what runs, asks or waits for you, and a rule you
+set to off still takes those tools away.
+
+Your super-agent can change this list for you (`agent_set` with `tools`) and let an agent run one of APX's tools
+without asking you each time (`grant_tool`, which also takes a grant back). Your super-agent's own settings tools stay
+its own whatever a list says.
 
 <Aside type="tip">
   A `tools:` list that names nothing APX knows (a file written for another tool) is ignored rather than leaving the
@@ -160,7 +165,7 @@ recalling notes.
 1. Open a project and go to the **Agents** tab.
 2. Click **Agent** to write a new one, or **Import** to install a template (more on templates below).
 3. Give it a name, a role, a description and its instructions, then **Create agent**. APX writes the file to the
-   project's `.apc/agents/`.
+   project's `.apx/agents/`.
 4. Click any agent's name in a chat header to open its side panel: role, who it reports to, autonomy, model,
    browser profile and its stats.
 5. Click the pencil to edit the whole agent: identity (pick an area and a role from the project or create one;
@@ -184,18 +189,18 @@ List the crew and the model each agent runs on (★ marks Home):
 3f9a1c0d7e21-lucia             Lucía            router                       Product manager
 3f9a1c0d7e21-tomas             Tomás            default                      Developer`}</Terminal>
 
-Create one. With `--project` it lands in that project's `.apc/agents/`; without it, it is a global agent:
+Create one. With `--project` it lands in that project's `.apx/agents/`; without it, it is a global agent:
 
-<Terminal command={'apx agents new vera "Vera" --project p_3f9a1c0d7e21 --role "Marketing"'}>{`Vera (3f9a1c0d7e21-vera) · written to .apc/agents/`}</Terminal>
+<Terminal command={'apx agents new vera "Vera" --project p_3f9a1c0d7e21 --role "Marketing"'}>{`Vera (3f9a1c0d7e21-vera) · written to .apx/agents/`}</Terminal>
 
 Change fields with `key=value` pairs (`name`, `role`, `slug`, `parent`, `blob`):
 
 <Terminal command="apx agents set 3f9a1c0d7e21-vera parent=lucia blob=cobalto">{`Vera (3f9a1c0d7e21-vera) · vera · Marketing`}</Terminal>
 
-Archive one. Its file moves to `.apc/agents/.archived/`, never erased, and its chats stay. An agent that answers a
+Archive one. Its file moves to `.apx/agents/.archived/`, never erased, and its chats stay. An agent that answers a
 channel is archived only once you choose who answers that channel instead:
 
-<Terminal command="apx agents archive 3f9a1c0d7e21-vera">{`archived; file moved to ~/work/acme-store/.apc/agents/.archived/vera.md`}</Terminal>
+<Terminal command="apx agents archive 3f9a1c0d7e21-vera">{`archived; file moved to ~/work/acme-store/.apx/agents/.archived/vera.md`}</Terminal>
 
 Pick its model (see [Models and engines](/concepts/models/)):
 
@@ -210,7 +215,13 @@ from your APX v1 vault, read-only). A loose `<slug>.md` is a single agent, like 
 folder with a `TEAM.md` is a team: the product team (an orchestrator, a PM, a developer, a designer, QA…) or the
 executive team, which also brings its weekly routines.
 
-Installing copies the file into `.apc/agents/` as written. Only `parent` may change, to hang a team's lead under the
+Bundled templates use all tools permitted in their context by default. Reporting lines do not prevent direct
+requests: an executive answers you directly and does the work you ask, without requiring CEO approval. Its role says
+what it is good at, not what it refuses. QA still reports instead of fixing while it reviews, and confirmations
+still apply.
+Installing templates does not rewrite the prompts or restrictions of agents you already have.
+
+Installing copies the file into `.apx/agents/` as written. Only `parent` may change, to hang a team's lead under the
 project's existing orchestrator. A slug the project already has is skipped, never overwritten.
 
 ## The org chart
@@ -227,10 +238,10 @@ instructions": it tells you what it would change in each, and changes nothing un
 
 <Shot name="org" alt="The Areas and roles view: Product, Engineering and Growth areas with their roles and agents" caption="Agents › Areas and roles" />
 
-Areas and roles are for companies: they live in `.apc/organization.json` (up to 40 areas and 200 roles), and the
+Areas and roles are for companies: they live in `.apx/organization.json` (up to 40 areas and 200 roles), and the
 project's type becomes **Company** when you add them. Agents read them, so Lucía knows Growth is Vera's.
 
-```json title=".apc/organization.json"
+```json title=".apx/organization.json"
 {
   "areas": [
     { "slug": "product", "name": "Product", "goal": "Ship what customers ask for" },
@@ -303,15 +314,55 @@ When a part makes no progress, or the parts run out, APX stops and the agent tha
 tells you, and the notice in the chat, the tray and your channel says which agent hit which limit and what it has done
 so far, with a button to continue. That agent can also stop a session it started while it still works.
 
-A delegated run works in the mode of whoever asked for it, keeping its own rules by case, and only gets the tools
-every agent up the chain may use.
+A delegated run works in the mode of whoever asked for it, keeping its own rules by case. The caller's `tools:` list
+does not narrow the helper's: each agent keeps its own focus, and a rule turned off anywhere up the chain stays off.
 
-A delegation can work in one folder of a project, such as a git worktree: the caller names the project by a path
-inside it, and the helper's relative paths and commands start there, never outside the project (a link out of it is
-refused). It can also say how far the helper may change that folder (`ask`, `auto` or `read-only`). The helper never
+A delegation can work in one folder, such as a git worktree: the caller names it by a path, and the helper's relative
+paths and commands start there. Working for you, that folder may be in any of your projects or their worktrees, and
+the result says which project it was; APX's own folder and a read-only folder are never one. It can also say how far the helper may change that folder (`ask`, `auto` or `read-only`). The helper never
 gets further than its caller: with no limit named it gets the most its caller may, never more than the caller's own
 mode (in a code thread, that thread's policy), the helper's mode or the project's; naming one only narrows it. Its
 result comes back to the caller like any other delegation's.
+
+## Workflows
+
+When a job is too wide for one agent, such as reviewing every area of a project or checking a long list of files,
+your agent can run a **workflow** instead of asking helpers one by one. It writes a plan and APX runs it. The agent
+doesn't decide each step as it goes.
+
+- **Items and stages.** Each item (up to 24) goes through up to four stages in order, for example *find* then
+  *verify*. An item moves to its next stage as soon as its last one ends: it doesn't wait for the other items.
+- **Several agents at once.** Up to four of the workflow's agents work at the same time (three by default). Each
+  stage names a standing agent or a helper the agent describes.
+- **Checked results.** A stage can require its answer as JSON in a given shape. An answer that doesn't fit is asked
+  for once more, and the next stage reads the JSON. A stage can also keep only the items the previous one marked,
+  such as the findings a check confirmed.
+- **A final stage** can read every item's result and write the summary your agent gets.
+
+The chat shows one card for the workflow: its phases, each agent's state, how many steps are done, and the result
+once it ends. Click a row to open that agent's chat. **Stop** cancels the agents at work and starts nothing more.
+**Resume** runs again only what didn't finish: finished steps keep their results. A workflow runs for at most four
+hours from its start or its last resume.
+
+Each agent call in a workflow is a delegation, so the same limits apply: the mode of whoever asked, the rules you set,
+your agents' budgets, and no further delegating from the helpers. When the workflow ends, your agent gets the result
+and finishes your request with it.
+
+## What your agents can reach
+
+An agent's role, area and tools say what it is good at and where it usually works. They never make it refuse work
+you asked for. Working for you, your agents:
+
+- Read any of your chats, tasks and project files, in every project, and read or stop a command or a session another
+  of your chats started.
+- Work where the work is: they create and update tasks, widgets and files in another of your projects when that is
+  where they belong, and say where they did it ("This task is in Acme Store"), so nothing lands somewhere without you
+  knowing.
+- Ask a teammate for a part of a task while they work on it; the task's history records who was asked for what.
+
+What stays closed: your contacts' chats and the rooms on your channels, work for outside apps, APX's own folder, a
+project you are moving, and whatever your mode or a rule leaves to you. An agent that answers a contact or a room
+keeps to that conversation and its project.
 
 ## One way to talk to an agent
 
@@ -326,7 +377,7 @@ Leave out `--agent` and you are talking to Home.
 ## Next
 
 <CardGrid>
-  <LinkCard title="Projects" description="The .apc/ folder agents live in." href="/concepts/projects/" />
+  <LinkCard title="Projects" description="The .apx/ folder agents live in." href="/concepts/projects/" />
   <LinkCard title="Autonomy and safety" description="What an agent may do without asking." href="/concepts/autonomy/" />
   <LinkCard title="Models and engines" description="Which model each agent thinks with." href="/concepts/models/" />
   <LinkCard title="Memory" description="What agents remember between chats." href="/concepts/memory/" />

@@ -1,5 +1,5 @@
 import type { Thread } from "@apx/protocol";
-import { Button, EmptyState, IconButton, Icons, SearchField, SegmentedControl, Skeleton, Spinner } from "@apx/ui";
+import { Button, EmptyState, IconButton, Icons, SearchField, SegmentedControl, Spinner } from "@apx/ui";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { markAllRead } from "../data/actions.ts";
 import { useChannels } from "../data/channels.ts";
@@ -12,6 +12,7 @@ import { useNav } from "../shell/nav.ts";
 import { contactsWithoutChat } from "./accountContacts.ts";
 import { archivedThreads, inboxEntries, unreadUnder } from "./groupThreads.ts";
 import { InboxFilterChips, InboxFilterMenu } from "./InboxFilterMenu.tsx";
+import { InboxSkeleton } from "./InboxSkeleton.tsx";
 import { ChatsTab, RoutinesTab, TasksTab } from "./InboxTabs.tsx";
 import { agentsOnly, filterCount, passesFilter, soleFilter, useInboxFilter } from "./inboxFilter.ts";
 import { NewChatMenu, startChat, useChatAgents } from "./NewChatMenu.tsx";
@@ -321,22 +322,6 @@ export function InboxList() {
         )}
       </div>
     </section>
-  );
-}
-
-function InboxSkeleton() {
-  return (
-    <div className="inbox__skeleton" aria-busy="true">
-      {[0, 1, 2, 3, 4].map((i) => (
-        <div key={i} className="inbox__skelrow">
-          <Skeleton shape="circle" width={36} />
-          <div className="inbox__skeltext">
-            <Skeleton width="60%" />
-            <Skeleton width="85%" />
-          </div>
-        </div>
-      ))}
-    </div>
   );
 }
 

@@ -1,11 +1,14 @@
 // Accounting of work: the background view (agents' runs on their own and terminal commands, as one list) and
 // usage by model.
 import type { Job, JobFrom } from "@apx/protocol";
+import { canReadChat } from "../domain/chat-access.ts";
 import { publicJob } from "../domain/jobs.ts";
+import { ownerAgentOf } from "../domain/owner-work.ts";
 import type { Origin, RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { Engine } from "../engine/engine.ts";
 import { notFound, unauthorized } from "../errors.ts";
+import type { CallContext } from "./context.ts";
 import type { Handlers } from "./router.ts";
 
 const newest = (a: Job, b: Job) => (b.ended_at ?? b.started_at).localeCompare(a.ended_at ?? a.started_at);
@@ -23,6 +26,8 @@ function fromOf(origin: Origin): JobFrom {
       return { kind: origin.kind, name: origin.name };
     case "delegation_results":
       return { kind: "delegation_result", name: origin.results.map((r) => r.name).join(", ") };
+    case "workflow_result":
+      return { kind: "delegation_result", name: origin.name };
     case "surface":
       return { kind: origin.kind, name: origin.title };
     // A reviewer's return to a coordinator: a team's word, shown as the reviewer's agent.
@@ -31,6 +36,8 @@ function fromOf(origin: Origin): JobFrom {
     // The owner's own step on a card the agent showed, as answering it.
     case "connected":
       return { kind: "input_answer" };
+    case "continuation":
+      return { kind: "job", name: "Follow-up" };
     // A contact's messages answered once the channel's hours began: shown as theirs.
     case "hours_began":
       return { kind: "channel", name: origin.name };
@@ -40,6 +47,12 @@ function fromOf(origin: Origin): JobFrom {
 }
 
 export function jobHandlers(store: Store, engine: Engine) {
+  /** The owner's agents reach the jobs of any chat they may read for the owner (DECISIONS.md#d-271). */
+  const ownersAgentReads = (ctx: CallContext, threadId: string) => {
+    const agent = ownerAgentOf(store, ctx);
+    const thread = agent && store.threads.get(threadId);
+    return !!agent && !!thread && canReadChat(store, agent, thread);
+  };
   const provenance = (job: Job): Job => {
     const thread = store.threads.get(job.thread_id);
     const run = job.run_id ? store.runs.get(job.run_id) : undefined;
@@ -121,20 +134,23 @@ export function jobHandlers(store: Store, engine: Engine) {
     },
     "jobs.get": ({ job, offset, max_chars }, ctx) => {
       const j = store.jobs.get(job);
-      if (j && ctx.actor !== "human" && ctx.agent?.thread_id !== j.thread_id)
+      if (j && ctx.actor !== "human" && ctx.agent?.thread_id !== j.thread_id && !ownersAgentReads(ctx, j.thread_id))
         throw unauthorized("an agent can only read its own thread's jobs");
       if (j) return { job: provenance(publicJob(j)), ...engine.jobs.read(j.id, offset, max_chars) };
       const r = store.runs.get(job);
       if (!r) throw notFound(`job ${job}`);
       return { job: provenance(view(r)), output: "", size: 0, offset: 0 };
     },
-    /** An agent may stop only the terminal jobs of its own thread; the owner stops anything. */
+    /**
+     * An agent stops terminal jobs of its own thread, and the owner's agents those of any chat they can read; another
+     * chat's turn stays the owner's to stop. The owner stops anything.
+     */
     "jobs.cancel": ({ job }, ctx) => {
       const j = store.jobs.get(job);
       const r = j ? undefined : store.runs.get(job);
       const thread = j?.thread_id ?? r?.thread_id;
       if (!thread) throw notFound(`job ${job}`);
-      if (ctx.actor !== "human" && (!j || ctx.agent?.thread_id !== thread))
+      if (ctx.actor !== "human" && (!j || (ctx.agent?.thread_id !== thread && !ownersAgentReads(ctx, thread))))
         throw unauthorized("an agent can only stop its own thread's jobs");
       return { canceled: j ? engine.jobs.cancel(j.id) : engine.cancel(thread) > 0 };
     },

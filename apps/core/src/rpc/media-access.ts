@@ -1,5 +1,6 @@
-import { canReadChat } from "../domain/chat-access.ts";
+import { canReadChat, canReadOwnScope } from "../domain/chat-access.ts";
 import type { MediaRecord } from "../domain/media.ts";
+import { ownerAgentOf } from "../domain/owner-work.ts";
 import type { Store } from "../domain/store.ts";
 import { boardScope, visibleTask } from "../domain/tasks.ts";
 import { audienceOf } from "../engine/audience.ts";
@@ -38,7 +39,11 @@ export function readableMedia(store: Store, id: string, ctx: CallContext): Media
   if (!source || audienceOf(store, source).kind !== "owner" || store.threads.context(source.id).client)
     throw unauthorized("media unavailable in readable owner chats");
   const task = store.tasks.byThread(source.id);
-  if (task) visibleTask(store, task.id, boardScope(store, ctx.agent));
-  else if (!canReadChat(store, agent, source)) throw unauthorized("media unavailable in readable owner chats");
+  // The owner's agents reach any chat they may read for the owner, a task's in any project (DECISIONS.md#d-271).
+  if (ownerAgentOf(store, ctx)) {
+    if (task) visibleTask(store, task.id, undefined);
+    if (!canReadChat(store, agent, source)) throw unauthorized("media unavailable in readable owner chats");
+  } else if (task) visibleTask(store, task.id, boardScope(store, ctx.agent, ctx));
+  else if (!canReadOwnScope(store, agent, source)) throw unauthorized("media unavailable in readable owner chats");
   return media;
 }

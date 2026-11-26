@@ -74,6 +74,21 @@ export interface ChannelInboxTable {
   created_at: string;
 }
 
+export interface ChatContinuationsTable {
+  id: string;
+  thread_id: string;
+  agent_id: string;
+  project_id: string | null;
+  purpose: string;
+  condition: string;
+  expires_at: string;
+  created_at: string;
+  state: string;
+  run_id: string | null;
+  reason: string | null;
+  authority: string;
+}
+
 export interface DevicesTable {
   id: string;
   name: string;
@@ -96,6 +111,28 @@ export interface ExtensionCatalogsTable {
   entries: Generated<string>;
   skipped: Generated<string>;
   created_at: string;
+}
+
+export interface ExtensionEventConfigsTable {
+  extension: string;
+  generation: string;
+  config: string;
+  revision: string;
+  error: string | null;
+}
+
+export interface ExtensionEventsTable {
+  receipt: string;
+  extension: string;
+  generation: string;
+  event: string;
+  external_id: string;
+  revision: string;
+  data: string;
+  thread: string;
+  state: string;
+  created_at: string;
+  run_id: string | null;
 }
 
 export interface ExtensionsTable {
@@ -754,6 +791,33 @@ export interface ThreadsTable {
   task_id: string | null;
 }
 
+export interface WorkflowStepsTable {
+  workflow_id: string;
+  key: string;
+  state: string;
+  thread_id: string | null;
+  output: string | null;
+  error: string | null;
+  tries: Generated<number>;
+  started_at: string | null;
+  ended_at: string | null;
+}
+
+export interface WorkflowsTable {
+  id: string;
+  thread_id: string;
+  agent_id: string;
+  run_id: string;
+  name: string;
+  plan: string;
+  state: string;
+  reason: string | null;
+  result: string | null;
+  deadline_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Database {
   addresses: AddressesTable;
   agents: AgentsTable;
@@ -761,8 +825,11 @@ export interface Database {
   aux_calls: AuxCallsTable;
   channel_held: ChannelHeldTable;
   channel_inbox: ChannelInboxTable;
+  chat_continuations: ChatContinuationsTable;
   devices: DevicesTable;
   extension_catalogs: ExtensionCatalogsTable;
+  extension_event_configs: ExtensionEventConfigsTable;
+  extension_events: ExtensionEventsTable;
   extensions: ExtensionsTable;
   flow_events: FlowEventsTable;
   flow_graph_drafts: FlowGraphDraftsTable;
@@ -815,4 +882,6 @@ export interface Database {
   task_uploads: TaskUploadsTable;
   tasks: TasksTable;
   threads: ThreadsTable;
+  workflow_steps: WorkflowStepsTable;
+  workflows: WorkflowsTable;
 }

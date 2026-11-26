@@ -22,7 +22,7 @@ guardado y AutoDream tienen controles separados en **Configuración › Memoria*
 | **Proyecto** | Un proyecto: decisiones, convenciones, cómo se hacen las cosas ahí. | Todos los agentes, en cada chat de ese proyecto. |
 | **Agente** | El cuaderno propio de un agente. | Sólo ese agente. |
 
-Y además está `.apc/memory.md`, un archivo del proyecto que escribís **vos** a mano. Los agentes siempre lo leen y
+Y además está `.apx/memory.md`, un archivo del proyecto que escribís **vos** a mano. Los agentes siempre lo leen y
 nunca lo escriben: es el lugar para reglas fijas que no querés que ningún agente edite. Mirá
 [Proyectos](/es/concepts/projects/).
 
@@ -117,7 +117,8 @@ cachear y cada turno sale más barato.
 
 Para buscar por significado, sumá un motor en **Motores de embeddings**: un Ollama local, o Gemini u OpenAI con una
 key. Se prueban en orden y se usa el primero que responde. **Indexar ahora** indexa las notas que ya tenés y **Probar
-una búsqueda** te deja ver qué traería una pregunta.
+una búsqueda** te deja ver qué traería una pregunta. También podés pedirle a tu super-agente que lo prepare: elige el
+modelo de Ollama que le va a esta computadora, lo descarga si hace falta y pasa la memoria a usarlo.
 
 <Shot name="settings-memory" alt="Configuración, Memory: los tres modos, los motores de embeddings, la elección de skills y las opciones de chats largos" caption="Configuración › Memoria" />
 
@@ -125,8 +126,9 @@ La misma pantalla tiene dos opciones relacionadas:
 
 - **Elegir skills por significado**: cada mensaje se compara con tus skills y las que encajan se le ofrecen al agente.
   Mirá [Skills](/es/extend/skills/).
-- **Resumir los chats largos** y el **Modelo ayudante** que escribe los resúmenes y los títulos de los chats
-  (Automático, Elegido o Desactivado). Mirá [Conversaciones](/es/concepts/conversations/).
+- **Resumir los chats largos**. Mirá [Conversaciones](/es/concepts/conversations/). Los resúmenes, los títulos y las
+  notas automáticas los escribe el [modelo ayudante](/es/concepts/models/#el-modelo-ayudante), que tiene su propia
+  sección.
 
 ## AutoDream y límites
 

@@ -5,10 +5,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { client } from "../data/client.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { nav, useNav } from "../shell/nav.ts";
 import { type ChangeRow, recordedChanges } from "./change-records.ts";
+import { closeDiffTab, diffTabId, openDiffTab, useDiffTabs } from "./diffTabs.ts";
 import { FileChange } from "./FileChange.tsx";
 import { LIST_TAB, PanelTabs } from "./PanelTabs.tsx";
 import { PanelHeader } from "./SidePanel.tsx";
+import { WholeDiff } from "./WholeDiff.tsx";
 import type { Workspace } from "./workspace.ts";
 
 const EMPTY: Message[] = [];
@@ -39,6 +42,26 @@ export function ChangesPanel({ thread, ws }: { thread: Thread; ws?: Workspace | 
     [messages, thread.id, selection],
   );
   const scope = selection ?? (records.length || !hasFolder ? "latest" : "folder");
+  // A file picked in the chat: shown open, from every turn when the last one did not change it.
+  const asked = useNav((s) => s.panelFile);
+  const [focus, setFocus] = useState<{ key: string }>();
+  // Files opened whole, each in its tab; the list chip shows them all with a quick look at each.
+  const opened = useDiffTabs(threadId);
+  const [active, setActive] = useState(LIST_TAB);
+  const shown = opened.find((r) => diffTabId(r) === active);
+  const openWhole = (row: ChangeRow) => {
+    openDiffTab(threadId, row);
+    setActive(diffTabId(row));
+  };
+  useEffect(() => {
+    if (!asked) return;
+    setActive(LIST_TAB);
+    const key = `${asked.cwd}\0${asked.path}`;
+    const latest = recordedChanges(messages, threadId, "latest");
+    setScope(latest.some((r) => `${r.cwd}\0${r.file.path}` === key) ? "latest" : "all");
+    setFocus({ key });
+    nav.set({ panelFile: undefined });
+  }, [asked, messages, threadId]);
   useEffect(() => {
     if (scope === "folder" && !busy) void load();
   }, [scope, busy, load]);
@@ -55,6 +78,8 @@ export function ChangesPanel({ thread, ws }: { thread: Thread; ws?: Workspace | 
           key={`${row.cwd}:${row.file.path}:${row.message}:${row.part}:${version}`}
           thread={thread.id}
           row={row}
+          focus={focus?.key === `${row.cwd}\0${row.file.path}` ? focus : undefined}
+          onOpen={openWhole}
         />
       ))}
     </ul>
@@ -69,68 +94,80 @@ export function ChangesPanel({ thread, ws }: { thread: Thread; ws?: Workspace | 
       <PanelTabs
         label={t("panel.changes")}
         list={t("panelTabs.files", { n: rows.length })}
-        tabs={[]}
-        value={LIST_TAB}
-        onSelect={() => {}}
+        tabs={opened.map((r) => ({
+          id: diffTabId(r),
+          label: r.file.path.split("/").at(-1) ?? r.file.path,
+          icon: <Icons.FileDiff size={12} />,
+        }))}
+        value={shown ? active : LIST_TAB}
+        onSelect={setActive}
+        onClose={(id) => {
+          const left = closeDiffTab(threadId, id);
+          if (id === active) setActive(left.length ? diffTabId(left[left.length - 1] as ChangeRow) : LIST_TAB);
+        }}
       />
-      <div className="sidepanel__body wchanges">
-        <div className="wchanges__bar">
-          <Select
-            label={t("changes.scope")}
-            size="sm"
-            className="wchanges__scope"
-            value={scope}
-            onValueChange={(v) => v && setScope(v as typeof scope)}
-            options={[
-              { value: "latest", label: t("changes.latest") },
-              { value: "all", label: t("changes.all") },
-              ...(ws ? [{ value: "folder", label: t("changes.folder") }] : []),
-            ]}
-          />
-          <span className="wchanges__spacer" />
-          {!!rows.length && (
-            <span className="wchanges__stat">
-              <span className="wchanges__add">+{totals.added}</span>{" "}
-              <span className="wchanges__del">−{totals.removed}</span>
-            </span>
-          )}
-          {scope === "folder" && (
-            <IconButton
+      {shown ? (
+        <WholeDiff key={active} thread={threadId} row={shown} />
+      ) : (
+        <div className="sidepanel__body wchanges">
+          <div className="wchanges__bar">
+            <Select
+              label={t("changes.scope")}
               size="sm"
-              label={t("changes.refresh")}
-              icon={<Icons.RefreshCw size={14} />}
-              onClick={() => void load()}
+              className="wchanges__scope"
+              value={scope}
+              onValueChange={(v) => v && setScope(v as typeof scope)}
+              options={[
+                { value: "latest", label: t("changes.latest") },
+                { value: "all", label: t("changes.all") },
+                ...(ws ? [{ value: "folder", label: t("changes.folder") }] : []),
+              ]}
             />
+            <span className="wchanges__spacer" />
+            {!!rows.length && (
+              <span className="wchanges__stat">
+                <span className="wchanges__add">+{totals.added}</span>{" "}
+                <span className="wchanges__del">−{totals.removed}</span>
+              </span>
+            )}
+            {scope === "folder" && (
+              <IconButton
+                size="sm"
+                label={t("changes.refresh")}
+                icon={<Icons.RefreshCw size={14} />}
+                onClick={() => void load()}
+              />
+            )}
+          </div>
+          {scope === "folder" && error ? (
+            <p className="wchanges__error">{error}</p>
+          ) : scope === "folder" && !changes ? (
+            <Skeleton className="wchanges__loading" />
+          ) : scope === "folder" && !changes?.git ? (
+            <EmptyState icon={<Icons.FileDiff />} title={t("changes.noGit")}>
+              {t("changes.noGitBody")}
+            </EmptyState>
+          ) : !rows.length ? (
+            <EmptyState
+              icon={<Icons.FileDiff />}
+              title={t(scope === "folder" ? "changes.none" : "changes.reportedEmpty")}
+            />
+          ) : (
+            <>
+              {!!owned.length && list(owned)}
+              {!!scratch.length && (
+                <section className="wchanges__scratch" aria-label={t("changes.scratch")}>
+                  <SectionLabel>{t("changes.scratch")}</SectionLabel>
+                  <Tooltip content={scratch[0]?.cwd}>
+                    <p className="wchanges__hint">{t("changes.scratchHint")}</p>
+                  </Tooltip>
+                  {list(scratch)}
+                </section>
+              )}
+            </>
           )}
         </div>
-        {scope === "folder" && error ? (
-          <p className="wchanges__error">{error}</p>
-        ) : scope === "folder" && !changes ? (
-          <Skeleton className="wchanges__loading" />
-        ) : scope === "folder" && !changes?.git ? (
-          <EmptyState icon={<Icons.FileDiff />} title={t("changes.noGit")}>
-            {t("changes.noGitBody")}
-          </EmptyState>
-        ) : !rows.length ? (
-          <EmptyState
-            icon={<Icons.FileDiff />}
-            title={t(scope === "folder" ? "changes.none" : "changes.reportedEmpty")}
-          />
-        ) : (
-          <>
-            {!!owned.length && list(owned)}
-            {!!scratch.length && (
-              <section className="wchanges__scratch" aria-label={t("changes.scratch")}>
-                <SectionLabel>{t("changes.scratch")}</SectionLabel>
-                <Tooltip content={scratch[0]?.cwd}>
-                  <p className="wchanges__hint">{t("changes.scratchHint")}</p>
-                </Tooltip>
-                {list(scratch)}
-              </section>
-            )}
-          </>
-        )}
-      </div>
+      )}
     </>
   );
 }

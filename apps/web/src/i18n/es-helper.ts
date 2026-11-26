@@ -36,5 +36,13 @@ export const esHelper = {
   "helper.prepare": "Proponer instrucciones",
   "helper.agentOffer":
     "A este borrador le falta contexto, un rol o instrucciones. ¿Lo revisamos sin frenar la creación?",
+  "folder.title": "Agentes todavía en .apc/",
+  "folder.body":
+    "APX no pudo mover los agentes y la configuración de este proyecto a .apx/, así que sigue usando .apc/. El aviso en tu bandeja dice por qué.",
+  "folder.move": "Probar de nuevo",
+  "folder.moved": "Movido a .apx/.",
+  "folder.kept": "Movido a .apx/. Los worktrees de git quedan en .apc/.",
+  "folder.conflicts":
+    "No se movió: .apx/ ya tiene otras versiones de {files}. Quedate con la que quieras y probá de nuevo.",
   "helper.agentReview": "Revisar borrador con el contexto del proyecto",
 } as const;

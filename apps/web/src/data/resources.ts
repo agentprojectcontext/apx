@@ -1,5 +1,5 @@
 // Resource calls return undefined on failure; screens with inline recovery can handle the notice themselves.
-import type { McpServerStatus, SecretInfo, SkillCandidate, SkillImportSource, SkillInfo } from "@apx/protocol";
+import type { McpServerStatus, Params, SecretInfo, SkillCandidate, SkillImportSource, SkillInfo } from "@apx/protocol";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { notify } from "./notices.ts";
@@ -84,7 +84,7 @@ export type McpDraft = {
   off_in?: string[];
 };
 
-/** Adds or replaces one of the owner's servers (or, with `project`, one in its .apc/mcps.json); null removes it. */
+/** Adds or replaces one of the owner's servers (or, with `project`, one in its .apx/mcps.json); null removes it. */
 export const setMcp = (name: string, server: McpDraft | null, project?: string) =>
   attempt(async () => (await client.call("mcp.set", { name, server, ...(project ? { project } : {}) })).servers);
 
@@ -95,6 +95,13 @@ export const listSecrets = (project?: string, options?: FailureOptions) =>
 /** `project`: that project's own value, over the global one there. */
 export const setSecret = (name: string, value: string | null, project?: string) =>
   attempt(() => client.call("secrets.set", { name, value, ...(project ? { project } : {}) }));
+
+/** Stores a variable with what it is for, or a sign-in (`login`: a username and a password). */
+export const saveSecret = (params: Params<"secrets.set">) => attempt(() => client.call("secrets.set", params));
+
+/** Where agents may sign in with a stored variable; an empty list takes them all away. */
+export const setSecretSites = (name: string, sites: SecretInfo["sites"], project?: string) =>
+  attempt(() => client.call("secrets.set_sites", { name, sites, ...(project ? { project } : {}) }));
 
 /** Moves a stored variable to another project's own (or, without `to`, to the global ones); the value stays in the core. */
 export const moveSecret = (name: string, project: string | undefined, to: string | undefined) =>

@@ -17,6 +17,7 @@ RUN apt-get update \
 
 COPY entry.sh /usr/local/bin/apx-remote-entry
 RUN chmod +x /usr/local/bin/apx-remote-entry
-ENV DISPLAY=:99 APX_SECRETS=file PLAYWRIGHT_BROWSERS_PATH=/cache/ms-playwright
+# No core started in the box reports to APX's telemetry: test installs are not people (DECISIONS.md#d-092).
+ENV DISPLAY=:99 APX_SECRETS=file APX_TELEMETRY=off DO_NOT_TRACK=1 PLAYWRIGHT_BROWSERS_PATH=/cache/ms-playwright
 WORKDIR /work
 ENTRYPOINT ["apx-remote-entry"]

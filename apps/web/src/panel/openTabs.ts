@@ -16,6 +16,14 @@ export function closeTab(key: string, id: string): readonly string[] {
   return left;
 }
 
+/** Gives an open tab another id in its place (a file renamed). */
+export function renameTab(key: string, from: string, to: string) {
+  opened.set((s) => {
+    const ids = s[key] ?? NONE;
+    return { [key]: ids.includes(to) ? ids.filter((x) => x !== from) : ids.map((x) => (x === from ? to : x)) };
+  });
+}
+
 /**
  * The tabs a tool has open, with the item it shows now (a deep link, a card in the chat, history) added as one: the
  * shown item always has a tab. `key` is undefined while there is no chat.

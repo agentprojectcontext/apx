@@ -89,7 +89,9 @@ export function ChatScreen({
   const thread = (live.thread as Thread | undefined) ?? base;
   const agent = data.agents.find((item) => item.id === thread.agent_ids[0]);
   const contact = channelIdentity(thread, data);
-  const name = thread.engine ? thread.title : (agent?.name ?? thread.title);
+  // An engine session speaks as its engine; the agent that opened it is only who started it (DECISIONS.md#d-274).
+  const name = thread.engine ? engineName(thread.engine) : (agent?.name ?? thread.title);
+  const startedBy = thread.engine && thread.parent_id && agent ? { agent, from: thread.parent_id } : undefined;
   // A routine's chat is one of its runs: its header names the routine and which run, and switches to another.
   const routineId = thread.kind === "routine" ? thread.routine_id : undefined;
   const routine = routineId ? data.routines.find((item) => item.id === routineId) : undefined;
@@ -232,6 +234,25 @@ export function ChatScreen({
                 {status}
               </Text>
               {routineId ? <Icon name="ChevronDown" size={12} color={theme.fgSubtle} /> : null}
+              {startedBy && !working ? (
+                <Pressable
+                  accessibilityRole="link"
+                  accessibilityLabel={t("startedBy", { name: startedBy.agent.name })}
+                  onPress={() => onOpenThread?.(startedBy.from)}
+                  disabled={!onOpenThread}
+                  style={s.startedBy}
+                >
+                  <AgentAvatar
+                    name={startedBy.agent.name}
+                    blob={startedBy.agent.blob}
+                    id={startedBy.agent.id}
+                    size={14}
+                  />
+                  <Text numberOfLines={1} style={s.startedByText}>
+                    {t("startedBy", { name: startedBy.agent.name })}
+                  </Text>
+                </Pressable>
+              ) : null}
             </View>
           </View>
         </Pressable>
@@ -487,6 +508,17 @@ const useStyles = makeStyles((theme) => ({
   title: { color: theme.fg, fontSize: 15, fontWeight: "600" },
   status: { flexDirection: "row", alignItems: "center", gap: 4 },
   statusText: { color: theme.fgSubtle, fontSize: 12, flexShrink: 1 },
+  startedBy: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 999,
+    backgroundColor: theme.fill,
+    flexShrink: 0,
+  },
+  startedByText: { color: theme.fgMuted, fontSize: 11 },
   transcript: { paddingHorizontal: 16, paddingVertical: 12 },
   empty: { flex: 1, justifyContent: "center" },
   activity: { paddingTop: 6 },
