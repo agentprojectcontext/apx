@@ -12,6 +12,7 @@ export const BY_TOOL: Readonly<Record<string, string>> = {
   "agents.set_limits": "agent_limits",
   "threads.go_on": "agent_limits",
   "routines.set": "routine_set",
+  "continuations.create": "chat_followup",
   "routines.run": "routine_set",
   "pairing.respond": "answer_contact_request",
   "browser.import_cookies": "browser_use_my_login",
@@ -26,6 +27,8 @@ export const BY_TOOL: Readonly<Record<string, string>> = {
  */
 export const TOTAL_SKIPS: Readonly<Record<string, string>> = {
   routine_set: "the owner's decision: routines change freely for an agent they set to Total",
+  chat_followup:
+    "the owner's decision: a bounded follow-up stays in the same chat and uses current permissions when it runs",
   agent_set:
     "the owner's decision: the team changes at their word in the super-agent's mode; autonomy and the main model stay theirs (DECISIONS.md#d-203)",
   asana: "a write to the owner's Asana acts in their name, which Total lets run like a send (DECISIONS.md#d-047)",

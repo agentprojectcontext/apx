@@ -29,6 +29,7 @@ export type Origin =
       on_task?: string;
     }
   | { kind: "surface"; id: string; title: string }
+  | { kind: "continuation"; id: string }
   /** A message on a channel (Telegram…): from the owner, or from a contact (then it is a third party's text). */
   | {
       kind: "channel";
@@ -703,7 +704,8 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
     },
     setReplyTo(id: string, replyTo: RunInput["reply_to"]): void {
       const input = repo.get(id)?.input;
-      if (input)
+      // A bounded follow-up keeps the destination approved at admission.
+      if (input && input.origin.kind !== "continuation")
         run(
           qb
             .updateTable("runs")

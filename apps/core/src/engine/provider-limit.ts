@@ -65,7 +65,14 @@ export function resumeLimited(store: Store, admit: AdmitFn, at: Date): number {
   const now = at.getTime();
   let started = 0;
   for (const run of store.runs.limitStopped(new Date(now - RESUME_WITHIN_MS).toISOString())) {
-    if (!run.input || run.trigger === "routine" || run.parent_run_id || !run.ended_at) continue;
+    if (
+      !run.input ||
+      run.input.origin.kind === "continuation" ||
+      run.trigger === "routine" ||
+      run.parent_run_id ||
+      !run.ended_at
+    )
+      continue;
     const due = run.resets_at ? Date.parse(run.resets_at) + RESET_GRACE_MS : Date.parse(run.ended_at) + UNSAID_STALL_MS;
     if (now < due) continue;
     // The owner wrote again, or it was already picked up: that turn is the one that goes on.

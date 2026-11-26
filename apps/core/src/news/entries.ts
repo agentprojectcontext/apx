@@ -21,6 +21,7 @@ import { BROWSER_RECIPES_NEWS } from "./browser-recipes.ts";
 import { BROWSER_SIGN_IN_NEWS } from "./browser-sign-in.ts";
 import { CALL_SERVICES_NEWS } from "./call-services.ts";
 import { CHANNEL_AGENTS_NEWS } from "./channel-agents.ts";
+import { CHAT_CONTINUATIONS_NEWS } from "./chat-continuations.ts";
 import { CHROME_TABS_NEWS } from "./chrome-tabs.ts";
 import { COMPUTER_POINTER_NEWS } from "./computer-pointer.ts";
 import { CONTACT_AGENT_NEWS } from "./contact-agent.ts";
@@ -174,6 +175,7 @@ export const NEWS: readonly NewsEntry[] = [
   MCP_REACH_NEWS,
   MCP_CONTEXT_NEWS,
   EVENT_MUTE_NEWS,
+  CHAT_CONTINUATIONS_NEWS,
   SUBPROJECTS_NEWS,
   ROOM_HANDOFF_NEWS,
   HOME_CHANNEL_SWITCH_NEWS,

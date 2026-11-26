@@ -4,6 +4,7 @@ import { ApxClient } from "@apx/protocol/client";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { agentSetTools, SUPER_AGENT_TOOLS } from "./agent-set.ts";
 import { browserTools } from "./browser.ts";
+import { continuationTools } from "./continuations.ts";
 import { directoryTools } from "./directory.ts";
 import { flowTools } from "./flow-tool.ts";
 import { limitTools } from "./limits.ts";
@@ -94,6 +95,7 @@ test("every tool that acts as the owner says which calls keep their card in Tota
     ...requestTools(store),
     ...limitTools(store),
     ...routineTools(store),
+    ...continuationTools(),
     ...browserTools(store, env.home, () => new Set()),
   ];
   for (const name of new Set(Object.values(BY_TOOL))) {

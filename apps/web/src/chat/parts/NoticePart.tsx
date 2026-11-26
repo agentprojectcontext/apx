@@ -3,7 +3,7 @@ import { plainNotice } from "@apx/protocol/notices";
 import { ActionGroup, Button, Icons } from "@apx/ui";
 import { Suspense } from "react";
 import { isKey, type MessageKey, useT } from "../../i18n/index.ts";
-import { ComputerNotice, DelegationActions, GoOn } from "../../lazy.ts";
+import { ComputerNotice, ContinuationNotice, DelegationActions, GoOn } from "../../lazy.ts";
 import { appPlace } from "../appLinks.ts";
 import { QuietMark } from "../QuietMark.tsx";
 
@@ -28,6 +28,12 @@ export function NoticePart({ part }: { part: NoticeData }) {
     return (
       <Suspense fallback={null}>
         <ComputerNotice part={part} />
+      </Suspense>
+    );
+  if (part.code === "continuation.receipt")
+    return (
+      <Suspense fallback={<span>{part.text}</span>}>
+        <ContinuationNotice part={part} />
       </Suspense>
     );
   const quiet = QUIET[part.code];

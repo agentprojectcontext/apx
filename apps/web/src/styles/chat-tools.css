@@ -277,6 +277,41 @@ textarea.inputcard__detail {
   gap: 2px;
   margin-left: auto;
 }
+.continuation-notice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+}
+.continuation-notice > svg {
+  margin-top: 3px;
+}
+.continuation-notice .noticeline__text {
+  display: grid;
+  gap: 4px;
+}
+.continuation-notice :where(p) {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.continuation-notice .noticeline__actions {
+  justify-content: flex-start;
+  margin-left: 0;
+}
+.continuation-notice .continuation-notice__status:focus-visible,
+.transcript .transcript__row:focus-visible {
+  outline: 2px solid var(--apx-brand);
+  outline-offset: 3px;
+}
+@media (max-width: 600px) {
+  .continuation-notice {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .continuation-notice .noticeline__actions {
+    grid-column: 2;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
 .noticeline__done {
   padding: 0 8px;
   color: var(--apx-fg-subtle);

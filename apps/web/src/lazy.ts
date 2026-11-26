@@ -312,6 +312,9 @@ export const InputPart = lazy(() => import("./chat/parts/InputPart.tsx").then((m
 
 export const AudioPlayer = lazy(() => import("./chat/parts/AudioPart.tsx").then((m) => ({ default: m.AudioPart })));
 
+export const ContinuationNotice = lazy(() =>
+  import("./chat/parts/ContinuationNotice.tsx").then((m) => ({ default: m.ContinuationNotice })),
+);
 export const DelegationActions = lazy(() =>
   import("./chat/parts/DelegationActions.tsx").then((m) => ({ default: m.DelegationActions })),
 );

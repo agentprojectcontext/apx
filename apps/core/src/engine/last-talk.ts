@@ -13,6 +13,7 @@ const NEW_DAY_AFTER_MS = 3 * 3600_000;
 /** A turn whose answer reaches the owner without their having just written: the ones that could open with a hello. */
 export function unasked(origin: Origin): boolean {
   switch (origin.kind) {
+    case "continuation":
     case "routine":
     case "mail":
     case "job":

@@ -90,6 +90,8 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
     scroll.current?.release();
     nav.set({ focus: undefined });
     row.scrollIntoView({ block: "center" });
+    row.tabIndex = -1;
+    row.focus({ preventScroll: true });
     row.classList.add("is-flash");
     row.addEventListener("animationend", () => row.classList.remove("is-flash"), { once: true });
   }, [focus, rows]);

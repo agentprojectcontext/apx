@@ -11,6 +11,7 @@ import { browserMethods } from "./browser.ts";
 import { callMethods } from "./call-methods.ts";
 import { channelMethods } from "./channel-methods.ts";
 import { contactSourceMethods } from "./contact-sources.ts";
+import { continuationMethods } from "./continuations.ts";
 import { deferMethod } from "./defer-method.ts";
 import { desktopInstallMethods } from "./desktop-install.ts";
 import { deviceMethods } from "./device-methods.ts";
@@ -134,6 +135,7 @@ export const methods = {
   ...appMethods,
   ...channelMethods,
   ...contactSourceMethods,
+  ...continuationMethods,
   ...artifactMethods,
   ...publicArtifactMethods,
   ...asanaMethods,
