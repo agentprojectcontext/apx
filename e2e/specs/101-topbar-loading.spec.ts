@@ -214,9 +214,13 @@ test("cuatro engines se ven de un vistazo y colapsan en una barra ocupada y con 
     await expect(item.locator(".apx-engine--tile")).toBeVisible();
     await expect(item.locator("[stroke-dasharray]")).toHaveCount(0);
   }
-  await page.getByTestId("engine-usage-button").hover();
   const tip = page.locator(".apx-tooltip[data-open]");
-  await expect(tip).toContainText("claude · Sesión (5 h) · 63% disponible");
+  // The bar may redraw under the pointer while the reports land: leave and hover again until the hint opens.
+  await expect(async () => {
+    await page.mouse.move(0, 0);
+    await page.getByTestId("engine-usage-button").hover();
+    await expect(tip).toContainText("claude · Sesión (5 h) · 63% disponible", { timeout: 3_000 });
+  }).toPass({ timeout: 20_000 });
   await expect(tip).toContainText("claude · Semanal · 20% disponible");
   await expect(tip).toContainText("gemini · Semanal · 20% disponible");
   // Exercise the real bar's optional occupants without depending on an updater (the running indicator is always there).
