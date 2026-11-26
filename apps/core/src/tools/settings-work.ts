@@ -139,7 +139,7 @@ export const WORK: Readonly<Record<string, Setting>> = {
     },
   },
   "discovery.configure": {
-    does: "configure contextual research (enabled, projects all or selected, project_ids, project_context, project_websites, interest_news, sources with public pages and public_terms, interests, optional location, deep_every_days, timezone, report_routine, max_model_calls, max_pages, max_seconds, cooldown_days)",
+    does: "configure contextual research (enabled, projects all or selected, project_ids, project_context, project_websites, interest_news, sources with public pages and public_terms, interests, optional location, deep_every_days, timezone (only if the owner profile has none), report_routine, max_model_calls, max_pages, max_seconds, cooldown_days)",
     says: () => "Change contextual research",
     whole: true,
     now: (_p, { store }) => store.settings.read("discovery"),

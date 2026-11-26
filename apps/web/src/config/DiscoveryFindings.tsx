@@ -7,9 +7,12 @@ import { SubHead } from "./SectionHead.tsx";
 
 export function DiscoveryFindings({
   status,
+  zone,
   update,
 }: {
   status: DiscoveryStatus;
+  /** The time zone research runs in, for the dates shown. */
+  zone: string;
   update: (status: DiscoveryStatus) => void;
 }) {
   const t = useT();
@@ -73,7 +76,7 @@ export function DiscoveryFindings({
                 <small>
                   {t("discovery.readAt", {
                     date: new Date(evidence.read_at).toLocaleString(currentLocale(), {
-                      timeZone: status.settings.timezone,
+                      timeZone: zone,
                     }),
                   })}
                 </small>

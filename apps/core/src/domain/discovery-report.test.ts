@@ -104,3 +104,56 @@ test("one finding is reserved atomically and composed only once on its chosen ru
     await dir.remove();
   }
 });
+
+test("a report's day follows the owner's profile time zone, not the research setting", async () => {
+  const dir = tempDir("apx-discovery-report-zone-");
+  const db = openDb(dir.path);
+  const store = createStore(db, createBus());
+  seed(store, "Nova");
+  const state = discoveryState(store, () => new Date(AT));
+  try {
+    const report = store.routines.create({
+      name: "Morning report",
+      action: "agent",
+      call_model: "always",
+      next_run_at: undefined,
+      agent_id: "superagent",
+      enabled: true,
+      schedule: { kind: "cron", cron: "0 9 * * *" },
+      prompt: "Summarize the day",
+    });
+    state.configure({ enabled: true, timezone: "UTC", report_routine: report.id });
+    saveOwnerIdentity(store, { timezone: "Pacific/Auckland" });
+    state.write({
+      ...state.read(),
+      findings: [0, 1].map((index) => ({
+        id: `finding-${index}`,
+        topic: `topic-${index}`,
+        title: `Relevant announcement ${index}`,
+        summary: "A useful change for the planned workflow.",
+        action: "Evaluate the change.",
+        uncertainty: "Not tested.",
+        evidence: [
+          {
+            url: "https://example.com/news",
+            title: "Acme news",
+            quote: "Acme announced a useful change.",
+            read_at: AT,
+          },
+        ],
+        found_at: AT,
+        expires_at: "2026-05-07T12:00:00.000Z",
+      })),
+    });
+    // Same UTC day, but 23:30 and 00:30 of two different days in Auckland.
+    reserveDiscoveryReport(store, report.id, "run-1", new Date("2026-05-01T11:30:00.000Z"));
+    reserveDiscoveryReport(store, report.id, "run-2", new Date("2026-05-01T12:30:00.000Z"));
+    assert.deepEqual(
+      state.read().claims.map((claim) => claim.run),
+      ["run-1", "run-2"],
+    );
+  } finally {
+    db.close();
+    await dir.remove();
+  }
+});

@@ -1,6 +1,11 @@
 import { DISCOVERY_DAY, discoveryState } from "./discovery-state.ts";
-import { ownerIdentity } from "./owner.ts";
+import { ownerIdentity, ownerTimeZone } from "./owner.ts";
 import type { Store } from "./store.ts";
+
+/** The owner's profile time zone decides a report's day; the research setting only covers an owner who set none. */
+function discoveryTimeZone(store: Store): string {
+  return ownerTimeZone(store) ?? store.settings.read("discovery").timezone;
+}
 
 export function discoveryReportTarget(store: Store, routine: string) {
   const settings = store.settings.read("discovery");
@@ -18,11 +23,10 @@ export function discoveryReportTarget(store: Store, routine: string) {
 /** Inside routine admission's transaction: a rejected admission rolls back the single-use reservation too. */
 export function reserveDiscoveryReport(store: Store, routine: string, run: string, at: Date): void {
   if (!discoveryReportTarget(store, routine)) return;
-  const settings = store.settings.read("discovery");
   const state = discoveryState(store, () => at);
   const runtime = state.read();
   const day = new Intl.DateTimeFormat("en-CA", {
-    timeZone: settings.timezone,
+    timeZone: discoveryTimeZone(store),
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
