@@ -1390,4 +1390,16 @@ export const MIGRATIONS: readonly string[] = [
     WHERE EXISTS (SELECT 1 FROM json_each(tasks.tags) WHERE value = 'Activity review')
     GROUP BY substr(created_at, 1, 16);
   `,
+  `
+  -- Research keeps several places and says how findings reach the owner (DECISIONS.md#d-278): one place becomes a list,
+  -- an owner who had research on with a report keeps it, everyone else is told on their own; deep research runs on a
+  -- fixed interval, no longer a setting.
+  UPDATE meta SET value = json_remove(json_set(value,
+      '$.places', json(CASE WHEN trim(coalesce(json_extract(value, '$.location'), '')) = '' THEN '[]'
+        ELSE json_array(substr(trim(json_extract(value, '$.location')), 1, 80)) END),
+      '$.delivery', CASE WHEN json_extract(value, '$.enabled') = 1 AND json_type(value, '$.report_routine') = 'text'
+        THEN 'routine' ELSE 'automatic' END),
+    '$.location', '$.deep_every_days')
+  WHERE key = 'setting:discovery' AND json_valid(value) AND json_type(value) = 'object';
+  `,
 ];

@@ -1,5 +1,5 @@
 import type { DiscoveryFinding, DiscoverySettings } from "@apx/protocol";
-import { DISCOVERY_DAY, type DiscoveryRuntime, discoveryState } from "../domain/discovery-state.ts";
+import { DEEP_EVERY_DAYS, DISCOVERY_DAY, type DiscoveryRuntime, discoveryState } from "../domain/discovery-state.ts";
 import type { Store } from "../domain/store.ts";
 import { redactedJson } from "../log.ts";
 import type { Llm } from "../providers/llm.ts";
@@ -82,14 +82,19 @@ async function researchSource(cycle: Cycle, source: DiscoverySettings["sources"]
   for (const proposal of proposals) {
     const finding = validateFinding(proposal, source.project, pages, at);
     if (!finding || cycle.calls >= settings.max_model_calls) continue;
-    const score = findingScore(proposal, finding, runtime, at, settings.cooldown_days, settings.location);
+    const score = findingScore(proposal, finding, runtime, at, settings.cooldown_days, settings.places.length > 0);
     if (score === undefined) continue;
     cycle.calls++;
-    const verified = await verifyDiscovery(
+    const verdict = await verifyDiscovery(
       { llm: deps.llm, models: deps.models(), store: deps.store, signal },
-      { proposal, pages, reference, previous, location: settings.location, at: at.toISOString() },
+      { proposal, pages, reference, previous, places: settings.places, at: at.toISOString() },
     );
-    if (verified && active()) result.push({ finding, score });
+    // Told at once only when both the proposal and the independent check say it cannot wait.
+    if (verdict.accepted && active())
+      result.push({
+        finding: { ...finding, urgency: proposal.urgency === "now" && verdict.urgent ? "now" : "digest" },
+        score,
+      });
     signal.throwIfAborted();
   }
   return result;
@@ -137,12 +142,7 @@ export async function runDiscoveryCycle(
   if (valid()) commitCycle(cycle, candidates, failures && !candidates.length ? "failed" : "completed", true);
 }
 
-function commitCycle(
-  { deps, settings, at, runtime }: Cycle,
-  ranked: Ranked[],
-  result: DiscoveryRuntime["state"],
-  deep: boolean,
-) {
+function commitCycle({ deps, at, runtime }: Cycle, ranked: Ranked[], result: DiscoveryRuntime["state"], deep: boolean) {
   const state = discoveryState(deps.store, () => at);
   const live = state.read();
   const findings = live.findings.filter(
@@ -154,7 +154,7 @@ function commitCycle(
   const fingerprints = new Set(findings.map((finding) => finding.fingerprint));
   const pool = ranked.filter((candidate) => state.allowed(candidate.finding.project));
   let previous = live.seen.at(-1)?.project;
-  for (let n = 0; n < Math.min(7, settings.deep_every_days) && pool.length; n++) {
+  for (let n = 0; n < DEEP_EVERY_DAYS && pool.length; n++) {
     pool.sort(
       (a, b) =>
         b.score - (b.finding.project === previous ? 3 : 0) - (a.score - (a.finding.project === previous ? 3 : 0)),
@@ -174,11 +174,12 @@ function commitCycle(
     findings: findings.slice(-100),
     seen: live.seen,
     delivered_days: live.delivered_days,
+    digest_days: live.digest_days,
     claims: live.claims,
     muted: live.muted,
     muted_topics: live.muted_topics,
     feedback: live.feedback,
     state: result,
-    ...(deep ? { deep_next: new Date(+at + settings.deep_every_days * DISCOVERY_DAY).toISOString() } : {}),
+    ...(deep ? { deep_next: new Date(+at + DEEP_EVERY_DAYS * DISCOVERY_DAY).toISOString() } : {}),
   });
 }

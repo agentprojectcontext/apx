@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
+import { DiscoverySettings } from "@apx/protocol";
 import { openDb } from "./db.ts";
 import { MIGRATIONS } from "./migrations.ts";
 
@@ -654,5 +655,49 @@ test("proposals activity review made before its history show as past reviews, on
   } finally {
     db.close();
     cleanup();
+  }
+});
+
+test("research's one place becomes a list, and only an owner who had it on with a report keeps the routine", () => {
+  const base = {
+    enabled: true,
+    projects: "all",
+    project_ids: [],
+    sources: [],
+    project_context: true,
+    project_websites: true,
+    interest_news: true,
+    interests: ["Jazz"],
+    timezone: "UTC",
+    max_model_calls: 8,
+    max_pages: 12,
+    max_seconds: 180,
+    cooldown_days: 14,
+  };
+  for (const [old, places, delivery] of [
+    [{ ...base, location: " Bariloche ", deep_every_days: 3, report_routine: "rtn_1" }, ["Bariloche"], "routine"],
+    [{ ...base, location: "", deep_every_days: 2, report_routine: null }, [], "automatic"],
+    [
+      { ...base, enabled: false, location: "Salta", deep_every_days: 2, report_routine: "rtn_1" },
+      ["Salta"],
+      "automatic",
+    ],
+  ] as const) {
+    const { db, cleanup } = upgradeFrom("Research keeps several places", (d) => {
+      d.prepare("INSERT INTO meta (key, value) VALUES ('setting:discovery', ?)").run(JSON.stringify(old));
+    });
+    try {
+      const now = JSON.parse(String(db.prepare("SELECT value FROM meta WHERE key = 'setting:discovery'").get()?.value));
+      assert.deepEqual(now.places, places);
+      assert.equal(now.delivery, delivery);
+      assert.equal("location" in now, false);
+      assert.equal("deep_every_days" in now, false);
+      assert.equal(now.report_routine, old.report_routine, "the chosen routine stays for when it is picked again");
+      assert.deepEqual(now.interests, ["Jazz"]);
+      assert.ok(DiscoverySettings.safeParse(now).success, "the stored value reads as today's settings");
+    } finally {
+      db.close();
+      cleanup();
+    }
   }
 });

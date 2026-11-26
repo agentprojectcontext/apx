@@ -46,7 +46,7 @@ test("an owner can rate the composed report through the settings tool; its findi
       prompt: "Return the usual report.",
     });
     const state = discoveryState(env.core.store, () => new Date(AT));
-    state.configure({ enabled: true, report_routine: report.id });
+    state.configure({ enabled: true, delivery: "routine", report_routine: report.id });
     state.write({
       ...state.read(),
       findings: [

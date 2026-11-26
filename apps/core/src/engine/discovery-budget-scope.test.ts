@@ -119,9 +119,9 @@ test("the smallest valid budget reserves proposal and verification despite conti
       project_websites: false,
       sources,
       max_model_calls: 3,
-      deep_every_days: 1,
     });
-    for (day = 1; day <= 3; day++) {
+    // Deep research runs every other day.
+    for (day = 1; day <= 5; day += 2) {
       for (const project of f.store.projects.list())
         f.store.projects.upsert({ ...project, context: `${project.id} requirements changed on day ${day}.` });
       const before = llm.calls.length;
@@ -129,9 +129,9 @@ test("the smallest valid budget reserves proposal and verification despite conti
       assert.equal(llm.calls.length - before, 3);
       assert.equal(
         llm.calls.filter((call) => String(call.messages[0]?.content).startsWith("Independently check")).length,
-        day,
+        (day + 1) / 2,
       );
-      assert.equal(discovery.status().findings.length, day);
+      assert.equal(discovery.status().findings.length, (day + 1) / 2);
     }
     assert.ok(discovery.status().coverage.every((project) => project.planned_at && project.researched_at));
   } finally {

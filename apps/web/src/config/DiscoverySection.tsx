@@ -95,6 +95,7 @@ export function DiscoverySection() {
                 projects={model.projects}
                 reports={model.reports}
                 zone={zone}
+                routinesChanged={model.routinesChanged}
               />
             </fieldset>
             {problem}

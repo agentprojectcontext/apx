@@ -81,6 +81,12 @@ export function useDiscovery() {
     saved,
     busy,
     load,
+    /** Reads the routines again (one was made from here), keeping the draft. */
+    routinesChanged: () =>
+      void client.call("routines.list", {}).then(
+        (rs) => setRoutines(rs.routines),
+        () => {},
+      ),
     async refresh() {
       setBusy(true);
       try {

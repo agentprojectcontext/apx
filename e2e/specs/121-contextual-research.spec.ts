@@ -23,7 +23,8 @@ async function prepareResearch() {
     enabled: false,
     sources: [],
     interests: [],
-    location: "",
+    places: [],
+    delivery: "automatic",
     project_context: false,
     project_websites: false,
     interest_news: false,
@@ -83,14 +84,13 @@ async function recoverConflict(page: Page, en: boolean) {
     .getByRole("button", { name: en ? "Cancel" : "Cancelar", exact: true })
     .click();
   await expect(dialog).toBeHidden();
-  const place = page.getByRole("textbox", {
-    name: en ? "City or region · optional" : "Ciudad o región · opcional",
-    exact: true,
-  });
-  await expect(place).toHaveValue("Unsaved region");
+  const place = (name: string) =>
+    page.getByRole("button", { name: `${en ? "Remove" : "Quitar"} ${name}`, exact: true });
+  await expect(place("Unsaved region")).toBeVisible();
   await page.getByRole("button", { name: reload, exact: true }).click();
   await dialog.getByRole("button", { name: reload, exact: true }).click();
-  await expect(place).toHaveValue("Changed elsewhere");
+  await expect(place("Changed elsewhere")).toBeVisible();
+  await expect(place("Unsaved region")).toHaveCount(0);
   await expect(page.getByRole("alert")).toHaveCount(0);
 }
 async function checkRatings(page: Page, en: boolean) {
@@ -149,7 +149,10 @@ for (const language of ["en", "es"] as const)
             { exact: true },
           ),
         ).toBeVisible();
-        await page.getByRole("combobox", { name: en ? "Usual report" : "Informe habitual" }).click();
+        // Automatic is the default; a routine is picked on purpose.
+        await expect(page.getByRole("radio", { name: en ? "Automatic" : "Automático", checked: true })).toBeVisible();
+        await page.getByRole("radio", { name: en ? "In a routine" : "En una rutina" }).click();
+        await page.getByRole("combobox", { name: en ? "Routine" : "Rutina" }).click();
         await page.getByRole("option", { name: /^Morning report/ }).click();
         await expect(page.getByText(en ? "You have unsaved changes." : "Tenés cambios sin guardar.")).toBeVisible();
         await checkInterestControl(page, en);
@@ -164,10 +167,13 @@ for (const language of ["en", "es"] as const)
             exact: true,
           })
           .fill("https://research.example/news");
-        const place = page.getByRole("textbox", {
-          name: en ? "City or region · optional" : "Ciudad o región · opcional",
-        });
+        const place = page.getByRole("textbox", { name: en ? "Places" : "Lugares", exact: true });
+        // Leaving the field keeps what was typed as a place.
         await place.fill("Example region");
+        await place.blur();
+        await expect(
+          page.getByRole("button", { name: `${en ? "Remove" : "Quitar"} Example region`, exact: true }),
+        ).toBeVisible();
         await page.screenshot({ path: info.outputPath("unsaved.png"), fullPage: true });
         await page.getByRole("button", { name: save, exact: true }).click();
         await expect(
@@ -175,7 +181,9 @@ for (const language of ["en", "es"] as const)
         ).toBeVisible();
         const config = await rpc<DiscoveryStatus>("discovery.settings");
         expect(config.settings.enabled).toBe(true);
+        expect(config.settings.delivery).toBe("routine");
         expect(config.settings.report_routine).toBe(report.id);
+        expect(config.settings.places).toEqual(["Example region"]);
         expect(config.settings.interests).toEqual(["Open data"]);
         expect(config.settings.sources[0]?.pages).toEqual(["https://research.example/news"]);
         await world.clock("2099-05-01T08:02:00.000Z");
@@ -216,18 +224,26 @@ for (const language of ["en", "es"] as const)
         await expect
           .poll(async () => (await rpc<DiscoveryStatus>("discovery.settings")).findings[0]?.feedback)
           .toBeUndefined();
+        await page.getByRole("button", { name: en ? "Remove Example region" : "Quitar Example region" }).click();
+        // Leaving the field keeps what was typed as a place.
         await place.fill("Unsaved region");
+        await place.blur();
+        await expect(
+          page.getByRole("button", { name: `${en ? "Remove" : "Quitar"} Unsaved region`, exact: true }),
+        ).toBeVisible();
         await page.route("**/rpc/discovery.configure", (route) =>
           route.fulfill({ json: { ok: false, error: { code: "internal", message: "Fixture save failure" } } }),
         );
         await page.getByRole("button", { name: save, exact: true }).click();
         await expect(page.getByRole("alert")).toContainText(en ? "Couldn't save" : "No se pudo guardar");
         await expect(page.getByRole("alert")).toBeInViewport({ ratio: 1 });
-        await expect(place).toHaveValue("Unsaved region");
+        await expect(
+          page.getByRole("button", { name: en ? "Remove Unsaved region" : "Quitar Unsaved region" }),
+        ).toBeVisible();
         await page.screenshot({ path: info.outputPath("save-error.png"), fullPage: true });
         await page.unroute("**/rpc/discovery.configure");
         await rpc("discovery.feedback", { finding, feedback: "mute" });
-        await rpc("discovery.configure", { location: "Changed elsewhere" });
+        await rpc("discovery.configure", { places: ["Changed elsewhere"] });
         await page.route("**/rpc/discovery.configure", async (route) => {
           const response = await route.fetch();
           expect(response.status()).toBe(409);
@@ -236,7 +252,9 @@ for (const language of ["en", "es"] as const)
         await page.getByRole("button", { name: save, exact: true }).click();
         await expect(page.getByRole("alert")).toContainText(en ? "changed somewhere else" : "cambió desde otro lugar");
         await expect(page.getByRole("alert")).toBeInViewport({ ratio: 1 });
-        await expect(place).toHaveValue("Unsaved region");
+        await expect(
+          page.getByRole("button", { name: en ? "Remove Unsaved region" : "Quitar Unsaved region" }),
+        ).toBeVisible();
         await page.screenshot({ path: info.outputPath("conflict.png"), fullPage: true });
         await recoverConflict(page, en);
         await undoAfterCacheClear(page, en);

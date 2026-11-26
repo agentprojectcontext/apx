@@ -1,7 +1,23 @@
 import type { DiscoverySettings, Project, Routine } from "@apx/protocol";
-import { Button, Checkbox, Disclosure, Input, Select, SettingRow, TagInput } from "@apx/ui";
+import {
+  Button,
+  Checkbox,
+  Disclosure,
+  Icons,
+  Input,
+  Menu,
+  SegmentedControl,
+  Select,
+  SettingRow,
+  Tag,
+  TagInput,
+} from "@apx/ui";
+import { useState } from "react";
 import { zonePlace } from "../common/pickers/LocaleSelect.tsx";
+import type { RoutineDraft } from "../data/routines.ts";
+import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { RoutineEditor } from "../routines/RoutineEditor.tsx";
 import { scheduleText } from "../routines/scheduleText.ts";
 import { go } from "../shell/nav.ts";
 import { DiscoverySources } from "./DiscoverySources.tsx";
@@ -9,58 +25,94 @@ import { SubHead } from "./SectionHead.tsx";
 
 type Fields = { draft: DiscoverySettings; set: (patch: Partial<DiscoverySettings>) => void };
 
-/** Where the finding arrives: the report it joins, and the time zone that decides its day. */
+/** A blank daily routine for the super-agent, opened in the routine editor from here. */
+const blankRoutine = (agent: string): RoutineDraft => ({
+  name: "",
+  agent,
+  schedule: { kind: "cron", cron: "0 9 * * *" },
+  action: "agent",
+  prompt: "",
+  pre_command: "",
+  post_command: "",
+  call_model: "always",
+  anchor: false,
+  max_steps: "",
+  autonomy: "",
+  enabled: true,
+});
+
+/** How the owner hears about findings: on their own (urgent at once, the rest each morning), or in a routine. */
 function DiscoveryDelivery({
   draft,
   set,
   reports,
   zone,
-}: Fields & { reports: Routine[]; zone: { value: string; mine: boolean } }) {
+  routinesChanged,
+}: Fields & { reports: Routine[]; zone: { value: string; mine: boolean }; routinesChanged: () => void }) {
   const t = useT();
+  const boss = useData((s) => Object.values(s.agents).find((a) => a.kind === "secretary")?.id ?? "");
+  const [creating, setCreating] = useState(false);
   const report = reports.find((r) => r.id === draft.report_routine);
+  const routine = draft.delivery === "routine";
   return (
     <>
       <SubHead>{t("discovery.where")}</SubHead>
       <SettingRow
         stacked
-        title={t("discovery.report")}
+        title={
+          <SegmentedControl
+            label={t("discovery.where")}
+            value={draft.delivery}
+            onValueChange={(v) => set({ delivery: v === "routine" ? "routine" : "automatic" })}
+            options={[
+              { value: "automatic", label: t("discovery.automatic") },
+              { value: "routine", label: t("discovery.inRoutine") },
+            ]}
+          />
+        }
         description={
-          report
-            ? t("discovery.reportWhen", { when: scheduleText(report.schedule, t) })
-            : reports.length
-              ? t("discovery.reportHint")
-              : t("discovery.noReports")
+          !routine
+            ? t("discovery.automaticHint")
+            : report
+              ? t("discovery.routineWhen", { when: scheduleText(report.schedule, t) })
+              : reports.length
+                ? t("discovery.routinePick")
+                : t("discovery.noRoutines")
         }
       >
-        <div className="discovery__inline">
-          {!!reports.length && (
-            <Select
-              label={t("discovery.report")}
-              value={draft.report_routine ?? ""}
-              options={[
-                { value: "", label: t("discovery.noReport") },
-                ...reports.map((r) => ({
-                  value: r.id,
-                  label: r.name,
-                  description: scheduleText(r.schedule, t),
-                  disabled: !r.enabled,
-                })),
-              ]}
-              onValueChange={(id) => set({ report_routine: id || null })}
-            />
-          )}
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => {
-              go.config(null);
-              go.view("routines");
-            }}
-          >
-            {t(reports.length ? "discovery.setupReport" : "discovery.createReport")}
-          </Button>
-        </div>
+        {routine && (
+          <div className="discovery__inline">
+            {!!reports.length && (
+              <Select
+                label={t("discovery.routine")}
+                value={draft.report_routine ?? ""}
+                options={[
+                  { value: "", label: t("discovery.noReport") },
+                  ...reports.map((r) => ({
+                    value: r.id,
+                    label: r.name,
+                    description: scheduleText(r.schedule, t),
+                    disabled: !r.enabled,
+                  })),
+                ]}
+                onValueChange={(id) => set({ report_routine: id || null })}
+              />
+            )}
+            <Button size="sm" variant="secondary" onClick={() => setCreating(true)}>
+              {t("discovery.createRoutine")}
+            </Button>
+          </div>
+        )}
       </SettingRow>
+      {creating && (
+        <RoutineEditor
+          draft={blankRoutine(boss)}
+          onClose={() => {
+            setCreating(false);
+            routinesChanged();
+          }}
+        />
+      )}
       <SettingRow
         title={t("discovery.timezone")}
         description={t(zone.mine ? "discovery.zoneMine" : "discovery.zoneNone", { zone: zonePlace(zone.value) })}
@@ -73,41 +125,72 @@ function DiscoveryDelivery({
   );
 }
 
+/** "All my projects", or the ones ticked in a menu, shown under it side by side. */
+function ProjectPicker({ draft, set, projects }: Fields & { projects: Project[] }) {
+  const t = useT();
+  const all = draft.projects === "all";
+  const picked = projects.filter((p) => draft.project_ids.includes(p.id));
+  const label = all
+    ? t("discovery.all")
+    : picked.length === 1
+      ? t("discovery.oneProject")
+      : t("discovery.someProjects", { count: picked.length });
+  return (
+    <SettingRow stacked title={t("discovery.projects")}>
+      <div className="discovery__picker">
+        <Menu
+          align="start"
+          trigger={
+            <Button variant="secondary" trailingIcon={<Icons.ChevronDown size={14} />}>
+              {label}
+            </Button>
+          }
+          items={[
+            {
+              label: t("discovery.all"),
+              checked: all,
+              keepOpen: true,
+              onSelect: () => set({ projects: "all", project_ids: [] }),
+            },
+            { type: "separator" },
+            ...projects.map((p) => {
+              const on = !all && draft.project_ids.includes(p.id);
+              return {
+                label: p.name,
+                checked: on,
+                keepOpen: true,
+                onSelect: () =>
+                  set({
+                    projects: "selected" as const,
+                    project_ids: on
+                      ? draft.project_ids.filter((id) => id !== p.id)
+                      : [...draft.project_ids.filter((id) => projects.some((x) => x.id === id)), p.id],
+                  }),
+              };
+            }),
+          ]}
+        />
+        {!all && !!picked.length && (
+          <div className="discovery__chips">
+            {picked.map((p) => (
+              <Tag key={p.id} icon={<Icons.Folder />}>
+                {p.name}
+              </Tag>
+            ))}
+          </div>
+        )}
+        {!all && !picked.length && <p className="config__lead">{t("discovery.noProjects")}</p>}
+      </div>
+    </SettingRow>
+  );
+}
+
 function DiscoveryScope({ draft, set, projects }: Fields & { projects: Project[] }) {
   const t = useT();
   return (
     <>
       <SubHead>{t("discovery.what")}</SubHead>
-      <SettingRow stacked title={t("discovery.projects")}>
-        <Select
-          label={t("discovery.projects")}
-          value={draft.projects}
-          options={[
-            { value: "all", label: t("discovery.all") },
-            { value: "selected", label: t("discovery.selected") },
-          ]}
-          onValueChange={(value) => set({ projects: value === "selected" ? "selected" : "all" })}
-        />
-      </SettingRow>
-      {draft.projects === "selected" && (
-        <div className="discovery__choices">
-          {projects.map((project) => (
-            <Checkbox
-              key={project.id}
-              label={project.name}
-              checked={draft.project_ids.includes(project.id)}
-              onCheckedChange={(checked) =>
-                set({
-                  project_ids: checked
-                    ? [...draft.project_ids, project.id]
-                    : draft.project_ids.filter((id) => id !== project.id),
-                })
-              }
-            />
-          ))}
-          {!draft.project_ids.length && <p className="config__lead">{t("discovery.noProjects")}</p>}
-        </div>
-      )}
+      <ProjectPicker draft={draft} set={set} projects={projects} />
       <SettingRow stacked title={t("discovery.interests")} description={t("discovery.interestsHint")}>
         <TagInput
           label={t("discovery.interests")}
@@ -119,16 +202,19 @@ function DiscoveryScope({ draft, set, projects }: Fields & { projects: Project[]
           onValueChange={(interests) => set({ interests })}
         />
       </SettingRow>
-      <SettingRow stacked title={t("discovery.place")} description={t("discovery.placeHint")}>
-        <Input
-          aria-label={t("discovery.place")}
+      <SettingRow stacked title={t("discovery.places")} description={t("discovery.placesHint")}>
+        <TagInput
+          label={t("discovery.places")}
           placeholder={t("discovery.city")}
-          maxLength={120}
-          value={draft.location}
-          onChange={(e) => set({ location: e.currentTarget.value })}
+          addLabel={t("discovery.add")}
+          removeLabel={t("discovery.removePlace")}
+          value={draft.places}
+          max={10}
+          onValueChange={(places) => set({ places })}
         />
       </SettingRow>
       <SubHead>{t("discovery.sources")}</SubHead>
+      <p className="config__lead">{t("discovery.rhythm")}</p>
       <div className="discovery__choices">
         <Checkbox
           label={t("discovery.context")}
@@ -157,31 +243,22 @@ export function DiscoveryForm({
   projects,
   reports,
   zone,
+  routinesChanged,
 }: {
   draft: DiscoverySettings;
   change: (settings: DiscoverySettings) => void;
   projects: Project[];
   reports: Routine[];
   zone: { value: string; mine: boolean };
+  /** A routine was made here: the list of routines is read again. */
+  routinesChanged: () => void;
 }) {
   const t = useT();
   const set = (patch: Partial<DiscoverySettings>) => change({ ...draft, ...patch });
   return (
     <>
-      <DiscoveryDelivery draft={draft} set={set} reports={reports} zone={zone} />
+      <DiscoveryDelivery draft={draft} set={set} reports={reports} zone={zone} routinesChanged={routinesChanged} />
       <DiscoveryScope draft={draft} set={set} projects={projects} />
-      <SubHead>{t("discovery.howOften")}</SubHead>
-      <SettingRow title={t("discovery.frequency")} description={t("discovery.scan")}>
-        <Select
-          label={t("discovery.frequency")}
-          value={String(draft.deep_every_days)}
-          options={Array.from({ length: 14 }, (_, i) => ({
-            value: String(i + 1),
-            label: i ? t("discovery.days", { count: i + 1 }) : t("discovery.daily"),
-          }))}
-          onValueChange={(value) => set({ deep_every_days: Number(value) })}
-        />
-      </SettingRow>
       <div className="discovery__stack">
         <Disclosure title={t("discovery.limits")}>
           {(

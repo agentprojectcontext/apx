@@ -34,7 +34,7 @@ export function discoveryContext(
       ? settings.sources.filter((s) => s.project === project).map((s) => ({ label: s.label, pages: s.pages }))
       : [],
     interests: settings.interests,
-    location: settings.location || null,
+    places: settings.places,
     language: ownerIdentity(store).language,
     today: at.toISOString(),
   });
@@ -69,15 +69,20 @@ export function discoverySources(
       });
     }
   }
-  if (settings.interest_news)
+  if (settings.interest_news) {
     for (const interest of settings.interests)
+      sources.push({ project: undefined, label: interest, public_terms: interest, pages: [], explicit: true });
+    // A place is searched for what happens there: news and events near the owner (DECISIONS.md#d-278).
+    const near = ownerIdentity(store).language === "en" ? "news and events" : "novedades y eventos";
+    for (const place of settings.places)
       sources.push({
         project: undefined,
-        label: interest,
-        public_terms: settings.location ? `${interest} ${settings.location}`.slice(0, 250) : interest,
+        label: place,
+        public_terms: `${near} ${place}`.slice(0, 250),
         pages: [],
         explicit: true,
       });
+  }
   return sources;
 }
 export function discoveryKey(value: unknown) {

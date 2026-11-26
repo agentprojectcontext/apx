@@ -1,9 +1,10 @@
+import type { DiscoveryFinding } from "@apx/protocol";
 import { DISCOVERY_DAY, discoveryState } from "./discovery-state.ts";
 import { ownerIdentity, ownerTimeZone } from "./owner.ts";
 import type { Store } from "./store.ts";
 
 /** The owner's profile time zone decides a report's day; the research setting only covers an owner who set none. */
-function discoveryTimeZone(store: Store): string {
+export function discoveryTimeZone(store: Store): string {
   return ownerTimeZone(store) ?? store.settings.read("discovery").timezone;
 }
 
@@ -12,6 +13,7 @@ export function discoveryReportTarget(store: Store, routine: string) {
   const target = store.routines.get(routine);
   return (
     settings.enabled &&
+    settings.delivery === "routine" &&
     settings.report_routine === routine &&
     target &&
     !target.project_id &&
@@ -77,21 +79,25 @@ export function composeDiscoveryReport(store: Store, run: string, body: string, 
     finding.included_at = at.toISOString();
     state.write(runtime);
     const en = ownerIdentity(store).language === "en";
-    const label = en ? "Worth a look" : "Para tener en cuenta";
-    const sources = [
-      ...new Set(finding.evidence.map((item) => `${item.title}: ${item.url} (${item.read_at.slice(0, 10)})`)),
-    ].join("\n");
-    const feedback = en
-      ? "You can reply: Useful, Not useful, or Mute topic."
-      : "Podés responder: Útil, No útil o Silenciar tema.";
-    return [
-      body.trim(),
-      `${label}\n${finding.title}\n${finding.summary}\n${finding.action}`,
-      finding.uncertainty,
-      sources,
-      feedback,
-    ]
+    return [body.trim(), findingText(finding, en ? "Worth a look" : "Para tener en cuenta"), feedbackLine(en)]
       .filter(Boolean)
       .join("\n\n");
   });
 }
+
+/** A finding as the owner reads it: what, why, what to do, what is not established and where it was read. */
+export function findingText(finding: DiscoveryFinding, label?: string): string {
+  const sources = [
+    ...new Set(finding.evidence.map((item) => `${item.title}: ${item.url} (${item.read_at.slice(0, 10)})`)),
+  ].join("\n");
+  return [
+    `${label ? `${label}\n` : ""}${finding.title}\n${finding.summary}\n${finding.action}`,
+    finding.uncertainty,
+    sources,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+export const feedbackLine = (en: boolean) =>
+  en ? "You can reply: Useful, Not useful, or Mute topic." : "Podés responder: Útil, No útil o Silenciar tema.";
