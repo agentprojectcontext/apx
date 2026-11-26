@@ -1,11 +1,23 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import type { Locator } from "@playwright/test";
 import { say, scriptedLlm, startCore } from "../../apps/core/src/engine/testkit.ts";
 import { expect, test } from "./kit.ts";
 
 const SHOTS = process.env.SHOTS;
 const webDist = fileURLToPath(new URL("../../apps/web/dist", import.meta.url));
 test.use({ timezoneId: "America/Argentina/Buenos_Aires" });
+
+async function visibleKeyboardFocus(control: Locator) {
+  await expect(control).toBeFocused();
+  expect(await control.evaluate((el) => el.matches(":focus-visible"))).toBe(true);
+  await expect(control).toHaveCSS("outline-style", "solid");
+  await expect(control).toHaveCSS("outline-width", "2px");
+  await expect(control).toHaveCSS("outline-offset", "3px");
+  const color = await control.evaluate((el) => getComputedStyle(el).outlineColor);
+  expect(color).not.toBe("rgba(0, 0, 0, 0)");
+  return color;
+}
 
 for (const language of ["es", "en"] as const) {
   for (const width of [1280, 390]) {
@@ -81,6 +93,10 @@ for (const language of ["es", "en"] as const) {
           } else expect(buttonBox.y).toBeGreaterThan(statusBox.y + statusBox.height);
         }
         await shot("pending");
+        await status.focus();
+        await page.keyboard.press("Tab");
+        const focusColor = await visibleKeyboardFocus(cancel);
+        await shot("cancel-tab");
         await page.route("**/rpc/continuations.cancel", (route) =>
           route.fulfill({
             status: 200,
@@ -90,22 +106,26 @@ for (const language of ["es", "en"] as const) {
         );
         await cancel.press("Enter");
         await expect(timer.getByRole("alert")).toHaveText(text.retry);
-        await expect(cancel).toBeFocused();
+        expect(await visibleKeyboardFocus(cancel)).toBe(focusColor);
+        await shot("cancel-retry");
         await page.unroute("**/rpc/continuations.cancel");
         await cancel.press("Enter");
         await expect(status).toHaveText(text.canceled);
-        await expect(status).toBeFocused();
+        expect(await visibleKeyboardFocus(status)).toBe(focusColor);
         await shot("canceled");
         await env.client.call("tasks.close", { task: task.id, state: "done" });
         env.core.scheduler.tick();
         const view = receipts.nth(1).getByRole("button", { name: text.view, exact: true });
         await expect(view).toBeVisible();
         await expect(status).toBeFocused();
+        await page.keyboard.press("Tab");
+        expect(await visibleKeyboardFocus(view)).toBe(focusColor);
+        await shot("view-tab");
         await view.press("Enter");
         const result = page.locator(
           `[data-msg="${env.core.store.messages.ofRun("home", env.core.store.continuations.get(event.id)?.value.run_id ?? "")[0]?.id}"]`,
         );
-        await expect(result).toBeFocused();
+        expect(await visibleKeyboardFocus(result)).toBe(focusColor);
         await expect(result).toContainText("Read-only simulated task result");
         await shot("result");
         env.core.store.projects.upsert({ id: "northwind", name: "Northwind" });
