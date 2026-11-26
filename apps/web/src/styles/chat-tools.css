@@ -297,6 +297,7 @@ textarea.inputcard__detail {
   justify-content: flex-start;
   margin-left: 0;
 }
+.continuation-notice .noticeline__actions .apx-btn:focus-visible,
 .continuation-notice .continuation-notice__status:focus-visible,
 .transcript .transcript__row:focus-visible {
   outline: 2px solid var(--apx-brand);
