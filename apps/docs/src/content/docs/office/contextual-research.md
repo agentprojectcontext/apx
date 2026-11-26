@@ -25,7 +25,7 @@ You can allow authorized conversations and decisions, public websites mentioned 
 
 Every daily pass scans all eligible project contexts. Bounded private model requests then discover concrete questions, rotating through projects rather than only looking at recent tasks. Each question is chosen so the official pages you listed for that project could answer it. Public research has its own progressive coverage; the settings distinguish scanned projects, questions explored and sources checked. A large project list may take several passes within your limits.
 
-Research uses the auxiliary model. There are no new dependencies, privileged browser sessions, device actions or automatic project changes. Public pages use the same network protections as web reading. Every redirect is checked before connecting: project pages stay on their approved origins and cannot redirect into URLs carrying query parameters. A search operation can try up to three search engines; its returned snippets are never evidence.
+Research uses the helper model (**Settings › Helper model**). There are no new dependencies, privileged browser sessions, device actions or automatic project changes. Public pages use the same network protections as web reading. Every redirect is checked before connecting: project pages stay on their approved origins and cannot redirect into URLs carrying query parameters. A search operation can try up to three search engines; its returned snippets are never evidence.
 
 ## What reaches your report
 

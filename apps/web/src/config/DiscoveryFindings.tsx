@@ -77,6 +77,8 @@ export function DiscoveryFindings({
                   {t("discovery.readAt", {
                     date: new Date(evidence.read_at).toLocaleString(currentLocale(), {
                       timeZone: zone,
+                      dateStyle: "medium",
+                      timeStyle: "short",
                     }),
                   })}
                 </small>
