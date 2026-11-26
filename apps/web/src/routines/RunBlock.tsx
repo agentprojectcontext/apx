@@ -7,7 +7,7 @@ import { dayLabel } from "../common/format.ts";
 import { usePageVisible } from "../common/useInView.ts";
 import { loadThread, markRead } from "../data/actions.ts";
 import { useData } from "../data/state.ts";
-import { useT } from "../i18n/index.ts";
+import { usePack, useT } from "../i18n/index.ts";
 import { markText, type OutcomeTone, outcomeMarks, promptOf } from "./runOutcome.ts";
 
 const BADGE_TONE: Record<OutcomeTone, NonNullable<BadgeProps["tone"]>> = {
@@ -36,6 +36,8 @@ export const RunBlock = memo(function RunBlock({
   previous: RoutineRun | undefined;
 }) {
   const t = useT();
+  // Its words are in the notices pack, loaded once a chat shows one.
+  usePack("notices");
   const id = run.thread_id;
   const ready = useData((s) => s.ready);
   const thread = useData((s) => s.threads[id]);

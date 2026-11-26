@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { client } from "../../data/client.ts";
 import { usePrefs } from "../../data/prefs.ts";
 import { useData } from "../../data/state.ts";
-import { LOCALES, useT } from "../../i18n/index.ts";
+import { LOCALES, usePack, useT } from "../../i18n/index.ts";
 import { go } from "../../shell/nav.ts";
 
 type NoticeData = Extract<Part, { type: "notice" }>;
@@ -21,6 +21,8 @@ function dateParts(value: string | number | undefined, locale: string) {
 
 export function ContinuationNotice({ part }: { part: NoticeData }) {
   const t = useT();
+  // Its words are in the notices pack, loaded once a chat shows one.
+  usePack("notices");
   const locale = LOCALES[usePrefs((p) => p.language)];
   const online = useData((s) => s.connection === "online");
   const [pending, setPending] = useState(false);

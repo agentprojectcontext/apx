@@ -2,7 +2,7 @@ import type { Part } from "@apx/protocol";
 import { ActionGroup, Icons } from "@apx/ui";
 import type { ReactNode } from "react";
 import { type MessageKey, useT } from "../../i18n/index.ts";
-import { chipItems, type ResearchField } from "./chips.ts";
+import { chipItems, type ResearchField } from "./chip-items.ts";
 
 const FIELD: Record<ResearchField, { icon: ReactNode; key: MessageKey }> = {
   interests: { icon: <Icons.Tag />, key: "chip.research.interest" },

@@ -6,6 +6,7 @@ import { go } from "../shell/nav.ts";
 import { DiscoveryCoverage } from "./DiscoveryCoverage.tsx";
 import { DiscoveryFindings } from "./DiscoveryFindings.tsx";
 import { DiscoveryForm } from "./DiscoveryForm.tsx";
+import { SaveBar } from "./SaveBar.tsx";
 import { SectionHead } from "./SectionHead.tsx";
 import { useDiscovery } from "./useDiscovery.ts";
 import "./discovery.css";
@@ -99,23 +100,7 @@ export function DiscoverySection() {
               />
             </fieldset>
             {problem}
-            {(dirty || model.saved) && (
-              <div className="discovery__savebar">
-                {dirty ? (
-                  <>
-                    <span>{t("discovery.unsaved")}</span>
-                    <Button variant="ghost" disabled={busy} onClick={model.discard}>
-                      {t("discovery.discardChanges")}
-                    </Button>
-                    <Button type="submit" loading={busy} disabled={busy}>
-                      {t("discovery.save")}
-                    </Button>
-                  </>
-                ) : (
-                  <span role="status">{t("discovery.saved")}</span>
-                )}
-              </div>
-            )}
+            <SaveBar dirty={dirty} saving={busy} saved={model.saved} onDiscard={model.discard} />
           </form>
           <DiscoveryCoverage status={status} zone={zone.value} busy={busy} refresh={model.refresh} />
           <DiscoveryFindings status={status} zone={zone.value} update={model.setStatus} />

@@ -1,7 +1,6 @@
 import { esHelper } from "./es-helper.ts";
 // UI strings, Spanish (Rioplatense, voseo). A missing key falls back to English.
 
-import { noticeEs } from "@apx/protocol/notices-es";
 import { esCallSlim } from "./call-slim-es.ts";
 import { esChannelsSlim } from "./channels-slim-es.ts";
 import { esChatSlim } from "./chat-slim-es.ts";
@@ -49,7 +48,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "desktopInstall.open": "Abrir desktop",
   "desktopInstall.minimize": "Minimizar",
   "desktopInstall.restore": "Mostrar aviso",
-  ...noticeEs,
   ...esHelper,
   ...esOffice,
   ...esTeamShared,

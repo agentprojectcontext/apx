@@ -10,12 +10,14 @@ import {
 } from "../../data/delegation.ts";
 import { notify } from "../../data/notices.ts";
 import { useData } from "../../data/state.ts";
-import { useT } from "../../i18n/index.ts";
+import { usePack, useT } from "../../i18n/index.ts";
 import { go } from "../../shell/nav.ts";
 
 /** The notice records a past limit; its actions always describe the session now. */
 export function DelegationActions({ session }: { session: string }) {
   const t = useT();
+  // Its words are in the notices pack, loaded once a chat shows one.
+  usePack("notices");
   const thread = useData((s) => s.threads[session]);
   const runs = useData((s) => s.runs);
   const connection = useData((s) => s.connection);
