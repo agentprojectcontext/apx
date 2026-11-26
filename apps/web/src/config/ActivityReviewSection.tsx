@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { client } from "../data/client.ts";
 import { usePack, useT } from "../i18n/index.ts";
 import { ActivityReviewHistory } from "./ActivityReviewHistory.tsx";
+import { SaveBar } from "./SaveBar.tsx";
 import { SectionHead } from "./SectionHead.tsx";
 
 export function ActivityReviewSection() {
@@ -48,20 +49,16 @@ function ActivityReview() {
       setBusy(false);
     }
   };
+  const dirty = Boolean(draft && status) && JSON.stringify(draft) !== JSON.stringify(status?.settings);
   return (
     <>
       <SectionHead title={t("review.title")} lead={t("review.lead")} />
-      {error && (
+      {error && (conflict || !draft) && (
         <p role="alert" className="config__lead">
-          {t(conflict ? "review.conflict" : draft ? "review.saveError" : "review.loadError")}
+          {t(conflict ? "review.conflict" : "review.loadError")}
         </p>
       )}
       {conflict && <Button onClick={load}>{t("review.reload")}</Button>}
-      {saved && JSON.stringify(draft) === JSON.stringify(status?.settings) && (
-        <p role="status" className="config__lead">
-          {t("review.saved")}
-        </p>
-      )}
       {!draft ? (
         error ? (
           <Button onClick={load}>{t("review.retry")}</Button>
@@ -108,13 +105,17 @@ function ActivityReview() {
               {t("review.unavailable")}
             </p>
           )}
-          <Button
-            loading={busy}
-            disabled={busy || JSON.stringify(draft) === JSON.stringify(status?.settings)}
-            onClick={() => void save()}
-          >
-            {t("review.save")}
-          </Button>
+          <SaveBar
+            dirty={dirty}
+            saving={busy}
+            failed={error && !conflict && t("review.saveError")}
+            saved={saved}
+            onDiscard={() => {
+              if (status) setDraft(status.settings);
+              if (!conflict) setError(false);
+            }}
+            onSave={() => void save()}
+          />
           {status && <ActivityReviewHistory status={status} />}
         </>
       )}

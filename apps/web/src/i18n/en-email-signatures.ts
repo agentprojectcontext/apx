@@ -5,7 +5,6 @@ export const enEmailSignatures = {
   "signature.accountLead":
     "This account overrides the default. Turn automatic signing off and save to send without either signature, or use the default to remove the override.",
   "signature.useDefault": "Use default signature",
-  "signature.reload": "Reload signature",
   "signature.title": "Email signatures",
   "signature.lead": "One signature per Gmail or SMTP account, for messages and replies. You can ask to omit it.",
   "signature.account": "Email account",
@@ -29,7 +28,6 @@ export const enEmailSignatures = {
   "signature.needsText": "The plain text signature is missing.",
   "signature.noAccounts": "Connect Gmail in Resources or an Email channel in Settings to configure its signature.",
   "signature.loading": "Loading signatures…",
-  "signature.save": "Save signature",
   "signature.saved": "Signature settings saved",
   "signature.error":
     "Could not save the signature. Check the text and HTML. If it changed elsewhere, reload the signature before editing again.",

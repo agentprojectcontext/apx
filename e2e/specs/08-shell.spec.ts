@@ -35,7 +35,7 @@ test("a chain entry picks one of the model APIs' models; the CLIs are not offere
   await expect(page.getByRole("option", { name: /GPT e2e/ })).toHaveCount(0);
   await page.getByRole("option", { name: /fake-2/ }).click();
   await expect(page.getByRole("listbox", { name: "Modelos" })).toBeHidden();
-  await page.getByRole("button", { name: "Guardar router" }).click();
+  await page.getByRole("button", { name: "Guardar cambios", exact: true }).click();
   await expect
     .poll(async () => (await rpc<{ router: { chain: string[] } }>("models.config")).router.chain)
     .toContain("custom/fake-2");

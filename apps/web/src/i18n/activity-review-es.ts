@@ -15,8 +15,6 @@ export const esActivityReview: Record<keyof typeof enActivityReview, string> = {
     "Solo se consideran conversaciones recientes con vos, no contactos privados ni salas. Las propuestas aparecen en Tareas para aceptar o descartar. No se aplica nada automáticamente.",
   "review.unavailable":
     "Las revisiones están pausadas hasta que haya un modelo auxiliar disponible. Se conserva tu configuración.",
-  "review.save": "Guardar cambios",
-  "review.saved": "Cambios guardados.",
   "review.conflict":
     "Esta configuración cambió en otro lugar. Volvé a cargarla antes de guardar. Al hacerlo, se reemplazan tus cambios sin guardar.",
   "review.reload": "Volver a cargar configuración",

@@ -3,6 +3,7 @@ import { Button, Icons } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { forAgents, inCatalog, saveModelsConfig, useModels } from "../../data/models.ts";
 import { useT } from "../../i18n/index.ts";
+import { SaveBar } from "../SaveBar.tsx";
 import { RouterChain } from "./RouterChain.tsx";
 import { cleanWhen, RuleCard } from "./RuleCard.tsx";
 
@@ -56,6 +57,7 @@ export function RouterEditor() {
   const [edit, setEdit] = useState<Edit | undefined>(() => editOf(saved));
   const [base, setBase] = useState<RouterConfig | undefined>(saved);
   const [saving, setSaving] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   // Take the core's version when it changes and there is nothing unsaved here.
   useEffect(() => {
@@ -78,8 +80,10 @@ export function RouterEditor() {
 
   const save = async () => {
     setSaving(true);
+    setFailed(false);
     const next = normalize(draft);
     if (await saveModelsConfig({ router: next, default: { router: true } })) setEdit({ ...edit, router: next });
+    else setFailed(true);
     setSaving(false);
   };
 
@@ -133,20 +137,22 @@ export function RouterEditor() {
         </div>
       </div>
 
-      <div className="router__foot">
-        {unknown > 0 && (
-          <span className="router__warn">
-            <Icons.TriangleAlert size={14} />
-            {t("router.unknownRefs", { count: unknown })}
-          </span>
-        )}
-        <Button size="sm" variant="ghost" disabled={!dirty || saving} onClick={() => setEdit(editOf(saved))}>
-          {t("router.revert")}
-        </Button>
-        <Button size="sm" disabled={!dirty} loading={saving} onClick={save}>
-          {t("router.save")}
-        </Button>
-      </div>
+      {unknown > 0 && (
+        <span className="router__warn">
+          <Icons.TriangleAlert size={14} />
+          {t("router.unknownRefs", { count: unknown })}
+        </span>
+      )}
+      <SaveBar
+        dirty={dirty}
+        saving={saving}
+        failed={failed}
+        onDiscard={() => {
+          setEdit(editOf(saved));
+          setFailed(false);
+        }}
+        onSave={() => void save()}
+      />
     </div>
   );
 }

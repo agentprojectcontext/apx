@@ -12,8 +12,6 @@ export const enActivityReview = {
   "review.proposalOnly":
     "Only recent conversations with you are considered, not private contacts or rooms. Proposals appear in Tasks for you to accept or drop. Nothing is applied automatically.",
   "review.unavailable": "Reviews are paused until an auxiliary model is available. Your settings are kept.",
-  "review.save": "Save changes",
-  "review.saved": "Changes saved.",
   "review.conflict":
     "These settings changed elsewhere. Reload them before saving. Reloading replaces your unsaved edits.",
   "review.reload": "Reload settings",

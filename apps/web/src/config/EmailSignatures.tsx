@@ -4,10 +4,14 @@ import { useCallback, useEffect, useId, useState } from "react";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
 import { usePack, useT } from "../i18n/index.ts";
+import { SaveBar } from "./SaveBar.tsx";
 import { SubHead } from "./SectionHead.tsx";
 
 /** `importable`: Gmail lets APX read the signature it keeps (the owner's own Google client). */
 type Target = Pick<EmailSignatureEntry, "transport" | "account" | "sender"> & { label: string; importable?: boolean };
+type Draft = { text: string; html: string; enabled: boolean };
+const EMPTY: Draft = { text: "", html: "", enabled: true };
+const same = (a: Draft, b: Draft) => a.text === b.text && a.html === b.html && a.enabled === b.enabled;
 const keyOf = (e: Target) => JSON.stringify([e.transport, e.account, e.sender]);
 
 export function EmailSignatures({ target }: { target?: Target }) {
@@ -22,13 +26,17 @@ function SignatureEditor({ initialTarget }: { initialTarget?: Target }) {
   const id = useId();
   const [accountSaved, setAccountSaved] = useState<EmailSignatureEntry | null>(null);
   const [defaultSaved, setDefaultSaved] = useState<EmailSignatureValue | null>(null);
-  const [draft, setDraft] = useState({ text: "", html: "", enabled: true });
+  const [draft, setDraft] = useState(EMPTY);
+  // What is saved, in the draft's shape: the draft differs from it while there are unsaved changes.
+  const [base, setBase] = useState(EMPTY);
+  const [saveFailed, setSaveFailed] = useState(false);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [view, setView] = useState<"html" | "text">("html");
   const load = useCallback(async () => {
     setFailed(false);
+    setSaveFailed(false);
     setReady(false);
     try {
       let saved: EmailSignatureValue | null;
@@ -49,7 +57,9 @@ function SignatureEditor({ initialTarget }: { initialTarget?: Target }) {
         saved = (await client.call("email.signature_default_get", {})).signature;
         setDefaultSaved(saved);
       }
-      setDraft({ text: saved?.text ?? "", html: saved?.html ?? "", enabled: saved?.enabled ?? true });
+      const loaded = { text: saved?.text ?? "", html: saved?.html ?? "", enabled: saved?.enabled ?? true };
+      setDraft(loaded);
+      setBase(loaded);
       setView(saved?.html ? "html" : "text");
       setReady(true);
     } catch {
@@ -63,6 +73,7 @@ function SignatureEditor({ initialTarget }: { initialTarget?: Target }) {
   const save = async (remove = false) => {
     if (!ready || busy) return;
     setBusy(true);
+    setSaveFailed(false);
     try {
       const value: EmailSignatureValue = {
         text: draft.text,
@@ -89,10 +100,13 @@ function SignatureEditor({ initialTarget }: { initialTarget?: Target }) {
         });
         setDefaultSaved(result.signature);
       }
-      if (remove) setDraft({ text: "", html: "", enabled: true });
+      const now = remove ? EMPTY : draft;
+      setDraft(now);
+      setBase(now);
       notify(t("signature.saved"));
     } catch {
-      notify(t("signature.error"));
+      if (remove) notify(t("signature.error"));
+      else setSaveFailed(true);
     } finally {
       setBusy(false);
     }
@@ -197,10 +211,6 @@ function SignatureEditor({ initialTarget }: { initialTarget?: Target }) {
           )}
           {draft.enabled && !draft.text.trim() && <p className="pform__hint is-error">{t("signature.needsText")}</p>}
           <div className="sig__actions">
-            <Button variant="ghost" size="sm" disabled={busy} onClick={() => void load()}>
-              {t("signature.reload")}
-            </Button>
-            <span className="sig__grow" />
             <Button
               variant="secondary"
               disabled={busy || !(target ? accountSaved : defaultSaved)}
@@ -208,10 +218,16 @@ function SignatureEditor({ initialTarget }: { initialTarget?: Target }) {
             >
               {t(target ? "signature.useDefault" : "signature.remove")}
             </Button>
-            <Button disabled={busy || (draft.enabled && !draft.text.trim())} loading={busy} onClick={() => void save()}>
-              {t("signature.save")}
-            </Button>
           </div>
+          <SaveBar
+            dirty={!same(draft, base)}
+            saving={busy}
+            failed={saveFailed && t("signature.error")}
+            saveDisabled={draft.enabled && !draft.text.trim()}
+            // Reads the signature again: a change made elsewhere since (by the super-agent) shows instead of a stale one.
+            onDiscard={() => void load()}
+            onSave={() => void save()}
+          />
         </>
       )}
     </section>

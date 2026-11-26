@@ -7,6 +7,7 @@ import { notify } from "../data/notices.ts";
 import { refreshSpeech } from "../data/speech.ts";
 import { useVoice } from "../data/voice.ts";
 import { useT } from "../i18n/index.ts";
+import { SaveBar } from "./SaveBar.tsx";
 import { SectionHead, SubHead } from "./SectionHead.tsx";
 import { ServiceDialog } from "./ServiceDialog.tsx";
 import { checkText, settingsOf, testService } from "./serviceCheck.ts";
@@ -374,13 +375,22 @@ function SpeechTest({ services }: { services: ServiceInfo[] }) {
 function Defaults({ value, onSaved }: { value: ImageDefaults; onSaved(d: ImageDefaults): void }) {
   const t = useT();
   const [d, setD] = useState(value);
+  const [saving, setSaving] = useState(false);
+  const [failed, setFailed] = useState(false);
   const num = (k: keyof ImageDefaults) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setD({ ...d, [k]: Number(e.currentTarget.value) || 0 });
   const save = async () => {
+    setSaving(true);
+    setFailed(false);
     try {
-      onSaved(await client.call("services.defaults", d));
+      const saved = await client.call("services.defaults", d);
+      setD(saved);
+      onSaved(saved);
     } catch (e) {
+      setFailed(true);
       notify(t("error.services", { error: errText(e) }));
+    } finally {
+      setSaving(false);
     }
   };
   return (
@@ -410,11 +420,16 @@ function Defaults({ value, onSaved }: { value: ImageDefaults; onSaved(d: ImageDe
           onChange={(e) => setD({ ...d, negative_prompt: e.currentTarget.value })}
         />
       </SettingRow>
-      <div>
-        <Button size="sm" onClick={() => void save()}>
-          {t("common.save")}
-        </Button>
-      </div>
+      <SaveBar
+        dirty={JSON.stringify(d) !== JSON.stringify(value)}
+        saving={saving}
+        failed={failed}
+        onDiscard={() => {
+          setD(value);
+          setFailed(false);
+        }}
+        onSave={() => void save()}
+      />
     </>
   );
 }

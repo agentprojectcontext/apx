@@ -16,7 +16,9 @@ for (const language of ["en", "es"] as const) {
       const save = en ? "Save changes" : "Guardar cambios";
       const enabled = en ? "Review activity" : "Revisar actividad";
       const weekly = en ? "Weekly" : "Semanal";
-      const saved = en ? "Changes saved." : "Cambios guardados.";
+      const saved = en ? "Changes saved" : "Cambios guardados";
+      const discard = en ? "Discard" : "Descartar";
+      const unsaved = en ? "You have unsaved changes." : "Tenés cambios sin guardar.";
       const reviewChunks: string[] = [];
       page.on("request", (request) => {
         if (/\/activity-review-(?:en|es)-[^/]+\.js(?:\?|$)/.test(request.url())) reviewChunks.push(request.url());
@@ -38,18 +40,21 @@ for (const language of ["en", "es"] as const) {
       await expect(input).toHaveValue("");
       await expect(page.getByRole("switch", { name: enabled })).toBeChecked();
       await page.screenshot({ path: info.outputPath("empty.png"), fullPage: true });
-      if (width === 390) {
-        const content = page.locator(".config__content");
-        await page.screenshot({ path: info.outputPath("before-scroll.png") });
-        await content.hover();
-        await page.mouse.wheel(0, 600);
-        await expect.poll(() => content.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
-        await expect(page.getByRole("button", { name: save, exact: true })).toBeInViewport();
-        expect(await content.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
-        await page.screenshot({ path: info.outputPath("after-scroll.png") });
-      }
+      // Nothing changed: no bar. A change shows it, and Discard puts the saved settings back.
+      await expect(page.getByRole("button", { name: save, exact: true })).toHaveCount(0);
+      await input.fill("Not kept");
+      await expect(page.getByText(unsaved, { exact: true })).toBeVisible();
+      await page.getByRole("button", { name: discard, exact: true }).click();
+      await expect(input).toHaveValue("");
+      await expect(page.getByRole("button", { name: save, exact: true })).toHaveCount(0);
       await input.fill("Focus on clearer acceptance criteria");
       await page.getByRole("radio", { name: weekly, exact: true }).click();
+      // The bar stays at the bottom of the pane, in sight before any scroll, and the pane never scrolls sideways.
+      const content = page.locator(".config__content");
+      await content.evaluate((element) => element.scrollTo(0, 0));
+      await expect(page.getByRole("button", { name: save, exact: true })).toBeInViewport();
+      expect(await content.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+      await page.screenshot({ path: info.outputPath("unsaved.png") });
       await page.getByRole("button", { name: save, exact: true }).click();
       await expect(page.getByRole("status").filter({ hasText: saved })).toBeVisible();
       const settings = (await rpc<ActivityReviewStatus>("activity_review.settings")).settings;
@@ -62,7 +67,7 @@ for (const language of ["en", "es"] as const) {
       await page.getByRole("switch", { name: enabled }).click();
       await expect(input).toBeDisabled();
       await expect(page.getByRole("radio", { name: weekly, exact: true })).toBeDisabled();
-      await page.getByRole("button", { name: save, exact: true }).click();
+      await page.keyboard.press("ControlOrMeta+s");
       await expect
         .poll(async () => (await rpc<ActivityReviewStatus>("activity_review.settings")).settings.enabled)
         .toBe(false);
