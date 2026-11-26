@@ -17,6 +17,8 @@ export type ApprovalTarget = {
   browser?: BrowserConsentContext | undefined;
   /** A grant under this key covers the tool too: an MCP server's "allow all" (mcp/approval.ts). */
   group?: string | undefined;
+  /** Granted by APX's open default, not the owner (DECISIONS.md#d-279): it never covers a turn with outside content. */
+  byDefault?: true | undefined;
 };
 /** Grants that are one agent's even "for this chat": another agent in that chat is not covered (DECISIONS.md#d-151). */
 const PER_AGENT = new Set([COMPUTER_GRANT]);
@@ -183,13 +185,17 @@ export function approvalsRepo(q: Sql) {
     setBrowserConsentGuard(guard: (context: BrowserConsentContext, agent: string) => boolean): void {
       browserConsentGuard = guard;
     },
-    /** Without `agent`, only grants for every agent count; a grant with a condition needs the call's `args`. */
-    allows(a: ApprovalTarget, thread?: string, agent?: string, args?: unknown): boolean {
+    /**
+     * Without `agent`, only grants for every agent count; a grant with a condition needs the call's `args`.
+     * `ownersOnly`: only the owner's own grants count, not APX's open default (outside content is in the turn).
+     */
+    allows(a: ApprovalTarget, thread?: string, agent?: string, args?: unknown, ownersOnly = false): boolean {
       if (a.browser) return !!thread && !!agent && browser.allows(a.browser, thread, agent);
       return (
         read().some(
           (g) =>
             g.scope === "always" &&
+            !(ownersOnly && g.by_default) &&
             (g.key === a.key || (!!a.group && g.key === a.group)) &&
             (!g.agent_id || g.agent_id === agent) &&
             (!g.condition || matchesCondition(g.condition, args)),
@@ -222,6 +228,7 @@ export function approvalsRepo(q: Sql) {
         ...((scope === "always" || PER_AGENT.has(a.key)) && agent ? { agent_id: agent } : {}),
         granted_at: new Date().toISOString(),
         ...(scope === "always" && thread ? { from_thread: thread } : {}),
+        ...(a.byDefault && scope === "always" && !agent ? { by_default: true as const } : {}),
         // A folder grant names its folder where the owner sees and narrows grants.
         ...(a.key.startsWith(WRITE_FOLDER) && a.key.length - WRITE_FOLDER.length <= 200
           ? { condition: a.key.slice(WRITE_FOLDER.length) }

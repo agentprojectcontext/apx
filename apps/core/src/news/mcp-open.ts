@@ -12,7 +12,7 @@ export const MCP_OPEN_NEWS: NewsEntry = {
     es: "Una conexión que agregues ahora deja que tus agentes usen todas sus tools, y vos elegís cuáles preguntan antes. Tu agente puede revisarlas con vos desde el chat.",
   },
   applies: (facts) => (facts.mcp ?? 0) > 0,
-  text: "APX is now open by default: an MCP server the owner adds (in Resources, the CLI, an extension or by approving a project's file) lets every agent use all its tools, and the owner makes the ones they want ask first. Their existing servers kept what they had. You can review this for them: apx_settings mcp.list shows each server's tools as allowed or asking first, and mcp.toolMode sets mode all (every tool), all with ask: [tools] (all but those) or ask (none). Offer to review their servers once; change permissions only when they ask.",
+  text: "APX is now open by default: an MCP server the owner adds (in Resources, the CLI, an extension or by approving a project's file) lets every agent use all its tools, and the owner makes the ones they want ask first. Until the owner allows all themselves, its tools still ask while outside content (a page, a message, another agent) is in the turn. Their existing servers kept what they had. You can review this for them: apx_settings mcp.list shows each server's tools as allowed or asking first, and mcp.toolMode sets mode all (every tool), all with ask: [tools] (all but those) or ask (none). Offer to review their servers once; change permissions only when they ask.",
   actions: [
     {
       label: { en: "Review my MCP permissions", es: "Revisar los permisos de mis MCP" },

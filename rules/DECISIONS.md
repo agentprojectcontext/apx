@@ -6485,6 +6485,14 @@ already have changes; only what is new gets these defaults.
   to a server that allowed all (its command, an extension's settings or update, connecting again, a project file they
   approve again after it changed) keeps "allow all" for the new definition instead of dropping to "ask"; one set to ask
   stays asking. Servers saved before this have no mark and are never opened. Removing a server clears its mark.
+- **Outside content still asks** (rule 10). The grant the default gives is marked (`by_default` on the grant, set by
+  `openNew` with `byDefault`), and `approvals.allows(…, ownersOnly)` skips it. The executor passes that while outside
+  content is in the turn (the turn's own flag, not the card's reason, so Manual is covered too): a page, a contact's
+  message, another agent or an MCP tool's own answer can then not drive a new server's tool that acts, such as
+  sending mail or a message as the owner, without the owner's card. With no outside content it runs unasked, as
+  above. A pending card is never released by a default grant (`inputs.ts`). The owner's own "allow all"
+  (`mcp.toolMode`, the panel) or a tool allowed one by one replaces the mark and covers both, as before; an edit keeps
+  whoever allowed it. Total is unchanged (D-047). `mcp.list` says which servers are allowed only by default.
 - **The super-agent reviews them.** `apx_settings` `mcp.list` now also lists each server's tools as allowed or asking
   first, from what it listed last (`mcp_tools_seen`, D-219), without starting it. `mcp.toolMode` takes `ask: [tools]`
   with `mode: "all"`: those ask first and every other tool listed now is allowed one by one (D-219's "Some": tools the
@@ -6494,7 +6502,8 @@ already have changes; only what is new gets these defaults.
 Kept on purpose: the four super-agent tools (`agent_set`, `apx_settings`, `apx_flow`, `task_tidy`, D-060, D-138,
 D-184, D-202, walls under D-271) stay out of project agents' turns; a check of every other tool found no difference
 by kind except reach that D-271, D-269 and D-276 decide (outsider chats, consults, research). "Ask first" is not a
-hard block: an agent can still ask the owner on a card.
+hard block: an agent can still ask the owner on a card. A tool opened by default that sends as the owner runs
+unasked only while no outside content is in the turn.
 
 Rejected: opening servers the owner already had (they chose, or never looked; the news entry offers a review instead);
 a per-server "open" flag read by the approval check (D-219 rejected a second place to revoke); setting new agents'

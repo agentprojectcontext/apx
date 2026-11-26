@@ -405,7 +405,9 @@ export function createExecutor(o: {
       return { ok: false, text: `not run: ${failure(error)}` };
     }
     const approvalVersion = target && store.approvals.browserVersion(target, thread.id, agent.id);
-    const granted = !!target && store.approvals.allows(target, thread.id, agent.id, args);
+    // A server's tools opened by default stay behind the card while outside content is in the turn (DECISIONS.md#d-279).
+    const outside = gate.kind === "confirm" && untrusted;
+    const granted = !!target && store.approvals.allows(target, thread.id, agent.id, args, outside);
     let checkConsentAtDispatch = !!target?.browser && granted;
     let pendingBrowserScope: "tab" | "turn" | undefined;
     if (

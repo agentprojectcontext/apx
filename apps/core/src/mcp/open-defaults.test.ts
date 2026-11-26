@@ -96,7 +96,7 @@ test("the super-agent lists what each tool may do and, at the owner's word, make
   await h.env.client.call("mcp.set", { name: "desk", server: fake });
   await h.env.client.call("mcp.tools", { scope: "global", server: "desk" });
   const listed = (await h.ask({ method: "mcp.list" })).answer;
-  assert.match(listed, /- desk \(scope global\): every tool allowed, new ones too — echo, token/);
+  assert.match(listed, /- desk \(scope global\): every tool allowed as a new server \(asks while outside content/);
   assert.match(listed, /- older \(scope global\): every tool asks first — echo, token/);
 
   // In Auto, what the owner asked runs without a card.
@@ -116,6 +116,10 @@ test("the super-agent lists what each tool may do and, at the owner's word, make
   const open = { method: "mcp.toolMode", params: { scope: "global", server: "older", mode: "all" } };
   assert.match((await h.ask(open)).answer, /^done/);
   assert.equal(await mode("older"), "all");
+  assert.match(
+    (await h.ask({ method: "mcp.list" })).answer,
+    /- older \(scope global\): every tool allowed, new ones too/,
+  );
 
   // In Manual the same change shows the owner what it does first.
   const card = await h.card(

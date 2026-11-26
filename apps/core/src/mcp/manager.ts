@@ -24,7 +24,7 @@ import { fileRefs, fillFileArgs, hasFileRefs, type OpenFile, refOf } from "./fil
 import { createStderrLogs } from "./logs.ts";
 import { createProcessExits } from "./process-exits.ts";
 import { watchSignIn } from "./sign-in.ts";
-import { allowsAll, forgetOpened, openNew, setMcpToolMode } from "./tool-mode.ts";
+import { allowsAll, forgetOpened, type OpenedBy, openNew, setMcpToolMode } from "./tool-mode.ts";
 import { closeWindowsTree } from "./windows-process-tree.ts";
 
 const CONNECT_MS = 20_000;
@@ -560,15 +560,15 @@ export function createMcp(deps: {
      * grant and each tool's own for every agent go (one agent's or one chat's stay).
      */
     setToolMode: (d: McpDef, mode: "ask" | "all") => setMcpToolMode(deps.store, d, mode),
-    /** Whether every agent may use all its tools, under this definition or the one before an edit. */
+    /** Who let every agent use all its tools, under this definition or the one before an edit; none: undefined. */
     allowsAll: (d: Pick<McpDef, "scope" | "project_id" | "name">) => allowsAll(deps.store, d),
     /**
      * A server new to the owner lets agents use every tool; the owner blocks what they want (DECISIONS.md#d-279).
      * `again`: open it even if it was opened before (added anew after its removal).
      */
-    openNew: (d: McpDef, again = false) => openNew(deps.store, d, again),
-    /** A removed server is new again if it comes back. */
-    forgetOpened: (d: Pick<McpDef, "scope" | "project_id" | "name">) => forgetOpened(deps.store, d),
+    openNew: (d: McpDef, again = false, by?: OpenedBy) => openNew(deps.store, d, again, by),
+    /** A removed server is new again if it comes back (as the owner's allowed one, with `by` "owner"). */
+    forgetOpened: (d: Pick<McpDef, "scope" | "project_id" | "name">, by?: OpenedBy) => forgetOpened(deps.store, d, by),
     async describe(d: McpDef, project?: string) {
       const context = project ?? d.values_of ?? d.project_id ?? d.only;
       const eligible = defsFor(context).find((x) => keyOf(x) === keyOf(d));
