@@ -478,7 +478,7 @@ export function createExtensions(deps: {
             catalog: c.id,
             catalog_name: c.name,
             ...(e.license ? { license: e.license } : {}),
-            ...(e.publisher ? { publisher: e.publisher } : {}),
+            ...(e.publisher && e.publisher_source === "author" ? { publisher: e.publisher } : {}),
             ...(e.github ? { github: e.github } : {}),
             ...(e.homepage ? { homepage: e.homepage } : {}),
             ...(e.brings ? { brings: e.brings } : {}),

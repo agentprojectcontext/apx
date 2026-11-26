@@ -17,10 +17,18 @@ agregarla copia sus archivos y no corre nada, y conectarla aprueba exactamente l
 
 El **Marketplace**, en la barra lateral (el ícono de la tienda), es donde se buscan, agregan y conectan las
 extensiones. Todo lo que les sumás a tus agentes es una **extensión**; una etiqueta dice de dónde viene: **Incluida**
-(viene con APX: Google, Asana, los canales, el navegador), **Oficial** (la publica APX, con esos mismos archivos), **De
+(viene con APX: Google, Asana, los canales, el navegador), **Verificada por APX** (los archivos de esta versión coinciden con el catálogo revisado por APX), **De
 terceros** (otro catálogo, un archivo o una dirección que te pasaron) o **Tuya** (una carpeta que armaste, o un
-servidor que agregaste acá por su dirección). Oficial se ve como un tilde junto al nombre, Incluida y Tuya
-como una palabra chica, y De terceros sin marca: la línea debajo del nombre dice de dónde viene. Lo que trae una extensión (un
+servidor que agregaste acá por su dirección). La verificación aparece como un tilde en las listas y una insignia
+**Verificada por APX** en la ficha; Incluida y Tuya se mantienen aparte. **Creada por …** nombra a quien declara haber
+creado la extensión, no a la empresa del servicio al que se conecta. Un conector comunitario revisado puede tener
+cualquier autor; la insignia no establece propiedad ni respaldo del servicio. APX no deduce la autoría de la insignia,
+una marca ni una cuenta de GitHub. Si falta, dice **Sin autor indicado**; GitHub sólo identifica dónde está el código.
+**Agregada por vos** describe cómo la agregaste, no quién la escribió. En `apx-listing.json`, `publisher.name` indica
+al autor declarado. `publisher.verified` no otorga la insignia de revisión de APX: la decide el core mediante el
+catálogo y la procedencia de los archivos exactos. Los catálogos externos guardados sin evidencia de una declaración
+de autor no muestran creador hasta volver a leerlos en **Marketplace → Avanzado**; APX no toma el nombre guardado del
+dueño del catálogo como autoría. Lo que trae una extensión (un
 servidor MCP, habilidades, agentes, rutinas, la app de un dispositivo) va adentro de ella. Recursos queda para lo
 técnico (Skills, MCP, Variables): un servidor MCP que escribís ahí a mano sigue siendo un servidor tuyo ahí y no
 aparece en el Marketplace.
@@ -30,7 +38,7 @@ aparece en el Marketplace.
 - **Explorar** tiene la búsqueda y los filtros arriba (**Todo**, **Integraciones**, **Conectores**, **Canales**,
   **Habilidades**, **Agentes**; un filtro sin nada no aparece), después **Novedades** (mientras sean pocas las nuevas),
   cada categoría en filas compactas (las que vienen con APX en la suya, marcadas **Incluida**) y **Canales** juntos.
-  Cada fila tiene ícono, nombre y etiqueta, una línea, y debajo qué es y de quién ("Conector · De APX") con íconos
+  Cada fila tiene ícono, nombre y etiqueta, una línea, y debajo qué es y de quién ("Conector · Creada por APX") con íconos
   chicos de lo que trae y cuántos (un enchufe para su conector, un libro para sus habilidades, un robot para sus
   agentes, un teléfono para la app de un dispositivo; pasá el mouse para leerlo). Qué es sale de
   lo que trae: un **Canal** por el que habla APX; una **Integración** con código o una app propia (**Integración
@@ -55,7 +63,8 @@ aparece en el Marketplace.
   nombre cuando su ficha las nombra; si no, "Las vas a ver cuando la conectes"); sus **Habilidades**, cada una con lo
   que hace, o que no trae ninguna; sus **Agentes listos** (cada uno con **Agregar agente** una vez agregada),
   **Rutinas** (cada una con **Agregar a Rutinas**), widgets y la app para un dispositivo; y lo que **Te va a pedir**:
-  sus claves y los ajustes que necesita. Al costado: desarrollador, versión y fecha, **Seguridad y acceso** ("Puede
+  sus claves y los ajustes que necesita. El encabezado identifica al autor y la versión separados de la insignia de
+  verificación. Al costado: fecha de publicación, **Seguridad y acceso** ("Puede
   enviar datos a api.hubapi.com", "Ejecuta código en tu compu", archivos que nadie verificó), **Autorización** ("Una
   clave tuya", "Iniciás sesión en el servicio"), qué necesita y qué no hace, costo, privacidad, enlaces y su huella en
   **Detalles**. Un dato que nadie dio no aparece.
@@ -67,8 +76,8 @@ aparece en el Marketplace.
   revisaste, no son una extensión o necesita un APX más nuevo.
 - Cuando agregaste catálogos, Explorar tiene un selector de **catálogo** (todos, el de APX o uno que agregaste), cada
   uno con cuántas lista; cada filtro y la lista dicen cuántas muestran. Una extensión de otro catálogo dice quién la
-  hace ("De Anthropic"), si no la cuenta de GitHub donde está su código ("De acme en GitHub"), y si no "De terceros".
-  Oficial es sólo lo que APX publica con esos mismos archivos.
+  hace ("Creada por Acme"), si no la cuenta de GitHub donde está su código ("Código en GitHub: acme"), y si no
+  "Sin autor indicado". La verificación corresponde a los archivos exactos listados por APX, no al autor declarado.
 - Las extensiones de otro catálogo van en las categorías de APX, junto a las suyas ("database" y "monitoring" de
   Claude en Datos, "security" o "testing" en Desarrollo, "design" en Diseño y medios…); una cuya categoría no encaja
   en ninguna queda bajo el nombre de su catálogo, después de las categorías.
@@ -280,8 +289,9 @@ mirá [Llevar tu app a una extensión](/es/extend/app-to-extension/).
 
 ### Oficial o de terceros
 
-APX compara la huella de la extensión (la misma que aprueba encenderla) con el catálogo oficial de APX. Es **Oficial**
-cuando el catálogo lista ese id y esa versión con exactamente esos archivos; cualquier otra cosa, incluso un paquete
+APX compara la huella de la extensión (la misma que aprueba encenderla) con el catálogo oficial de APX. Es **Verificada
+por APX** (internamente `official`) cuando el catálogo lista ese id y esa versión con exactamente esos archivos en el
+nivel oficial; cualquier otra cosa, incluso un paquete
 oficial con un byte cambiado, es **De terceros**. No hay firma: lo que decide es que los archivos coincidan con los que
 publica APX. APX pide el catálogo solo cuando revisás o instalás una extensión, lo guarda en su carpeta y usa esa copia
 cuando no lo alcanza; sin copia, el diálogo avisa que no pudo saberlo. Otra dirección del catálogo se configura con

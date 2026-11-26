@@ -609,7 +609,6 @@ export const enResources = {
   "mkt.info": "Information",
   "mkt.about": "About",
   "mkt.screenshots": "Screenshots",
-  "mkt.kv.publisher": "Developer",
   "mkt.kv.category": "Category",
   "mkt.kv.website": "Website",
   "mkt.kv.privacy": "Privacy policy",

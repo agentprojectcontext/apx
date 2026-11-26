@@ -95,17 +95,11 @@ export function kindText(i: Item, t: T): string {
   return t(`mkt.kind.${kindOf(i)}` as MessageKey);
 }
 
-/** "From APX", "Added by you": who it comes from; nothing when no one says. */
-export function fromText(i: Item, t: T): string | undefined {
-  if (i.label === "own") return t("mkt.from.you");
-  // Third party has no mark by its name: its line says who makes it, else where its code lives, else that it is third party.
-  if (i.label === "third")
-    return i.publisher
-      ? t("mkt.from", { name: i.publisher })
-      : i.github
-        ? t("mkt.from.github", { name: i.github })
-        : t("mkt.from.thirdOnly");
-  return i.publisher ? t("mkt.from", { name: i.publisher }) : undefined;
+/** Authorship is independent of APX's review, the service's brand and who added the package. */
+export function fromText(i: Pick<Item, "label" | "publisher" | "github">, t: T): string {
+  if (i.publisher) return t("mkt.from", { name: i.publisher });
+  if (i.github) return t("mkt.from.github", { name: i.github });
+  return t(i.label === "own" ? "mkt.from.you" : "mkt.creatorUnknown");
 }
 
 const host = (u: string) => URL.parse(u)?.host ?? u;

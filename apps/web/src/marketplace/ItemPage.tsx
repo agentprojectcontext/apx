@@ -278,7 +278,7 @@ export function ItemPage({
         <div className="mkt-page__titles">
           <div className="mkt-page__name">
             <h2>{item.name}</h2>
-            <ItemLabel label={item.label} />
+            <ItemLabel label={item.label} compact={false} />
           </div>
           {by && <span className="mkt-page__by">{by}</span>}
           {tagline && <p className="mkt-page__tagline">{tagline}</p>}
