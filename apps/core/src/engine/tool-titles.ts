@@ -115,6 +115,12 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
   workflow: (a) =>
     a.resume ? `Retomó el flujo de trabajo ${str(a.resume)}` : `Lanzó el flujo de trabajo ${str(a.name ?? "")}`,
   stop_session: (a) => `Detuvo la sesión ${str(a.session)}`,
+  chat_followup: (a) =>
+    a.action === "create"
+      ? "Programó una vuelta a este chat"
+      : a.action === "cancel"
+        ? "Canceló una vuelta a este chat"
+        : "Miró las vueltas programadas",
   browser_open: (a) => `Abrió ${host(a.url)}`,
   browser_snapshot: () => "Leyó la página",
   browser_evaluate: () => "Ejecutó JavaScript en el navegador",
