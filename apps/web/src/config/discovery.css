@@ -40,24 +40,6 @@
 .discovery__inline .apx-select {
   flex: 1 1 240px;
 }
-/* Unsaved choices stay in sight while the owner scrolls the rest of the setup. */
-.discovery__savebar {
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 0;
-  border-top: 1px solid var(--apx-border);
-  background: var(--apx-surface-raised);
-  font-size: var(--apx-text-sm);
-  color: var(--apx-fg-muted);
-}
-.discovery__savebar > span {
-  flex: 1 1 auto;
-}
 .discovery__coverage {
   padding-top: 16px;
   border-top: 1px solid var(--apx-border);

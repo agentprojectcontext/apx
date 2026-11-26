@@ -40,8 +40,6 @@ export const enDiscovery = {
   "discovery.sourcePages": "Page addresses · one per line",
   "discovery.searchTerms": "What to search about it · optional",
   "discovery.removeSource": "Remove",
-  "discovery.save": "Save changes",
-  "discovery.saved": "Changes saved",
   "discovery.loadError": "Couldn't load this page.",
   "discovery.saveError": "Couldn't save. Check what you changed and try again.",
   "discovery.retry": "Try again",
@@ -84,8 +82,6 @@ export const enDiscovery = {
   "discovery.interestsHint":
     "Short topics, one to four words, searched on public search engines. Type one and press Enter or Add.",
   "discovery.add": "Add",
-  "discovery.unsaved": "You have unsaved changes.",
-  "discovery.discardChanges": "Discard",
   "discovery.searchTermsHint": "Searched on public search engines.",
   "discovery.automatic": "Automatic",
   "discovery.inRoutine": "In a routine",

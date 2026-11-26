@@ -136,6 +136,11 @@ const PACKS = {
     en: () => import("./widget-chat-en.ts").then((m) => m.enWidgetChat),
     es: () => import("./widget-chat-es.ts").then((m) => m.esWidgetChat),
   },
+  // What the system says in a chat (a model switch, a limit, a chip): only once a chat shows one.
+  notices: {
+    en: () => import("@apx/protocol/notices-en").then((m) => m.noticeEn),
+    es: () => import("@apx/protocol/notices-es").then((m) => m.noticeEs),
+  },
   // The unsaved-changes bar of Settings screens that save with a button.
   unsaved: {
     en: () => import("./unsaved-en.ts").then((m) => m.enUnsaved),

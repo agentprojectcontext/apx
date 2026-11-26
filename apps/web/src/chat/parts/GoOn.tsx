@@ -2,11 +2,13 @@ import { Button } from "@apx/ui";
 import { useState } from "react";
 import { client } from "../../data/client.ts";
 import { notify } from "../../data/notices.ts";
-import { useT } from "../../i18n/index.ts";
+import { usePack, useT } from "../../i18n/index.ts";
 
 /** A paused chain's way on: a fresh budget, or no limit until the owner writes there again (DECISIONS.md#d-081). */
 export function GoOn({ thread, resolved }: { thread: string; resolved: boolean }) {
   const t = useT();
+  // Its words are in the notices pack, loaded once a chat shows one.
+  usePack("notices");
   const [done, setDone] = useState(false);
   const [pending, setPending] = useState(false);
   if (resolved || done) return <span className="noticeline__done">{t("notice.breaker.wentOn")}</span>;

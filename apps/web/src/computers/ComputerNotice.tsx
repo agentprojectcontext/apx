@@ -12,6 +12,8 @@ type NoticeData = Extract<Part, { type: "notice" }>;
  */
 function ComputerNoticeBody({ part }: { part: NoticeData }) {
   const t = useT();
+  // Its words are in the notices pack, loaded once a chat shows one.
+  usePack("notices");
   const key = `notice.${part.code}${part.vars?.variant ? `.${part.vars.variant}` : ""}` as MessageKey;
   const text = t(key, part.vars);
   const link = typeof part.vars?.link === "string" ? appPlace(part.vars.link) : undefined;

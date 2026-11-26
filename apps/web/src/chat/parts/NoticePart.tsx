@@ -2,10 +2,12 @@ import type { Part } from "@apx/protocol";
 import { plainNotice } from "@apx/protocol/notices";
 import { ActionGroup, Button, Icons } from "@apx/ui";
 import { Suspense } from "react";
-import { isKey, type MessageKey, useT } from "../../i18n/index.ts";
+import { isKey, type MessageKey, usePack, useT } from "../../i18n/index.ts";
 import { ComputerNotice, ContinuationNotice, DelegationActions, GoOn } from "../../lazy.ts";
 import { appPlace } from "../appLinks.ts";
 import { QuietMark } from "../QuietMark.tsx";
+import { ChipPart } from "./ChipPart.tsx";
+import { isChip } from "./chips.ts";
 
 type NoticeData = Extract<Part, { type: "notice" }>;
 
@@ -21,8 +23,12 @@ const QUIET: Record<string, MessageKey> = {
  * An error shows in full. A note or a warning is one line in the actions' design: it folds only when it has more to
  * say (the error behind a model switch), otherwise the line is the whole notice.
  */
-export function NoticePart({ part }: { part: NoticeData }) {
+export function NoticePart({ part, parts }: { part: NoticeData; parts?: readonly Part[] }) {
   const t = useT();
+  // What the system says is a pack of its own, loaded with the first notice a chat shows.
+  if (!usePack("notices")) return null;
+  // Something done on the side (a note saved, research updated): one small chip for the whole answer.
+  if (parts && isChip(part)) return <ChipPart code={part.code} parts={parts} />;
   // The computer's notices say themselves with its own strings, loaded with them.
   if (part.code.startsWith("computer."))
     return (
