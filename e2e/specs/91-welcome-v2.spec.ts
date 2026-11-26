@@ -21,19 +21,19 @@ test("the owner steps through the slides and Skip closes them for good", async (
   await open(page);
   const dialog = page.getByRole("dialog", { name: "Lo nuevo de APX" });
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole("heading", { name: "El Marketplace" })).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "Agentes sin paredes" })).toBeVisible();
   await expect(dialog.getByText(`1 de ${slides.length}`, { exact: true })).toBeVisible();
   // The film could not load: the slide's still takes its place.
-  await expect(dialog.getByRole("img", { name: "El Marketplace" })).toBeVisible();
+  await expect(dialog.getByRole("img", { name: "Agentes sin paredes" })).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Atrás" })).toHaveCount(0);
 
   await dialog.getByRole("button", { name: "Siguiente" }).click();
-  await expect(dialog.getByRole("heading", { name: "Tus contactos agendan solos" })).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "Un pedido, muchos agentes" })).toBeVisible();
   await page.keyboard.press("ArrowRight");
-  await expect(dialog.getByRole("heading", { name: "Tu cuenta APX" })).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "Claude Code, con su propia cara" })).toBeVisible();
   await expect(dialog.getByText(`3 de ${slides.length}`, { exact: true })).toBeVisible();
   await dialog.getByRole("button", { name: "Atrás" }).click();
-  await expect(dialog.getByRole("heading", { name: "Tus contactos agendan solos" })).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "Un pedido, muchos agentes" })).toBeVisible();
 
   await dialog.getByRole("button", { name: "Saltear" }).click();
   await expect(dialog).toBeHidden();
@@ -81,7 +81,7 @@ test("a device that closed the 2.14.3 welcome sees only what came after it", asy
   await keep(page, { welcome: "whats-new-2.14.3" });
   await open(page);
   const dialog = page.getByRole("dialog", { name: "Lo nuevo de APX" });
-  await expect(dialog.getByRole("heading", { name: "El Marketplace" })).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "Agentes sin paredes" })).toBeVisible();
   await expect(
     dialog.getByText(`1 de ${slidesToShow(version, seenBefore("whats-new-2.14.3")).length}`, { exact: true }),
   ).toBeVisible();
