@@ -37,6 +37,12 @@ test("a room's letter faces keep their initials centred", async ({ page }) => {
     if (route.request().postDataJSON().thread !== thread.id) return route.continue();
     await route.fulfill({ json: { ok: true, result: { thread: { ...thread, kind: "group" }, messages, runs: [] } } });
   });
+  // A group loads its members' chats on its own: the fake group has none, and the core must not be asked once the
+  // test deleted it.
+  await page.route("**/rpc/threads.list", async (route) => {
+    if (route.request().postDataJSON()?.root_thread !== thread.id) return route.continue();
+    await route.fulfill({ json: { ok: true, result: { threads: [] } } });
+  });
   await open(page, `#thread=${thread.id}`);
   const faces = page.locator(".transcript__face");
   await expect(faces).toHaveCount(1);
@@ -53,6 +59,8 @@ test("a room's letter faces keep their initials centred", async ({ page }) => {
     expect(offset).toBeLessThanOrEqual(1.5);
   }
   await expect(faces.first()).toHaveText("NO");
+  // Leave the room before deleting it, so nothing on screen still asks the core about it.
+  await page.goto("about:blank");
   await page.unrouteAll({ behavior: "wait" });
   await rpc("threads.delete", { thread: thread.id });
 });
