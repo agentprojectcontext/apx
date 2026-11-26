@@ -117,6 +117,43 @@ export const DiscoveryStatus = z.object(
 );
 export type DiscoveryStatus = z.infer<typeof DiscoveryStatus>;
 
+/** What came up with the owner, added to research without touching what it already found. */
+export const DiscoveryAdd = z
+  .object(
+    schemaFields({
+      interests: () => z.array(z.string().trim().min(1).max(120)).min(1).max(10).optional(),
+      projects: () => z.array(z.string().min(1)).min(1).max(20).optional(),
+      pages: () =>
+        z
+          .array(
+            z
+              .object({
+                url: PublicPage,
+                label: z.string().trim().min(1).max(120),
+                project: z.string().min(1).optional(),
+              })
+              .strict(),
+          )
+          .min(1)
+          .max(8)
+          .optional(),
+      location: () => z.string().trim().min(1).max(120).optional(),
+    }),
+  )
+  .strict();
+export type DiscoveryAdd = z.infer<typeof DiscoveryAdd>;
+
+/** What was new among what was given: the rest research already had. */
+export const DiscoveryAdded = z.object(
+  schemaFields({
+    interests: () => z.array(z.string()),
+    projects: () => z.array(z.string()),
+    pages: () => z.array(z.object({ url: z.string(), label: z.string() })),
+    location: () => z.string().optional(),
+  }),
+);
+export type DiscoveryAdded = z.infer<typeof DiscoveryAdded>;
+
 export const discoveryMethods = {
   "discovery.settings": deferMethod({
     params: () => z.object({}).strict(),
@@ -129,6 +166,12 @@ export const discoveryMethods = {
     result: () => DiscoveryStatus,
     effect: true,
     access: "human",
+  }),
+  // The super-agent's own call too (DECISIONS.md#d-276): it only widens what research looks at.
+  "discovery.add": deferMethod({
+    params: () => DiscoveryAdd,
+    result: () => DiscoveryAdded,
+    effect: true,
   }),
   "discovery.feedback": deferMethod({
     params: () =>

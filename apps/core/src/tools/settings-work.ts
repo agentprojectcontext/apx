@@ -1,13 +1,14 @@
 // apx_settings, where the work happens and what it draws on: projects, memory, skills, MCP servers and extensions on
 // or off, media services and widgets. A project's autonomy and read-only folders and memory's model stay the owner's
 // (DECISIONS.md#d-060). An MCP server names its keys as secret://NAME, never their value (DECISIONS.md#d-141).
-import { BASE_PROJECT_ID } from "@apx/protocol";
+import { BASE_PROJECT_ID, DiscoveryAdd } from "@apx/protocol";
 import { activityReviewHistory } from "../domain/activity-review-runs.ts";
 import { discoveryState } from "../domain/discovery-state.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
 import { panelMode } from "../domain/panel-mode.ts";
 import { keyLike } from "../log.ts";
 import { imageDefaultsOf } from "../services/registry.ts";
+import { addToResearch } from "./research-add.ts";
 import { inlineName } from "./result.ts";
 import { merged, ownersField, type Params, projectName, quoted, type Setting, str } from "./settings-kit.ts";
 
@@ -149,6 +150,16 @@ export const WORK: Readonly<Record<string, Setting>> = {
       expected: store.settings.read("discovery"),
     }),
     asks: "card",
+  },
+  "discovery.add": {
+    does: "add to research what came up with the owner, without telling them or asking: interests, projects (ids) to follow, official public pages ({url, label, project?}), their city or region (location)",
+    offered: ({ store }) => store.settings.read("discovery").enabled,
+    own: {
+      // Low risk: it only widens what research reads in public (DECISIONS.md#d-276).
+      confirm: "never",
+      args: DiscoveryAdd,
+      run: (p, d, ctx) => addToResearch(DiscoveryAdd.parse(p), d.store, ctx),
+    },
   },
   "discovery.feedback": {
     does: "mark a researched finding useful, not_useful, mute or unmute (finding, feedback; read discovery.settings to identify the finding)",

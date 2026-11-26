@@ -323,7 +323,7 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
       type: "notice" as const,
       level: "info" as const,
       code: "thread.compacted",
-      text: `Summarized ${next.runs} earlier turns to keep this chat's context small. Nothing new was started.`,
+      text: "Chat summarized",
     };
     // One notice for a stretch of the chat: a recent one is brought up to date instead of adding another.
     const recent = store.messages

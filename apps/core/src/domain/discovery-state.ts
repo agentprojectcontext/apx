@@ -1,7 +1,14 @@
 import { isDeepStrictEqual } from "node:util";
-import { DiscoveryFinding, DiscoverySettings, DiscoverySourceFailure } from "@apx/protocol";
+import {
+  type DiscoveryAdd,
+  type DiscoveryAdded,
+  DiscoveryFinding,
+  DiscoverySettings,
+  DiscoverySourceFailure,
+} from "@apx/protocol";
 import { z } from "zod";
 import { conflict, notFound } from "../errors.ts";
+import { ownerTimeZone } from "./owner.ts";
 import type { Store } from "./store.ts";
 
 export const DISCOVERY_DAY = 86_400_000;
@@ -44,6 +51,27 @@ const Runtime = z.object({
     .max(500),
 });
 export type DiscoveryRuntime = z.infer<typeof Runtime>;
+
+/**
+ * Research's settings with what APX can tell on its own filled in, so turning it on asks nothing: the owner's time zone
+ * and the super-agent's one daily report (the profile's morning brief when there are several). A value the owner chose
+ * is kept; it is never turned on here (DECISIONS.md#d-276).
+ */
+function discoveryDefaults(store: Store, settings: DiscoverySettings): DiscoverySettings {
+  const zone = ownerTimeZone(store);
+  const reports = store.routines
+    .list()
+    .filter(
+      (r) => r.enabled && !r.project_id && r.action === "agent" && store.agents.get(r.agent_id)?.kind === "secretary",
+    );
+  const morning = reports.filter((r) => r.origin === "secretary:day-open");
+  const report = reports.length === 1 ? reports[0] : morning.length === 1 ? morning[0] : undefined;
+  return {
+    ...settings,
+    ...(zone && settings.timezone === "UTC" ? { timezone: zone } : {}),
+    ...(settings.report_routine === null && report ? { report_routine: report.id } : {}),
+  };
+}
 
 export function discoveryState(store: Store, now: () => Date) {
   const write = (state: DiscoveryRuntime) =>
@@ -92,11 +120,27 @@ export function discoveryState(store: Store, now: () => Date) {
     read,
     write,
     allowed,
+    /** At start, while research is off: the values it would start with are kept up to date for the panel. */
+    prefill() {
+      const before = store.settings.read("discovery");
+      if (before.enabled) return;
+      const settings = discoveryDefaults(store, before);
+      if (!isDeepStrictEqual(settings, before)) store.settings.write("discovery", settings);
+    },
     configure(patch: Partial<DiscoverySettings>, expected?: DiscoverySettings) {
       const before = store.settings.read("discovery");
       if (expected && !isDeepStrictEqual(before, expected))
         throw conflict("Discovery settings changed; reload before saving");
-      const settings = DiscoverySettings.parse({ ...before, ...patch });
+      const asked = DiscoverySettings.parse({ ...before, ...patch });
+      // Turned on: what APX can tell on its own is filled in, unless this change sets it.
+      const settings =
+        asked.enabled && !before.enabled
+          ? {
+              ...discoveryDefaults(store, asked),
+              ...(patch.timezone ? { timezone: patch.timezone } : {}),
+              ...(patch.report_routine !== undefined ? { report_routine: patch.report_routine } : {}),
+            }
+          : asked;
       for (const id of settings.project_ids) if (!store.projects.get(id)) throw notFound(`project ${id}`);
       for (const source of settings.sources)
         if (source.project && !allowed(source.project, settings))
@@ -126,6 +170,55 @@ export function discoveryState(store: Store, now: () => Date) {
           inaccessible: [],
         });
       });
+    },
+    /**
+     * Adds what came up with the owner. It only widens what research looks at, so what it found stays and its schedule
+     * is kept (DECISIONS.md#d-276); the answer is what was new.
+     */
+    add(items: DiscoveryAdd): DiscoveryAdded {
+      const before = store.settings.read("discovery");
+      if (!before.enabled) throw conflict("Research is off");
+      const has = new Set(before.interests.map((i) => i.toLowerCase()));
+      const interests = [...new Set((items.interests ?? []).map((i) => i.trim()))].filter(
+        (i) => !has.has(i.toLowerCase()),
+      );
+      if (before.interests.length + interests.length > 30) throw conflict("Research already has 30 interests");
+      for (const id of items.projects ?? [])
+        if (!allowed(id, { ...before, projects: "all" })) throw notFound(`project ${id}`);
+      const projects =
+        before.projects === "all"
+          ? []
+          : [...new Set(items.projects ?? [])].filter((id) => !before.project_ids.includes(id));
+      const known = new Set(before.sources.flatMap((s) => s.pages));
+      const pages = (items.pages ?? []).filter(
+        (p, i, all) => !known.has(p.url) && all.findIndex((q) => q.url === p.url) === i,
+      );
+      for (const page of pages)
+        if (page.project && !allowed(page.project, { ...before, project_ids: [...before.project_ids, ...projects] }))
+          throw notFound(`project ${page.project}`);
+      const location = items.location && items.location !== before.location ? items.location : undefined;
+      const settings = DiscoverySettings.parse({
+        ...before,
+        interests: [...before.interests, ...interests],
+        project_ids: [...before.project_ids, ...projects],
+        sources: [
+          ...before.sources,
+          ...pages.map((p) => ({
+            label: p.label,
+            public_terms: "",
+            pages: [p.url],
+            ...(p.project ? { project: p.project } : {}),
+          })),
+        ],
+        ...(location ? { location } : {}),
+      });
+      if (!isDeepStrictEqual(settings, before)) store.settings.write("discovery", settings);
+      return {
+        interests,
+        projects,
+        pages: pages.map(({ url, label }) => ({ url, label })),
+        ...(location ? { location } : {}),
+      };
     },
     feedback(id: string, feedback: "useful" | "not_useful" | "mute" | "unmute") {
       store.tx(() => {

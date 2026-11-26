@@ -6374,3 +6374,41 @@ Not decided here: renaming the code's own `apc` names (`apps/core/src/apc`, the 
 
 Docs impact: updated concepts/projects (a section on the move), concepts/agents, start/from-v1, reference/cli,
 extend/skills and every page naming the folder, in English and Spanish; news entry `agent-folder` (2.17.0).
+
+<a id="d-276"></a>
+## D-276 — 2026-11-26 — Research fills in from the chat, and quiet work shows as small chips
+The owner wants APX chat-first: features set themselves up from conversation, settings screens only review and edit,
+and the chat shows small chips instead of notices that read like a log. Contextual research had to be configured
+up front, every change on an approval card (`discovery.configure`), and turning it on left the time zone and the
+report to choose.
+
+- **Adding is low risk; it asks nothing.** `discovery.add` (protocol) takes interests, project ids, official public
+  pages and a city or region, and only adds what is new: it keeps what research found, its schedule and its cooldowns,
+  since it only widens what research reads in public. The super-agent reaches it as an `apx_settings` method of its
+  own (`own`, `confirm: "never"`), without the owner's card or D-140's gate, because the owner's word is checked
+  there instead: only a run the owner started (their message, or their answer to a question) adds anything; a page is
+  dropped when outside content is in the turn, so a web page cannot steer research to another page. The handler
+  refuses every agent but the super-agent and every outside app (no agent named). Turning research on or off, its
+  scope and its limits keep `discovery.configure`'s card.
+- **Only while research is on.** The method is offered (`Setting.offered`) and the system prompt carries one line
+  about it (`RESEARCH` in `engine/context.ts`, 194 characters, no new tool) only while `discovery.enabled` is true. Off:
+  no line, no method, nothing said. `prompt-budget.test.ts` measures the default turn with research on as well.
+- **Defaults instead of questions.** While research is off, APX keeps the values it would start with filled in at each
+  start (`discoveryState.prefill`): the profile's time zone and the super-agent's one enabled global report, or its
+  morning brief (`secretary:day-open`) when it has several. Turning it on fills them again unless that change sets them.
+  Projects default to all, limits to the defaults. Research is never turned on for an owner who did not.
+- **One offer.** Turning research on has the super-agent offer once, in its home chat, to fill it from what it already
+  knows (`news.offer` and the `research-from-chat` entry, recorded under `news_offered`, so a fresh install that knows
+  every entry still gets it). The action asks at most one question.
+- **Chips.** `remember` and `discovery.add` add a notice part (`memory.saved`, `research.updated`) naming their tool
+  call; the chat shows one small line per kind per answer that opens to what was saved or added (`ActionGroup`), and
+  the steps they stand for leave the turn's steps. The compaction notice is now one short line, "Chat summarized", with
+  no fold; stored ones read the same.
+
+Rejected: a new tool (footprint ladder, rules/PROMPT_SIZE.md: one `apx_settings` method costs only the prompt line);
+`discovery.configure` with `asks: "untrusted"` (it discards cached findings and restarts research on every change);
+asking the owner on a card when outside content is in the turn (the owner wanted no cards for this; the page is left
+out instead).
+
+Docs impact: updated office/contextual-research and office/chat in English and Spanish, rules/SUPER_AGENT_POWERS.md,
+rules/PROMPT_SIZE.md and news (`research-from-chat`, 2.17.2).

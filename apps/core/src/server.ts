@@ -93,6 +93,7 @@ import { agentFiles } from "./mcp/file-args.ts";
 import { createMcp } from "./mcp/manager.ts";
 import { createCatalog } from "./models/catalog.ts";
 import { createNews } from "./news/news.ts";
+import { RESEARCH_FROM_CHAT_NEWS } from "./news/research-from-chat.ts";
 import { nodeChildEnv } from "./node-runtime.ts";
 import { createNodeBroker } from "./nodes/broker.ts";
 import { installChromeHost } from "./nodes/chrome-host.ts";
@@ -784,6 +785,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     llm,
     models: () => upkeep.auxModels(),
     ...(opts.clock ? { now: opts.clock } : {}),
+    onEnabled: () => void news.offer(RESEARCH_FROM_CHAT_NEWS.id).catch(() => {}),
   });
   const extensionEvents = createExtensionEvents({
     store,

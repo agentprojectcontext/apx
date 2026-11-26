@@ -1,15 +1,22 @@
-import type { DiscoverySettings, DiscoveryStatus } from "@apx/protocol";
+import type { DiscoveryAdd, DiscoverySettings, DiscoveryStatus } from "@apx/protocol";
 import { DISCOVERY_DAY, discoveryState } from "../domain/discovery-state.ts";
+import { unauthorized } from "../errors.ts";
 import type { BackgroundCheck } from "./background.ts";
 import { type DiscoveryCycleDeps, runDiscoveryCycle } from "./discovery-cycle.ts";
 
 export function createDiscovery(
-  deps: DiscoveryCycleDeps & { now?: () => Date; deadline?: (ms: number) => AbortSignal },
+  deps: DiscoveryCycleDeps & {
+    now?: () => Date;
+    deadline?: (ms: number) => AbortSignal;
+    /** Research was just turned on: the super-agent offers, once, to fill it from what it knows. */
+    onEnabled?: () => void;
+  },
 ) {
   const { store } = deps;
   const clock = deps.now ?? (() => new Date());
   const state = discoveryState(store, clock);
   if (state.read().state === "working") state.write({ ...state.read(), state: "uncertain" });
+  state.prefill();
   let generation = 0;
   let stopped = false;
   let controller: AbortController | undefined;
@@ -41,8 +48,10 @@ export function createDiscovery(
     if (runtime.state === "working") state.write({ ...runtime, state: "cancelled" });
   }
   function configure(patch: Partial<DiscoverySettings>, expected?: DiscoverySettings) {
+    const was = store.settings.read("discovery").enabled;
     state.configure(patch, expected);
     cancel();
+    if (!was && store.settings.read("discovery").enabled) deps.onEnabled?.();
     return status();
   }
   async function review(at: Date) {
@@ -97,6 +106,12 @@ export function createDiscovery(
   return {
     status,
     configure,
+    /** The super-agent's own call, or the owner's: only the super-agent among agents (DECISIONS.md#d-276). */
+    add(items: DiscoveryAdd, agent?: string) {
+      if (agent !== undefined && store.agents.get(agent)?.kind !== "secretary")
+        throw unauthorized("Research is the super-agent's");
+      return state.add(items);
+    },
     check,
     feedback(id: string, feedback: "useful" | "not_useful" | "mute" | "unmute") {
       state.feedback(id, feedback);

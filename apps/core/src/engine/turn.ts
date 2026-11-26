@@ -792,6 +792,7 @@ function systemFor(
     told,
     consult ? "" : placeOf(store, turn.agent),
     panelMode(store) === "simple" && !consult,
+    !consult && store.settings.read("discovery").enabled,
   );
   return {
     text,

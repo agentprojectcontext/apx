@@ -77,6 +77,8 @@ export function notesText(
   return parts.length ? { text: parts.join("\n"), ids } : { ids };
 }
 
+const MEMORY_CHIP = "memory.saved";
+
 export function memoryTools(store: Store): Tool[] {
   return [
     defineTool({
@@ -99,6 +101,15 @@ export function memoryTools(store: Store): Tool[] {
           scope,
           tainted: ctx.untrusted(),
           ...(a.id ? { id: a.id } : {}),
+        });
+        // A small chip in the answer, opened to what was saved (the step itself stays out of the turn's steps).
+        ctx.upsertPart((p) => p.type === "notice" && p.code === MEMORY_CHIP && p.vars?.call === ctx.callId, {
+          type: "notice",
+          level: "info",
+          code: MEMORY_CHIP,
+          text: "Saved to memory",
+          detail: a.text,
+          ...(ctx.callId ? { vars: { call: ctx.callId } } : {}),
         });
         return `saved as ${m.id} (${m.scope}).`;
       },
