@@ -15,6 +15,7 @@ import { continuationMethods } from "./continuations.ts";
 import { deferMethod } from "./defer-method.ts";
 import { desktopInstallMethods } from "./desktop-install.ts";
 import { deviceMethods } from "./device-methods.ts";
+import { discoveryMethods } from "./discovery.ts";
 import { emailSignatureMethods } from "./email-signatures.ts";
 import { engineUsageMethods } from "./engine-usage.ts";
 import { environmentMethods } from "./environment-methods.ts";
@@ -152,6 +153,7 @@ export const methods = {
   ...usageMethods,
   ...storageMethods,
   ...activityReviewMethods,
+  ...discoveryMethods,
   ...agentMigrationMethods,
   ...instanceMethods,
   ...engineUsageMethods,

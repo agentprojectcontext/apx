@@ -1,5 +1,6 @@
 import { loadConfig } from "../apps/core/src/config.ts";
 import { createCore } from "../apps/core/src/server.ts";
+import { fakeDiscoveryWeb } from "./fake-contextual-research.ts";
 import { fakeDesktopApp } from "./fake-desktop-app.ts";
 import { fakeDesktopTrash } from "./fake-desktop-trash.ts";
 
@@ -13,10 +14,12 @@ const config = loadConfig();
 let stoppedAt: number | undefined;
 process.on("message", (m: { clock: string | null }) => {
   stoppedAt = m.clock ? Date.parse(m.clock) : undefined;
+  core.scheduler.tick();
   process.send?.({ clock: m.clock });
 });
 process.channel?.unref();
 const core = await createCore(config, {
+  discoveryWeb: fakeDiscoveryWeb,
   clock: () => (stoppedAt === undefined ? new Date() : new Date(stoppedAt)),
   desktop: {
     reveal: async () => {},

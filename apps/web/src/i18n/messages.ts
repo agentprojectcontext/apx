@@ -24,6 +24,10 @@ const PACKS = {
     en: () => import("./telemetry-settings-en.ts").then((m) => m.enTelemetrySettings),
     es: () => import("./telemetry-settings-es.ts").then((m) => m.esTelemetrySettings),
   },
+  discovery: {
+    en: () => import("./discovery-en.ts").then((m) => m.enDiscovery),
+    es: () => import("./discovery-es.ts").then((m) => m.esDiscovery),
+  },
   publicCopies: {
     en: () => import("./public-copies-en.ts").then((m) => m.enPublicCopies),
     es: () => import("./public-copies-es.ts").then((m) => m.esPublicCopies),

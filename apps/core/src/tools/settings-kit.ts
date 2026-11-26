@@ -26,7 +26,7 @@ export type Setting = {
   /** What it does, in the list the agent reads. */
   does: string;
   /** A read: answered from the store, with no confirmation. */
-  read?: (p: Params, d: SettingsDeps) => string;
+  read?: (p: Params, d: SettingsDeps, caller?: Pick<ToolContext, "agent">) => string;
   /** The card's first line: what changes, named as the owner names it. */
   says?: (p: Params, d: SettingsDeps) => string;
   /** The params that first line already says (the record it names), left off the lines under it. */

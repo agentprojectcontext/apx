@@ -10,6 +10,7 @@ import { countryOf, whatsappDigits } from "../channels/phone.ts";
 import { autoApproves } from "../channels/stickers.ts";
 import { normalJid } from "../channels/whatsapp-address.ts";
 import { publicOutbox } from "../domain/channels.ts";
+import { composeDiscoveryReport } from "../domain/discovery-report.ts";
 import { dayStart } from "../domain/hours.ts";
 import { appOnly, noticePrefs, saveNoticePrefs } from "../domain/notices.ts";
 import { ownerTimeZone } from "../domain/owner.ts";
@@ -27,7 +28,12 @@ import type { Handlers } from "./router.ts";
 /** How long a send waits for the platform's answer before saying it is still queued (the tools have 15 s). */
 const SETTLE_MS = 8_000;
 
-export function channelHandlers(store: Store, channels: Channels, nudges: Pick<Nudges, "offer">) {
+export function channelHandlers(
+  store: Store,
+  channels: Channels,
+  nudges: Pick<Nudges, "offer">,
+  now: () => Date = () => new Date(),
+) {
   /** A message an agent sent, with how it went: an agent must not say it went when the platform refused it. */
   const withDelivery = async ({ outbox, at: _at, ...sent }: ReturnType<Channels["postInRoom"]>) => ({
     ...sent,
@@ -117,6 +123,7 @@ export function channelHandlers(store: Store, channels: Channels, nudges: Pick<N
     },
     // Open to agents (the owner's, never a contact's turn): their way to write to a contact for the owner.
     "channels.message": async ({ person, text, channel, files, omit_signature, stay }, ctx) => {
+      if (person === OWNER_ID && ctx.agent) text = composeDiscoveryReport(store, ctx.agent.run_id, text, now());
       let sent: ReturnType<typeof channels.messageContact> | undefined;
       const send = () => {
         try {

@@ -28,6 +28,7 @@ import { CONTACT_AGENT_NEWS } from "./contact-agent.ts";
 import { CONTACT_BOOKING_NEWS } from "./contact-booking.ts";
 import { CONTACT_CONSULT_REFERENCE_NEWS } from "./contact-consult-reference.ts";
 import { CONTACT_NOTES_NEWS, CONTACT_PROJECT_READING_NEWS } from "./contact-notes.ts";
+import { CONTEXTUAL_RESEARCH_NEWS } from "./contextual-research.ts";
 import { EVENT_MUTE_NEWS } from "./event-mute.ts";
 import { EXTENSION_EVENTS_NEWS } from "./extension-events.ts";
 import { EXTERNAL_SESSIONS_NEWS } from "./external-sessions.ts";
@@ -180,6 +181,7 @@ export const NEWS: readonly NewsEntry[] = [
   ROOM_HANDOFF_NEWS,
   HOME_CHANNEL_SWITCH_NEWS,
   ACTIVITY_REVIEW_NEWS,
+  CONTEXTUAL_RESEARCH_NEWS,
   AGENT_PROMPTS_NEWS,
   AGENT_REVIEW_NEWS,
   AGENT_MIGRATION_NEWS,

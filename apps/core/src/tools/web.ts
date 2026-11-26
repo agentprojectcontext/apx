@@ -78,14 +78,24 @@ async function publicUrl(raw: string): Promise<URL> {
   return u;
 }
 
-/** GET with redirects followed by hand, each hop checked again; the body cut at MAX_BYTES. */
+export class PublicPageScopeError extends Error {
+  constructor() {
+    super("The page is outside the authorized sources");
+    this.name = "PublicPageScopeError";
+  }
+}
+
+/** GET with redirects followed by hand, each hop authorized before DNS or connection; body cut at MAX_BYTES. */
 export async function getPublic(
   raw: string,
   signal: AbortSignal,
   headers: Record<string, string> = {},
+  authorize?: (url: URL) => boolean,
 ): Promise<{ url: string; type: string; body: string; status: number }> {
-  let url = await publicUrl(raw);
+  let url = new URL(raw);
   for (let hop = 0; ; hop++) {
+    if (authorize && !authorize(url)) throw new PublicPageScopeError();
+    url = await publicUrl(url.toString());
     const res = await fetch(url, {
       redirect: "manual",
       signal: AbortSignal.any([signal, AbortSignal.timeout(30_000)]),
@@ -93,8 +103,9 @@ export async function getPublic(
     });
     const next = res.headers.get("location");
     if (res.status >= 300 && res.status < 400 && next) {
+      await res.body?.cancel().catch(() => {});
       if (hop >= MAX_REDIRECTS) throw new Error("too many redirects");
-      url = await publicUrl(new URL(next, url).toString());
+      url = new URL(next, url);
       continue;
     }
     const type = res.headers.get("content-type") ?? "";
@@ -199,6 +210,29 @@ const ENGINES: Array<{ name: string; url: (q: string) => string; parse: (html: s
 /** What a sealed chat (a room, a contact's) may get when its channel allows research: nothing else opens with it. */
 export const WEB_TOOLS: ReadonlySet<string> = new Set(["web_search", "web_read"]);
 
+export async function searchPublic(
+  query: string,
+  limit: number,
+  signal: AbortSignal,
+): Promise<{ hits: Hit[]; engine: string; failed: string[]; available: boolean }> {
+  const failed: string[] = [];
+  let available = false;
+  for (const engine of ENGINES) {
+    try {
+      const page = await getPublic(engine.url(query), signal, { "accept-language": "es,en;q=0.8" });
+      if (page.status >= 400) throw new Error(`HTTP ${page.status}`);
+      available = true;
+      const hits = engine.parse(page.body).slice(0, limit);
+      if (hits.length) return { hits, engine: engine.name, failed, available };
+      failed.push(`${engine.name}: no results`);
+    } catch (err) {
+      if (signal.aborted) throw err;
+      failed.push(`${engine.name}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  return { hits: [], engine: "", failed, available };
+}
+
 export function webTools(): Tool[] {
   return [
     defineTool({
@@ -213,23 +247,11 @@ export function webTools(): Tool[] {
       deadlineMs: 60_000,
       title: (a) => `Searched ${String(a.query ?? "").slice(0, 80)}`,
       async run(a, ctx) {
-        const failed: string[] = [];
-        for (const e of ENGINES) {
-          try {
-            const page = await getPublic(e.url(a.query), ctx.signal, { "accept-language": "es,en;q=0.8" });
-            const hits = e.parse(page.body).slice(0, a.limit ?? 6);
-            if (!hits.length) {
-              failed.push(`${e.name}: no results`);
-              continue;
-            }
-            const list = hits.map((h, i) => `${i + 1}. ${h.title}\n   ${h.url}${h.snippet ? `\n   ${h.snippet}` : ""}`);
-            return untrusted("web_search", { query: a.query, engine: e.name }, list.join("\n"));
-          } catch (err) {
-            if (ctx.signal.aborted) throw err;
-            failed.push(`${e.name}: ${err instanceof Error ? err.message : String(err)}`);
-          }
-        }
-        return `no search engine answered (${failed.join("; ")}). If the desktop app is open, try the browser.`;
+        const { hits, engine, failed } = await searchPublic(a.query, a.limit ?? 6, ctx.signal);
+        if (!hits.length)
+          return `no search engine answered (${failed.join("; ")}). If the desktop app is open, try the browser.`;
+        const list = hits.map((h, i) => `${i + 1}. ${h.title}\n   ${h.url}${h.snippet ? `\n   ${h.snippet}` : ""}`);
+        return untrusted("web_search", { query: a.query, engine }, list.join("\n"));
       },
     }),
     defineTool({

@@ -2,6 +2,7 @@
 // or off, media services and widgets. A project's autonomy and read-only folders and memory's model stay the owner's
 // (DECISIONS.md#d-060). An MCP server names its keys as secret://NAME, never their value (DECISIONS.md#d-141).
 import { BASE_PROJECT_ID } from "@apx/protocol";
+import { discoveryState } from "../domain/discovery-state.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
 import { panelMode } from "../domain/panel-mode.ts";
 import { keyLike } from "../log.ts";
@@ -117,6 +118,41 @@ export const WORK: Readonly<Record<string, Setting>> = {
     does: "a project's helper, which suggests the next step (project; enabled, goal, first_result)",
     says: (p, { store }) => `Change the helper of ${projectName(store, p.project)}`,
     now: (p, { store }) => ({ project: p.project, ...store.settings.read("project_helper")[str(p.project)] }),
+  },
+  "discovery.settings": {
+    does: "contextual research settings, project coverage, findings and source evidence",
+    read: (_p, { store }, caller) => {
+      if (caller?.agent.kind !== "secretary")
+        return "Contextual research is managed by the super-agent; its private findings are not available to project agents.";
+      const state = discoveryState(store, () => new Date());
+      const runtime = state.read();
+      return JSON.stringify({
+        settings: store.settings.read("discovery"),
+        state: runtime.state,
+        next_at: runtime.next,
+        findings: runtime.findings.filter((finding) => state.allowed(finding.project)),
+        muted_topics: runtime.muted_topics
+          .filter((item) => state.allowed(item.project))
+          .map(({ id, title }) => ({ id, title })),
+        coverage: Object.fromEntries(Object.entries(runtime.coverage).filter(([project]) => state.allowed(project))),
+      });
+    },
+  },
+  "discovery.configure": {
+    does: "configure contextual research (enabled, projects all or selected, project_ids, project_context, project_websites, interest_news, sources with public pages and public_terms, interests, optional location, deep_every_days, timezone, report_routine, max_model_calls, max_pages, max_seconds, cooldown_days)",
+    says: () => "Change contextual research",
+    whole: true,
+    now: (_p, { store }) => store.settings.read("discovery"),
+    keep: (p, { store }) => ({
+      ...merged(store.settings.read("discovery"), p),
+      expected: store.settings.read("discovery"),
+    }),
+    asks: "card",
+  },
+  "discovery.feedback": {
+    does: "mark a researched finding useful, not_useful, mute or unmute (finding, feedback; read discovery.settings to identify the finding)",
+    says: () => "Update feedback on a researched finding",
+    asks: "untrusted",
   },
   "activity_review.settings": {
     does: "whether APX reviews new activity and proposes improvements; daily or weekly, extra details",

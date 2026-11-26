@@ -84,6 +84,7 @@ import {
   workspaceBlock,
 } from "./context.ts";
 import { type Caller, type DelegateTo, resultCard } from "./delegation.ts";
+import { discoveryReplyContext } from "./discovery-reply.ts";
 import { type Display, openDisplay } from "./display.ts";
 import { createExecutor, type Executor } from "./executor.ts";
 import { flowEditorBlock } from "./flow-editor.ts";
@@ -642,6 +643,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
             computer,
             release: ownerTurn ? releaseBlock(store.threads.context(thread.id).release) : undefined,
             feedback: o.kind === "routine" ? ratingNote(store, `routine:${o.name}`) || undefined : undefined,
+            research: ownerTurn && o.kind !== "routine" ? discoveryReplyContext(store, thread.id, agent.id) : undefined,
             // The owner's channel lands in Home: what went out on it meanwhile is what they may be answering.
             meanwhile:
               thread.kind === "home" && (o.kind === "user" || (o.kind === "channel" && o.role === "owner"))

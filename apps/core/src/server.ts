@@ -40,12 +40,13 @@ import { TERMINAL } from "./domain/runs.ts";
 import { seed } from "./domain/seed.ts";
 import { createStore } from "./domain/store.ts";
 import { announceRelease } from "./domain/whats-new.ts";
-import { createActivityReview } from "./engine/activity-review.ts";
 import { createAside } from "./engine/aside.ts";
 import { createAttention } from "./engine/attention.ts";
 import { keepAwake, sleepWatch } from "./engine/awake.ts";
 import { calendarReminders } from "./engine/calendar-reminders.ts";
 import { createCalls } from "./engine/calls.ts";
+import { contextualServices } from "./engine/contextual-services.ts";
+import type { DiscoveryWeb } from "./engine/discovery-research.ts";
 import { createEngine, type RunTimers } from "./engine/engine.ts";
 import { createGroups } from "./engine/group.ts";
 import type { InputWaits } from "./engine/inputs.ts";
@@ -170,8 +171,11 @@ export type CoreOptions = {
   extensionFetch?: typeof fetch;
   /** What asks an integration's remote server whether it takes the owner's account; tests pass a fake. */
   integrationFetch?: typeof fetch;
+  /** Audio converter; tests avoid probing the host or downloading a program. */
+  ffmpeg?: Parameters<typeof createServices>[0]["ffmpeg"];
   quiet?: boolean;
   llm?: Llm;
+  discoveryWeb?: DiscoveryWeb;
   harnesses?: Partial<Record<HarnessId, Harness>>;
   /** Tests add tools of their own next to the built-in ones. */
   extraTools?: Tool[];
@@ -527,6 +531,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   });
   const services = createServices({
     voice: voiceEngine,
+    ffmpeg: opts.ffmpeg,
     store,
     secrets,
     home: config.home,
@@ -773,8 +778,9 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const stopAgentReviews = watchAgentReviews(store, bus, (error) =>
     log.warn({ err: errorMessage(error) }, "agent review scan failed"),
   );
-  const activityReview = createActivityReview({
+  const contextual = contextualServices({
     store,
+    web: opts.discoveryWeb,
     llm,
     models: () => upkeep.auxModels(),
     ...(opts.clock ? { now: opts.clock } : {}),
@@ -795,7 +801,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     flowTick: (at) => flows.tick(at),
     checks: (remind) => [
       { id: "extension-events", everyMs: 15000, run: () => extensionEvents.tick() },
-      activityReview.check,
+      ...contextual.checks,
       storage.check,
       retention.check,
       localApps.check,
@@ -863,10 +869,12 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
 
   const dispatch = createRouter(
     coreHandlers({
+      ...(opts.clock ? { clock: opts.clock } : {}),
       extensionEvents,
       account,
       publications,
-      activityReview,
+      activityReview: contextual.activityReview,
+      discovery: contextual.discovery,
       vm,
       internal,
       permissions,
@@ -1053,7 +1061,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       headless?.close();
       scheduler.stop();
       await extensionEvents.close();
-      await activityReview.close();
+      await contextual.close();
       stopFlowEvents();
       await flows.close();
       await news.stop();

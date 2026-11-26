@@ -1,0 +1,53 @@
+.discovery__stack,
+.discovery__fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+.discovery__fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.discovery__fieldset .apx-select {
+  max-width: 100%;
+  min-width: 0;
+}
+.discovery__choices {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.discovery__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.discovery__coverage {
+  padding-top: 16px;
+  border-top: 1px solid var(--apx-border);
+  font-size: var(--apx-text-sm);
+  color: var(--apx-fg-muted);
+}
+.discovery__coverage p {
+  margin: 4px 0;
+}
+.discovery__evidence,
+.discovery__sourceFailure {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.discovery__evidence small {
+  display: block;
+  margin-top: 4px;
+  color: var(--apx-fg-muted);
+}
+.discovery__evidence blockquote {
+  margin: 8px 0 16px;
+  padding-left: 12px;
+  border-left: 2px solid var(--apx-border);
+  font-size: var(--apx-text-sm);
+  color: var(--apx-fg-muted);
+}

@@ -18,6 +18,25 @@ test("a check runs on the first beat, then once its interval passed", () => {
   assert.equal(ran.length, 2);
 });
 
+test("a clock corrected backwards does not freeze background checks until the old date returns", () => {
+  let calls = 0;
+  const bg = createBackground(log, [
+    {
+      id: "daily",
+      everyMs: 60_000,
+      run: () => {
+        calls++;
+      },
+    },
+  ]);
+  bg.tick(at(60));
+  bg.tick(at(0));
+  bg.tick(at(15));
+  assert.equal(calls, 2);
+  bg.tick(at(60));
+  assert.equal(calls, 3);
+});
+
 test("a slow check is never started twice, and one that fails does not stop the others", async () => {
   let release: () => void = () => {};
   let started = 0;

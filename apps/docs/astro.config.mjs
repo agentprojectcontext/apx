@@ -113,6 +113,7 @@ export default defineConfig({
             "docs/office/tasks",
             "docs/office/routines",
             "docs/office/secretary",
+            "docs/office/contextual-research",
             "docs/office/code",
             "docs/office/email",
             "docs/office/calls",

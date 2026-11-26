@@ -51,6 +51,7 @@ const AREA: Readonly<Record<string, string>> = {
   projects: "a project",
   memory: "memory",
   activity_review: "activity review",
+  discovery: "contextual research",
   skills: "the skills",
   resources: "a project's skills and servers",
   mcp: "an MCP server",
@@ -265,7 +266,7 @@ export function areaTool(spec: AreaToolSpec, deps: SettingsDeps): Tool {
           .join("\n");
       const s = settingOf(a.method);
       if (typeof s === "string") return s;
-      if (s.setting.read) return s.setting.read(a.params ?? {}, deps);
+      if (s.setting.read) return s.setting.read(a.params ?? {}, deps, ctx);
       if (s.setting.own) return a.params ? s.setting.own.run(a.params, deps, ctx) : `${a.method}: ${s.setting.does}`;
       if (!a.params) {
         const { $schema: _, ...schema } = z.toJSONSchema(methods[s.name].params, { io: "input" }) as Params;
