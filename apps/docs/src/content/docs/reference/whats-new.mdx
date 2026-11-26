@@ -1,0 +1,91 @@
+---
+title: What's new
+description: What each APX release added that you can see and use, with a link to where each part is explained.
+sidebar:
+  order: 5
+---
+
+When APX starts on a newer version, your super-agent opens a chat with what changed and offers the new things that
+fit how you use it (see [Updates](/start/install/#updates)). This page keeps that list for later, with a link to the page
+that explains each part. Fixes that only make something work as it already should are left out.
+
+## 2.17.2
+
+- Research fills itself in while you chat. Mention an interest, a project to follow, a public page or where you
+  live, and your super-agent adds it to your research; a small **Research updated** line under its answer opens to
+  what it added. See [Contextual research](/office/contextual-research/).
+- Quiet work in a chat shows as small lines instead of steps: **Saved to memory**, **Research updated** and
+  **Chat summarized**. See [Talking to an agent](/office/chat/#talking-to-an-agent).
+- **Settings › Review and improvements** lists past reviews: when each ran, how many chats it read, and what became
+  of every improvement it suggested. See [History](/office/secretary/#history).
+
+## 2.17.1
+
+- Contextual research, off until you turn it on: APX looks at public sources in the context of your projects and
+  interests and adds one supported finding to a report you already get. **Settings › Research** has the switch, the
+  setup and your reports, with a bar at the bottom to save or discard changes. See
+  [Contextual research](/office/contextual-research/).
+
+## 2.17.0
+
+### Agents
+
+- Your agents work across all your projects and chats, and say where they acted. A role or a `tools:` list says what
+  an agent is good at and uses first; it no longer makes it refuse your work. See
+  [What your agents can reach](/concepts/agents/#what-your-agents-can-reach).
+- Big jobs run as workflows: several agents at once, each result checked before the next stage, on one card you can
+  stop and resume. See [Workflows](/concepts/agents/#workflows).
+- A delegated agent that hits its step or time limit keeps going in the same conversation while it makes progress,
+  and the chat shows a quiet notice with what it has done so far. Teammates asked from any of a task's chats show
+  under that task in the Inbox. See [Delegation](/concepts/agents/#delegation) and
+  [Tasks](/office/tasks/#attachments-and-task-chat-actions).
+- A Claude Code or Codex session an agent opens shows as that engine, named after its task, with a **Started by**
+  chip back to the chat that asked. See [Sessions your agent starts](/office/code/#sessions-your-agent-starts).
+- Your super-agent makes the settings changes you ask for in Auto without a card each time: memory's search by
+  meaning, models, voice, transcription, a media service, and which tools another agent may use. Deleting for good,
+  keys and who reaches you still wait for you. See [Change settings from chat](/office/secretary/#change-settings-from-chat)
+  and [Deleting](/concepts/autonomy/#deleting).
+
+### Chats and follow-ups
+
+- Ask an agent to come back to the same chat once, at a time or when a task finishes ("When this task finishes,
+  check its result"). The receipt has **Cancel**, and the result lands in that chat. See
+  [Return to this chat once](/office/routines/#return-to-this-chat-once).
+- Files and changed files open in tabs in the side panel. See [The panels you'll use](/office/code/#the-panels-youll-use).
+
+### Models
+
+- **Settings › Helper model** shows what the small background model does and lets you pick it with backups in order.
+  See [The helper model](/concepts/models/#the-helper-model).
+- When one model fails for a passing reason and the rest are at their limit, the turn asks the list again before it
+  waits for a limit to lift. See [An agent's own fallbacks](/concepts/models/#an-agents-own-fallbacks).
+
+### Projects
+
+- A project's agents, notes and skills live in `.apx/`. APX moves an older `.apc/` folder there by itself, at start and
+  when you add a project. See [Projects from earlier versions](/concepts/projects/#projects-from-earlier-versions-apc).
+
+### Browser
+
+- At a sign-in page your agent finds the username and password you saved for that site, or asks you to type them on
+  a card it never sees. See [Signing in with your saved passwords](/office/browser/#signing-in-with-your-saved-passwords).
+- Agents can save browser work that worked as a recipe and repeat it later in one step, attaching files on the way.
+  See [Repeating a job: recipes](/office/browser/#repeating-a-job-recipes).
+
+### Contacts
+
+- An agent you assign to a contact can answer from its project's notes when you allow it, and, with project reading
+  on for that person, read its project for them. When its reading isn't enough, it asks your super-agent, and you can open that
+  consultation from the contact's chat. See [Reading the assigned agent's project](/channels/overview/#reading-the-assigned-agents-project).
+
+### Extensions
+
+- Extensions that support notices can check in the background and wake the agent you choose when something changes.
+  See [Background observations](/extend/extensions/#background-observations).
+- The Marketplace shows who made each extension, apart from APX's review badge. See
+  [Find them in the Marketplace](/extend/extensions/#find-them-in-the-marketplace).
+
+### Phone
+
+- **Tasks** lists what needs you first. A long press on **Chats**, **Tasks** or **Routines** marks that tab read, and on
+  **Chats** it also offers **See archived**. A reply cut by a dropped connection fills in when the app reconnects. See [Navigate the Android app](/devices/phone/#navigate-the-android-app).
