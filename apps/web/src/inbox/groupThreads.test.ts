@@ -10,6 +10,7 @@ import {
   listedThreads,
   pinnedFirst,
   standsAlone,
+  taskTeammates,
   tookPart,
   unreadListed,
   unreadUnder,
@@ -249,4 +250,39 @@ test("a task's row counts every agent that took part, its agent first, each once
   assert.deepEqual([...tookPart(["ramiro", "bruno"], chats)], ["ramiro", "bruno", "superagent"]);
   // A core that does not count them yet: the chats' agents still are.
   assert.deepEqual([...tookPart(undefined, chats)], ["ramiro", "superagent"]);
+});
+
+test("a task's teammates include the chats delegated from any of its chats, not just its home", () => {
+  // The task's home chat, and the chat the agent works the task in: delegations made from the second must count too.
+  const threads = {
+    home: thread("home", { kind: "task", task_id: "task1" }),
+    work: thread("work", { task_id: "task1", updated_at: "2026-10-05T10:00:00Z" }),
+    design: thread("design", { kind: "a2a", parent_id: "work", updated_at: "2026-10-06T10:00:00Z" }),
+    build: thread("build", { kind: "a2a", parent_id: "work", updated_at: "2026-10-07T10:00:00Z" }),
+    asked: thread("asked", { kind: "a2a", parent_id: "home", updated_at: "2026-10-04T10:00:00Z" }),
+    deeper: thread("deeper", { kind: "a2a", parent_id: "build" }),
+    // A delegated chat that is itself one of the task's chats is listed once, as a chat.
+    inTask: thread("inTask", { kind: "a2a", parent_id: "home", task_id: "task1" }),
+  };
+  const got = taskTeammates(threads, "home", [threads.work, threads.inTask], { work: 3, home: 1 });
+  assert.deepEqual(
+    got.kids.map((t) => t.id),
+    ["build", "design", "asked"],
+  );
+  assert.equal(got.total, 4, "the core counts one more under the working chat than is loaded");
+  assert.deepEqual(got.short, ["work"], "the chat whose teammates are not all loaded yet");
+  assert.deepEqual(got.chats.sort(), ["home", "inTask", "work"]);
+});
+
+test("a task with no home yet still nests what its chats delegated", () => {
+  const threads = {
+    work: thread("work", { task_id: "task1" }),
+    build: thread("build", { kind: "a2a", parent_id: "work" }),
+  };
+  const got = taskTeammates(threads, undefined, [threads.work], {});
+  assert.deepEqual(
+    got.kids.map((t) => t.id),
+    ["build"],
+  );
+  assert.equal(got.total, 1);
 });

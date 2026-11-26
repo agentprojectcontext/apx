@@ -89,3 +89,28 @@ test("task lineage survives missing historical task links, list caps and interme
     await dir.remove();
   }
 });
+
+test("a teammate asked from any of a task's chats takes part in it, not only one asked from its home", async () => {
+  const dir = tempDir("apx-thread-task-");
+  const db = openDb(dir.path);
+  const store = createStore(db, createBus());
+  seed(store);
+  try {
+    const home = store.threads.create({ kind: "task", title: "Chat continuations", agent_ids: ["superagent"] });
+    const task = store.tasks.create({ title: "Chat continuations", status: "doing", thread_id: home.id, by: "owner" });
+    // The agent works the task in another chat of it and asks teammates from there.
+    const work = store.threads.create({
+      kind: "loose",
+      title: "Chat continuations",
+      agent_ids: ["superagent"],
+      task_id: task.id,
+    });
+    store.threads.create({ kind: "a2a", title: "Design", agent_ids: ["designer"], parent_id: work.id });
+    store.threads.create({ kind: "a2a", title: "Build", agent_ids: ["builder"], parent_id: work.id });
+    store.threads.create({ kind: "a2a", title: "Help", agent_ids: ["helper"], parent_id: home.id });
+    assert.deepEqual(store.tasks.get(task.id)?.agents?.toSorted(), ["builder", "designer", "helper", "superagent"]);
+  } finally {
+    db.close();
+    await dir.remove();
+  }
+});

@@ -43,9 +43,9 @@ export const noticeEs: Record<NoticeKey, string> = {
   "notice.breaker.release": "Liberar en esta ronda",
   "notice.breaker.wentOn": "Los agentes siguieron",
   "notice.delegation.limit.continuedSteps":
-    "{who} se quedó sin pasos con «{task}» y viene avanzando; APX lo hizo seguir en la sesión {session}. Hasta ahora: {sofar}",
+    "{who} llegó al límite de pasos con «{task}» y sigue en la misma conversación, porque viene avanzando. Hasta ahora: {sofar}",
   "notice.delegation.limit.continuedTime":
-    "{who} se quedó sin tiempo con «{task}» y viene avanzando; APX lo hizo seguir en la sesión {session}. Hasta ahora: {sofar}",
+    "{who} llegó al límite de tiempo con «{task}» y sigue en la misma conversación, porque viene avanzando. Hasta ahora: {sofar}",
   "notice.delegation.limit.stoppedSteps":
     "{who} se quedó sin pasos con «{task}» y su último tramo no avanzó, así que APX no siguió solo. Tocá Continuar si tiene que seguir. Hasta ahora: {sofar}",
   "notice.delegation.limit.stoppedTime":

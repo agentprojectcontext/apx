@@ -21,6 +21,32 @@ export function delegatedByChat(threads: Record<string, Thread>): Map<string, Th
 }
 
 /**
+ * The teammates asked on a task: what its home and each of its chats delegated, newest first (a chat of the task itself
+ * is listed as a chat, not again here). `total` counts what the core has past the few it loads; `short` are the chats
+ * whose teammates are not all loaded yet.
+ */
+export function taskTeammates(
+  threads: Record<string, Thread>,
+  home: string | undefined,
+  taskChats: Thread[],
+  counted: Record<string, number>,
+): { kids: Thread[]; total: number; short: string[]; chats: string[] } {
+  const chats = [...new Set([...(home ? [home] : []), ...taskChats.map((t) => t.id)])];
+  const nested = delegatedByChat(threads);
+  const own = new Set(chats);
+  const kids: Thread[] = [];
+  const short: string[] = [];
+  let total = 0;
+  for (const chat of chats) {
+    const under = (nested.get(chat) ?? []).filter((k) => !own.has(k.id));
+    kids.push(...under);
+    total += Math.max(counted[chat] ?? 0, under.length);
+    if ((counted[chat] ?? 0) > under.length) short.push(chat);
+  }
+  return { kids: kids.sort(newest), total, short, chats };
+}
+
+/**
  * A delegated chat listed on its own: its caller is not loaded, or (in a project's list) the caller is outside that
  * project while the delegated chat works in it. Anywhere else it only shows under its caller.
  */
