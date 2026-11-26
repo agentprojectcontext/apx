@@ -6512,6 +6512,7 @@ mode explicitly to Auto (a project the owner made stricter would no longer reach
 Docs impact: updated concepts/autonomy, extend/mcp and reference/whats-new in English and Spanish,
 rules/SUPER_AGENT_POWERS.md, the apx-agents and apx-mcps skills, and news (`mcp-open`, 2.17.2).
 
+<a id="d-280"></a>
 ## D-280 — 2026-11-26 — A turn boundary is not a budget pause; permission changes target an account
 
 A native task turn that reaches its step cap can admit another part in the same task chat when its plan or its
