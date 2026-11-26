@@ -149,6 +149,7 @@ export const enResources = {
   "res.skillStub": "Write the steps, rules and examples here.",
   "res.create": "Create",
   "res.onHere": "On here",
+  "res.serverOn": "On",
   "res.offHere": "Off in this project",
   "res.offHereLong": "Off in {name}",
   "res.connected": "Connected · {n} tools · {ms} ms",

@@ -54,6 +54,10 @@ it is on in (**All projects**, or some of them); the same switches show under **
 list says **In 2 of 3** instead of **Global** while it is off somewhere. Save applies both; Cancel leaves them
 unchanged. Repository connections keep belonging to their repository and do not offer these controls.
 
+To stop a server everywhere without removing it, turn off **On** in its detail, or pick **Turn off** in its right-click
+menu. Its definition and approval stay, and the same switch turns it back on, also when an agent turned it off for
+you. A server that is off is not tested and its tools are not offered to agents.
+
 Before making it global, check that its variables exist in the places where you will use it. Project variables are
 not copied into the global store. The editor names any variables that need a value in the selected scope; you can
 still save a connection while preparing those values. This does not move a repository's `.apx/mcps.json` definition.

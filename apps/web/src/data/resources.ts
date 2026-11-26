@@ -88,6 +88,12 @@ export type McpDraft = {
 export const setMcp = (name: string, server: McpDraft | null, project?: string) =>
   attempt(async () => (await client.call("mcp.set", { name, server, ...(project ? { project } : {}) })).servers);
 
+/** Turns a server it can edit on or off everywhere, keeping how it is defined. */
+export const setMcpOn = (s: McpServerStatus, on: boolean) =>
+  s.definition
+    ? setMcp(s.name, { ...s.definition, enabled: on }, s.scope === "project" ? s.project_id : undefined)
+    : Promise.resolve(undefined);
+
 export const listSecrets = (project?: string, options?: FailureOptions) =>
   attempt(async () => (await client.call("secrets.list", scoped(project))).secrets, options);
 
