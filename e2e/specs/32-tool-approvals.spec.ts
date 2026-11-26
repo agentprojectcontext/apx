@@ -35,6 +35,12 @@ test("right-click permissions update the list indicator, persist and open the in
     await open(page, "#view=resources&resourcesTab=mcp");
     await page.getByRole("radio", { name: /^MCP/ }).click();
     const row = page.getByRole("button", { name: /^context-permissions/ });
+    // A server just added allows every tool (DECISIONS.md#d-279); the owner makes both ask, and changes it from here.
+    await expect(row.getByRole("img", { name: "Permisos de tools: Todas permitidas" })).toBeVisible();
+    for (const name of ["context-permissions", "context-other"])
+      await rpc("mcp.toolMode", { scope: "global", server: name, mode: "ask" });
+    await page.reload();
+    await page.getByRole("radio", { name: /^MCP/ }).click();
     await expect(row.getByRole("img", { name: /Sin verificar/ })).toBeVisible();
     await row.click({ button: "right" });
     await page.getByRole("menuitem", { name: "Permisos de tools", exact: true }).hover();
@@ -83,6 +89,8 @@ test("chat offers once, session and always; session lets later calls proceed wit
   const { repo } = await world.info();
   const project = (await rpc<{ project: { id: string } }>("projects.register", { path: repo })).project.id;
   await rpc("mcp.set", { project, name: "notes", server: { command: process.execPath, args: [server] } });
+  // A new server allows every tool (DECISIONS.md#d-279): here the owner made it ask, so its card is what is tested.
+  await rpc("mcp.toolMode", { scope: "project", project, server: "notes", mode: "ask" });
   const reader = await rpc<{ id: string }>("agents.create", { slug: "permission-reader", name: "Permission reader" });
   const chat = await rpc<{ id: string }>("threads.create", {
     kind: "loose",
