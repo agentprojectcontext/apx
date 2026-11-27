@@ -156,6 +156,14 @@ function checkV2(m: ExtensionManifest, has: (rel: string) => boolean): void {
     m.pages.map((p) => p.id),
   );
   for (const s of m.settings) {
+    if (
+      s.boundTo &&
+      (!s.sensitive ||
+        s.type !== "string" ||
+        s.generate ||
+        s.boundTo.some((name) => !m.settings.some((target) => target.name === name && !target.sensitive)))
+    )
+      throw new PackageError(`setting ${s.name}: boundTo needs a manual sensitive string and declared plain settings`);
     if (s.options && s.type !== "string") throw new PackageError(`setting ${s.name}: only a string has options`);
     if (s.generate && !(s.sensitive && s.type === "string"))
       throw new PackageError(`setting ${s.name}: only a sensitive string is generated`);

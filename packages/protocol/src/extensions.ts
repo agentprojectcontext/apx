@@ -31,6 +31,19 @@ export const ExtensionSetting = z
       name: () => ExtName,
       label: () => z.string().trim().min(1).max(120),
       description: () => z.string().max(300).optional(),
+      locales: () =>
+        z
+          .object({
+            es: z
+              .object({
+                label: z.string().trim().min(1).max(120).optional(),
+                description: z.string().max(300).optional(),
+              })
+              .strict()
+              .optional(),
+          })
+          .strict()
+          .optional(),
       type: () => z.enum(["string", "number", "boolean", "directory", "file"]),
       required: () => z.boolean().default(false),
       sensitive: () => z.boolean().default(false),
@@ -38,6 +51,8 @@ export const ExtensionSetting = z
       /** The only values a string may take (a choice). */
       options: () => z.array(z.string().max(80)).max(20).optional(),
       generate: () => z.literal("random").optional(),
+      /** Sensitive string encoded with the exact values of these plain settings; changes require a new value. */
+      boundTo: () => z.array(ExtName).min(1).max(8).optional(),
     }),
   )
   .strict();
