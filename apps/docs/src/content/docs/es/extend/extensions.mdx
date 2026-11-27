@@ -312,7 +312,9 @@ sitio oficial del servicio.
 
 El `icon` del índice de una entrada oficial es su avatar del Marketplace, separado del `icon` de la ficha del paquete.
 APX prefiere ese avatar en el catálogo, el detalle y la conexión, también para un paquete instalado que coincida y sea
-oficial, y usa el icono del paquete si no puede cargar el avatar. Las imágenes las descarga el core, no el panel desde
+oficial. Si el avatar de un MCP directo del proveedor falta o no carga, muestra una pieza de rompecabezas neutra.
+Los demás paquetes pueden usar su propio ícono; si no tienen una imagen que se pueda mostrar, aparece la misma pieza.
+Las imágenes las descarga el core, no el panel desde
 un servidor externo. Al reemplazar una imagen, usá una URL inmutable basada en su huella: la caché de imágenes usa la
 URL como clave; cambiar solo los bytes en la misma dirección no invalida una copia guardada.
 

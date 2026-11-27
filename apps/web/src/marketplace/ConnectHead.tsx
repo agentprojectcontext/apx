@@ -7,17 +7,15 @@ import { useAsset } from "./useAsset.ts";
 import "@apx/ui/summary.css";
 import "../styles/install-box.css";
 
-// An extension's mark (its own icon, a channel's, the browser's, or its letter), and the head of a connect form: APX
-// joined to the service by dots that move while it connects (packages/ui ConnectSignal).
-
 export type LinkState = "idle" | "connecting" | "connected" | "broken";
 
-/** A verified catalog avatar, then the package icon; otherwise the channel, browser or app mark. */
+/** The catalog or package mark, a built-in service mark, or a neutral puzzle. */
 export function ItemIcon({
   item,
   size,
 }: {
-  item: Pick<Item, "id" | "name"> & Partial<Pick<Item, "listing" | "channel" | "builtin" | "entry" | "ext">>;
+  item: Pick<Item, "id" | "name"> &
+    Partial<Pick<Item, "listing" | "channel" | "builtin" | "entry" | "ext" | "integration">>;
   size: number;
 }) {
   const { file, fallback, revision } = iconFiles(item);
@@ -47,8 +45,12 @@ export function ItemIcon({
       style={{ width: size, height: size }}
       onError={() => setBroken({ identity, urls: [...failures, icon] })}
     />
-  ) : (
+  ) : item.integration && !item.entry && !item.ext ? (
     <IntegrationIcon id={item.id} name={item.name} size={size} />
+  ) : (
+    <span className="mkt__tile" style={{ width: size, height: size }} aria-hidden="true">
+      <Icons.Puzzle size={Math.round(size * 0.55)} />
+    </span>
   );
 }
 

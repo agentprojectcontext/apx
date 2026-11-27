@@ -18,8 +18,10 @@ export function officialMcpProvider(item: Branded): string | undefined {
 
 export function iconFiles(item: Branded): { file: string | undefined; fallback: string | undefined; revision: string } {
   const entry = item.entry;
-  const avatar = officialEntry(item)?.icon_url;
-  const packaged = item.listing?.icon;
+  const official = officialEntry(item);
+  const avatar = official?.icon_url;
+  // Direct MCP packages may carry the APX placeholder, not the provider's artwork.
+  const packaged = official?.mcp_provider ? undefined : item.listing?.icon;
   return {
     file: avatar ? "@icon" : (packaged ?? (!item.ext && entry?.icon_url ? "@icon" : undefined)),
     fallback: avatar ? packaged : undefined,

@@ -110,7 +110,9 @@ for (const language of ["en", "es"] as const) {
       await open(page);
       await page.getByRole("button", { name: "Marketplace", exact: true }).first().click();
       const row = page.locator(".apx-catalogrow").filter({ hasText: "Acme unread" }).first();
+      await expect(row.locator('.mkt__tile[aria-hidden="true"] svg')).toBeVisible();
       await row.getByRole("button", { name: language === "en" ? "View details" : "Ver detalle", exact: true }).click();
+      await expect(page.locator('.mkt-page__head .mkt__tile[aria-hidden="true"] svg')).toBeVisible();
       const add = page.getByRole("button", { name: language === "en" ? "Add" : "Agregar", exact: true });
       await expect(add).toBeVisible();
       await expect(

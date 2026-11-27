@@ -19,7 +19,7 @@ test("the official avatar stays separate from the neutral package icon", () => {
   // Only the icon matters to this selection; the listing's copy has no role here.
   const files = iconFiles({ entry, listing: { ...item.listing } as NonNullable<CatalogEntry["listing"]> });
   assert.equal(files.file, "@icon");
-  assert.equal(files.fallback, "icon.svg");
+  assert.equal(files.fallback, undefined);
   assert.equal(officialMcpProvider({ entry }), "Acme");
   assert.notEqual(
     files.revision,
@@ -45,5 +45,7 @@ test("an installed third-party copy cannot inherit official brand attribution or
   assert.equal(officialMcpProvider({ entry, ext: { ...official, id: "other" } }), undefined);
   assert.equal(iconFiles({ entry, ext: official, listing }).file, "@icon");
   assert.equal(iconFiles({ listing }).file, "own.svg");
-  assert.equal(iconFiles({ entry: { ...entry, icon_url: undefined }, listing }).file, "own.svg");
+  assert.equal(iconFiles({ entry: { ...entry, icon_url: undefined }, listing }).file, undefined);
+  const apxPlugin = { ...entry, mcp_provider: undefined, icon_url: undefined };
+  assert.equal(iconFiles({ entry: apxPlugin, listing }).file, "own.svg");
 });
