@@ -1,5 +1,5 @@
 import type { Agent, Message as Msg, Part, Thread } from "@apx/protocol";
-import { isRestartNotice } from "@apx/protocol/notices";
+import { isRestartNotice } from "@apx/protocol/restart-notice";
 import {
   AgentAvatar,
   EngineIcon,

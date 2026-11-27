@@ -1,5 +1,6 @@
 import type { Part } from "@apx/protocol";
-import { isRestartNotice, plainNotice } from "@apx/protocol/notices";
+import { plainNotice } from "@apx/protocol/notices";
+import { isRestartNotice } from "@apx/protocol/restart-notice";
 import { ActionGroup, Button, Icons } from "@apx/ui";
 import { Suspense } from "react";
 import { isKey, type MessageKey, usePack, useT } from "../../i18n/index.ts";

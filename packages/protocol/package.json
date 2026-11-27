@@ -15,6 +15,7 @@
     "./exit": "./src/exit.ts",
     "./notices": "./src/notices.ts",
     "./notices-en": "./src/notices-en.ts",
+    "./restart-notice": "./src/restart-notice.ts",
     "./notices-es": "./src/notices-es.ts",
     "./task-plan": "./src/task-plan.ts",
     "./flow-shape": "./src/flow-shape.ts",

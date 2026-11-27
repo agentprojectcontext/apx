@@ -1,6 +1,6 @@
 import type { Message as Msg, Thread } from "@apx/protocol";
 import { receivedMail } from "@apx/protocol/email-block";
-import { supersededRestarts } from "@apx/protocol/notices";
+import { supersededRestarts } from "@apx/protocol/restart-notice";
 import {
   ActivityPill,
   AgentAvatar,
