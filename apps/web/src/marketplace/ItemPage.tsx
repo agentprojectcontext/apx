@@ -131,7 +131,7 @@ export function ItemPage({
     browser: () => go.config("browser"),
   };
   const primary: ReactNode =
-    step === "done" || step === "coming" ? (
+    step === "done" || step === "coming" || step === "starting" ? (
       <Button variant="secondary" disabled leadingIcon={step === "done" ? <Icons.Check size={14} /> : undefined}>
         {stepLabel(item, step, t)}
       </Button>

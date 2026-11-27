@@ -341,7 +341,7 @@ test("an extension does not claim connection while its own server starts or fail
       installed: [connector],
       servers: [server("acme-main", status)],
     }).find((i) => i.ext?.id === "acme");
-  assert.equal(find("starting")?.state, "off");
+  assert.equal(find("starting")?.state, "starting");
   assert.equal(find("error")?.state, "attention");
   assert.equal(find("error")?.attention, "error");
   assert.equal(find("ready")?.state, "on");

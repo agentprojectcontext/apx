@@ -36,6 +36,26 @@ test("catalog contents keep translated required setting labels without values or
   ]);
 });
 
+test("translated catalog labels accept legacy empty secrets without rejecting the complete response", () => {
+  const manifest = ExtensionManifest.parse({
+    id: "acme",
+    name: "Acme",
+    version: "1.0.0",
+    secrets: [
+      { name: "legacy", label: "" },
+      { name: "spaced", label: "   " },
+      { name: "token", label: "API key", locales: { es: { label: "Clave de API" } } },
+    ],
+  });
+  const contents = ExtensionContents.parse(contentsOf(manifest, "0123456789abcdef", undefined));
+  assert.deepEqual(contents.keys, ["", "   ", "API key"]);
+  assert.deepEqual(contents.key_labels, [
+    { label: "" },
+    { label: "   " },
+    { label: "API key", locales: { es: { label: "Clave de API" } } },
+  ]);
+});
+
 test("catalog contents without translations preserve the legacy labels", () => {
   const manifest = ExtensionManifest.parse({
     id: "acme",

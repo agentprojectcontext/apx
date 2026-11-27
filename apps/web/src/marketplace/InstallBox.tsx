@@ -22,7 +22,7 @@ import { AboutCard } from "./AboutParts.tsx";
 import { type About, aboutAddress, aboutExtension, type Origin, originOf } from "./about.ts";
 import { nothingToConnect, type Problem, problemOf } from "./adding.ts";
 import { ApxMark, ItemIcon } from "./ConnectHead.tsx";
-import { connectExtension } from "./connecting.ts";
+import { connectExtension, connectionFailureKey } from "./connecting.ts";
 import { SettingField } from "./ExtensionConfig.tsx";
 import { connectionUpdateText, nameFor, settingCopyIn } from "./itemText.ts";
 import { PairBody, usePairing } from "./PairStep.tsx";
@@ -283,7 +283,7 @@ export function InstallBox({
 
   const startExtension = (extension: ExtensionInfo) =>
     connectExtension(extension, {
-      enable: (id, enabled) => client.call("extensions.enable", { id, enabled }),
+      enable: (id, enabled, options) => client.call("extensions.enable", { id, enabled, ...options }),
       start: startServers,
       changed: (updated) => {
         setExt(updated);
@@ -367,11 +367,18 @@ export function InstallBox({
       setPhase("done");
     } catch (e) {
       setLink("broken");
-      setProblem(
-        fields.length > 0
-          ? { key: "box.err.checkFields", retry: true }
-          : { key: "box.err.connect", vars: { name: ext.name }, detail: errText(e), retry: true },
-      );
+      try {
+        const actual = (await client.call("extensions.list", {})).extensions.find((entry) => entry.id === ext.id);
+        if (actual) setExt(actual);
+      } catch {}
+      extensionsChanged();
+      const key = connectionFailureKey(e, fields.length > 0);
+      setProblem({
+        key,
+        vars: { name: ext.name },
+        ...(key === "box.err.checkFields" ? {} : { detail: errText(e) }),
+        retry: true,
+      });
     } finally {
       setBusy(false);
     }

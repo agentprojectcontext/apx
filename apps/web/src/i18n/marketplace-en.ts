@@ -200,6 +200,8 @@ export const enMarketplace = {
   "box.err.address":
     "{name} didn't answer at that address. It stays in your extensions: check the address and try again.",
   "box.err.checkFields": "Check the information you entered and try again.",
+  "box.err.rollback":
+    "The connection failed, and turning it off also failed. Check its current status before trying again.",
   "box.err.connect": "{name} couldn't connect. It stays added, not connected: try again now or later from its page.",
   "box.state.connected": "Connected",
   "box.state.paired": "Paired",

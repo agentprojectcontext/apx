@@ -154,6 +154,7 @@ test("one next step per state: add, connect, pair a device, then done", () => {
     "review",
   );
   assert.equal(nextStep(item({ state: "on", ext: ext() })), "done");
+  assert.equal(nextStep(item({ state: "starting", ext: ext() })), "starting");
 });
 
 test("why one of the owner's own waits, and nothing for one that works", () => {

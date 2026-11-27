@@ -24,7 +24,7 @@ type Origin = "included" | "catalog" | "own";
  */
 export type Label = "included" | "official" | "third" | "own";
 /** Shown on the row: not here yet, coming, installed but off, working, or waiting on the owner. */
-type ItemState = "available" | "coming" | "off" | "on" | "attention";
+type ItemState = "available" | "coming" | "off" | "on" | "attention" | "starting";
 /** Why one waits on the owner. */
 type Attention = "keys" | "settings" | "sign-in" | "error" | "update-waits" | "plugin";
 
@@ -189,7 +189,7 @@ function installed(e: ExtensionInfo, entry: CatalogEntry | undefined, servers: M
     connection: listing?.connection,
     brings: e.brings,
     needs: e.needs,
-    state: attention ? "attention" : e.enabled && !starting ? "on" : "off",
+    state: attention ? "attention" : starting ? "starting" : e.enabled ? "on" : "off",
     attention,
     version: known(e.version),
     update,

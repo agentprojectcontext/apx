@@ -2,7 +2,8 @@
 // on or off, give it its secrets.
 import type { Bus } from "../bus.ts";
 import type { Store } from "../domain/store.ts";
-import { conflict } from "../errors.ts";
+import { conflict, notFound } from "../errors.ts";
+import { activationGuard } from "../extensions/activation.ts";
 import { type CatalogShown, isSuggestedCatalog, SUGGESTED } from "../extensions/catalogs.ts";
 import type { ExtensionInput, Extensions } from "../extensions/extensions.ts";
 import type { Mcp } from "../mcp/manager.ts";
@@ -57,6 +58,12 @@ export function extensionHandlers(extensions: Extensions, mcp: Mcp, bus: Bus, st
     "extensions.settings",
     "extensions.set_secret",
   ]);
+  const activation = activationGuard();
+  const current = (id: string) => {
+    const found = extensions.list().find((extension) => extension.id === id);
+    if (!found) throw notFound("Extension not found");
+    return found;
+  };
   let changing = false;
   for (const name of CHANGES) {
     const run = handlers[name] as (p: never) => unknown;
@@ -69,7 +76,22 @@ export function extensionHandlers(extensions: Extensions, mcp: Mcp, bus: Bus, st
       if (changing) throw conflict("Another extension is being changed; try again shortly");
       changing = true;
       try {
-        const out = await run(p);
+        let out: unknown;
+        if (name === "extensions.enable") {
+          const params = p as { id: string; enabled: boolean; only_if_disabled?: true; rollback_token?: string };
+          out = await activation.change(
+            params,
+            () => current(params.id),
+            () => handlers["extensions.enable"](params),
+          );
+        } else {
+          const id = (p as { id?: string }).id;
+          if (id) activation.invalidate(id);
+          else if (name === "extensions.install") {
+            for (const extension of extensions.list()) activation.invalidate(extension.id);
+          }
+          out = await run(p);
+        }
         bus.emit({ type: "extensions.changed" });
         return out;
       } finally {

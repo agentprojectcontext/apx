@@ -425,7 +425,8 @@ export const ExtensionContents = z.object(
     /** The labels of the keys it asks for. */
     keys: () => z.array(z.string()),
     /** Display copy for secret labels, never their names or values. */
-    key_labels: () => z.array(ExtensionSetting.pick({ label: true, locales: true })).optional(),
+    key_labels: () =>
+      z.array(z.object({ label: z.string().max(120), locales: ExtensionSetting.shape.locales })).optional(),
     skills: () => z.array(z.string()).optional(),
     agents: () => z.array(z.string()),
     routines: () => z.array(z.string()),

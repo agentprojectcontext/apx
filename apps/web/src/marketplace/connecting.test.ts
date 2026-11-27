@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { connectExtension } from "./connecting.ts";
+import { ConnectionRollbackError, connectExtension, connectionFailureKey } from "./connecting.ts";
 
 const extension = { id: "example", enabled: false, mcp: ["example-server"] };
 
@@ -17,7 +17,7 @@ function fixture(enabled = false) {
     enable: async (_id: string, on: boolean) => {
       calls.push(on);
       current = { ...current, enabled: on };
-      return current;
+      return { ...current, ...(on ? { activation_token: "first-activation" } : {}) };
     },
     changed: (updated: typeof extension) => {
       published.push(updated.enabled);
@@ -69,12 +69,15 @@ test("a successful first connection is published only after tools become ready",
 test("failure never disables an extension that was already connected", async () => {
   const f = fixture(true);
   await assert.rejects(
-    connectExtension(f.current, {
-      ...f,
-      start: async () => {
-        throw new Error("Unavailable");
+    connectExtension<typeof extension & { activation_token?: string }>(
+      { ...f.current, activation_token: "earlier-successful-activation" },
+      {
+        ...f,
+        start: async () => {
+          throw new Error("Unavailable");
+        },
       },
-    }),
+    ),
     /Unavailable/,
   );
   assert.equal(f.current.enabled, true);
@@ -95,6 +98,46 @@ test("an enable refusal does not trigger a compensating disable", async () => {
   );
   assert.deepEqual(f.calls, []);
   assert.deepEqual(f.published, []);
+});
+
+test("a second stale connection attempt cannot turn off the first successful connection", async () => {
+  let current = { ...extension };
+  const entered = Promise.withResolvers<void>();
+  const ready = Promise.withResolvers<string[]>();
+  const enable = async (_id: string, on: boolean, options?: { only_if_disabled?: true; rollback_token?: string }) => {
+    if (options?.only_if_disabled && current.enabled) throw new Error("Already on");
+    current = { ...current, enabled: on };
+    return { ...current, activation_token: "first-activation" };
+  };
+  const snapshot = { ...current };
+  const first = connectExtension(snapshot, {
+    enable,
+    changed: () => {},
+    start: async () => {
+      entered.resolve();
+      return ready.promise;
+    },
+  });
+  await entered.promise;
+  await assert.rejects(
+    connectExtension(snapshot, {
+      enable,
+      changed: () => {},
+      start: async () => {
+        throw new Error("Connection failed");
+      },
+    }),
+  );
+  ready.resolve(["read"]);
+  await first;
+  assert.equal(current.enabled, true);
+});
+
+test("a rollback failure is not presented as invalid credentials even when fields were filled", () => {
+  const error = new ConnectionRollbackError([new Error("Unavailable"), new Error("Offline")]);
+  assert.equal(connectionFailureKey(error, true), "box.err.rollback");
+  assert.equal(connectionFailureKey(error, false), "box.err.rollback");
+  assert.equal(connectionFailureKey(new Error("Invalid key"), true), "box.err.checkFields");
 });
 
 test("rollback failures remain visible rather than claiming the extension is off", async () => {

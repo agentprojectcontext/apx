@@ -66,12 +66,14 @@ export type Step =
   | "channel"
   | "browser"
   | "coming"
+  | "starting"
   | "done";
 
 export function nextStep(i: Item): Step {
   if (i.builtin === "browser") return "browser";
   if (i.channel) return i.state === "available" ? "connect" : "channel";
   if (i.state === "coming") return "coming";
+  if (i.state === "starting") return "starting";
   if (i.state === "available") return i.integration || i.origin === "included" ? "connect" : "add";
   if (i.integration) return i.attention === "sign-in" ? "sign-in" : i.attention ? "fix" : "done";
   if (i.server && !i.ext) {
@@ -103,6 +105,7 @@ const STEP_LABEL: Record<Step, MessageKey> = {
   channel: "mkt.step.channel",
   browser: "mkt.step.browser",
   coming: "mkt.step.coming",
+  starting: "box.state.connecting",
   done: "mkt.step.connected",
 };
 
@@ -126,6 +129,7 @@ const signsIn = (i: Item) =>
 /** Why one of the owner's own waits on them, in a few words; nothing when it does not. */
 export function waitReason(i: Item, t: T): string | undefined {
   if (i.state === "available" || i.state === "coming") return undefined;
+  if (i.state === "starting") return t("box.state.connecting");
   if (i.update && i.state === "on") return t("mkt.why.update", { version: i.update });
   if (i.state === "off") return t(i.attention === "update-waits" ? "mkt.why.updateWaits" : "mkt.why.off");
   if (i.attention === "keys") return t("mkt.why.keys");

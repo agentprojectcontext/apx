@@ -151,7 +151,9 @@ The schema is strict: unknown keys are refused.
 | `secrets` | Up to 10, each with a `name`, an English `label`, optional `locales.es.label` (Spanish, falling back to English), and an optional `url` where to get it. Labels are translated in the connection form and package details; values remain in the secret store. You type each value once. |
 | `plugin` | Optional code; see below. |
 
-A first connection is shown as connected only after its servers are ready. If starting a server fails, APX turns that newly enabled extension off so you can retry, including after reopening its page. Retrying an extension that was already enabled does not turn it off on failure.
+A first connection is shown as connected only after its servers are ready. If starting a server fails, APX turns that newly enabled extension off so you can retry, including after reopening its page, unless it has since been changed elsewhere or APX has restarted. Two open pages cannot both claim the same first activation, and a failed attempt cannot undo a later activation. Retrying an extension that was already enabled does not turn it off on failure.
+
+If turning it off also fails, the dialog reports that separately instead of blaming the entered data. Check the extension's current state before retrying; your fields stay in the dialog.
 
 An MCP server in an extension can only use the extension's **own** secrets, as `secret://name`. It can't name your
 other variables or the environment, so a bundle can't carry your credentials elsewhere.
