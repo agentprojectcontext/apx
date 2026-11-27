@@ -132,3 +132,34 @@ test("revocation during an incoming batch closes both peers without a native rea
     await new Promise<void>((resolve) => server.close(() => resolve()));
   }
 });
+
+test("a core that refuses the node's token ends the transport without throwing", async () => {
+  const server = http.createServer();
+  server.on("upgrade", (_request, peer) => {
+    peer.end("HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  const socket = nodeSocket(`ws://127.0.0.1:${address.port}`);
+  let closed = false;
+  let thrown: unknown;
+  // The client closes its transport when it errors, as ApxClient does on a refused handshake.
+  socket.addEventListener("error", () => {
+    try {
+      socket.close();
+    } catch (error) {
+      thrown = error;
+    }
+  });
+  socket.addEventListener("close", () => {
+    closed = true;
+  });
+  try {
+    await waitFor(() => closed, "the refused transport to close");
+    assert.equal(thrown, undefined);
+    assert.equal(socket.readyState, 3);
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+});
