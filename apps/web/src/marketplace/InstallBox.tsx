@@ -133,7 +133,9 @@ export function InstallBox({
         return power(setting ? { ...entry, detail: settingCopyIn(setting, lang).label } : entry);
       },
       singleConnection:
-        extension.mcp.length === 1 && extension.mcp[0] ? { id: extension.mcp[0], name: extension.name } : undefined,
+        extension.mcp.length === 1 && extension.mcp[0]
+          ? { extensionId: extension.id, registeredId: extension.mcp[0], name: extension.name }
+          : undefined,
     });
   const [seen, setSeen] = useState<ExtensionInfo>();
   const [ext, setExt] = useState<ExtensionInfo>();

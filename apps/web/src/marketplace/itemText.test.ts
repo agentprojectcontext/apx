@@ -66,7 +66,11 @@ test("a credential replacement asks for reconnection without hiding unrelated ac
   assert.deepEqual(
     connectionUpdateText(update, settings, (p) => p.name, {
       addedLabel: (p) => (p.name === "app_password" ? "Contraseña de aplicación" : p.name),
-      singleConnection: { id: "store", name: "Northwind Store" },
+      singleConnection: {
+        extensionId: "northwind-shop",
+        registeredId: "northwind-shop-store",
+        name: "Northwind Store",
+      },
     }),
     {
       adds: ["Contraseña de aplicación", "shop.example.com", "other_key"],
