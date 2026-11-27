@@ -9,6 +9,7 @@ import { CompactRow } from "../src/ui/chat/CompactRow";
 import { DetailBranch } from "../src/ui/chat/DetailBranch";
 import { InputCard } from "../src/ui/chat/InputCard";
 import { NoticeCard } from "../src/ui/chat/NoticeCard";
+import { SubthreadCard } from "../src/ui/chat/SubthreadCard";
 
 test("action groups and nested details share the disclosure header and keep independent states", async () => {
   jest.spyOn(AccessibilityInfo, "isScreenReaderEnabled").mockResolvedValue(false);
@@ -107,6 +108,28 @@ test("agent events share the header, retain source navigation and show the strai
   expect(ui.queryByTestId("detail-guide", { includeHiddenElements: true })).toBeNull();
   await fireEvent.press(header);
   expect(ui.getByText("Full event report")).toBeTruthy();
+});
+
+test("delegated work keeps the curved disclosure until a report actually arrives", async () => {
+  const part: Extract<Message["parts"][number], { type: "subthread" }> = {
+    type: "subthread",
+    thread_id: "th_source",
+    agent_id: "agent_helper",
+    title: "Review the report",
+    state: "working",
+  };
+  const ui = await render(<SubthreadCard part={part} agents={[]} from="Acme" />);
+  await fireEvent.press(ui.getByRole("button"));
+  expect(ui.getByTestId("detail-guide", { includeHiddenElements: true }).props.style).toMatchObject({
+    borderBottomLeftRadius: 8,
+  });
+  await ui.rerender(
+    <SubthreadCard part={{ ...part, state: "completed", summary: "The report is ready." }} agents={[]} from="Acme" />,
+  );
+  expect(ui.getByText("The report is ready.")).toBeTruthy();
+  const line = ui.getByTestId("detail-guide", { includeHiddenElements: true });
+  expect(line.props.style).toMatchObject({ top: 0, bottom: 0 });
+  expect(line.props.style.borderBottomWidth).toBeUndefined();
 });
 
 test("only an exact echo of a settled question folds into its question row", () => {

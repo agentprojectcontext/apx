@@ -30,7 +30,7 @@ export function AgentEventCard({
       title={title}
       icon="Bot"
       compact
-      straight
+      straight={!!response}
       initiallyOpen
       summary={
         [project, response ? t(responseStatus(response).label) : undefined].filter(Boolean).join(" · ") || undefined
