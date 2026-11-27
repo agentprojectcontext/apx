@@ -261,6 +261,9 @@ export const esMarketplace = {
   "box.update.stays": "Sigue conectada, sin que hagas nada.",
   "box.update.waits": "Después la conectás de nuevo para aprobar lo que suma.",
   "box.update.keeps": "La {from} queda guardada: podés volver a ella desde ⋯.",
+  "box.update.connectorChanged": "Cambia cómo se conecta esta extensión.",
+  "box.update.reconnect": "Volvé a conectarla con una credencial nueva.",
+  "box.update.keepsReconnect": "Podés volver a la {from} desde ⋯. Si lo hacés, vas a tener que conectarla de nuevo.",
   "box.collapse": "Mostrar menos",
   "box.expand": "Ver qué trae",
   "box.bringsUnknown":

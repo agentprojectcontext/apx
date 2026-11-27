@@ -5,6 +5,7 @@ import type { Item } from "../resources/extensionItems.ts";
 import {
   accessLines,
   authText,
+  connectionUpdateText,
   fromText,
   kindText,
   nameFor,
@@ -32,6 +33,41 @@ test("connection fields use their Spanish copy and fall back per field to the or
     label: "Contraseña de aplicación",
     description: "Create it in your profile.",
   });
+});
+
+test("a credential replacement asks for reconnection without hiding unrelated access changes", () => {
+  const update = {
+    from: "1.0.0",
+    keeps_on: false,
+    adds: [
+      { kind: "secret", name: "app_password" },
+      { kind: "mcp", name: "store", detail: "new connector" },
+      { kind: "host", name: "shop.example.com" },
+      { kind: "secret", name: "other_key" },
+    ],
+    removes: [
+      { kind: "secret", name: "old_password" },
+      { kind: "mcp", name: "store", detail: "old connector" },
+      { kind: "mcp", name: "inventory" },
+    ],
+  } satisfies NonNullable<ExtensionInfo["update"]>;
+  const settings = [{ name: "app_password", boundTo: ["shop_url"] }];
+  assert.deepEqual(
+    connectionUpdateText(update, settings, (p) => p.name),
+    {
+      adds: ["shop.example.com", "other_key"],
+      drops: ["inventory"],
+      reconnect: true,
+      connectorChanged: true,
+    },
+  );
+  assert.deepEqual(
+    connectionUpdateText(update, [], (p) => p.name),
+    {
+      adds: ["app_password", "store", "shop.example.com", "other_key"],
+      drops: ["old_password", "store", "inventory"],
+    },
+  );
 });
 
 // The key with its values, so a test reads what the screen would say without the dictionaries.

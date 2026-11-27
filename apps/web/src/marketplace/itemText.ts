@@ -1,6 +1,30 @@
-import type { ExtensionListing, McpServerStatus } from "@apx/protocol";
+import type { ExtensionInfo, ExtensionListing, ExtensionPower, McpServerStatus } from "@apx/protocol";
 import type { MessageKey } from "../i18n/index.ts";
 import { type Item, kindOf } from "../resources/extensionItems.ts";
+
+export function connectionUpdateText(
+  update: NonNullable<ExtensionInfo["update"]>,
+  settings: Pick<ExtensionInfo["settings"][number], "name" | "boundTo">[],
+  label: (power: ExtensionPower) => string,
+) {
+  const bound = update.adds.filter(
+    (power) =>
+      power.kind === "secret" && settings.some((setting) => setting.name === power.name && setting.boundTo?.length),
+  );
+  const oldSecrets = update.removes.filter((power) => power.kind === "secret");
+  const reconnect = bound.length === 1 && oldSecrets.length === 1 && !update.keeps_on;
+  if (!reconnect) return { adds: update.adds.map(label), drops: update.removes.map(label) };
+  const replaced = update.adds.filter(
+    (power) => power.kind === "mcp" && update.removes.some((old) => old.kind === "mcp" && old.name === power.name),
+  );
+  const adds = update.adds.filter((power) => !bound.includes(power) && !replaced.includes(power)).map(label);
+  const drops = update.removes
+    .filter(
+      (power) => !oldSecrets.includes(power) && !replaced.some((p) => p.kind === power.kind && p.name === power.name),
+    )
+    .map(label);
+  return { adds, drops, reconnect, connectorChanged: replaced.length > 0 };
+}
 
 // What the Marketplace says about an item, in the owner's words, from what APX knows of it (its manifest, its listing,
 // its servers): what it brings, its one next step, why it waits, what it may reach and how it signs in. A fact APX

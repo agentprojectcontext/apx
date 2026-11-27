@@ -23,7 +23,7 @@ import { type About, aboutAddress, aboutExtension, type Origin, originOf } from 
 import { nothingToConnect, type Problem, problemOf } from "./adding.ts";
 import { ApxMark, ItemIcon } from "./ConnectHead.tsx";
 import { SettingField } from "./ExtensionConfig.tsx";
-import { nameFor } from "./itemText.ts";
+import { connectionUpdateText, nameFor } from "./itemText.ts";
 import { PairBody, usePairing } from "./PairStep.tsx";
 import "../styles/install-box.css";
 
@@ -69,12 +69,16 @@ function UpdateNote({
   adds,
   drops,
   stays,
+  reconnect,
+  connectorChanged,
 }: {
   from: string;
   to: string;
   adds: string[];
   drops: string[];
   stays: boolean;
+  reconnect?: boolean;
+  connectorChanged?: boolean;
 }) {
   const t = useT();
   return (
@@ -84,9 +88,18 @@ function UpdateNote({
         {drops.length > 0 && (
           <span className="mkt-box__line">{t("box.update.drops", { list: drops.join(" · ") })}</span>
         )}
-        {!adds.length && !drops.length && <span className="mkt-box__line">{t("box.update.nothingNew")}</span>}
-        <span className="mkt-box__line">{t(stays ? "box.update.stays" : "box.update.waits")}</span>
-        <span className="mkt-box__line">{t("box.update.keeps", { from })}</span>
+        {connectorChanged && <span className="mkt-box__line">{t("box.update.connectorChanged")}</span>}
+        {reconnect ? (
+          <span className="mkt-box__line">{t("box.update.reconnect")}</span>
+        ) : (
+          <>
+            {!adds.length && !drops.length && <span className="mkt-box__line">{t("box.update.nothingNew")}</span>}
+            <span className="mkt-box__line">{t(stays ? "box.update.stays" : "box.update.waits")}</span>
+          </>
+        )}
+        <span className="mkt-box__line">
+          {t(reconnect ? "box.update.keepsReconnect" : "box.update.keeps", { from })}
+        </span>
       </SummaryItem>
     </SummaryCard>
   );
@@ -520,12 +533,11 @@ export function InstallBox({
             </span>
           </div>
         )}
-        {a && phase === "review" && update && (
+        {a && phase === "review" && seen && update && (
           <UpdateNote
             from={update.from}
-            to={seen?.version ?? ""}
-            adds={update.adds.map(power)}
-            drops={update.removes.map(power)}
+            to={seen.version}
+            {...connectionUpdateText(update, seen.settings, power)}
             stays={Boolean(update.keeps_on)}
           />
         )}
@@ -533,8 +545,7 @@ export function InstallBox({
           <UpdateNote
             from={ext.update.from}
             to={ext.version}
-            adds={ext.update.adds.map(power)}
-            drops={ext.update.removes.map(power)}
+            {...connectionUpdateText(ext.update, ext.settings, power)}
             stays={false}
           />
         )}

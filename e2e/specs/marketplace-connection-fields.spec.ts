@@ -90,6 +90,10 @@ for (const language of ["en", "es"] as const) {
     const connect = spanish ? "Conectar" : "Connect";
     await page.getByRole("button", { name: spanish ? "Ver qué cambia" : "See what changes", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: `${connect} Northwind Store` });
+    await expect(dialog).toContainText(
+      spanish ? "Volvé a conectarla con una credencial nueva." : "Reconnect with a new credential.",
+    );
+    await expect(dialog).not.toContainText("Legacy credential");
     const submit = dialog.getByRole("button", { name: connect, exact: true });
     const address = dialog.getByLabel(spanish ? "Dirección de la tienda" : "Store address", { exact: true });
     const username = dialog.getByLabel(spanish ? "Usuario" : "Username", { exact: true });
