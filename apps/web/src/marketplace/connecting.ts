@@ -32,7 +32,9 @@ export async function connectExtension<E extends Connectable>(
   } catch (error) {
     if (activation) {
       try {
-        actions.changed(await actions.enable(extension.id, false, { rollback_token: activation }));
+        const after = await actions.enable(extension.id, false, { rollback_token: activation });
+        actions.changed(after);
+        if (after.enabled) throw new Error("The extension is still on; review its current state.");
       } catch (rollbackError) {
         throw new ConnectionRollbackError(
           [error, rollbackError],

@@ -201,7 +201,7 @@ export const enMarketplace = {
     "{name} didn't answer at that address. It stays in your extensions: check the address and try again.",
   "box.err.checkFields": "Check the information you entered and try again.",
   "box.err.rollback":
-    "The connection failed, and turning it off also failed. Check its current status before trying again.",
+    "The connection failed. We could not confirm it is off. Check its current status before trying again.",
   "box.err.connect": "{name} couldn't connect. It stays added, not connected: try again now or later from its page.",
   "box.state.connected": "Connected",
   "box.state.paired": "Paired",
@@ -222,6 +222,7 @@ export const enMarketplace = {
   "box.title.elsewhere": "Add from elsewhere",
   "box.lead.elsewhere": "A file, an address or a folder that isn't in a catalog.",
   "box.see": "See {name}",
+  "box.viewStatus": "View status",
   "box.done": "Done",
   "box.retry": "Try again",
   "box.later": "Later",

@@ -158,7 +158,7 @@ El esquema es estricto: las claves desconocidas se rechazan.
 
 La primera conexión se muestra como conectada recién cuando sus servidores están listos. Si un servidor falla al iniciar, APX desactiva esa extensión recién activada para que puedas reintentar, incluso después de volver a abrir su ficha, salvo que se haya cambiado desde otro lugar o se haya reiniciado APX. Dos fichas abiertas no pueden atribuirse la misma primera activación, y un intento fallido no puede deshacer una activación posterior. Si ya estaba activada antes del intento, un fallo no la desactiva.
 
-Si tampoco se puede apagar, el diálogo lo informa por separado, sin atribuir el fallo a los datos ingresados. Revisá el estado actual de la extensión antes de reintentar; los campos se conservan en el diálogo.
+Si APX no puede confirmar que la extensión esté apagada, el diálogo lo informa por separado, sin atribuir el fallo a los datos ingresados. Elegí **Ver estado** para revisar la extensión antes de reintentar; los campos se conservan en el diálogo hasta que salgas de él. Instalar otra extensión, o una instalación rechazada antes de cambiar nada, no impide que una primera conexión pendiente pueda apagarse si falla.
 
 Un servidor MCP de una extensión solo puede usar los secretos **propios** de la extensión, como `secret://name`. No
 puede nombrar tus otras variables ni el entorno, así que un paquete no puede llevarse tus credenciales a otro lado.

@@ -36,6 +36,30 @@ test("connection activation receipts cannot roll back another attempt or a later
   expect(listed.extensions.find((extension) => extension.id === added.id)?.enabled).toBe(true);
 });
 
+test("installing another package or rejecting an install preserves a pending activation receipt", async () => {
+  const { dir } = await world.info();
+  const install = async (id: string) => {
+    const root = path.join(dir, id);
+    fs.mkdirSync(root, { recursive: true });
+    fs.writeFileSync(path.join(root, "apx-extension.json"), JSON.stringify({ id, name: id, version: "1.0.0" }));
+    const seen = await rpc<{ hash: string }>("extensions.inspect", { path: root });
+    return rpc<Enabled>("extensions.install", { path: root, hash: seen.hash });
+  };
+  const added = await install("acme-pending");
+  const claim = () => rpc<Enabled>("extensions.enable", { id: added.id, enabled: true, only_if_disabled: true });
+  const undo = (token: string | undefined) =>
+    rpc<Enabled>("extensions.enable", { id: added.id, enabled: false, rollback_token: token });
+  const first = await claim();
+  await install("acme-other-install");
+  expect((await undo(first.activation_token)).enabled).toBe(false);
+  const second = await claim();
+  await expect(rpc("extensions.install", { path: path.join(dir, "absent-package") })).rejects.toThrow();
+  expect((await undo(second.activation_token)).enabled).toBe(false);
+  const third = await claim();
+  await install("acme-pending");
+  expect((await undo(third.activation_token)).enabled).toBe(true);
+});
+
 test("a real server startup failure rolls back only its first activation and publishes the off state", async () => {
   const { dir } = await world.info();
   const root = path.join(dir, "failing-package");

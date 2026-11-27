@@ -203,7 +203,8 @@ export const esMarketplace = {
   "box.err.address":
     "{name} no respondió en esa dirección. Queda en tus extensiones: revisá la dirección y probá de nuevo.",
   "box.err.checkFields": "Revisá lo que ingresaste y volvé a intentar.",
-  "box.err.rollback": "La conexión falló y tampoco se pudo apagar. Revisá su estado actual antes de volver a intentar.",
+  "box.err.rollback":
+    "La conexión falló. No pudimos confirmar que esté apagada. Revisá su estado actual antes de volver a intentar.",
   "box.err.connect":
     "{name} no se pudo conectar. Quedó agregada, sin conectar: probá ahora o más tarde desde su ficha.",
   "box.state.connected": "Conectada",
@@ -225,6 +226,7 @@ export const esMarketplace = {
   "box.title.elsewhere": "Agregar desde otro lado",
   "box.lead.elsewhere": "Un archivo, una dirección o una carpeta que no están en un catálogo.",
   "box.see": "Ver {name}",
+  "box.viewStatus": "Ver estado",
   "box.done": "Listo",
   "box.retry": "Probar de nuevo",
   "box.later": "Más tarde",

@@ -367,12 +367,16 @@ export function InstallBox({
       setPhase("done");
     } catch (e) {
       setLink("broken");
+      let confirmed = false;
       try {
         const actual = (await client.call("extensions.list", {})).extensions.find((entry) => entry.id === ext.id);
-        if (actual) setExt(actual);
+        if (actual) {
+          setExt(actual);
+          confirmed = true;
+        }
       } catch {}
       extensionsChanged();
-      const key = connectionFailureKey(e, fields.length > 0);
+      const key = confirmed ? connectionFailureKey(e, fields.length > 0) : "box.err.rollback";
       setProblem({
         key,
         vars: { name: ext.name },
@@ -508,14 +512,18 @@ export function InstallBox({
         <Button variant="secondary" onClick={onClose}>
           {t("box.later")}
         </Button>
-        {!(pairs && pair.state === "waiting") && (
-          <Button
-            disabled={!ready || !ext}
-            loading={busy || (link === "connecting" && !pairs)}
-            onClick={() => void connect()}
-          >
-            {problem?.retry ? t("box.retry") : t(verb)}
-          </Button>
+        {problem?.key === "box.err.rollback" ? (
+          <Button onClick={openPage}>{t("box.viewStatus")}</Button>
+        ) : (
+          !(pairs && pair.state === "waiting") && (
+            <Button
+              disabled={!ready || !ext}
+              loading={busy || (link === "connecting" && !pairs)}
+              onClick={() => void connect()}
+            >
+              {problem?.retry ? t("box.retry") : t(verb)}
+            </Button>
+          )
         )}
         {pairs && pair.code && pair.state === "waiting" && <Button onClick={pair.confirm}>{t("box.pairTyped")}</Button>}
       </>

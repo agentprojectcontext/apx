@@ -140,6 +140,22 @@ test("a rollback failure is not presented as invalid credentials even when field
   assert.equal(connectionFailureKey(new Error("Invalid key"), true), "box.err.checkFields");
 });
 
+test("a refused rollback that returns an enabled extension requires a state review", async () => {
+  const f = fixture();
+  await assert.rejects(
+    connectExtension(f.current, {
+      ...f,
+      enable: async (id, on) => (on ? f.enable(id, on) : f.current),
+      start: async () => {
+        throw new Error("Unavailable");
+      },
+    }),
+    (error) => error instanceof ConnectionRollbackError,
+  );
+  assert.equal(f.current.enabled, true);
+  assert.deepEqual(f.published, [true]);
+});
+
 test("rollback failures remain visible rather than claiming the extension is off", async () => {
   const f = fixture();
   await assert.rejects(

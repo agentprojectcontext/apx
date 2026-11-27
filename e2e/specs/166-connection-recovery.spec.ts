@@ -61,10 +61,16 @@ for (const language of ["en", "es"] as const) {
     await box.getByRole("button", { name: connect, exact: true }).click();
     await expect(box.getByRole("alert")).toContainText(
       language === "en"
-        ? "The connection failed, and turning it off also failed. Check its current status before trying again."
-        : "La conexión falló y tampoco se pudo apagar. Revisá su estado actual antes de volver a intentar.",
+        ? "The connection failed. We could not confirm it is off. Check its current status before trying again."
+        : "La conexión falló. No pudimos confirmar que esté apagada. Revisá su estado actual antes de volver a intentar.",
     );
     await expect(input).toHaveValue("example-token");
+    await expect(
+      box.getByRole("button", { name: language === "en" ? "View status" : "Ver estado", exact: true }),
+    ).toBeVisible();
+    await expect(
+      box.getByRole("button", { name: language === "en" ? "Try again" : "Probar de nuevo", exact: true }),
+    ).toHaveCount(0);
     await expect.poll(() => readBacks).toBeGreaterThan(0);
     expect(rollbackFailed).toBe(true);
     const listed = await rpc<{ extensions: Array<{ id: string; enabled: boolean }> }>("extensions.list");
@@ -74,5 +80,8 @@ for (const language of ["en", "es"] as const) {
       await expect(input).toHaveValue("example-token");
       await page.screenshot({ path: test.info().outputPath(`rollback-${width}.png`), fullPage: true });
     }
+    await box.getByRole("button", { name: language === "en" ? "View status" : "Ver estado", exact: true }).click();
+    await expect(box).toBeHidden();
+    await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
   });
 }
