@@ -1,7 +1,7 @@
 import type { Part } from "@apx/protocol";
 import { ApxError } from "@apx/protocol/client";
 import { Button, Icons } from "@apx/ui";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { client } from "../../data/client.ts";
 import { usePrefs } from "../../data/prefs.ts";
 import { useData } from "../../data/state.ts";
@@ -26,9 +26,11 @@ export function ContinuationNotice({ part }: { part: NoticeData }) {
   const locale = LOCALES[usePrefs((p) => p.language)];
   const online = useData((s) => s.connection === "online");
   const [pending, setPending] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const details = useId();
   const busy = useRef(false);
   const localFocus = useRef(false);
-  const status = useRef<HTMLElement>(null);
+  const status = useRef<HTMLButtonElement>(null);
   const cancelButton = useRef<HTMLButtonElement>(null);
   const [error, setError] = useState(false);
   const [observed, setObserved] = useState<string>();
@@ -87,11 +89,40 @@ export function ContinuationNotice({ part }: { part: NoticeData }) {
                 : t("notice.continuation.failed");
   return (
     <div className="noticeline continuation-notice" role="status">
-      <Icons.Clock size={14} />
-      <div className="noticeline__text">
-        <strong ref={status} className="continuation-notice__status" tabIndex={-1}>
-          {title}
-        </strong>
+      <Button
+        ref={status}
+        className="continuation-notice__status"
+        size="sm"
+        variant="ghost"
+        leadingIcon={<Icons.ChevronRight size={14} className="continuation-notice__chevron" aria-hidden="true" />}
+        aria-expanded={expanded}
+        aria-controls={details}
+        onClick={() => setExpanded((open) => !open)}
+      >
+        {title}
+      </Button>
+      {(state === "pending" || Boolean(v.target)) && (
+        <span className="noticeline__actions">
+          {state === "pending" && (
+            <Button
+              ref={cancelButton}
+              size="sm"
+              variant="ghost"
+              disabled={pending || !online}
+              aria-label={t("notice.continuation.cancelLabel", { purpose })}
+              onClick={() => void cancel()}
+            >
+              {t("notice.continuation.cancel")}
+            </Button>
+          )}
+          {v.target && (
+            <Button size="sm" variant="ghost" onClick={() => go.message(thread, String(v.target))}>
+              {t("notice.continuation.view")}
+            </Button>
+          )}
+        </span>
+      )}
+      <div id={details} className="continuation-notice__details" hidden={!expanded}>
         <p>{purpose}</p>
         {state === "pending" && (
           <>
@@ -103,54 +134,35 @@ export function ContinuationNotice({ part }: { part: NoticeData }) {
             <p>{t("notice.continuation.until", dateParts(v.expires, locale))}</p>
           </>
         )}
-        {state === "expired" && (
-          <p>
-            {v.condition === "task_done" && v.reason !== "ready_expired"
-              ? v.when
-                ? t("notice.continuation.expiredEvent", { when: String(v.when) })
-                : t("notice.continuation.expiredEventUnknown")
-              : t("notice.continuation.expiredDetail")}
-          </p>
-        )}
-        {state === "blocked" && (
-          <p>
-            {v.reason === "task"
-              ? t("notice.continuation.taskDetail")
-              : v.reason === "unavailable"
-                ? t("notice.continuation.unavailableDetail")
-                : v.reason === "access"
-                  ? t("notice.continuation.accessDetail")
-                  : t("notice.continuation.blockedDetail")}
-          </p>
-        )}
-        {state === "failed" && <p>{t("notice.continuation.failedDetail")}</p>}
-        {error && (
-          <p role="alert">
-            {state === "admitted" || state === "completed"
-              ? t("notice.continuation.alreadyStarted")
-              : t("notice.continuation.cancelError")}
-          </p>
-        )}
       </div>
-      <span className="noticeline__actions">
-        {state === "pending" && (
-          <Button
-            ref={cancelButton}
-            size="sm"
-            variant="ghost"
-            disabled={pending || !online}
-            aria-label={t("notice.continuation.cancelLabel", { purpose })}
-            onClick={() => void cancel()}
-          >
-            {t("notice.continuation.cancel")}
-          </Button>
-        )}
-        {v.target && (
-          <Button size="sm" variant="ghost" onClick={() => go.message(thread, String(v.target))}>
-            {t("notice.continuation.view")}
-          </Button>
-        )}
-      </span>
+      {state === "expired" && (
+        <p>
+          {v.condition === "task_done" && v.reason !== "ready_expired"
+            ? v.when
+              ? t("notice.continuation.expiredEvent", { when: String(v.when) })
+              : t("notice.continuation.expiredEventUnknown")
+            : t("notice.continuation.expiredDetail")}
+        </p>
+      )}
+      {state === "blocked" && (
+        <p>
+          {v.reason === "task"
+            ? t("notice.continuation.taskDetail")
+            : v.reason === "unavailable"
+              ? t("notice.continuation.unavailableDetail")
+              : v.reason === "access"
+                ? t("notice.continuation.accessDetail")
+                : t("notice.continuation.blockedDetail")}
+        </p>
+      )}
+      {state === "failed" && <p>{t("notice.continuation.failedDetail")}</p>}
+      {error && (
+        <p role="alert">
+          {state === "admitted" || state === "completed"
+            ? t("notice.continuation.alreadyStarted")
+            : t("notice.continuation.cancelError")}
+        </p>
+      )}
     </div>
   );
 }

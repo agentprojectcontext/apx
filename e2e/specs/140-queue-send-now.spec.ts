@@ -93,6 +93,53 @@ test("messages in line are edited, moved and removed, and Send now has the agent
   expect(at("scratch that")).toBe(-1);
 });
 
+for (const width of [1280, 390]) {
+  test(`a long queue preview stays compact and attachments align (${width}px)`, async ({ page }) => {
+    await rpc("setup.finish", {});
+    const chat = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "scout", title: "Preview" });
+    await page.setViewportSize({ width, height: 800 });
+    await open(page, `#thread=${chat.id}`);
+    const box = page.getByRole("textbox", { name: /Escribile/ });
+    await box.fill("work for a long while");
+    await page.keyboard.press("Enter");
+    await expect(page.locator(".turn__tools")).toContainText("Trabajando · paso 1");
+    const draft = `${"This is a long note with an attachment. ".repeat(34)}End of the note.`;
+    await box.fill(draft);
+    await page
+      .locator('input[type="file"]')
+      .first()
+      .setInputFiles({
+        name: "report.txt",
+        mimeType: "text/plain",
+        buffer: Buffer.from("Example report"),
+      });
+    await expect(page.locator(".attchip:not(.is-loading):not(.is-error)")).toContainText("report.txt");
+    await box.press("ControlOrMeta+Enter");
+    const row = page.locator(".queue__row");
+    const message = row.locator(".queue__text");
+    await expect(row.locator(".queue__files")).toHaveText("1");
+    await message.hover();
+    const hint = page.locator(".apx-tooltip[data-open]");
+    await expect(hint).toContainText("This is a long note");
+    const bounds = await hint.boundingBox();
+    expect(bounds).not.toBeNull();
+    if (bounds) {
+      expect(bounds.width).toBeLessThanOrEqual(340);
+      expect(bounds.height).toBeLessThanOrEqual(72);
+      expect(bounds.x).toBeGreaterThanOrEqual(0);
+      expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
+    }
+    const clip = await row.locator(".queue__files svg").boundingBox();
+    const line = await message.boundingBox();
+    expect(clip).not.toBeNull();
+    expect(line).not.toBeNull();
+    if (clip && line) expect(Math.abs(clip.y + clip.height / 2 - (line.y + line.height / 2))).toBeLessThan(1);
+    await page.screenshot({ path: test.info().outputPath(`queue-preview-${width}.png`) });
+    await row.getByRole("button", { name: "Editar" }).click();
+    await expect(row.getByRole("textbox", { name: "Editar" })).toHaveValue(draft);
+  });
+}
+
 for (const width of [1280, 375]) {
   test(`a focused queue hint leaves the next drag handle usable (${width}px)`, async ({ page }) => {
     await rpc("setup.finish", {});
