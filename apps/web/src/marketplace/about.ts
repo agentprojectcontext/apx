@@ -56,6 +56,7 @@ export type About = {
   /** For its icon. */
   listing?: ExtensionListing | undefined;
   entry?: CatalogEntry | undefined;
+  ext?: ExtensionInfo | undefined;
 };
 
 /** Its tool names as the owner reads them: `list_customers` → "list customers". */
@@ -97,14 +98,17 @@ export function aboutExtension(
         : e.provenance === "official"
           ? "official"
           : "third";
+  const catalog = opts.look?.entry;
+  const look =
+    catalog?.provenance === "official" && (e.provenance !== "official" || e.id !== catalog.id) ? undefined : opts.look;
   return {
     id: e.id,
     name: e.name,
     version: e.version === "0.0.0" ? undefined : e.version,
     tagline: listingIn(e.listing, lang)?.tagline ?? (e.description || undefined),
     label: opts.label,
-    publisher: e.listing?.publisher?.name ?? opts.look?.listing?.publisher?.name ?? opts.look?.entry?.publisher,
-    github: opts.look?.entry?.github,
+    publisher: e.listing?.publisher?.name ?? look?.listing?.publisher?.name ?? look?.entry?.publisher,
+    github: look?.entry?.github,
     origin: opts.origin ?? originOf(e.source),
     hosts: e.hosts,
     ownerHost: Boolean(e.owner_host),
@@ -122,8 +126,9 @@ export function aboutExtension(
     requirements: listingIn(e.listing, lang)?.requirements ?? [],
     files,
     hash: e.hash,
-    listing: e.listing ?? opts.look?.listing,
-    entry: opts.look?.entry,
+    listing: e.listing ?? look?.listing,
+    entry: look?.entry,
+    ext: e,
   };
 }
 

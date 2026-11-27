@@ -63,12 +63,12 @@ export function ConnectHead({
   from = "apx",
   state,
 }: {
-  item: Pick<Item, "id" | "name"> & Partial<Pick<Item, "listing" | "entry" | "ext">>;
+  item: Pick<Item, "id" | "name">;
   /** Where the link starts: APX (an account) or the app (a companion app pairing with APX). */
   from?: "apx" | "app";
   state: LinkState;
 }) {
-  const app = <ItemIcon item={item} size={36} />;
+  const app = <IntegrationIcon id={item.id} name={item.name} size={36} />;
   return (
     <ConnectSignal from={from === "apx" ? <ApxMark /> : app} to={from === "apx" ? app : <ApxMark />} state={state} />
   );

@@ -47,8 +47,8 @@ const Entry = z.object({
   category: z.string().max(60).optional(),
   /** Absolute https addresses of its `apx-listing.json` and its icon. */
   listing: z.string().max(500).startsWith("https://").optional(),
-  icon: z.string().max(500).startsWith("https://").optional(),
-  mcp_provider: z.string().trim().min(1).max(100).optional(),
+  icon: z.string().max(500).startsWith("https://").optional().catch(undefined),
+  mcp_provider: z.string().trim().min(1).max(100).optional().catch(undefined),
   tier: z.string().optional(),
   versions: z.array(z.unknown()).default([]),
 });
