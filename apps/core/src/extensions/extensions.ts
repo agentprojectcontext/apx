@@ -24,6 +24,7 @@ import { type Catalog, type CatalogCheck, DownloadError, downloadArchive } from 
 import { ASSET_MAX, createPackageReader, newest } from "./catalog-packages.ts";
 import type { Catalogs } from "./catalogs.ts";
 import { writeConnector } from "./connector.ts";
+import { clearChangedCredentials } from "./credential-contract.ts";
 import { createManifestV2, settingsInfo } from "./manifest-v2.ts";
 import {
   comparePowers,
@@ -640,6 +641,7 @@ export function createExtensions(deps: {
           cur &&
           ((cur.hash === hash && !same && !officialUpdate) || (cur.origin_key && same && (input.file || input.url)));
         const originKey = preserveOrigin ? cur.origin_key : origin;
+        if (cur) clearChangedCredentials(id, cur.manifest, manifest, secrets);
         const e = store.extensions.put({
           id,
           manifest,
@@ -682,6 +684,7 @@ export function createExtensions(deps: {
       if (fs.existsSync(e.dir)) fs.renameSync(e.dir, swap);
       fs.renameSync(back, e.dir);
       if (fs.existsSync(swap)) fs.renameSync(swap, back);
+      clearChangedCredentials(id, e.manifest, prev.manifest, secrets);
       const restored = store.extensions.put({
         id,
         manifest: prev.manifest,

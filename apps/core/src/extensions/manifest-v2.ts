@@ -35,6 +35,28 @@ function checked(s: ExtensionSetting, v: Value): Value {
     if (typeof v !== "boolean") throw badRequest(`${s.label}: yes or no`);
     return v;
   }
+  if (s.format === "https-url") {
+    const invalid = () => badRequest("Enter an HTTPS address without credentials, a query or a fragment");
+    if (typeof v !== "string" || !/^https:\/\//i.test(v) || /[\s\\?#]/.test(v)) throw invalid();
+    if ([...v].some((c) => c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127)) throw invalid();
+    // URL drops an empty userinfo marker, so inspect the authority before parsing too.
+    if (
+      v
+        .slice(v.indexOf("//") + 2)
+        .split("/")[0]
+        ?.includes("@")
+    )
+      throw invalid();
+    let url: URL;
+    try {
+      url = new URL(v);
+    } catch {
+      throw invalid();
+    }
+    if (url.protocol !== "https:" || !url.hostname || url.username || url.password || url.search || url.hash)
+      throw invalid();
+    return url.href;
+  }
   const text = String(v).trim();
   if (s.options && !s.options.includes(text)) throw badRequest(`${s.label}: one of ${s.options.join(", ")}`);
   if (s.type === "directory" || s.type === "file") {
@@ -67,6 +89,10 @@ export function createManifestV2(deps: { store: Store; secrets: Secrets }) {
         if (s.sensitive) writes.set(name, v === null || v === "" ? null : String(checked(s, v)));
         else if (v === null) delete plain[name];
         else plain[name] = checked(s, v);
+      }
+      for (const s of e.manifest.settings.filter((s) => s.format)) {
+        const value = plain[s.name];
+        if (value !== undefined) plain[s.name] = checked(s, value);
       }
       for (const s of e.manifest.settings.filter((s) => s.boundTo)) {
         if (!s.sensitive || s.type !== "string" || s.generate)
