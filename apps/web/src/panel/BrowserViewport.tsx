@@ -1,5 +1,5 @@
 import { Button, EmptyState, Icons, Skeleton, useApx } from "@apx/ui";
-import { type RefObject, useEffect, useRef, useState } from "react";
+import { type RefObject, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePageVisible } from "../common/useInView.ts";
 import { useScreenshot } from "../common/useScreenshot.ts";
 import { useSlice } from "../data/createStore.ts";
@@ -10,11 +10,11 @@ import { nativeCover } from "./nativeCover.ts";
 const POLL_MS = 1500;
 
 /** The page area: the desktop app's real browser view when embedded, else a polled screenshot. */
-export function BrowserViewport({ tab }: { tab: string }) {
-  const desktop = typeof window !== "undefined" ? window.apxDesktop : undefined;
+export function BrowserViewport({ tab, native }: { tab: string; native: boolean }) {
+  const desktop = window.apxDesktop;
   const poppedOut = useBrowserPoppedOut();
-  if (desktop && poppedOut) return <PoppedOut />;
-  return desktop ? <DesktopSlot desktop={desktop} tab={tab} /> : <ScreenshotView tab={tab} />;
+  if (!native || !desktop) return <ScreenshotView key={tab} tab={tab} />;
+  return poppedOut ? <PoppedOut /> : <DesktopSlot key={tab} desktop={desktop} tab={tab} />;
 }
 
 /** The page is in the browser window: say so, and offer to bring it back here. */
@@ -46,19 +46,17 @@ function DesktopSlot({ desktop, tab }: { desktop: NonNullable<Window["apxDesktop
   const covered = dragging || overlaid;
   // While the live page steps behind the panel, a still of it holds its place instead of an empty box.
   const [frame, setFrame] = useState<Frame | null>(null);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: another tab's still must not stand in for this one.
-  useEffect(() => setFrame(null), [tab]);
-  useEffect(() => () => desktop.setBrowserBounds(null), [desktop]);
+  useLayoutEffect(() => () => desktop.setBrowserBounds(null), [desktop]);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     if (covered) {
       let live = true;
       // Behind the panel it keeps its place and size, so the page never lays out again and the still matches it.
-      const behind = { ...rectOf(el), behind: true };
+      const behind = { ...rectOf(el), tab, behind: true };
       // A drag must reach the panel at once; a popup waits for the still, so the page never blinks.
       if (dragging) desktop.setBrowserBounds(behind);
-      stillOf(desktop).then((src) => {
+      stillOf(desktop, tab).then((src) => {
         if (!live) return;
         if (src) setFrame({ src, width: behind.width });
         requestAnimationFrame(() => requestAnimationFrame(() => live && desktop.setBrowserBounds(behind)));
@@ -74,7 +72,7 @@ function DesktopSlot({ desktop, tab }: { desktop: NonNullable<Window["apxDesktop
       tick = requestAnimationFrame(() => {
         const r = rectOf(el);
         const visible = r.width > 0 && r.height > 0 && document.visibilityState === "visible";
-        const next = visible ? r : null;
+        const next = visible ? { ...r, tab } : null;
         const key = JSON.stringify(next);
         if (key === last) return;
         last = key;
@@ -97,7 +95,7 @@ function DesktopSlot({ desktop, tab }: { desktop: NonNullable<Window["apxDesktop
       document.removeEventListener("visibilitychange", report);
       document.removeEventListener("transitionend", report);
     };
-  }, [desktop, covered, dragging]);
+  }, [desktop, covered, dragging, tab]);
   return (
     <div ref={ref} className="browser__page browser__page--native">
       {frame && (
@@ -114,9 +112,9 @@ function rectOf(el: HTMLElement) {
 }
 
 /** A decoded still of the page on screen, or null when the app cannot take one. */
-async function stillOf(desktop: NonNullable<Window["apxDesktop"]>): Promise<string | null> {
+async function stillOf(desktop: NonNullable<Window["apxDesktop"]>, tab: string): Promise<string | null> {
   try {
-    const src = await desktop.browserFrame?.();
+    const src = await desktop.browserFrame?.(tab);
     if (!src) return null;
     const img = new Image();
     img.src = src;
@@ -190,16 +188,19 @@ function ScreenshotView({ tab }: { tab: string }) {
   const visible = usePageVisible();
   const { src, error } = useScreenshot(tab, POLL_MS, visible);
   return (
-    <div className="browser__page">
-      {src ? (
-        <img className="browser__shot" src={src} alt={t("browser.liveView")} draggable={false} />
-      ) : error ? (
-        <EmptyState icon={<Icons.TriangleAlert />} title={t("browser.noImage")}>
-          {t("browser.noImageBody")}
-        </EmptyState>
-      ) : (
-        <Skeleton shape="block" height="100%" />
-      )}
-    </div>
+    <>
+      <p className="browser__preview-note">{t("browser.previewOnly")}</p>
+      <div className="browser__page">
+        {error ? (
+          <EmptyState icon={<Icons.TriangleAlert />} title={t("browser.noImage")}>
+            {t("browser.noImageBody")}
+          </EmptyState>
+        ) : src ? (
+          <img className="browser__shot" src={src} alt={t("browser.liveView")} draggable={false} />
+        ) : (
+          <Skeleton shape="block" height="100%" />
+        )}
+      </div>
+    </>
   );
 }

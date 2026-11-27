@@ -3,7 +3,7 @@
 import { BaseWindow, type WebContents, WebContentsView } from "electron";
 
 /** `behind`: the tab keeps this place and size under the panel, so its page never lays out again for a cover. */
-export type Bounds = { x: number; y: number; width: number; height: number; behind?: boolean };
+export type Bounds = { tab?: string; x: number; y: number; width: number; height: number; behind?: boolean };
 
 export function createPopout(opts: {
   url: () => string;
@@ -42,6 +42,11 @@ export function createPopout(opts: {
         },
       });
       win.contentView.addChildView(panel);
+      panel.webContents.on("did-start-navigation", (details) => {
+        if (!details.isMainFrame || details.isSameDocument) return;
+        slot = null;
+        opts.layout();
+      });
       fit();
       win.on("resize", () => {
         fit();

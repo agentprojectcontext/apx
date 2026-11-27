@@ -2,7 +2,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 
 /** `behind`: keep the page at this place and size, but under the panel (something covers it for a moment). */
-type Bounds = { x: number; y: number; width: number; height: number; behind?: boolean };
+type Bounds = { tab: string; x: number; y: number; width: number; height: number; behind?: boolean };
 
 // Kept from the window's own reports (sent at load and on every change), so a late reader gets it too.
 let fullScreen = false;
@@ -14,10 +14,11 @@ contextBridge.exposeInMainWorld("apxDesktop", {
   /** darwin | win32 | linux — panel pads the unified title bar for traffic lights / overlay. */
   platform: process.platform,
   setBrowserBounds: (b: Bounds | null) => ipcRenderer.send("panel:browser-bounds", b),
-  browserFrame: (): Promise<unknown> => ipcRenderer.invoke("panel:browser-frame"),
+  browserFrame: (tab: string): Promise<unknown> => ipcRenderer.invoke("panel:browser-frame", tab),
+  hasBrowserView: (tab: string): Promise<boolean> => ipcRenderer.invoke("panel:has-browser-view", tab),
   showBrowserTab: (tab: string) => ipcRenderer.send("panel:browser-tab", tab),
   /** The browser in a window of its own (true) or back in the side panel (false). */
-  popOutBrowser: (open: boolean) => ipcRenderer.send("browser:popout", open === true),
+  popOutBrowser: (open: boolean, tab?: string) => ipcRenderer.send("browser:popout", open === true, tab),
   browserPoppedOut: (): boolean => ipcRenderer.sendSync("browser:popout-state") === true,
   onBrowserPopout: (listener: (open: boolean) => void) => {
     const on = (_e: unknown, open: unknown) => listener(open === true);
