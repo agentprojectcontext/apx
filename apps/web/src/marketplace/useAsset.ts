@@ -5,7 +5,13 @@ import { createAssetCache } from "./assetCache.ts";
 // Images go through the core: the panel never contacts the catalog's image host directly.
 const load = createAssetCache(async (id, file) => {
   const image = await client.call("extensions.asset", { id, file });
-  return image.mime && image.data ? `data:${image.mime};base64,${image.data}` : undefined;
+  if (!image.mime || !image.data) return undefined;
+  // A response is not usable artwork until the browser can decode it.
+  const url = `data:${image.mime};base64,${image.data}`;
+  const decoded = new Image();
+  decoded.src = url;
+  await decoded.decode();
+  return url;
 });
 
 /** A core-served image, with a package fallback when the catalog avatar is unavailable. */

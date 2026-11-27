@@ -34,6 +34,7 @@ export const enMarketplace = {
   "mkt.group.active": "Active",
   "mkt.from": "Created by {name}",
   "mkt.from.mcp": "{name} MCP · published by APX",
+  "mkt.provider": "{name} MCP",
   "mkt.creatorUnknown": "Creator not listed",
   "mkt.published": "Published",
   "mkt.from.github": "Code on GitHub: {name}",
