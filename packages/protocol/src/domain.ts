@@ -14,6 +14,7 @@ export {
 } from "./domain-accounts.ts";
 export {
   ApprovalScope,
+  DeletionCard,
   FileChange,
   InputKind,
   InputState,

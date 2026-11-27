@@ -453,7 +453,12 @@ test("an automatic outside session in a project worktree runs its own scripts wi
       "the deletion card",
     );
     assert.match(card.prompt, /delete|borrar/);
-    assert.ok(card.detail?.includes(path.join(tree, "work", "en", "subtitles", "words", "es")), card.detail);
+    // Relative to the project, so a worktree's file says it is in the worktree.
+    assert.deepEqual(card.deletion, {
+      items: [".worktrees/reels/work/en/subtitles/words/es", ".worktrees/reels/work/en/subtitles/captions/es.srt"],
+      reason: "Drop the Spanish words copied from the original",
+      command: deletion.command,
+    });
     assert.match(card.detail ?? "", /Drop the Spanish words/);
     assert.deepEqual(card.approval_scopes, ["once", "session"]);
     await env.client.call("runs.respond", { input: card.id, decision: "approve", scope: "session" });

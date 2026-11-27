@@ -130,7 +130,8 @@ calls never covers its destructive ones. What you set up in APX is approved one 
 An agent deletes only when you asked for it, in the chat or as a rule of yours in the project (removing a worktree
 once it is merged, say). It is told so, and when you did not ask it asks you and says why. In every mode but Total, a
 command that deletes with `rm -r` or `rm -f` waits for you, also inside its own folder. Its card lists what would be
-deleted, each path in full, why the agent wants to, in its own words, and the command. You can accept it once, or for
+deleted in plain words, with paths relative to the project, and the command under **See command**. Why the agent
+wants to is its own message just above the card (for Claude Code or Codex, the reason it gave, on the card). You can accept it once, or for
 this chat: then that agent's next deletions in this chat run without asking. It is never allowed for good, and it
 never covers anything else that always asks, like `sudo` or a release.
 
@@ -139,7 +140,10 @@ worktree, files or stash they lose: `git worktree remove --force`, `git branch -
 `git reset --hard`, `git checkout -- .` or `git checkout -f`, `git restore .`, `git switch --discard-changes`,
 `git stash drop` or `clear`, `git rm -f`, `git reflog expire` and `git gc --prune=now`. Their plain forms
 (`git worktree remove`, `git branch -d`, `git stash`, `git rm`) are ordinary commands: git itself refuses them when
-work would be lost.
+work would be lost. When another deletion opens a card, they show on it too, saying git keeps the branch or folder if
+work would be lost. Paths of a `git -C <folder>` command are read in that folder. `git restore` and
+`git checkout -- <paths>` count only for files with edits not yet committed: bringing back files deleted in the working
+tree loses nothing and runs without asking.
 
 In the agent's editor, **Granted** lists what you allowed for good. You can narrow a grant to some paths, domains or
 names (`app/Http/, github.com`: only calls whose arguments match run without asking) or give it an end date, after

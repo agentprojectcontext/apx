@@ -1,8 +1,9 @@
 // What a command line deletes, for the owner's card (DECISIONS.md#d-266): forced `rm`s and the git commands that throw
 // away work git would otherwise keep. A static reading, as the destructive rule's, following the line's `cd`s and
-// variables.
+// variables; where it runs, git says which files a restore would overwrite.
 import path from "node:path";
 import { expandHome } from "../paths.ts";
+import { type Overwritten, overwritten } from "./command-git-status.ts";
 import { shellCode } from "./command-heredocs.ts";
 import { segments, type Word } from "./command-paths.ts";
 import { normalize, withoutSearchPattern } from "./command-text.ts";
@@ -11,30 +12,48 @@ import { normalize, withoutSearchPattern } from "./command-text.ts";
 const FORCED_RM = /(?<!\bgit(?:[ \t]+[^\s;&|]+)*[ \t]+)\brm\b[^|;&]*\s(-\w*[rf]|--recursive|--force)/;
 const forcedRm = (code: string) => FORCED_RM.test(code) || FORCED_RM.test(normalize(code));
 
-/** What a git command throws away, as the owner reads it on the card. */
+/**
+ * What a git command throws away, as the owner reads it on the card. `soft`: git refuses it when work would be lost
+ * (`branch -d`, `worktree remove`), so it never asks by itself; it shows on a card another deletion opens.
+ */
 export type GitLoss = {
   what: "branch" | "worktree" | "untracked" | "changes" | "stash" | "stashes" | "commits";
   target: string;
+  soft?: true;
 };
 
 /**
  * The paths a command's deletions remove, resolved from `cwd`; `later` holds what only the running command knows (a
  * variable it did not set, `$(…)`, `xargs rm`, `find -exec rm`, a script fed to a shell), as written; `git` what its
- * git commands throw away.
+ * git commands throw away. `root`, set by the caller, is the folder the card shows paths relative to.
  */
-export type Deletion = { paths: string[]; later: string[]; git: GitLoss[] };
+export type Deletion = { paths: string[]; later: string[]; git: GitLoss[]; root?: string };
+
+/** A git loss as one command states it: a restore's paths wait for git to say which hold edits. */
+type Found = GitLoss & { restore?: "worktree" | "both" };
 
 /** Text a shell is fed through a heredoc, read as the commands it is: the operator dropped, the body kept. */
 const unwrapped = (code: string) => code.replace(/(?<!<)<<-?\s*(['"]?)([\w.-]+)\1/g, "");
 
 const detectsDeletion = (code: string): boolean =>
-  forcedRm(code) || segments(unwrapped(code)).some((s) => gitLoss(s.map((w) => w.text)).length > 0);
+  forcedRm(code) || segments(unwrapped(code)).some((s) => gitLoss(s.map((w) => w.text)).some((l) => !l.soft));
 const deletionCode = (command: string) => withoutSearchPattern(shellCode(command.trim()), detectsDeletion);
 
 /** Whether a command deletes: a forced `rm`, or a git command that discards work, a script fed to a shell included. */
 export const deletes = (command: string): boolean => detectsDeletion(deletionCode(command));
 
-export function deletionTargets(command: string, cwd: string): Deletion {
+/**
+ * Whether a command deletes something where it runs (`cwd`): as `deletes`, except that a restore bringing back files
+ * deleted in the working tree, or touching none with edits, loses nothing.
+ */
+export function losesWork(command: string, cwd: string, look: Overwritten = overwritten): boolean {
+  if (!deletes(command)) return false;
+  const d = deletionTargets(command, cwd, look);
+  return d.paths.length > 0 || d.later.length > 0 || d.git.some((l) => !l.soft);
+}
+
+/** What a command deletes, read where it runs; `look` asks git which files a restore would overwrite. */
+export function deletionTargets(command: string, cwd: string, look: Overwritten = overwritten): Deletion {
   const code = deletionCode(command);
   if (!detectsDeletion(code)) return { paths: [], later: [], git: [] };
   const paths: string[] = [];
@@ -63,12 +82,11 @@ export function deletionTargets(command: string, cwd: string): Deletion {
       at = at === undefined || text === undefined || text === "-" ? undefined : path.resolve(at, text);
       continue;
     }
-    const lost = gitLoss(words.map((w) => expand(w, vars) ?? w.text));
-    for (const l of lost) {
+    const known = words.map((w) => expand(w, vars));
+    const lost = gitLoss(known.map((k, i) => k ?? words[i]?.text ?? ""));
+    if (lost.length) {
       seen = true;
-      // Paths and folders show in full where the command runs; branch and stash names as they are.
-      const full = l.what === "branch" || l.what === "stash" || l.what === "stashes" || l.what === "commits";
-      git.push(full ? l : { ...l, target: place(l.target) ?? l.target });
+      git.push(...gitTargets(lost, gitFolder(known, at), look));
     }
     const line = words.map((w) => w.text).join(" ");
     if (!FORCED_RM.test(line)) continue;
@@ -96,8 +114,46 @@ export function deletionTargets(command: string, cwd: string): Deletion {
   return { paths, later, git };
 }
 
+/**
+ * One git command's losses with their paths resolved where git runs (`gitAt`, undefined when only the shell knows).
+ * A restore's paths become the files git says hold edits; when git cannot say, every path it names.
+ */
+function gitTargets(lost: Found[], gitAt: string | undefined, look: Overwritten): GitLoss[] {
+  const restored = lost.filter((l) => l.restore);
+  const edited =
+    restored.length && gitAt !== undefined
+      ? look(
+          gitAt,
+          restored.map((l) => l.target),
+          restored.some((l) => l.restore === "both"),
+        )
+      : undefined;
+  const out: GitLoss[] = (edited ?? []).map((target) => ({ what: "changes", target }));
+  for (const { restore, ...l } of lost) {
+    if (restore && edited) continue;
+    // Paths and folders show in full; branch and stash names as they are.
+    const name = l.what === "branch" || l.what === "stash" || l.what === "stashes" || l.what === "commits";
+    out.push(name || gitAt === undefined ? l : { ...l, target: path.resolve(gitAt, l.target) });
+  }
+  return out;
+}
+
 /** Git's own options before its command: `-C dir`, `-c key=value`, `--git-dir …`. */
 const GIT_VALUED = new Set(["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path", "--config-env"]);
+
+/** The folder a git command works in: `at`, moved by each `-C`; undefined when only the shell knows one. */
+function gitFolder(words: Array<string | undefined>, at: string | undefined): string | undefined {
+  let i = words.findIndex((w) => w === undefined || !/^[A-Za-z_]\w*=/.test(w));
+  for (i++; i > 0 && i < words.length && (words[i] ?? "").startsWith("-"); i++) {
+    const option = words[i] ?? "";
+    if (!GIT_VALUED.has(option)) continue;
+    i++;
+    if (option !== "-C") continue;
+    const to = words[i];
+    at = at === undefined || to === undefined ? undefined : path.resolve(at, to);
+  }
+  return at;
+}
 
 /** Whether short flags (`-fd`) or long ones name a flag. */
 const has = (args: string[], short: string, ...long: string[]) =>
@@ -114,24 +170,27 @@ const operands = (args: string[]) => {
  * What one simple command throws away when it is a git command that discards work git would otherwise keep:
  * `worktree remove --force`, `branch -D`, `clean` (not a dry run), `reset --hard`, `checkout -- paths`/`checkout .`/
  * `checkout -f`, `restore` of the working tree, `switch --discard-changes`/`-f`, `stash drop`/`clear`, `rm -f`,
- * `reflog expire`/`delete` and `gc --prune=now`. Plain `worktree remove` and `branch -d` are not: git refuses them
- * when work would be lost.
+ * `reflog expire`/`delete` and `gc --prune=now`. Plain `worktree remove` and `branch -d` are `soft`: git refuses them
+ * when work would be lost. A restore's paths say what it restores, for git to tell which hold edits.
  */
-function gitLoss(words: string[]): GitLoss[] {
+function gitLoss(words: string[]): Found[] {
   let i = words.findIndex((w) => !/^[A-Za-z_]\w*=/.test(w));
   if (i < 0 || path.basename(words[i] ?? "") !== "git") return [];
   for (i++; i < words.length && (words[i] ?? "").startsWith("-"); i++) if (GIT_VALUED.has(words[i] ?? "")) i++;
   const sub = words[i];
   const args = words.slice(i + 1);
   const ops = operands(args);
-  const each = (what: GitLoss["what"], list: string[], fallback: string): GitLoss[] =>
-    (list.length ? list : [fallback]).map((target) => ({ what, target }));
+  const each = (what: GitLoss["what"], list: string[], fallback: string, more: Partial<Found> = {}): Found[] =>
+    (list.length ? list : [fallback]).map((target) => ({ what, target, ...more }));
+  const soft = { soft: true } as const;
   switch (sub) {
     case "worktree":
-      return ops[0] === "remove" && has(args, "f", "--force") ? each("worktree", ops.slice(1), ".") : [];
+      if (ops[0] !== "remove") return [];
+      return each("worktree", ops.slice(1), ".", has(args, "f", "--force") ? {} : soft);
     case "branch": {
       const force = has(args, "D") || (has(args, "d", "--delete") && has(args, "f", "--force"));
-      return force ? each("branch", ops, "?") : [];
+      if (force) return each("branch", ops, "?");
+      return has(args, "d", "--delete") ? each("branch", ops, "?", soft) : [];
     }
     case "clean":
       return has(args, "n", "--dry-run") ? [] : each("untracked", ops, ".");
@@ -141,18 +200,20 @@ function gitLoss(words: string[]): GitLoss[] {
       const dash = args.indexOf("--");
       const paths = dash < 0 ? ops.filter((o) => o === "." || o === "./") : args.slice(dash + 1);
       if (has(args, "f", "--force")) return each("changes", paths, ".");
-      return paths.length ? each("changes", paths, ".") : [];
+      // `checkout -- paths` restores from the index; `checkout <commit> -- paths` the index as well.
+      const from = dash < 0 ? [] : operands(args.slice(0, dash));
+      return paths.length ? each("changes", paths, ".", { restore: from.length ? "both" : "worktree" }) : [];
     }
     case "restore": {
       const valued = args.flatMap((a, k) => (a === "--source" || a === "-s" ? [args[k + 1] ?? ""] : []));
-      const staged = has(args, "S", "--staged") && !has(args, "W", "--worktree");
-      return staged
-        ? []
-        : each(
-            "changes",
-            ops.filter((o) => !valued.includes(o)),
-            ".",
-          );
+      const index = has(args, "S", "--staged");
+      if (index && !has(args, "W", "--worktree")) return [];
+      return each(
+        "changes",
+        ops.filter((o) => !valued.includes(o)),
+        ".",
+        { restore: index ? "both" : "worktree" },
+      );
     }
     case "switch":
       return args.includes("--discard-changes") || has(args, "f", "--force") ? [{ what: "changes", target: "." }] : [];

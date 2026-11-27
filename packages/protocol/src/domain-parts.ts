@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ApprovalScope, FileChange, InputKind, InputState } from "./domain-approvals.ts";
+import { ApprovalScope, DeletionCard, FileChange, InputKind, InputState } from "./domain-approvals.ts";
 import { Id } from "./domain-projects.ts";
 import { RunEndReason, RunState } from "./domain-threads.ts";
 import { schemaFields } from "./schema-fields.ts";
@@ -261,6 +261,8 @@ const KnownPart = z.discriminatedUnion("type", [
           )
           .optional(),
       change: () => FileChange.optional(),
+      /** A deletion card: what goes, why and the command, apart (`detail` keeps them as one text). */
+      deletion: () => DeletionCard.optional(),
       options: () => z.array(z.string()).optional(),
       /** A question whose options may be picked several at once. */
       multi: () => z.boolean().optional(),

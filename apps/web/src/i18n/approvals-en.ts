@@ -45,6 +45,8 @@ export const enApprovals = {
   "input.browserSource": "Full JavaScript source",
   "input.browserTabNumber": "Tab {n}",
   "input.approveOnce": "Approve once",
+  "input.deletionWhy": "Why: {reason}",
+  "input.seeCommand": "See command",
   "input.callDetail": "Full call details and source",
   "input.approveTab": "Allow in this tab",
   "input.approveTurn": "During this turn",
