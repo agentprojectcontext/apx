@@ -13,6 +13,10 @@ const es: Record<ConfirmWhy, (agent: string, tool: string) => string> = {
   rule: (a, t) => `${a} quiere usar ${t}: sus reglas piden tu OK para esta clase de acción.`,
   url_data: (a, t) =>
     `${a} quiere usar ${t} con una URL que lleva datos (lo que va después del «?»), y en este turno hay contenido de una web, otro agente o un mensaje. Mirá que no mande nada tuyo a otro sitio.`,
+  browser_steps: (a) =>
+    `${a} quiere ejecutar pasos que pueden escribir en una web. Como leyó contenido de afuera, revisá qué va a mandar.`,
+  mcp_outside: (a, t) =>
+    `${a} quiere usar ${t} en un servicio conectado. Como leyó contenido de afuera, hace falta tu permiso para esa herramienta y cuenta: el acceso rápido por defecto no alcanza.`,
 };
 
 const en: typeof es = {
@@ -25,6 +29,10 @@ const en: typeof es = {
   rule: (a, t) => `${a} wants to use ${t}: its rules ask for your OK on this kind of action.`,
   url_data: (a, t) =>
     `${a} wants to use ${t} with a URL that carries data (what follows the "?"), and content from a web page, another agent or a message is in this turn. Check it sends nothing of yours to another site.`,
+  browser_steps: (a) =>
+    `${a} wants to run steps that can enter data on a website. Because the turn includes outside content, check what will be sent.`,
+  mcp_outside: (a, t) =>
+    `${a} wants to use ${t} in a connected service. The turn includes outside content, so default access is not enough: your permission must cover this tool and account.`,
 };
 
 /** The question shown when an agent's action waits for the owner. */

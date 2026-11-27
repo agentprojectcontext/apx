@@ -32,6 +32,11 @@ export const MAX_UNATTENDED_TOKENS = 0;
  * cap, it only stops work that is not getting anywhere (DECISIONS.md#d-188).
  */
 export const STUCK_LIMITS = { runs: 12, tokens: 2_000_000 } as const;
+
+export function stuckLimits(store: Store): { runs: number; tokens: number } {
+  const limits = store.settings.read("agent_limits").stuck;
+  return { runs: limits?.runs ?? STUCK_LIMITS.runs, tokens: limits?.tokens ?? STUCK_LIMITS.tokens };
+}
 /** What turning the limits on starts from: room for a large feature (a hundred turns seen in real ones). */
 export const SUGGESTED_LIMITS = { runs: 100, tokens: 5_000_000 } as const;
 

@@ -193,7 +193,7 @@ export const enTeam = {
   "agents.each": "Model and browser of each agent",
   "limits.title": "When agents work on their own",
   "limits.lead":
-    "By default agents finish what you asked without stopping. If you want, set a cap on the turns or tokens they may use without you, counted since you last wrote in that chat; at the cap they pause and go on when you write.",
+    "Set how much agents can do after your last message, and when to pause a task that is not making progress.",
   "limits.runs": "Turns without you",
   "limits.runsHint": "Turns agents start on their own in one chat before they wait for you. Empty: no limit.",
   "limits.tokens": "Tokens without you",
@@ -201,9 +201,14 @@ export const enTeam = {
     "Fresh tokens those turns may spend before they wait for you, in thousands; what a provider reads from its cache does not count. Empty: no limit.",
   "limits.thousands": "thousand",
   "limits.none": "No limit",
-  "limits.on": "Set limits",
+  "limits.on": "Limit the unattended budget",
   "limits.onHint": "Agents pause when they reach these and wait for you.",
-  "limits.offHint": "No limits: agents keep going until they finish what you asked, like a coding agent.",
+  "limits.stuck": "Pause stalled tasks",
+  "limits.stuckHint":
+    "Separate from the budget. Pause after turns or tokens without progress, even when the budget is unlimited.",
+  "limits.stuckRuns": "Turns without progress",
+  "limits.stuckTokens": "Tokens without progress",
+  "limits.offHint": "No turn or token budget. Approvals and provider limits still apply.",
   "limits.publish": "Publishing finished work",
   "limits.publishHint":
     "When a task is done and can be undone, like putting a website online. A new version, a payment or a message in your name always waits for you.",

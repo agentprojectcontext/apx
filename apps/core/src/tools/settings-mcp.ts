@@ -39,6 +39,9 @@ function permissionLine(key: string, seen: Seen, { store }: SettingsDeps): strin
   return `- ${name} (scope ${scope}${where}): ${state}${asks}${tools}`;
 }
 
+const credentialText = (p: Record<string, unknown>) =>
+  p.project ? ` in project ${str(p.project)}` : " with shared credentials";
+
 export const MCP: Readonly<Record<string, Setting>> = {
   "mcp.list": {
     does: "the MCP servers: the owner's own (command or URL, the variables they name as secret://NAME, on or off) and what each server's tools may do, as each listed them last",
@@ -59,19 +62,20 @@ export const MCP: Readonly<Record<string, Setting>> = {
     },
   },
   "mcp.approveTool": {
-    does: "let agents run one tool of an MCP server without asking each time (scope global or project, server, project, tool)",
+    does: "let agents run one tool of an MCP server without asking each time (scope global or project, server, project, tool; for global scope, omit project for shared credentials, or name the project using separate credentials)",
     named: ["scope", "server", "project", "tool"],
-    says: (p) => `Let agents run ${str(p.tool)} of the MCP server ${str(p.server)} without asking`,
+    says: (p) => `Let agents run ${str(p.tool)} of the MCP server ${str(p.server)}${credentialText(p)} without asking`,
   },
   "mcp.toolMode": {
-    does: "what an MCP server's tools may do (scope, server, project, mode). all: every tool, new ones too; all with ask: [tools]: those ask first and the rest are allowed; ask: every tool asks first",
+    does: "what an MCP server's tools may do (scope, server, project, mode). For global scope, omit project for shared credentials, or name the project using separate credentials. all: every tool, new ones too; all with ask: [tools]: those ask first and the rest are allowed; ask: every tool asks first",
     named: ["scope", "server", "project", "mode"],
     says: (p) => {
       const ask = Array.isArray(p.ask) ? p.ask.map(String) : [];
-      if (p.mode !== "all") return `Make agents ask before each tool of the MCP server ${str(p.server)}`;
+      if (p.mode !== "all")
+        return `Make agents ask before each tool of the MCP server ${str(p.server)}${credentialText(p)}`;
       return ask.length
-        ? `Let agents run the tools of the MCP server ${str(p.server)} without asking, except ${ask.join(", ")}`
-        : `Let agents run every tool of the MCP server ${str(p.server)} without asking`;
+        ? `Let agents run the tools of the MCP server ${str(p.server)}${credentialText(p)} without asking, except ${ask.join(", ")}`
+        : `Let agents run every tool of the MCP server ${str(p.server)}${credentialText(p)} without asking`;
     },
     refuse: (p) =>
       p.mode !== "all" && Array.isArray(p.ask) && p.ask.length

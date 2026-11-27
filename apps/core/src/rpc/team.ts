@@ -9,7 +9,13 @@ import { readTemplates, singlesOf, type TemplateFile, type TemplateRoot } from "
 import { writeAgentFromTemplate, writeProjectMeta } from "../apc/write.ts";
 import { publicAgent } from "../domain/agents.ts";
 import type { Store } from "../domain/store.ts";
-import { SUGGESTED_LIMITS, saveUnattendedLimits, unattendedLimits } from "../engine/limits.ts";
+import {
+  STUCK_LIMITS,
+  SUGGESTED_LIMITS,
+  saveUnattendedLimits,
+  stuckLimits,
+  unattendedLimits,
+} from "../engine/limits.ts";
 import { badRequest, errorMessage, notFound } from "../errors.ts";
 import { freeName } from "./agent-clone.ts";
 import type { Handlers } from "./router.ts";
@@ -24,11 +30,22 @@ export function teamHandlers(
     "agents.limits": () => ({
       ...unattendedLimits(store),
       defaults: { ...SUGGESTED_LIMITS },
+      stuck: stuckLimits(store),
       agents: store.settings.read("agent_limits").agents ?? {},
     }),
     "agents.set_limits": (limits) => {
-      saveUnattendedLimits(store, limits);
-      return unattendedLimits(store);
+      if (!("stuck" in limits)) {
+        saveUnattendedLimits(store, limits);
+        return unattendedLimits(store);
+      }
+      const next = { ...stuckLimits(store), ...limits.stuck };
+      const { stuck: _old, ...settings } = store.settings.read("agent_limits");
+      const custom = {
+        ...(next.runs !== STUCK_LIMITS.runs ? { runs: next.runs } : {}),
+        ...(next.tokens !== STUCK_LIMITS.tokens ? { tokens: next.tokens } : {}),
+      };
+      store.settings.write("agent_limits", { ...settings, ...(Object.keys(custom).length ? { stuck: custom } : {}) });
+      return { ...unattendedLimits(store), stuck: stuckLimits(store) };
     },
     "agents.set_agent_limits": ({ agent, limits }) => {
       if (!store.agents.get(agent)) throw notFound(`agent ${agent}`);

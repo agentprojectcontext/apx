@@ -20,19 +20,31 @@ export function setMcpToolMode(store: Store, d: McpDef, mode: "ask" | "all", by:
         g.scope === "always" &&
         !g.agent_id &&
         !g.thread_id &&
-        (g.project_id ?? "") === (server.project_id ?? ""),
+        (g.credential_scope !== undefined
+          ? g.credential_scope === server.credential_scope
+          : g.project_id === server.project_id),
     );
-  for (const g of ownerWide) store.approvals.revoke(g.key);
+  for (const g of ownerWide) store.approvals.revokeOwnerWide(g.key);
 }
 
 type ServerId = Pick<McpDef, "scope" | "project_id" | "name">;
 
 /** Who gave the server an owner-wide "allow all", under this definition or an edit's old one; none: undefined. */
-export function allowsAll(store: Store, d: ServerId): OpenedBy | undefined {
-  const id = serverApprovalId(d);
+export function allowsAll(store: Store, d: McpDef): OpenedBy | undefined {
+  const target = mcpServerApproval(d);
   const all = store.approvals
     .list()
-    .filter((g) => g.server === id && g.tool === "*" && g.scope === "always" && !g.agent_id && !g.thread_id);
+    .filter(
+      (g) =>
+        g.server === target.server &&
+        g.tool === "*" &&
+        g.scope === "always" &&
+        !g.agent_id &&
+        !g.thread_id &&
+        (g.key === target.key ||
+          (!d.values_of && g.credential_scope === target.credential_scope) ||
+          (g.credential_scope === undefined && !d.values_of && g.project_id === d.project_id)),
+    );
   if (!all.length) return undefined;
   return all.some((g) => !g.by_default) ? "owner" : "default";
 }

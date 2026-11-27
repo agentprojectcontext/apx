@@ -67,6 +67,8 @@ export const AgentLimits = z.object(
   }),
 );
 export type AgentLimits = z.infer<typeof AgentLimits>;
+/** The task progress guard is independent of the unattended spending budget. */
+export const StuckLimits = AgentLimits.partial();
 
 /**
  * One agent's own share of that, inside the conversation's: past it that agent waits while others may go on. A field
@@ -157,14 +159,15 @@ export const teamMethods = {
     result: () =>
       AgentLimits.extend({
         defaults: AgentLimits,
+        stuck: AgentLimits,
         agents: AgentBudgets,
       }),
     effect: false,
     access: "human",
   }),
   "agents.set_limits": deferMethod({
-    params: () => AgentLimits.strict(),
-    result: () => AgentLimits,
+    params: () => z.union([AgentLimits.strict(), z.object({ stuck: StuckLimits.strict() }).strict()]),
+    result: () => AgentLimits.extend({ stuck: AgentLimits.optional() }),
     effect: true,
     access: "human",
   }),

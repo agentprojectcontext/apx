@@ -11,6 +11,7 @@ import { keepWhilePaused } from "./breaker.ts";
 import { frameInput } from "./context.ts";
 import type { Admit, AdmitFn } from "./engine.ts";
 import { laterReplyTo } from "./home-channel.ts";
+import { recordVerification, verificationCommand } from "./progress.ts";
 
 /** Set on an agent's commands, so the apx CLI knows an agent runs it, not the owner. */
 const AGENT_ENV = "APX_AGENT";
@@ -58,6 +59,8 @@ export function createJobs(deps: {
   /** A background job ended: the agent that started it gets the end of the output in a new turn. */
   function wake(job: JobRecord): void {
     if (!job.background || !job.agent_id || job.state === "canceled") return;
+    if (job.state === "completed" && job.exit_code === 0 && job.ended_at && verificationCommand(job.title))
+      recordVerification(store, job.thread_id, job.agent_id, job.ended_at);
     const wake: Admit = {
       thread_id: job.thread_id,
       agent_id: job.agent_id,

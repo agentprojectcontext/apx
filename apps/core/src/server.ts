@@ -706,14 +706,18 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     mcpServers: mcp.serversFor,
     hasCap: (cap) => Boolean(broker.withCap(cap)) || (cap === BROWSER_CAP && Boolean(headless?.available())),
     desktopLinked: () => Boolean(broker.withCap(BROWSER_CAP)),
-    afterRun: (run) => {
+    afterRun: (run, signal) => {
       upkeep.afterRun(run);
       memoryMaintenance.afterRun(run);
       channels.afterRun(run);
       scheduler.afterRun(run);
       scheduler.stalls.afterRun(run);
-      afterWorkTurn(store, engine.admit, run, (task, sources, by) =>
-        taskAssets(store, config.home).write((_, share) => share(task, sources, by)),
+      afterWorkTurn(
+        store,
+        engine.admit,
+        run,
+        (task, sources, by) => taskAssets(store, config.home).write((_, share) => share(task, sources, by)),
+        signal,
       );
       continuePlan(store, engine.admit, run);
       groups.afterRun(run);
