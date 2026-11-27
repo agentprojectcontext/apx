@@ -1,11 +1,10 @@
 // Connections to MCP servers, opened when an agent's turn needs them and closed when idle, and their tools as APX
 // tools: same argument check, same policy, results marked as outside data.
 
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import type { Thread } from "@apx/protocol";
-import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { z } from "zod";
 import { lineage, parentOf } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
@@ -19,12 +18,14 @@ import { cap, untrusted } from "../tools/result.ts";
 import { type Confirm, type Effect, invalidArguments, type ScopedThread, type Tool } from "../tools/types.ts";
 import { type McpTool, mcpApproval, mcpServerApproval, serverApprovalId } from "./approval.ts";
 import { ARGS_SECRET, type McpDef, mcpConfig } from "./config.ts";
+import type { Conn, Connected } from "./connection.ts";
 import { connectionErrors, MCP_SECRET_REF } from "./connection-errors.ts";
 import { fileRefs, fillFileArgs, hasFileRefs, type OpenFile, refOf } from "./file-args.ts";
 import { createStderrLogs } from "./logs.ts";
 import { closePosixTree } from "./posix-process-tree.ts";
 import { createProcessExits } from "./process-exits.ts";
 import { watchSignIn } from "./sign-in.ts";
+import type { McpStatus } from "./status.ts";
 import { allowsAll, forgetOpened, type OpenedBy, openNew, setMcpToolMode } from "./tool-mode.ts";
 import { closeWindowsTree } from "./windows-process-tree.ts";
 
@@ -33,25 +34,6 @@ const CALL_MS = 120_000;
 const IDLE_MS = 10 * 60_000;
 /** How long a server that asked the owner to sign in is kept running, so the browser's answer still finds it. */
 const SIGN_IN_MS = 5 * 60_000;
-
-type Connected = { client: Client; tools: McpTool[]; errorMessage: (error: unknown) => string };
-
-type Conn = {
-  key: string;
-  hash: string;
-  client?: Client;
-  tools: McpTool[];
-  status: "starting" | "ready" | "error" | "needs-sign-in";
-  error?: string;
-  errorMessage?: (error: unknown) => string;
-  /** The page the server asked the owner to open, while it waits for them. */
-  signInUrl?: string;
-  /** Ends a start still under way, its process with it (one waiting on a sign-in lives for minutes). */
-  stop?: () => Promise<void>;
-  used: number;
-  failedAt?: number;
-  ready?: Promise<void>;
-};
 
 /**
  * A server that failed is tried again after this, not on every turn: soon enough that fixing it outside its definition
@@ -62,28 +44,7 @@ const RETRY_MS = 30_000;
 const SIGN_IN_FIRST = "it waits for you to sign in: use Sign in";
 const SIGN_IN_ASKED = "it asked you to sign in: finish on the page it opened in your browser";
 
-export type McpStatus = {
-  name: string;
-  scope: "global" | "project";
-  project_id?: string;
-  values_of?: string;
-  credential_key?: string;
-  only: boolean;
-  transport: "stdio" | "http";
-  target: string;
-  enabled: boolean;
-  trusted: boolean;
-  status: "off" | "needs-approval" | "disabled" | "starting" | "ready" | "error" | "needs-sign-in";
-  sign_in_url?: string;
-  tools: number;
-  tool_names: string[];
-  tool_permission_mode: "unknown" | "ask" | "all" | "some";
-  vars: Array<{ name: string; set: boolean }>;
-  off_here: boolean;
-  /** A global server: the projects it is turned off in (it is on in every other one). */
-  off_in: string[];
-  error?: string;
-};
+export type { McpStatus } from "./status.ts";
 
 /** The stored secrets a definition names, in order, once each. */
 const secretNames = (d: McpDef): string[] => [
@@ -292,7 +253,10 @@ export function createMcp(deps: {
    * from the panel (mcp.signIn) or its definition changes: every start would open their browser once more.
    */
   const signInKey = (d: McpDef) => `mcp_sign_in:${keyOf(d)}`;
-  const waitsSignIn = (d: McpDef) => deps.store.settings.get(signInKey(d)) === d.hash;
+  const disconnectedKey = (d: Pick<McpDef, "scope" | "project_id" | "name">) =>
+    `mcp_disconnected:${d.scope}:${d.project_id ?? ""}:${d.name}`;
+  const waitsSignIn = (d: McpDef) =>
+    Boolean(deps.store.settings.get(disconnectedKey(d))) || deps.store.settings.get(signInKey(d)) === d.hash;
   const setWaitsSignIn = (d: McpDef, on: boolean) => {
     if (on || deps.store.settings.get(signInKey(d)) !== undefined)
       deps.store.settings.set(signInKey(d), on ? d.hash : "");
@@ -767,15 +731,23 @@ export function createMcp(deps: {
     async signIn(d: McpDef): Promise<void> {
       if (!d.enabled || !config.trusted(d)) throw badRequest("approve and enable this server before signing in");
       if (blocked.has(blockKey(d))) throw conflict("This server is being updated; try again shortly");
+      const receipt = deps.store.settings.get(disconnectedKey(d));
       const old = conns.get(keyOf(d));
       conns.delete(keyOf(d));
       if (old) await closeConn(old);
+      if (deps.store.settings.get(disconnectedKey(d)) !== receipt)
+        throw conflict("The connection was disconnected; sign in again");
+      deps.store.settings.set(disconnectedKey(d), "");
       setWaitsSignIn(d, false);
       await ensure(d).ready;
     },
     /** The last `n` lines a server printed on stderr while this core ran (started by an agent or a test). */
     logs(d: McpDef, n: number) {
       return stderr.read(keyOf(d), n);
+    },
+    /** Called while suspended and drained: no automatic use may recreate a cleared session. */
+    requireSignIn(servers: Array<Pick<McpDef, "scope" | "project_id" | "name">>) {
+      for (const server of servers) deps.store.settings.set(disconnectedKey(server), randomUUID());
     },
     /** Refuses new starts while an extension replaces the servers' files. */
     suspend(servers: Array<Pick<McpDef, "scope" | "project_id" | "name">>): () => void {

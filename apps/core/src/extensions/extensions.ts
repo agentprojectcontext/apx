@@ -44,6 +44,7 @@ import {
   writePackage,
 } from "./package.ts";
 import type { Plugins } from "./plugins.ts";
+import { clearExtensionSession, hasManagedSession } from "./sessions.ts";
 import { bringsOf, categoryOf, type ListingFile, listingCopy, needsOf, readListing } from "./summary.ts";
 
 export { extSecret, SECRET_REF, SETTING_REF };
@@ -195,6 +196,7 @@ export function createExtensions(deps: {
     version: e.manifest.version,
     description: e.manifest.description,
     enabled: e.enabled,
+    ...(hasManagedSession(e.manifest) ? { session: { can_disconnect: true as const } } : {}),
     hash: e.hash,
     // Shown with "~" for the home; install reads it back.
     source: tildeHome(e.source),
@@ -723,6 +725,13 @@ export function createExtensions(deps: {
       if (enabled) startPlugin(get(id));
       else plugins.stop(id);
       return shown(get(id));
+    },
+    /** The RPC caller has stopped every server before erasing its cache. */
+    disconnect(id: string): ExtensionInfo {
+      const e = store.extensions.get(id);
+      if (!e) throw notFound("Extension not found");
+      clearExtensionSession(deps.home, id, e.manifest);
+      return shown(e);
     },
     /** Removes it, and archives the agents the owner added from it (one answering a channel stays). */
     async remove(id: string): Promise<{ removed: boolean; archived: string[]; kept: string[] }> {

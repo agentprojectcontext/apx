@@ -498,6 +498,8 @@ export const ExtensionInfo = z.object(
     version: () => z.string(),
     description: () => z.string(),
     enabled: () => z.boolean(),
+    /** APX can clear this extension's managed sign-in cache; live state comes from its MCP servers. */
+    session: () => z.object({ can_disconnect: z.literal(true) }).optional(),
     /** Fingerprint of its files: turning it on approves exactly these. */
     hash: () => z.string(),
     /** The folder it was installed from. */

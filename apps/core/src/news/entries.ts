@@ -6,6 +6,7 @@ import type { StoreSize } from "../db/db.ts";
 import type { Store } from "../domain/store.ts";
 import { NOISY_COMMENTS } from "../domain/tasks.ts";
 import { computerHost } from "../environments/host.ts";
+import { hasManagedSession } from "../extensions/sessions.ts";
 import { CATALOG } from "../integrations/catalog.ts";
 import { ACTIVITY_REVIEW_NEWS } from "./activity-review.ts";
 import { ACTIVITY_REVIEW_HISTORY_NEWS } from "./activity-review-history.ts";
@@ -32,6 +33,7 @@ import { CONTACT_NOTES_NEWS, CONTACT_PROJECT_READING_NEWS } from "./contact-note
 import { CONTEXTUAL_RESEARCH_NEWS } from "./contextual-research.ts";
 import { EVENT_MUTE_NEWS } from "./event-mute.ts";
 import { EXTENSION_EVENTS_NEWS } from "./extension-events.ts";
+import { EXTENSION_SESSIONS_NEWS } from "./extension-sessions.ts";
 import { EXTERNAL_SESSIONS_NEWS } from "./external-sessions.ts";
 import { GOOGLE_SHEETS_NEWS } from "./google-sheets.ts";
 import { GROUP_CHATS_NEWS } from "./group-chats.ts";
@@ -57,6 +59,7 @@ import { ROUTINE_PERMISSIONS_NEWS } from "./routine-permissions.ts";
 import { SIDE_QUESTION_NEWS } from "./side-question.ts";
 import { SIGN_IN_CARDS_NEWS } from "./sign-in-cards.ts";
 import { SIMPLE_PANEL_NEWS } from "./simple-panel.ts";
+import { STALLED_TASKS_NEWS } from "./stalled-tasks.ts";
 import { STORE_COMPACT_NEWS } from "./store-compact.ts";
 import { SUBPROJECTS_NEWS } from "./subprojects.ts";
 import { SUPER_AGENT_SETUP_NEWS } from "./super-agent-setup.ts";
@@ -89,6 +92,8 @@ export type NewsFacts = {
   mcp?: number;
   /** An installed extension declares observations the owner can opt into. */
   extensionEvents?: boolean;
+  /** An installed connector has a managed sign-in session that APX can disconnect. */
+  extensionSessions?: boolean;
   /** This core can run the isolated Linux computer (macOS, Linux or Windows) and the owner has a project to try there. */
   computer: boolean;
   /** This core runs on a Mac and the owner has work there (a project). */
@@ -151,23 +156,8 @@ export type NewsEntry = {
 };
 
 export const NEWS: readonly NewsEntry[] = [
-  {
-    id: "stalled-tasks",
-    since: "2.17.3",
-    title: { en: "Let progressing tasks keep going", es: "Dejá que las tareas con avances sigan" },
-    about: {
-      en: "A task can start a new part without asking when its agent has made progress. You can adjust when stalled tasks pause separately from your budget.",
-      es: "Una tarea puede empezar otro tramo sin preguntarte si su agente avanzó. Podés ajustar cuándo pausar tareas estancadas sin cambiar tu presupuesto.",
-    },
-    applies: (facts) => Boolean(facts.tasks),
-    text: "Native task turns that hit the step cap can start another part in the same chat. Settings › Agents has separate stalled-task thresholds; zero for both turns and tokens disables this guard. Do not change limits unless asked, and do not confuse this with provider limits or approval scope.",
-    actions: [
-      {
-        label: { en: "Review task limits", es: "Revisar límites de tareas" },
-        prompt: "Explain the two kinds of agent limits and show me where to review them without changing anything.",
-      },
-    ],
-  },
+  EXTENSION_SESSIONS_NEWS,
+  STALLED_TASKS_NEWS,
   MCP_OPEN_NEWS,
   AGENT_FOLDER_NEWS,
   SIGN_IN_CARDS_NEWS,
@@ -789,6 +779,7 @@ export const newsFacts = (store: Store, o: { hermes?: boolean; storeSize?: Store
   integrations: connectedIntegrations(store),
   mcp: ownMcpServers(store).length,
   extensionEvents: store.extensions.list().some((e) => Boolean(e.manifest.events?.length)),
+  extensionSessions: store.extensions.list().some((e) => hasManagedSession(e.manifest)),
   computer: computerHost() !== undefined && store.projects.list().length > 0,
   mac: process.platform === "darwin" && store.projects.list().length > 0,
   tasks: store.tasks.list({ state: "open", limit: 500 }).filter((t) => t.assignee).length,

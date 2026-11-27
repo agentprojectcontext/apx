@@ -2,10 +2,11 @@
 // on or off, give it its secrets.
 import type { Bus } from "../bus.ts";
 import type { Store } from "../domain/store.ts";
-import { conflict, notFound } from "../errors.ts";
+import { badRequest, conflict, notFound } from "../errors.ts";
 import { activationGuard } from "../extensions/activation.ts";
 import { type CatalogShown, isSuggestedCatalog, SUGGESTED } from "../extensions/catalogs.ts";
 import type { ExtensionInput, Extensions } from "../extensions/extensions.ts";
+import { isMcpRemote } from "../mcp/bridge.ts";
 import type { Mcp } from "../mcp/manager.ts";
 import { countInstall } from "../telemetry-counts.ts";
 import type { Handlers } from "./router.ts";
@@ -38,6 +39,7 @@ const CHANGES = [
   "extensions.install",
   "extensions.rollback",
   "extensions.enable",
+  "extensions.disconnect",
   "extensions.remove",
   "extensions.add_agent",
   "extensions.set_secret",
@@ -56,6 +58,7 @@ export function extensionHandlers(extensions: Extensions, mcp: Mcp, bus: Bus, st
     "extensions.rollback",
     "extensions.remove",
     "extensions.enable",
+    "extensions.disconnect",
     "extensions.settings",
     "extensions.set_secret",
   ]);
@@ -204,6 +207,21 @@ function extensionMethods(extensions: Extensions, mcp: Mcp, store: Store, invali
       const info = extensions.enable(id, enabled);
       openServers(id);
       return info;
+    },
+    "extensions.disconnect": async ({ id }) => {
+      const info = extensions.list().find((e) => e.id === id);
+      if (!info) throw notFound("Extension not found");
+      if (!info.session?.can_disconnect) throw badRequest("This extension has no managed sign-in session");
+      const record = store.extensions.get(id);
+      if (!record) throw notFound("Extension not found");
+      const servers = Object.entries(record.manifest.mcp)
+        .filter(([, server]) => isMcpRemote(server))
+        .map(([name]) => ({ scope: "global" as const, name: `${id}-${name}` }));
+      return withServersStopped(id, () => {
+        // Persist before deletion: even a partial filesystem failure must not restart the bridge.
+        mcp.requireSignIn(servers);
+        return extensions.disconnect(id);
+      });
     },
     "extensions.remove": async ({ id }) => {
       const servers = (extensions.list().find((e) => e.id === id)?.mcp ?? []).map((name) => ({

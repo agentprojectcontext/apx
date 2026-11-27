@@ -225,6 +225,13 @@ export const extensionMethods = {
     effect: true,
     access: "human",
   }),
+  /** Stops its servers and clears only its managed sign-in session, without uninstalling or revoking at the provider. */
+  "extensions.disconnect": deferMethod({
+    params: () => z.object({ id: z.string().max(40) }).strict(),
+    result: () => ExtensionInfo,
+    effect: true,
+    access: "human",
+  }),
   "extensions.remove": deferMethod({
     params: () =>
       z
