@@ -164,6 +164,14 @@ export const esResources: Partial<Record<MessageKey, string>> = {
     "Corre un comando del repositorio. Revisalo antes de aprobar; si el archivo cambia, hay que aprobarlo de nuevo.",
   "res.signIn": "Iniciar sesión",
   "res.signInWaiting": "Terminá de iniciar sesión en tu navegador",
+  "res.signInOpenPage": "Abrir la página para iniciar sesión",
+  "res.signInPasteHint":
+    "Si la página termina en una dirección localhost que no carga (pasa cuando APX corre en otra computadora), copiá esa dirección completa y pegala acá.",
+  "res.signInPasteLabel": "Dirección donde terminó la página",
+  "res.signInFinish": "Terminar",
+  "res.signInStartOver": "Empezar de nuevo",
+  "res.signInPasteFailed":
+    "Esa dirección no termina este inicio de sesión. Copiá la dirección completa de la página que no cargó. Si usaste Empezar de nuevo, abrí otra vez la página para iniciar sesión.",
   "res.command": "Comando",
   "res.url": "URL",
   "res.noVars": "No usa variables.",

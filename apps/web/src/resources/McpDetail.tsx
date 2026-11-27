@@ -9,6 +9,7 @@ import { go } from "../shell/nav.ts";
 import { ByProject, OriginChip } from "./ByProject.tsx";
 import { mcpDot, STATUS_KEY } from "./labels.ts";
 import { McpTools } from "./McpTools.tsx";
+import { SignInElsewhere } from "./SignInElsewhere.tsx";
 
 type TestResult = { ok: boolean; ms: number; tools: string[]; error?: string | undefined };
 
@@ -169,11 +170,17 @@ export function McpDetail({
         <div className="resd__callout resd__callout--line">
           <Icons.LogIn size={16} />
           <strong>{t(waiting ? "res.signInWaiting" : "mcp.status.needsSignIn")}</strong>
-          <Button size="sm" loading={signingIn} onClick={() => void signIn()}>
-            {t("res.signIn")}
+          <Button
+            size="sm"
+            variant={waiting ? "secondary" : "primary"}
+            loading={signingIn}
+            onClick={() => void signIn()}
+          >
+            {t(waiting ? "res.signInStartOver" : "res.signIn")}
           </Button>
         </div>
       )}
+      {waiting && <SignInElsewhere server={s} page={s.sign_in_url} onDone={() => void onChanged()} />}
 
       <h3 className="resd__h3">{s.transport === "http" ? t("res.url") : t("res.command")}</h3>
       <pre className="resd__code">{s.target}</pre>

@@ -5,6 +5,7 @@ import type { Store } from "../domain/store.ts";
 import { badRequest, CallError, notFound } from "../errors.ts";
 import { ARGS_SECRET } from "../mcp/config.ts";
 import type { Mcp } from "../mcp/manager.ts";
+import { finishSignIn, returnAddress } from "../mcp/sign-in.ts";
 import type { Handlers } from "./router.ts";
 
 /** `switchable`: names besides the global servers the owner turns on or off per project (a connected integration). */
@@ -104,6 +105,19 @@ export function mcpHandlers(mcp: Mcp, store: Store, switchable: (name: string) =
       if (!d) throw notFound(`MCP server ${server}`);
       await mcp.signIn(d);
       const s = mcp.status(project ?? d.only).find((x) => x.scope === scope && x.name === server);
+      if (!s) throw new Error("server vanished");
+      return { server: s };
+    },
+    "mcp.finishSignIn": async ({ scope, server, project, url }) => {
+      const d = mcp.find(scope, server, project);
+      if (!d) throw notFound(`MCP server ${server}`);
+      const now = () => mcp.status(project ?? d.only).find((x) => x.scope === scope && x.name === server);
+      const page = now()?.sign_in_url;
+      if (!page) throw badRequest("this server is not waiting for a sign-in");
+      const at = returnAddress(page, url);
+      if (!at) throw badRequest("that is not the address this sign-in returns to");
+      if (!(await finishSignIn(at))) throw badRequest("the server did not take this sign-in: start it again");
+      const s = now();
       if (!s) throw new Error("server vanished");
       return { server: s };
     },
