@@ -678,9 +678,37 @@ test("auto: test output it did not make goes without a card; what only the task 
   const before = judgeCalls();
   await env.client.call("threads.send", { thread: chat, text: "coverage please" });
   assert.deepEqual(await inputsOrEnd(env.client, chat), []);
+  // The step says what Auto decided, and the owner's review list keeps it (DECISIONS.md#d-281).
+  const step = (callId: string) =>
+    env.core.store.messages
+      .list(chat)
+      .flatMap((m) => m.parts)
+      .find((p) => p.type === "tool" && p.call_id === callId);
+  const ruled = step("c1");
+  assert.deepEqual(ruled?.type === "tool" && { ...ruled.auto_deletion, id: "" }, {
+    id: "",
+    verdict: "run",
+    by: "rule",
+    reasons: ["output"],
+    items: ["coverage"],
+  });
   await env.client.call("threads.send", { thread: chat, text: "judge logs please" });
   assert.deepEqual(await inputsOrEnd(env.client, chat), [], "the judge let it run");
   await assert.rejects(readFile(path.join(cwd, "tmp-judge", "run.log")));
+  const judgedStep = step("j1");
+  assert.deepEqual(judgedStep?.type === "tool" && [judgedStep.auto_deletion?.by, judgedStep.auto_deletion?.why], [
+    "judge",
+    "its own logs",
+  ]);
+  const listed = await env.client.call("auto_deletions.list", { limit: 2 });
+  assert.deepEqual(
+    listed.decisions.map((d) => [d.command, d.verdict, d.by, d.thread_id]),
+    [
+      ["find tmp-judge -name '*.log' -exec rm -f {} +", "run", "judge", chat],
+      ["rm -r coverage", "run", "rule", chat],
+    ],
+  );
+  assert.ok(listed.decisions[0]?.model, "the model that judged");
   await env.client.call("threads.send", { thread: chat, text: "judge other please" });
   const [card] = await inputsOrEnd(env.client, chat);
   assert.deepEqual(card?.deletion?.command, "find tmp-other -name '*.log' -exec rm -f {} +");

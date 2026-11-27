@@ -6584,6 +6584,11 @@ Code in auto mode does, "sin preguntarme a cada rato". Manual and Total are unch
   asks. Only forced or recursive deletions are weighed at all (D-266): a plain `rm`, `find -delete` or
   `find -exec rm` without `-f`/`-r` runs as any change.
 
+- Each decision is kept (`auto_deletions`, 90 days) with the command's deleting parts, what goes, run or ask, a fixed
+  rule's reasons or the judge's model and words (asked in the owner's language): the step shows it as one line that
+  opens, and `auto_deletions.list` feeds Settings › Agents › What Auto deleted. The owner asked to see what Auto
+  decided before trusting it; the auxiliary calls kept only tokens.
+
 Known limits: "made since" reads creation time, which a copy renews and a move keeps; containers count as the agent's
 only when this run started them by `--name`.
 

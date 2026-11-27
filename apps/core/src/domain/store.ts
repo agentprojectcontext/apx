@@ -10,6 +10,7 @@ import { checkedMigrationRecovery, restoreAgentMigration } from "./agent-migrati
 import { sealAgentMigration } from "./agent-migration-seal.ts";
 import { agentsRepo } from "./agents.ts";
 import { approvalsRepo } from "./approvals.ts";
+import { autoDeletionsRepo } from "./auto-deletions.ts";
 import { auxCallsRepo } from "./aux-calls.ts";
 import { channelsRepo } from "./channels.ts";
 import { clientsRepo } from "./clients.ts";
@@ -119,6 +120,7 @@ export function createStore(db: Db, bus: Bus) {
     persons: personsRepo(q),
     suggestions: suggestionsRepo(q),
     activityReviewRuns: activityReviewRunsRepo(q),
+    autoDeletions: autoDeletionsRepo(q),
     channels: channelsRepo(q),
     stickers: stickersRepo(q),
     surfaces: surfacesRepo(q, bus),

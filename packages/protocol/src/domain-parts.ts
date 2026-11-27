@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AutoDeletionNote } from "./auto-deletions.ts";
 import { ApprovalScope, DeletionCard, FileChange, InputKind, InputState } from "./domain-approvals.ts";
 import { Id } from "./domain-projects.ts";
 import { RunEndReason, RunState } from "./domain-threads.ts";
@@ -109,6 +110,8 @@ const KnownPart = z.discriminatedUnion("type", [
       detail: () => z.string().optional(),
       /** How long it took, once it ended. */
       ms: () => z.number().int().nonnegative().optional(),
+      /** In Auto, what was decided about what it deletes (DECISIONS.md#d-281). */
+      auto_deletion: () => AutoDeletionNote.optional(),
     }),
   ),
   z.object(

@@ -687,7 +687,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     tools,
     log,
     call,
-    judge: upkeep.judge,
+    judge: upkeep.decide,
     permissions,
     home: config.home,
     skillApps: config.runtimeSkills.homes,

@@ -153,6 +153,12 @@ Un `rm` simple, `find -delete` o `find -exec rm` sin esas opciones corre como cu
 A los agentes se les dice que borren en un comando aparte. Si un borrado viene encadenado después de otro trabajo, se
 mira solo, y la tarjeta muestra solo esa parte.
 
+Cada borrado que Auto mira deja una línea debajo de los pasos del agente, como «Auto lo borró: salida de build o de
+tests» o «Auto te preguntó: archivos tuyos que no hizo en esta tarea». Abrila para ver qué se va y quién lo decidió:
+una regla fija, o el modelo ayudante con sus propias palabras. **Configuración › Agentes › Lo que borró Auto** los
+lista a todos, del más nuevo al más viejo, con **Borrados** y **Preguntados** para filtrar; cada uno abre su chat. Se
+guardan 90 días.
+
 Cuando un borrado pregunta, su tarjeta lista lo que se borraría en palabras simples, con las rutas relativas al
 proyecto, y el comando en **Ver comando**. Por qué quiere hacerlo es su propio mensaje, justo arriba de la tarjeta
 (para Claude Code o Codex, el motivo que dio, en la tarjeta). Podés aceptarlo una vez, o durante este chat: entonces

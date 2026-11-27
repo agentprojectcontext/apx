@@ -124,7 +124,7 @@ test("what only the shell resolves goes to the judge: braces, another user's hom
   await using _ = dir;
   for (const command of ["rm -rf {logs,notes.md}", "rm -rf ~nobody/x", "rm -rf ~+/notes.md", "rm -rf $UNSET/x"]) {
     const weighed = weighDeletion(deletionTargets(command, repo), place());
-    assert.ok(weighed.length > 0 && weighed.every((w) => w.why !== "does not exist"), command);
+    assert.ok(weighed.length > 0 && weighed.every((w) => w.why !== "gone"), command);
     assert.equal(verdictOf(weighed), "judge", command);
   }
 });

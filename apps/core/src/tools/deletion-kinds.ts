@@ -1,7 +1,9 @@
 // Which deletions Auto runs without a card (DECISIONS.md#d-281): what is plainly the agent's own or regenerated runs,
 // what loses the owner's work asks, and the rest goes to a small model that reads the task (engine/deletion-judge.ts).
+
 import fs from "node:fs";
 import path from "node:path";
+import type { DeletionReason } from "@apx/protocol";
 import { insideReal } from "../paths.ts";
 import type { Deletion, GitLoss } from "./command-deletions.ts";
 import { type GitFacts, gitFacts } from "./command-git-status.ts";
@@ -9,8 +11,27 @@ import { type GitFacts, gitFacts } from "./command-git-status.ts";
 /** `run`: no card; `ask`: the owner's card; `judge`: the small model decides, and a card when it cannot. */
 export type Verdict = "run" | "ask" | "judge";
 
-/** One thing a command deletes and what Auto does with it, with why in a few words (for the judge and the tests). */
-export type Weighed = { what: string; verdict: Verdict; why: string };
+/** One thing a command deletes and what Auto does with it, and why. */
+export type Weighed = { what: string; verdict: Verdict; why: DeletionReason };
+
+/** Each reason in a few words, as the judge reads it. */
+export const REASON_TEXT: Record<DeletionReason, string> = {
+  scratch: "the chat's temp folder",
+  gone: "does not exist",
+  output: "build or test output",
+  made: "made during this task",
+  container: "containers this run started",
+  merged_branch: "a merged branch",
+  merged_worktree: "a merged worktree with nothing unsaved",
+  outside: "outside the owner's projects",
+  owner: "the owner's, not made during this task",
+  unmerged_branch: "a branch with work not merged",
+  open_worktree: "a worktree with unsaved or unmerged work",
+  git_work: "work git does not keep elsewhere",
+  too_many: "more files than Auto looks at",
+  runtime: "known only when it runs",
+  no_match: "a pattern that matches nothing yet",
+};
 
 export type DeletionPlace = {
   /** Folders of the owner's projects the agent may change: a deletion outside them asks. */
@@ -67,23 +88,23 @@ export const verdictOf = (weighed: Weighed[]): Verdict =>
 
 /** A path, or each file a glob matches on disk: the shell removes those, never the pattern as written. */
 function weighPath(p: string, at: DeletionPlace): Weighed[] {
-  if (!GLOB.test(p)) return [weighOne(p, at, { verdict: "run", why: "does not exist" })];
+  if (!GLOB.test(p)) return [weighOne(p, at, { verdict: "run", why: "gone" })];
   const found = globMatches(p);
-  if (!found) return [{ what: p, verdict: "ask", why: "more files than Auto looks at" }];
-  if (!found.length) return [weighOne(p, at, { verdict: "judge", why: "a pattern that matches nothing yet" })];
-  return found.map((f) => weighOne(f, at, { verdict: "run", why: "does not exist" }));
+  if (!found) return [{ what: p, verdict: "ask", why: "too_many" }];
+  if (!found.length) return [weighOne(p, at, { verdict: "judge", why: "no_match" })];
+  return found.map((f) => weighOne(f, at, { verdict: "run", why: "gone" }));
 }
 
 function weighOne(p: string, at: DeletionPlace, missing: Omit<Weighed, "what">): Weighed {
   const what = p;
-  if (insideReal(at.scratch, p)) return { what, verdict: "run", why: "the chat's temp folder" };
+  if (insideReal(at.scratch, p)) return { what, verdict: "run", why: "scratch" };
   const root = at.roots.find((r) => insideReal(r, p));
-  if (!root) return { what, verdict: "ask", why: "outside the owner's projects" };
+  if (!root) return { what, verdict: "ask", why: "outside" };
   if (!there(p)) return { what, ...missing };
   const inside = path.relative(root, p).split(path.sep);
-  if (inside.some((part) => OUTPUT.has(part))) return { what, verdict: "run", why: "build or test output" };
-  if (madeSince(p, at.since)) return { what, verdict: "run", why: "made during this task" };
-  return { what, verdict: "ask", why: "the owner's, not made during this task" };
+  if (inside.some((part) => OUTPUT.has(part))) return { what, verdict: "run", why: "output" };
+  if (madeSince(p, at.since)) return { what, verdict: "run", why: "made" };
+  return { what, verdict: "ask", why: "owner" };
 }
 
 /**
@@ -140,20 +161,20 @@ function weighGit(l: GitLoss, git: GitFacts): Weighed {
   const what = `${l.what} ${l.target}`;
   if (l.what === "branch")
     return l.in && git.merged(l.in, l.target)
-      ? { what, verdict: "run", why: "a merged branch" }
-      : { what, verdict: "ask", why: "a branch with work not merged" };
+      ? { what, verdict: "run", why: "merged_branch" }
+      : { what, verdict: "ask", why: "unmerged_branch" };
   if (l.what === "worktree")
     return git.cleanMerged(l.target)
-      ? { what, verdict: "run", why: "a merged worktree with nothing unsaved" }
-      : { what, verdict: "ask", why: "a worktree with unsaved or unmerged work" };
-  return { what, verdict: "ask", why: "work git does not keep elsewhere" };
+      ? { what, verdict: "run", why: "merged_worktree" }
+      : { what, verdict: "ask", why: "open_worktree" };
+  return { what, verdict: "ask", why: "git_work" };
 }
 
 function weighLater(w: string, at: DeletionPlace): Weighed {
   const removed = /^docker\s+(?:container\s+)?rm\s+((?:-\S+\s+)*)([\w.-]+(?:\s+[\w.-]+)*)\s*$/.exec(w.trim());
   const started = removed?.[2]?.split(/\s+/).every((name) => at.earlier.some((c) => startsContainer(c, name)));
-  if (started) return { what: w, verdict: "run", why: "containers this run started" };
-  return { what: w, verdict: "judge", why: "known only when it runs" };
+  if (started) return { what: w, verdict: "run", why: "container" };
+  return { what: w, verdict: "judge", why: "runtime" };
 }
 
 const startsContainer = (command: string, name: string) =>
