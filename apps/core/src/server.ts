@@ -749,6 +749,22 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     agentModels: upkeep.agentModels,
     auxModels: () => upkeep.auxModels(),
   });
+  const changedInputTasks = new Set<string>();
+  const stopTaskInputUpdates = bus.on((event) => {
+    const task =
+      event.type === "task.updated" ? event.task.id : event.type === "task.deleted" ? event.task_id : undefined;
+    if (!task || changedInputTasks.has(task)) return;
+    changedInputTasks.add(task);
+    // A task event can be emitted inside a transaction that has not committed yet.
+    queueMicrotask(() => {
+      if (!changedInputTasks.delete(task)) return;
+      try {
+        engine.retireTaskInputs(task);
+      } catch (err) {
+        log.warn({ task, err: errorMessage(err) }, "could not retire stale task inputs");
+      }
+    });
+  });
   // The Mac stays awake while APX works for the owner: a turn, a command, or a computer coming up (engine/awake.ts).
   const awake = keepAwake({
     busy: () =>
@@ -1044,6 +1060,8 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     voice,
     async close() {
       stopAgentReviews();
+      stopTaskInputUpdates();
+      changedInputTasks.clear();
       awake.close();
       sleep?.close();
       clearInterval(awakeTick);
