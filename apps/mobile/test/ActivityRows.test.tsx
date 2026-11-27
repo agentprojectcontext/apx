@@ -1,14 +1,15 @@
 import { fireEvent, render } from "@testing-library/react-native";
 import { AccessibilityInfo, Dimensions, StyleSheet, Text } from "react-native";
 import { mediaRows } from "../src/chat/media";
-import { t, translator } from "../src/i18n";
-import type { Message } from "../src/protocol";
+import { lang, t, translator } from "../src/i18n";
+import { type Message, noticeText } from "../src/protocol";
 import { ActionGroup } from "../src/ui/ActionGroup";
 import { AgentEventCard } from "../src/ui/chat/AgentEventCard";
 import { CompactRow } from "../src/ui/chat/CompactRow";
 import { DetailBranch } from "../src/ui/chat/DetailBranch";
 import { InputCard } from "../src/ui/chat/InputCard";
 import { NoticeCard } from "../src/ui/chat/NoticeCard";
+import { PlanCard } from "../src/ui/chat/PlanCard";
 import { SubthreadCard } from "../src/ui/chat/SubthreadCard";
 
 test("action groups and nested details share the disclosure header and keep independent states", async () => {
@@ -130,6 +131,33 @@ test("delegated work keeps the curved disclosure until a report actually arrives
   const line = ui.getByTestId("detail-guide", { includeHiddenElements: true });
   expect(line.props.style).toMatchObject({ top: 0, bottom: 0 });
   expect(line.props.style.borderBottomWidth).toBeUndefined();
+});
+
+test("plan step guides belong to the chat, not the task detail checklist", async () => {
+  const steps = [
+    { step: "Check the reference", state: "done" as const },
+    { step: "Deliver the report", state: "pending" as const },
+  ];
+  const ui = await render(<PlanCard label="Plan" steps={steps} />);
+  expect(ui.getByText("Check the reference")).toBeTruthy();
+  expect(ui.queryByTestId("action-guide", { includeHiddenElements: true })).toBeNull();
+  await ui.rerender(<PlanCard label="Plan" steps={steps} collapsible />);
+  await fireEvent.press(ui.getByRole("button"));
+  expect(ui.getAllByTestId("action-guide", { includeHiddenElements: true })).toHaveLength(2);
+  expect(ui.getAllByRole("button")).toHaveLength(1);
+});
+
+test.each([
+  ["run.canceled", "info"],
+  ["run.interrupted", "warn"],
+  ["run.resumed", "info"],
+] as const)("real %s notice is readable without expanding at its actual severity", async (code, level) => {
+  const part: Extract<Message["parts"][number], { type: "notice" }> = { type: "notice", code, level, text: "Fallback" };
+  const ui = await render(<NoticeCard part={part} />);
+  expect(ui.getByText(noticeText(part, lang))).toBeTruthy();
+  expect(ui.queryByRole("button")).toBeNull();
+  expect(ui.queryByTestId("icon-ChevronRight")).toBeNull();
+  for (const language of ["en", "es"] as const) expect(noticeText(part, language)).not.toBe("Fallback");
 });
 
 test("only an exact echo of a settled question folds into its question row", () => {

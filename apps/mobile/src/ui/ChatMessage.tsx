@@ -130,6 +130,18 @@ export function ChatMessage({
   const hasText = rows.some((row) => row.kind === "part" && row.part.type === "text" && row.part.text.trim());
   const generating = formsImage(message.parts, runState);
   const event = thread ? isAgentEvent(thread, message) : false;
+  const activityOnly =
+    author.kind === "agent" &&
+    !event &&
+    (tools.length > 0 || rows.length > 0) &&
+    rows.every(
+      (row) =>
+        row.kind === "part" &&
+        (row.part.type === "notice" ||
+          row.part.type === "plan" ||
+          row.part.type === "subthread" ||
+          (row.part.type === "input" && row.part.state !== "pending")),
+    );
   const skills = event ? undefined : message.parts.find((part) => part.type === "skills");
   const [open, setOpen] = useState<Open>();
   // A copy is the message's words as they read: the owner's as typed, an agent's without the markdown marks.
@@ -263,7 +275,7 @@ export function ChatMessage({
   const viaMark = via ? <ViaMark via={via} /> : null;
   return (
     <MailContext.Provider value={mailContext}>
-      <View style={[s.wrap, mine ? s.mineWrap : s.theirsWrap]}>
+      <View testID="chat-message" style={[s.wrap, activityOnly && s.activityWrap, mine ? s.mineWrap : s.theirsWrap]}>
         {author.kind === "person" ? (
           <View style={s.person}>
             <PersonAvatar person={author.id} name={author.name} size={26} />
@@ -316,6 +328,7 @@ export function ChatMessage({
 
 const useStyles = makeStyles((theme) => ({
   wrap: { gap: 4, marginVertical: 5 },
+  activityWrap: { marginVertical: 1 },
   mineWrap: { alignSelf: "flex-end", alignItems: "flex-end", maxWidth: "82%" },
   theirsWrap: { alignSelf: "stretch", alignItems: "flex-start" },
   bubble: { paddingVertical: 11, paddingHorizontal: 14, overflow: "hidden" },

@@ -1,7 +1,77 @@
 import { fireEvent, render, within } from "@testing-library/react-native";
+import { StyleSheet } from "react-native";
 import { t } from "../src/i18n";
 import type { Message } from "../src/protocol";
 import { ChatMessage } from "../src/ui/ChatMessage";
+
+test.each<{ name: string; parts: Message["parts"]; margin: number }>([
+  {
+    name: "actions",
+    parts: [{ type: "tool", call_id: "check", tool: "shell", title: "Check the report", status: "ok" }],
+    margin: 1,
+  },
+  {
+    name: "follow-up",
+    parts: [
+      {
+        type: "notice",
+        code: "continuation.receipt",
+        level: "info",
+        text: "Follow-up",
+        vars: {
+          id: "followup",
+          thread: "th_1",
+          state: "pending",
+          purpose: "Check the report",
+          condition: "time",
+          when: "2026-12-01T10:00:00Z",
+        },
+      },
+    ],
+    margin: 1,
+  },
+  {
+    name: "answered question",
+    parts: [
+      {
+        type: "input",
+        kind: "question",
+        input_id: "q",
+        state: "answered",
+        prompt: "Which report?",
+        answer: "The latest",
+      },
+    ],
+    margin: 1,
+  },
+  { name: "following answer text", parts: [{ type: "text", text: "The report is ready." }], margin: 5 },
+  {
+    name: "mixed text and activity",
+    parts: [
+      { type: "text", text: "The report is ready." },
+      { type: "notice", code: "run.canceled", text: "Canceled.", level: "info" },
+    ],
+    margin: 5,
+  },
+  {
+    name: "pending question",
+    parts: [{ type: "input", kind: "question", input_id: "q", state: "pending", prompt: "Which report?" }],
+    margin: 5,
+  },
+])("$name keeps the right message spacing without changing the disclosure touch area", async ({ parts, margin }) => {
+  const message: Message = {
+    id: "msg_spacing",
+    thread_id: "th_1",
+    seq: 1,
+    author: { kind: "agent", id: "superagent" },
+    created_at: "2026-10-21T15:00:00Z",
+    parts,
+  };
+  const ui = await render(<ChatMessage message={message} agents={[]} respond={async () => {}} />);
+  expect(StyleSheet.flatten(ui.getByTestId("chat-message").props.style).marginVertical).toBe(margin);
+  if (parts[0]?.type === "tool" || (parts[0]?.type === "input" && parts[0].state === "answered"))
+    expect(StyleSheet.flatten(ui.getByRole("button").props.style).minHeight).toBe(48);
+});
 
 test.each(["canceled", "completed", "failed"])(
   "a %s historical action does not inherit a later turn's wait",

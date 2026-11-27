@@ -34,6 +34,7 @@ export function PlanCard({
               key={i}
               last={i === steps.length - 1}
               compact
+              enabled={collapsible}
             >
               <View
                 style={s.step}
