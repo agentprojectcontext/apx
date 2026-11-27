@@ -620,6 +620,8 @@ export const enResources = {
   "extx.origin.folder": "From a folder · v{version}",
   "mkt.settings": "Settings",
   "mkt.settingsSaved": "Saved.",
+  "mkt.revokeBeforeChanging": "Revoke the old credential before changing this setting.",
+  "mkt.enterReplacementSecret": "Enter a new credential to save this change.",
   "mkt.openPage": "Open {title}",
   "mkt.agents": "Agents it brings",
   "mkt.addAgent": "Add agent",

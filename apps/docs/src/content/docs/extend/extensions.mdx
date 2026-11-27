@@ -48,6 +48,7 @@ you write there by hand stays a server of yours there and is not listed in the M
   live in **Channels**, so they are not repeated here.
 - An extension's page has one button that follows its state: **Add** → **Connect** (or **Pair** for a device's app)
   → **Connected ✓**. Turn off, update, go back a version, settings and remove are in **⋯**.
+  If **Settings** asks for a new credential when you change a connection, revoke the old one at the service and enter the replacement before saving.
 - **Add** and **Connect** are two steps you take on the page. **Add** checks its files (from APX's catalog they must
   be the ones APX publishes) and copies them; nothing runs. The page stays, now marked added, with **Connect** as its
   button. **Connect** (or **Pair**) opens a box with APX joined to the service, the keys to type, a sign-in or the
@@ -163,7 +164,7 @@ other variables or the environment, so a bundle can't carry your credentials els
 
 | Field | What it holds |
 |---|---|
-| `settings` | Values the owner sets, with a `type` (`string`, `number`, `boolean`, `directory`, `file`), a `label`, optional `description`, `default`, `options` (a choice), `required`. A `sensitive` one goes to the secret store and is referenced as `secret://name`; a plain one is referenced as `setting://name` in its servers' arguments, environment, address or headers (in an address, `setting://address/api` drops a final `/` the owner typed). `"generate": "random"` (sensitive strings only) makes APX fill a random key at install. |
+| `settings` | Values the owner sets, with a `type` (`string`, `number`, `boolean`, `directory`, `file`), a `label`, optional `description`, `default`, `options` (a choice), `required`. Set `locales.es.label` or `locales.es.description` to show Spanish wording in the panel; each missing translation uses the original wording. A `sensitive` one goes to the secret store and is referenced as `secret://name`; a plain one is referenced as `setting://name` in its servers' arguments, environment, address or headers (in an address, `setting://address/api` drops a final `/` the owner typed). `"generate": "random"` (sensitive strings only) makes APX fill a random key at install. |
 | `agents` | Ready-made agents (`id`, `name`, `description`, `prompt`) the owner adds from its page. |
 | `pages` | Its own HTML pages (`id`, `title`, `entry`), opened from its settings in a sandboxed frame with no network. A page reads and sets only its own settings through `window.apx` (`settings.get`, `settings.set`, `secrets.has`, `secrets.set`, `close`). |
 | `apps` | Widgets or apps (`.apxart` files) the owner adds to Apps from its page. |
