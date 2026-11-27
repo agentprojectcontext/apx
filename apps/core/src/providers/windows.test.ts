@@ -9,6 +9,20 @@ test("Qwen 3.8 27B uses its documented window without changing other Qwen fallba
     assert.equal(contextWindow(model), 128_000, model);
 });
 
+test("Groq ALLaM uses only its exact documented context fallback", () => {
+  for (const model of ["groq/allam-2-7b", "groq/allam-2-7b#high", "GROQ/ALLAM-2-7B"])
+    assert.equal(contextWindow(model), 4_096, model);
+  for (const model of [
+    "groq/allam-2-70b",
+    "groq/allam-2-7b-preview",
+    "groq/allam-2-7b-vision",
+    "groq/allam-2-7b:latest",
+    "acme/allam-2-7b",
+    "groq/acme/allam-2-7b",
+  ])
+    assert.equal(contextWindow(model), undefined, model);
+});
+
 test("known model families report their context window; unknown ones do not invent one", () => {
   assert.equal(contextWindow("anthropic/claude-sonnet-4-5"), 200_000);
   assert.equal(contextWindow("google/gemini-2.5-pro"), 1_048_576);

@@ -17,6 +17,7 @@ const WINDOWS: ReadonlyArray<[RegExp, number]> = [
 
 /** The context window of a model ref ("provider/model"), when its family is known. */
 export function contextWindow(model: string): number | undefined {
+  if (/^groq\/allam-2-7b(?:#|$)/i.test(model)) return 4_096;
   const name = (model.split("/").at(-1) ?? model).toLowerCase();
   const window = WINDOWS.find(([re]) => re.test(name))?.[1];
   // Subscription defaults differ from the API; measured usage windows take precedence at callers.
