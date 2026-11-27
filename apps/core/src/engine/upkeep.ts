@@ -397,9 +397,15 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
         ...(models?.length ? { models } : {}),
         ...(timeoutMs ? { timeoutMs } : {}),
       }),
-    /** A one-shot decision from the auxiliary model, with the model that made it (a deletion in Auto, D-281). */
-    decide: (system: string, user: string, about: AuxAbout, timeoutMs?: number) =>
-      answered(about, undefined, system, user, timeoutMs ? { timeoutMs } : {}),
+    /**
+     * A one-shot decision with the model that made it (a deletion in Auto, D-281): only the helper list's first model,
+     * never a fallback, which may be a small local one; none answering is the owner's card.
+     */
+    decide: (system: string, user: string, about: AuxAbout, timeoutMs?: number) => {
+      const [first] = auxModels();
+      if (!first) return Promise.resolve(undefined);
+      return answered(about, undefined, system, user, { models: [first], ...(timeoutMs ? { timeoutMs } : {}) });
+    },
     /**
      * A long read for an agent (an imported chat's digest): on the models that agent already sends its turns to, the
      * auxiliary one after them, with more time than a title gets.

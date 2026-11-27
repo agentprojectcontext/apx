@@ -47,3 +47,33 @@ test("the helper chain the panel saves is tried in order, five long refs include
     await env.cleanup();
   }
 });
+
+test("a deletion's judge asks only the helper list's first model, never a fallback (DECISIONS.md#d-281)", async () => {
+  let fail = false;
+  const llm = scriptedLlm(() => {
+    if (fail) throw new Error("the first model is down");
+    return say('{"decision":"run"}');
+  });
+  const env = await startCore({ llm });
+  const upkeep = createUpkeep({ store: env.core.store, llm, log: createLog("test", true) });
+  try {
+    env.core.store.settings.set("model_aux", "chatgpt/gpt-6-luna,ollama/qwen3:4b-instruct");
+    const answer = await upkeep.decide("Decide", "A deletion", { purpose: "deletion" }, 20_000);
+    assert.equal(answer?.text, '{"decision":"run"}');
+    assert.deepEqual(llm.calls.at(-1)?.models, ["chatgpt/gpt-6-luna"]);
+    // The first one failing is no answer: the judge's caller shows the card.
+    fail = true;
+    const before = llm.calls.length;
+    await assert.rejects(upkeep.decide("Decide", "A deletion", { purpose: "deletion" }, 20_000));
+    assert.deepEqual(
+      llm.calls.slice(before).map((c) => c.models),
+      [["chatgpt/gpt-6-luna"]],
+    );
+    env.core.store.settings.set("model_aux", "off");
+    assert.equal(await upkeep.decide("Decide", "A deletion", { purpose: "deletion" }), undefined);
+  } finally {
+    await upkeep.stop();
+    await env.core.close();
+    await env.cleanup();
+  }
+});

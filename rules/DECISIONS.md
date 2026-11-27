@@ -6569,7 +6569,8 @@ Code in auto mode does, "sin preguntarme a cada rato". Manual and Total are unch
 - What only the task can tell (a command on another machine, a forced `xargs rm -f` or `find -exec rm -f`, a container
   it did not start, a glob that matches nothing yet, `~user`, braces or a variable the line does not set) goes to the
   auxiliary model (`engine/deletion-judge.ts`, purpose `deletion` in the auxiliary calls, 20 s
-  deadline). It reads the deleting parts, what is known of each, the agent's reason, the task, the owner's recent words
+  deadline). Only the first model of the helper list judges, never a fallback: the list may end in a small local
+  model, the weakest judge exactly when a wrong "run" deletes with no card, so the first one failing is a card. It reads the deleting parts, what is known of each, the agent's reason, the task, the owner's recent words
   and the lines of the project's AGENTS.md about deleting or cleaning up, and answers run or ask. No model, a failure,
   the deadline or an unclear answer is a card. With outside content in the turn it still judges, told to answer run
   only on the owner's words, the task or a project rule: command output in the chat's history marks nearly every later

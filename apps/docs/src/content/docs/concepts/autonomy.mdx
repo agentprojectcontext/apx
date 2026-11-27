@@ -138,7 +138,8 @@ Claude Code's auto mode does, instead of asking each time:
   folders of your projects it may change. `sudo`, a release and anything sent in your name keep their own card.
 - **Anything else** (a command on another machine, `xargs rm -f`, `find -exec rm -f`, a pattern that matches nothing
   yet) goes to the auxiliary model, which reads the task, your recent words and your project's rules about cleaning up
-  (in AGENTS.md) and decides. If there is no auxiliary model, it fails or it is not sure, you get the card.
+  (in AGENTS.md) and decides. Only the first model of your helper model list judges, never the ones after it. If
+  there is none, it does not answer within 20 seconds or it is not sure, you get the card.
 
 What counts as a deletion is a forced or recursive `rm` (`-f`, `-r`), wherever it runs, and a git command that throws
 work away. A plain `rm`, `find -delete` or `find -exec rm` without those flags runs like any other change. A pattern
