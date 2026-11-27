@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { waitFor } from "../testkit/platform.ts";
+import { keepWhilePaused } from "./breaker.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
 // Two background commands: the first one's end is an unattended turn that reaches the limit, so the second ends while
@@ -36,6 +37,15 @@ test("a background command that ends while agents are paused is kept, and going 
   }, "paused notice");
   assert.ok(notice);
   assert.equal(env.core.store.threads.context(chat.id).kept, "superagent", "the chat keeps the result for its agent");
+
+  // More results in the same pause update that one notice and bring it to the end, instead of stacking new ones.
+  keepWhilePaused(env.core.store, { thread_id: chat.id, agent_id: "superagent", who: "Third", note: "third-done" });
+  const { messages } = await env.client.call("threads.get", { thread: chat.id });
+  const paused = messages.filter((m) => m.parts.some((p) => p.type === "notice" && p.code === "breaker.paused"));
+  assert.equal(paused.length, 1, "one pause, one notice");
+  const part = paused[0]?.parts.find((p) => p.type === "notice");
+  assert.equal(part?.type === "notice" ? part.vars?.who : undefined, "Third", "it names the latest result");
+  assert.equal(messages.at(-1)?.id, paused[0]?.id, "it sits at the end of the chat");
 
   const { started } = await env.client.call("threads.go_on", { thread: chat.id, mode: "release" });
   assert.equal(started, 1);

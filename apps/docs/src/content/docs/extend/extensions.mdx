@@ -41,13 +41,15 @@ you write there by hand stays a server of yours there and is not listed in the M
   device's app; hover one to read it). What it is comes from
   what it brings: a **Channel** APX talks through; an **Integration** with code or an app of its own (a **Native
   integration** when APX makes it, like Google Calendar); a **Connector**, an MCP server (with skills to use it or
-  not); **Agents**; or **Skills** alone. Each row has one button: **Add** (it opens the extension's page and adds it
-  there), or **Connect** for one included with APX.
+  not); **Agents**; or **Skills** alone. Each available row has one button: **View details**. Opening the page
+  does not add or connect anything. Read its scope and requirements first, then choose **Add** or **Connect** on
+  that page, including for channels and integrations included with APX.
 - **Your extensions** lists what you added, in two groups: **Needs attention** (not connected yet, a new version, an
   error) and **Active**. The same groups show in the left column. Channels are found and connected from Explore, but
   live in **Channels**, so they are not repeated here.
 - An extension's page has one button that follows its state: **Add** → **Connect** (or **Pair** for a device's app)
   → **Connected ✓**. Turn off, update, go back a version, settings and remove are in **⋯**.
+  If **Settings** asks for a new credential when you change a connection, revoke the old one at the service and enter the replacement before saving.
 - **Add** and **Connect** are two steps you take on the page. **Add** checks its files (from APX's catalog they must
   be the ones APX publishes) and copies them; nothing runs. The page stays, now marked added, with **Connect** as its
   button. **Connect** (or **Pair**) opens a box with APX joined to the service, the keys to type, a sign-in or the
@@ -64,6 +66,8 @@ you write there by hand stays a server of yours there and is not listed in the M
   **Security and access** ("Can send data to api.hubapi.com", "Runs code on
   your computer", files nobody verified), **Authorization** ("A key of yours", "You sign in to the service"), what it
   needs and does not do, cost, privacy, links and its fingerprint under **Details**. A fact nobody gave is not shown.
+  Local access is shown as **Credentials or permissions set up on this computer**, not **Not needed**. Follow the
+  extension's requirements to prepare that access on the computer running APX; adding it does not configure credentials.
 - **Add** › **From an address** or **From a file** adds something that is not in a catalog: the same box opens under
   a picker (a file, an address or a folder). An address of an `.apxext` is read as a package; any other https address
   is an MCP server: APX adds it as an extension of yours with that server inside and connects it right away.
@@ -144,8 +148,12 @@ The schema is strict: unknown keys are refused.
 | `skills` | A folder of skill folders, each with its `SKILL.md`. |
 | `mcp` | Servers by name (letters, digits and `_`): `command` + `args` + `env`, or `url` + `headers`. A command starting with `./` runs from the extension's folder. |
 | `routines` | Templates with a `name`, a `schedule` (`cron`, `every` N minutes with N of 5 or more, or `once`) and a `prompt`. |
-| `secrets` | Up to 10, each with a `name`, a `label` and an optional `url` where to get it. You type each value once. |
+| `secrets` | Up to 10, each with a `name`, an English `label`, optional `locales.es.label` (Spanish, falling back to English), and an optional `url` where to get it. Labels are translated in the connection form and package details; values remain in the secret store. You type each value once. |
 | `plugin` | Optional code; see below. |
+
+A first connection is shown as connected only after its servers are ready. If starting a server fails, APX turns that newly enabled extension off so you can retry, including after reopening its page, unless it has since been changed elsewhere or APX has restarted. Two open pages cannot both claim the same first activation, and a failed attempt cannot undo a later activation. Retrying an extension that was already enabled does not turn it off on failure.
+
+If APX cannot confirm that the extension is off, the dialog reports that separately instead of blaming the entered data. Choose **View status** to check the extension before retrying; your fields stay in the dialog until you leave it. Installing an unrelated extension, or an installation rejected before it changes anything, does not prevent a pending first connection from turning itself off.
 
 An MCP server in an extension can only use the extension's **own** secrets, as `secret://name`. It can't name your
 other variables or the environment, so a bundle can't carry your credentials elsewhere.
@@ -163,7 +171,7 @@ other variables or the environment, so a bundle can't carry your credentials els
 
 | Field | What it holds |
 |---|---|
-| `settings` | Values the owner sets, with a `type` (`string`, `number`, `boolean`, `directory`, `file`), a `label`, optional `description`, `default`, `options` (a choice), `required`. A `sensitive` one goes to the secret store and is referenced as `secret://name`; a plain one is referenced as `setting://name` in its servers' arguments, environment, address or headers (in an address, `setting://address/api` drops a final `/` the owner typed). `"generate": "random"` (sensitive strings only) makes APX fill a random key at install. |
+| `settings` | Values the owner sets, with a `type` (`string`, `number`, `boolean`, `directory`, `file`), a `label`, optional `description`, `locales.es.label` and `locales.es.description` (Spanish copy, each falling back independently to English; required-setting labels also appear translated in What it brings, including before adding when package details are available), `default`, `options` (a choice), `required`. A `sensitive` one goes to the secret store and is referenced as `secret://name`; a plain one is referenced as `setting://name` in its servers' arguments, environment, address or headers (in an address, `setting://address/api` drops a final `/` the owner typed). `"generate": "random"` (sensitive strings only) makes APX fill a random key at install. |
 | `agents` | Ready-made agents (`id`, `name`, `description`, `prompt`) the owner adds from its page. |
 | `pages` | Its own HTML pages (`id`, `title`, `entry`), opened from its settings in a sandboxed frame with no network. A page reads and sets only its own settings through `window.apx` (`settings.get`, `settings.set`, `secrets.has`, `secrets.set`, `close`). |
 | `apps` | Widgets or apps (`.apxart` files) the owner adds to Apps from its page. |

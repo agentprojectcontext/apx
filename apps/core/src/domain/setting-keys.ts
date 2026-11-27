@@ -119,7 +119,10 @@ export const SETTINGS = {
    * The owner's limits on agents acting on their own; a field unset keeps engine/limits.ts's default. `agents` holds
    * the budgets the owner gave single agents, inside those limits.
    */
-  agent_limits: entry(AgentLimits.partial().extend({ agents: AgentBudgets.optional() }), {}),
+  agent_limits: entry(
+    AgentLimits.partial().extend({ agents: AgentBudgets.optional(), stuck: AgentLimits.partial().optional() }),
+    {},
+  ),
   /**
    * The quick chat's shortcut, start at login (on: APX is meant to be always there) and whether agents may use this
    * computer's screen (off until the owner turns it on); each field falls back alone.

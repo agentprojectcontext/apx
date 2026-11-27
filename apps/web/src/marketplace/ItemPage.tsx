@@ -1,6 +1,7 @@
 import type { McpServerStatus } from "@apx/protocol";
 import { Button, Card, ConfirmDialog, IconButton, Icons, MarkdownView, Menu, type MenuEntry } from "@apx/ui";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useState } from "react";
+import { isChannelKind } from "../channels/kinds.ts";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
 import { setMcp, signInMcp } from "../data/resources.ts";
@@ -12,7 +13,7 @@ import { attempt } from "../resources/InstalledExtension.tsx";
 import { McpDialog } from "../resources/McpDialog.tsx";
 import { go } from "../shell/nav.ts";
 import { listText } from "./about.ts";
-import { addItem, addSource, type Problem, takeAsked } from "./adding.ts";
+import { addItem, addSource, type Problem } from "./adding.ts";
 import { ItemIcon } from "./ConnectHead.tsx";
 import { ItemBrings } from "./ItemBrings.tsx";
 import { ItemFacts } from "./ItemFacts.tsx";
@@ -20,7 +21,6 @@ import { ItemLabel } from "./ItemLabel.tsx";
 import { ItemRow } from "./ItemRow.tsx";
 import { ItemSettings } from "./ItemSettings.tsx";
 import { fromText, listingIn, nextStep, type Step, stepLabel } from "./itemText.ts";
-import { rowAction } from "./MarketBrowse.tsx";
 import { useAsset } from "./useAsset.ts";
 
 // An extension's page: its icon, name, label and who makes it, with one button that follows its state (Add → Connect,
@@ -97,20 +97,22 @@ export function ItemPage({
     await onChanged();
     onAdded(r.ext.id);
   };
-  // A list row's Add opened this page to add it here.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: once per page opened, not on every render of it
-  useEffect(() => {
-    if (takeAsked(item.key)) void add();
-  }, [item.key]);
   /** Connecting or pairing one already added happens in the add box. */
   const connectBox = () =>
     e && openExtensionInstall({ connect: e.id, look: { listing: item.listing, entry: item.entry } });
   const update = (url: string) =>
     openExtensionInstall({ url, catalog: true, official: item.entry?.provenance === "official" });
   const server = item.server;
+  const channel = item.channel;
   const act: Partial<Record<Step, () => void>> = {
-    add: addSource(item) ? () => void add() : rowAction(item, () => undefined),
-    connect: e ? connectBox : i ? () => setOpen("connect") : rowAction(item, () => undefined),
+    add: addSource(item) ? () => void add() : undefined,
+    connect: e
+      ? connectBox
+      : i
+        ? () => setOpen("connect")
+        : channel && isChannelKind(channel)
+          ? () => go.newChannel(channel)
+          : undefined,
     review: connectBox,
     pair: connectBox,
     keys: connectBox,
@@ -129,7 +131,7 @@ export function ItemPage({
     browser: () => go.config("browser"),
   };
   const primary: ReactNode =
-    step === "done" || step === "coming" ? (
+    step === "done" || step === "coming" || step === "starting" ? (
       <Button variant="secondary" disabled leadingIcon={step === "done" ? <Icons.Check size={14} /> : undefined}>
         {stepLabel(item, step, t)}
       </Button>
@@ -359,7 +361,6 @@ export function ItemPage({
                       item={v}
                       line={t("mkt.otherVersionLine", { catalog: v.entry?.catalog_name ?? "" })}
                       onOpen={see}
-                      onAct={rowAction(v, see)}
                     />
                   );
                 })}

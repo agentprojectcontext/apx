@@ -1,6 +1,13 @@
 // What agents wait on from the owner. A row is written before the agent starts waiting, so a restart never loses
 // the question; answering is a compare-and-set on `pending`, so two answers cannot both win.
-import { ApprovalScope, type FileChange, type InputKind, type InputState, type PendingInput } from "@apx/protocol";
+import {
+  ApprovalScope,
+  type DeletionCard,
+  type FileChange,
+  type InputKind,
+  type InputState,
+  type PendingInput,
+} from "@apx/protocol";
 import type { Selectable } from "kysely";
 import type { PendingInputsTable } from "../db/schema.ts";
 import { type ApprovalTarget, approvalScopes } from "./approvals.ts";
@@ -38,6 +45,7 @@ const toInput = (r: Selectable<PendingInputsTable>): InputRecord => ({
   ...(r.args ? { args: JSON.parse(r.args) as Record<string, unknown> } : {}),
   ...opt("detail", r.detail),
   ...(r.change ? { change: JSON.parse(r.change) as FileChange } : {}),
+  ...(r.deletion ? { deletion: JSON.parse(r.deletion) as DeletionCard } : {}),
   ...(r.options ? { options: JSON.parse(r.options) as string[] } : {}),
   ...(r.multi ? { multi: true } : {}),
   ...(r.app_only ? { app_only: true as const } : {}),
@@ -95,6 +103,7 @@ export function inputsRepo({ one, all, run }: Sql) {
       args?: Record<string, unknown> | undefined;
       detail?: string | undefined;
       change?: FileChange | undefined;
+      deletion?: DeletionCard | undefined;
       options?: string[] | undefined;
       multi?: boolean | undefined;
       waitMs: number;
@@ -119,6 +128,7 @@ export function inputsRepo({ one, all, run }: Sql) {
           args: i.args ? JSON.stringify(i.args) : null,
           detail: i.detail ?? null,
           change: i.change ? JSON.stringify(i.change) : null,
+          deletion: i.deletion ? JSON.stringify(i.deletion) : null,
           options: i.options?.length ? JSON.stringify(i.options) : null,
           multi: i.multi && i.options?.length ? 1 : null,
           folders: i.folders ? JSON.stringify(i.folders) : null,

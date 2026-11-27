@@ -60,15 +60,3 @@ export async function addItem(i: Item): Promise<{ ext: ExtensionInfo } | { probl
     return { problem: problemOf(e, seen?.name ?? i.name, seen?.version ?? i.version) };
   }
 }
-
-/** A list row's Add opens the page, which adds it there: the owner sees it happen and stays on it after. */
-let asked: string | undefined;
-export const askToAdd = (key: string) => {
-  asked = key;
-};
-/** Whether the page just opened was asked to add it (only once). */
-export function takeAsked(key: string): boolean {
-  if (asked !== key) return false;
-  asked = undefined;
-  return true;
-}

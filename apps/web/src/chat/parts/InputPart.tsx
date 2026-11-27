@@ -1,7 +1,7 @@
 import "../../styles/chat-cards.css";
 import "../../styles/panel-parts.css";
 import "../../styles/screens.css";
-import type { ApprovalScope, FileChange, Part } from "@apx/protocol";
+import type { ApprovalScope, DeletionCard, FileChange, Part } from "@apx/protocol";
 import { ActionGroup, Button, Icons, MarkdownView, Tooltip } from "@apx/ui";
 import { Fragment, Suspense, useId, useState } from "react";
 import { ApprovalText } from "../../common/ApprovalText.tsx";
@@ -133,6 +133,7 @@ function Prompt({ part }: { part: InputPartData }) {
 /** What the call would do: the file's patch when the core could make one, else its arguments. */
 function Detail({ part }: { part: InputPartData }) {
   const t = useT();
+  if (part.deletion) return <Deletion deletion={part.deletion} />;
   if (part.change) return <ProposedChange change={part.change} />;
   if (part.tool === "browser_evaluate" && part.browser)
     return <BrowserReview review={part.browser} source={part.detail ?? ""} />;
@@ -142,6 +143,24 @@ function Detail({ part }: { part: InputPartData }) {
     <textarea className="inputcard__detail" aria-label={t("input.callDetail")} rows={12} readOnly value={part.detail} />
   ) : (
     <code className="inputcard__detail">{part.detail}</code>
+  );
+}
+
+/** A deletion card: what goes as a list, the agent's reason as it said it, and the command folded away. */
+function Deletion({ deletion }: { deletion: DeletionCard }) {
+  const t = useT();
+  return (
+    <div className="inputcard__deletion">
+      <ul className="inputcard__gone">
+        {deletion.items.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
+      {deletion.reason && <p className="inputcard__reason">{t("input.deletionWhy", { reason: deletion.reason })}</p>}
+      <ActionGroup className="inputcard__command" icon={<Icons.Terminal size={14} />} title={t("input.seeCommand")}>
+        <code className="inputcard__detail">{deletion.command}</code>
+      </ActionGroup>
+    </div>
   );
 }
 

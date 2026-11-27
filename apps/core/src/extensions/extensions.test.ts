@@ -25,7 +25,7 @@ const manifest = (extra: Record<string, unknown> = {}) => ({
   skills: "skills",
   mcp: { crm: { command: process.execPath, args: [SERVER], env: { NOTES_TOKEN: "secret://token" } } },
   routines: [{ name: "Morning invoices", schedule: { kind: "cron", cron: "0 9 * * 1-5" }, prompt: "check invoices" }],
-  secrets: [{ name: "token", label: "CRM API token" }],
+  secrets: [{ name: "token", label: "CRM API token", locales: { es: { label: "Token de API del CRM" } } }],
   ...extra,
 });
 const write = (m: unknown) => fs.writeFileSync(path.join(src, "apx-extension.json"), JSON.stringify(m));
@@ -59,6 +59,8 @@ test("inspected and installed, an extension does nothing until it is turned on",
   assert.equal(seen.routines[0]?.name, "Morning invoices");
   const info = await env.client.call("extensions.install", { path: src });
   assert.equal(info.enabled, false);
+  assert.deepEqual(info.secrets[0]?.locales, { es: { label: "Token de API del CRM" } });
+  assert.equal(info.secrets[0]?.set, false);
   assert.ok(!(await skillNames()).includes("crm-notes"));
   const { servers } = await env.client.call("mcp.list", {});
   assert.ok(!servers.some((s) => s.name === "northwind-crm"));

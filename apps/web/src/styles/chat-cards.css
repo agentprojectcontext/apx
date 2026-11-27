@@ -456,6 +456,27 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+.inputcard__deletion {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.inputcard__gone {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+  font-size: var(--apx-text-sm);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.inputcard__reason {
+  margin: 0;
+  font-size: var(--apx-text-sm);
+  line-height: 1.45;
+  color: var(--apx-fg-muted);
+  overflow-wrap: anywhere;
+}
 .inputcard__browser {
   display: grid;
   gap: 8px;

@@ -720,6 +720,8 @@ export const es: Record<Key, string> = {
   inputDenied: "Rechazado",
   inputExpired: "Venció",
   inputAskedAction: "Propuso una acción",
+  deletionWhy: "Por qué: {reason}",
+  seeCommand: "Ver comando",
   inputAskedFolder: "Pidió leer una carpeta",
   inputAsked: "Pidió permiso para usar {tool}",
   inputAnAction: "una acción",

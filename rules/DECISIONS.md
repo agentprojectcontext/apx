@@ -6032,6 +6032,10 @@ Now:
 - A heredoc's body is its program's data unless a shell reads it (`bash <<EOF`, `cat <<EOF | sh`, `ssh host <<EOF`,
   `sudo`, `eval`, `exec`, `osascript`…): a script for Python or a file written with `cat > f <<EOF` is judged like a
   script file, which was never scanned (`tools/command-heredocs.ts`). A body fed to a shell is still scanned whole.
+- The forced `rm` check treats a plain, leading `rg` or `grep` invocation's statically quoted pattern as data, in both
+  the raw and normalized scans. In a compound command it omits the pattern only when the rest independently triggers
+  deletion approval. Pipelines that could feed commands to a shell and forms the classifier cannot prove keep the
+  previous scan. The deletion card uses the same check; it still shows the original command.
 - An agent deletes only when the owner asked for it, in the chat or as a standing rule of theirs ("tiene que estar muy
   claro que solo va a borrar cuando se lo pido"). APX cannot read intent, so a forced deletion (`rm -r`/`rm -f`,
   also inside the agent's folder or a script fed to a shell) keeps asking in Auto, as decided on 2026-11-01, and the
@@ -6061,6 +6065,16 @@ Now:
   every action that always asks; a rule for deletions alone does not exist. `git filter-branch` and
   `git update-ref -d` stay high-impact actions (they rewrite history) and a push that deletes a branch keeps its
   release card (D-208).
+- The card is read where the command runs (2026-11-27, the owner: a cleanup that restored three lost files was shown
+  as a deletion, in one block of monospace with absolute paths). A git command's paths are resolved in its `-C`
+  folder. `git restore`/`git checkout -- paths` count only for the files `git status` says hold edits (`M`/`T` in the
+  working tree, and with the index restored, staged `M`/`T`/`A`): files deleted in the working tree come back, so a
+  restore of only those, or of a clean tree, asks nothing (`command-git-status.ts`; when git cannot say, every path
+  counts). `git worktree remove` and `git branch -d` are listed, as git keeps them when work would be lost, on a card
+  another deletion opens. The card carries its parts apart (`deletion`: what goes, one line each with paths relative to
+  the project; the reason only when an outside agent gave one, as APX's own agents' reason is their message right
+  above the card; the command), and the panel and phone fold the command away ("See command"); `detail` keeps them as
+  one text, reason included, for channels.
 - `start_session` is `untrusted`: its calls pass the same policy in the caller's mode, and its write policy is never
   more than the caller's, so in Auto it starts without a card unless outside content is in the turn (rule 10: an
   injected page must not launch a session), as a delegation does. Manual asks, Plan refuses.
@@ -6511,3 +6525,24 @@ mode explicitly to Auto (a project the owner made stricter would no longer reach
 
 Docs impact: updated concepts/autonomy, extend/mcp and reference/whats-new in English and Spanish,
 rules/SUPER_AGENT_POWERS.md, the apx-agents and apx-mcps skills, and news (`mcp-open`, 2.17.2).
+
+<a id="d-280"></a>
+## D-280 — 2026-11-26 — A turn boundary is not a budget pause; permission changes target an account
+
+A native task turn that reaches its step cap can admit another part in the same task chat when its plan or its
+recorded tool results show progress. Novel tool effects alone can bridge one cap per milestone, not an endless
+series of edits. It keeps its original end reason for usage and diagnostics, but once the next part actually starts,
+the previous part records that start instead of asking the owner to continue. No automatic restart replays tool calls. Waiting,
+cancellation, provider limits, project scope and turn-specific browser consent are unchanged. Non-cap follow-ups still
+have a fixed bound (D-162).
+
+The stalled-task guard (D-188) has its own owner thresholds, disabled when both are zero. A completed successful test
+or check is one additional progress checkpoint per plan milestone; starting a job and repeating checks do not count.
+The budget is separate and retains its own settings.
+
+MCP permission writes select the shared account or the project credential variant; an explicitly selected variant that
+is no longer present cannot fall back to the base server. Only the selected account is changed. “Allowed by default”
+remains distinct from the owner's explicit grant (D-279). Browser scripts still require their exact origin and current
+document, with temporary consent bounded by its selected tab or turn.
+
+Docs impact: updated office/tasks, extend/mcp and reference/cli in English and Spanish.

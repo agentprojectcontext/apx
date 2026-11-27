@@ -8,8 +8,7 @@ import { ItemLabel } from "./ItemLabel.tsx";
 import { fromText, kindText, waitReason } from "./itemText.ts";
 import "@apx/ui/catalog-row.css";
 
-// One extension in a list: its icon, name and label, one line, what it is and who from with small icons for what it
-// brings, and on the right one thing: Add (or Connect), why it waits, or that it is working.
+// Available extensions open their details; installed ones show their current status.
 
 const COUNT: Record<Count["kind"], { icon: ReactNode; one: MessageKey; many: MessageKey; some: MessageKey }> = {
   connector: {
@@ -44,18 +43,7 @@ const COUNT: Record<Count["kind"], { icon: ReactNode; one: MessageKey; many: Mes
   },
 };
 
-export function ItemRow({
-  item: i,
-  line,
-  onOpen,
-  onAct,
-}: {
-  item: Item;
-  line?: string | undefined;
-  onOpen(): void;
-  /** Its button when it is not the owner's yet: Add, or Connect for one included with APX. */
-  onAct?: (() => void) | undefined;
-}) {
+export function ItemRow({ item: i, line, onOpen }: { item: Item; line?: string | undefined; onOpen(): void }) {
   const t = useT();
   const lang = useLanguage();
   const why = waitReason(i, t);
@@ -82,13 +70,8 @@ export function ItemRow({
       onOpen={onOpen}
       action={
         mine || i.state === "coming" ? undefined : (
-          <Button
-            size="sm"
-            variant="secondary"
-            leadingIcon={connects ? undefined : <Icons.Plus size={14} />}
-            onClick={() => (onAct ?? onOpen)()}
-          >
-            {t(connects ? "mkt.step.connect" : "mkt.step.add")}
+          <Button size="sm" variant="secondary" onClick={onOpen}>
+            {t("mkt.viewDetails")}
           </Button>
         )
       }

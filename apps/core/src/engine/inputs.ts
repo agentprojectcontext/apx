@@ -1,7 +1,7 @@
 // One machine for everything an agent waits on from the owner: confirmations before a tool runs and questions.
 // The row is written before the wait starts; an answer that arrives after its run is gone (a restart, a deadline)
 // wakes the agent with a new run instead of being lost.
-import type { ApprovalScope, FileChange, InputKind, Part } from "@apx/protocol";
+import type { ApprovalScope, DeletionCard, FileChange, InputKind, Part } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import { type ApprovalTarget, writeFolderApproval } from "../domain/approvals.ts";
 import { type InputRecord, publicInput } from "../domain/inputs.ts";
@@ -69,6 +69,7 @@ export const inputPartOf = (r: InputRecord): Extract<Part, { type: "input" }> =>
         }
       : {}),
     ...(r.change ? { change: r.change } : {}),
+    ...(r.deletion ? { deletion: r.deletion } : {}),
     ...(r.options ? { options: r.options } : {}),
     ...(r.multi ? { multi: true } : {}),
     ...(r.folders ? { folders: r.folders } : {}),
@@ -204,6 +205,8 @@ export function createInputs(deps: {
       args?: Record<string, unknown> | undefined;
       detail?: string | undefined;
       change?: FileChange | undefined;
+      /** A deletion card: what goes, why and the command, apart. */
+      deletion?: DeletionCard | undefined;
       options?: string[] | undefined;
       multi?: boolean | undefined;
       /** A folder card: the folders outside the agent's own the call would read, or change (`write`). */
@@ -241,6 +244,7 @@ export function createInputs(deps: {
           args: o.args,
           detail: o.detail,
           change: o.change,
+          deletion: o.deletion,
           options: o.options,
           multi: o.multi,
           // A folder to change is lent for the call only: a read-only folder of the project would not let it write.

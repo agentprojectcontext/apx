@@ -7,7 +7,7 @@ import type {
 } from "@apx/protocol";
 import type { MessageKey } from "../i18n/index.ts";
 import type { Label } from "../resources/extensionItems.ts";
-import { listingIn } from "./itemText.ts";
+import { listingIn, settingCopyIn } from "./itemText.ts";
 
 // What the add box and an extension's page say about one extension, the same wherever APX learned it: an inspected
 // package, an installed one, a catalog entry not added yet, or a server address the owner typed. A fact APX does not
@@ -110,7 +110,7 @@ export function aboutExtension(
     ownerHost: Boolean(e.owner_host),
     runsCode: e.runs_code,
     connection: e.listing?.connection,
-    keys: [...e.secrets.map((s) => s.label), ...e.settings.filter((s) => s.sensitive).map((s) => s.label)],
+    keys: [...e.secrets, ...e.settings.filter((s) => s.sensitive)].map((s) => settingCopyIn(s, lang).label),
     servers: e.mcp.length,
     tools: opts.tools?.length ? { names: opts.tools, real: true } : listed(e.listing, lang),
     skills: e.skills,
@@ -144,7 +144,7 @@ export function aboutEntry(c: CatalogEntry, lang: string): About {
     ownerHost: false,
     runsCode: k?.runs_code ?? Boolean(c.needs?.includes("code")),
     connection: c.listing?.connection,
-    keys: k?.keys ?? [],
+    keys: k?.key_labels?.map((s) => settingCopyIn(s, lang).label) ?? k?.keys ?? [],
     servers: k?.servers ?? (c.brings?.includes("tools") ? 1 : 0),
     tools: listed(c.listing, lang),
     skills: k?.skills,

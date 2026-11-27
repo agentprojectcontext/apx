@@ -5,6 +5,7 @@ import { after, before, test } from "node:test";
 import { waitFor } from "../testkit/platform.ts";
 import { stuckTrip } from "./breaker.ts";
 import { STUCK_LIMITS } from "./limits.ts";
+import { recordVerification } from "./progress.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
 const refusals: string[] = [];
@@ -74,15 +75,40 @@ test("helpers asked again and again with no step done pause the task, and the ow
   assert.equal(told().length, 1, "told once for this stretch");
 });
 
-test("a step newly done starts the count over; rewriting the same plan does not", async () => {
+test("verification and completed plan milestones reset the guard, but repeated checks and plan rewrites do not", async () => {
   const store = env.core.store;
   const task = store.tasks.list({ state: "open", limit: 50 }).find((t) => t.title === "Polish the pointer");
   assert.ok(task);
   const work = store.threads.byTask(task.id)[0]?.id ?? "";
   await env.client.call("tasks.update", { task: task.id, plan: "- [ ] Read the code\n- [ ] Smooth it" });
   assert.ok(stuckTrip(store, work), "a plan with nothing done is no progress");
-  await env.client.call("tasks.update", { task: task.id, plan: "- [x] Read the code\n- [~] Smooth it" });
+  const at = store.runs.list(work)[0]?.ended_at;
+  assert.ok(at);
+  assert.equal(recordVerification(store, work, "scout", at), false, "another agent cannot renew the guard");
+  assert.equal(recordVerification(store, work, "vera", at), true);
   assert.equal(stuckTrip(store, work), undefined);
+  assert.equal(recordVerification(store, work, "vera", at), false);
+  await env.client.call("tasks.update", {
+    task: task.id,
+    plan: "- [x] Read the code\n- [x] Check the pointer\n- [~] Publish",
+  });
+  const milestone = store.threads.context(task.thread_id).progress_at;
+  assert.ok(milestone && milestone >= at);
+  assert.equal(recordVerification(store, work, "vera", milestone), true);
+});
+
+test("the owner can disable the progress guard without changing the unattended budget", async () => {
+  const before = await env.client.call("agents.limits", {});
+  assert.deepEqual(before.stuck, STUCK_LIMITS);
+  await env.client.call("agents.set_limits", { stuck: { runs: 0, tokens: 0 } });
+  try {
+    await env.client.call("agents.set_limits", { runs: before.runs, tokens: before.tokens });
+    const saved = await env.client.call("agents.limits", {});
+    assert.deepEqual(saved.stuck, { runs: 0, tokens: 0 });
+    assert.deepEqual([saved.runs, saved.tokens], [before.runs, before.tokens]);
+  } finally {
+    await env.client.call("agents.set_limits", { stuck: before.stuck });
+  }
 });
 
 test("an agent comments on a task once a turn; more words that turn join that comment", async () => {

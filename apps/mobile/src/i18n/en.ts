@@ -716,6 +716,8 @@ export const en = {
   inputDenied: "Declined",
   inputExpired: "Expired",
   inputAskedAction: "Proposed an action",
+  deletionWhy: "Why: {reason}",
+  seeCommand: "See command",
   inputAskedFolder: "Asked to read a folder",
   inputAsked: "Asked to use {tool}",
   inputAnAction: "an action",

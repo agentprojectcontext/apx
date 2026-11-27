@@ -137,7 +137,7 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "agents.each": "Modelo y navegador de cada agente",
   "limits.title": "Cuando los agentes trabajan solos",
   "limits.lead":
-    "Por defecto los agentes terminan lo que les pediste sin frenar. Si querés, ponés un tope de turnos o tokens que pueden usar sin vos, contado desde tu último mensaje en ese chat; al llegar se pausan y siguen cuando escribís.",
+    "Elegí cuánto pueden hacer los agentes después de tu último mensaje y cuándo pausar una tarea que no avanza.",
   "limits.runs": "Turnos sin vos",
   "limits.runsHint": "Turnos que los agentes empiezan solos en un chat antes de esperarte. Vacío: sin límite.",
   "limits.tokens": "Tokens sin vos",
@@ -145,10 +145,14 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
     "Tokens nuevos que pueden gastar esos turnos antes de esperarte, en miles; lo leído de la caché no cuenta. Vacío: sin límite.",
   "limits.thousands": "mil",
   "limits.none": "Sin límite",
-  "limits.on": "Poner límites",
+  "limits.on": "Limitar el presupuesto de trabajo autónomo",
   "limits.onHint": "Los agentes se pausan al llegar a esto y te esperan.",
-  "limits.offHint":
-    "Sin límites: los agentes siguen solos hasta terminar lo que les pediste, como un agente de código.",
+  "limits.stuck": "Pausar tareas estancadas",
+  "limits.stuckHint":
+    "Es independiente del presupuesto. Pausa tras una cantidad de turnos o tokens sin avances, aunque el presupuesto sea ilimitado.",
+  "limits.stuckRuns": "Turnos sin avances",
+  "limits.stuckTokens": "Tokens sin avances",
+  "limits.offHint": "Sin presupuesto de turnos ni tokens. Los permisos y los límites del proveedor siguen vigentes.",
   "limits.publish": "Publicar el trabajo terminado",
   "limits.publishHint":
     "Cuando una tarea está lista y se puede deshacer, como subir una web. Una versión nueva, un pago o un mensaje en tu nombre siempre te esperan.",

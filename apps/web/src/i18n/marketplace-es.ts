@@ -45,6 +45,7 @@ export const esMarketplace = {
   "mkt.from.you": "Agregada por vos",
   "mkt.comesWithApx": "Viene con APX",
   "mkt.versionN": "versión {version}",
+  "mkt.viewDetails": "Ver detalle",
   "mkt.step.add": "Agregar",
   "mkt.step.connect": "Conectar",
   "mkt.step.pair": "Emparejar",
@@ -85,6 +86,7 @@ export const esMarketplace = {
   "mkt.auth.signIn": "Iniciás sesión en el servicio",
   "mkt.auth.key": "Una clave tuya",
   "mkt.auth.pairing": "Un código que muestra el dispositivo",
+  "mkt.auth.local": "Requiere credenciales o permisos en el equipo donde corre APX",
   "mkt.auth.none": "No hace falta",
   "mkt.place.here": "En tu compu",
   "mkt.conn.address": "Dirección",
@@ -201,6 +203,9 @@ export const esMarketplace = {
   "box.err.noAnswer": "no respondió",
   "box.err.address":
     "{name} no respondió en esa dirección. Queda en tus extensiones: revisá la dirección y probá de nuevo.",
+  "box.err.checkFields": "Revisá lo que ingresaste y volvé a intentar.",
+  "box.err.rollback":
+    "La conexión falló. No pudimos confirmar que esté apagada. Revisá su estado actual antes de volver a intentar.",
   "box.err.connect":
     "{name} no se pudo conectar. Quedó agregada, sin conectar: probá ahora o más tarde desde su ficha.",
   "box.state.connected": "Conectada",
@@ -222,6 +227,7 @@ export const esMarketplace = {
   "box.title.elsewhere": "Agregar desde otro lado",
   "box.lead.elsewhere": "Un archivo, una dirección o una carpeta que no están en un catálogo.",
   "box.see": "Ver {name}",
+  "box.viewStatus": "Ver estado",
   "box.done": "Listo",
   "box.retry": "Probar de nuevo",
   "box.later": "Más tarde",
@@ -261,10 +267,12 @@ export const esMarketplace = {
   "box.update.stays": "Sigue conectada, sin que hagas nada.",
   "box.update.waits": "Después la conectás de nuevo para aprobar lo que suma.",
   "box.update.keeps": "La {from} queda guardada: podés volver a ella desde ⋯.",
+  "box.update.changed": "Cambia cómo se conecta: {list}",
+  "box.update.reconnect": "Volvé a conectarla con una credencial nueva.",
+  "box.update.keepsReconnect": "Podés volver a la {from} desde ⋯. Si lo hacés, vas a tener que conectarla de nuevo.",
   "box.collapse": "Mostrar menos",
   "box.expand": "Ver qué trae",
-  "box.bringsUnknown":
-    "Su catálogo todavía no lo dice. Tocá Agregar: APX la lee y te muestra qué trae antes de sumar nada.",
+  "box.bringsUnknown": "Este catálogo no detalla qué incluye.",
   "mkt.catalogApxCount": "marketplace.apxagent.app · {n} extensiones",
   "mkt.catalogFixed": "Siempre está",
   "mkt.catalogSee": "Ver en Explorar",

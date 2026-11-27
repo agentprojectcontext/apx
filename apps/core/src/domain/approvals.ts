@@ -14,6 +14,7 @@ export type ApprovalTarget = {
   /** Declared read-only: shown as such; any tool can be approved for good, the owner decides. */
   permanent: boolean;
   project_id?: string | undefined;
+  credential_scope?: string | null | undefined;
   browser?: BrowserConsentContext | undefined;
   /** A grant under this key covers the tool too: an MCP server's "allow all" (mcp/approval.ts). */
   group?: string | undefined;
@@ -220,6 +221,7 @@ export function approvalsRepo(q: Sql) {
       }
       const g: ToolApproval = {
         key: a.key,
+        ...(a.credential_scope !== undefined ? { credential_scope: a.credential_scope } : {}),
         server: a.server,
         tool: a.tool,
         ...(a.project_id ? { project_id: a.project_id } : {}),
@@ -313,6 +315,11 @@ export function approvalsRepo(q: Sql) {
       if (!agent)
         for (const [k, g] of sessions) if (g.key === key && (!thread || g.thread_id === thread)) sessions.delete(k);
       saveSessions();
+    },
+    /** Clear only the permanent grant for everybody, preserving chat and one-use decisions. */
+    revokeOwnerWide(key: string): void {
+      write(read().filter((g) => g.key !== key || Boolean(g.agent_id)));
+      for (const listener of listeners) listener();
     },
     /** Every grant of one agent under a key, for good and for single chats. */
     revokeAgent(key: string, agent: string): void {

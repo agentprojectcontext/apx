@@ -134,7 +134,9 @@ sus llamadas comunes nunca cubre las destructivas. Lo que configuraste en APX se
 Un agente borra solo cuando vos se lo pediste, en el chat o como una regla tuya en el proyecto (quitar un worktree
 cuando ya está mergeado, por ejemplo). Se le dice así, y cuando no se lo pediste te pregunta y dice por qué. En todos
 los modos salvo Total, un comando que borra con `rm -r` o `rm -f` te espera, también dentro de su propia carpeta. Su
-tarjeta lista lo que se borraría, cada ruta completa, por qué el agente quiere hacerlo, en sus palabras, y el comando.
+tarjeta lista lo que se borraría en palabras simples, con las rutas relativas al proyecto, y el comando en
+**Ver comando**. Por qué quiere hacerlo es su propio mensaje, justo arriba de la tarjeta (para Claude Code o Codex, el
+motivo que dio, en la tarjeta).
 Podés aceptarlo una vez, o durante este chat: entonces los próximos borrados de ese agente en este chat corren sin
 preguntar. Nunca se permite para siempre, y nunca cubre otra cosa que siempre pregunta, como `sudo` o una versión.
 
@@ -143,7 +145,10 @@ archivos o el stash que se pierden: `git worktree remove --force`, `git branch -
 `git reset --hard`, `git checkout -- .` o `git checkout -f`, `git restore .`, `git switch --discard-changes`,
 `git stash drop` o `clear`, `git rm -f`, `git reflog expire` y `git gc --prune=now`. Sus formas comunes
 (`git worktree remove`, `git branch -d`, `git stash`, `git rm`) son comandos comunes: git mismo los rechaza cuando se
-perdería trabajo.
+perdería trabajo. Cuando otro borrado abre una tarjeta, también aparecen en ella, diciendo que git deja la rama o la
+carpeta si se perdería trabajo. Las rutas de un comando `git -C <carpeta>` se leen en esa carpeta. `git restore` y
+`git checkout -- <rutas>` cuentan solo para archivos con cambios sin commitear: traer de vuelta archivos borrados en la
+carpeta no pierde nada y corre sin preguntar.
 
 En el editor del agente, **Concedidos** lista lo que le permitiste para siempre. Podés limitar un permiso a ciertas
 rutas, dominios o nombres (`app/Http/, github.com`: sólo corren sin preguntar las llamadas cuyos argumentos coinciden)

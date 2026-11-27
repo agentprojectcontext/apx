@@ -84,7 +84,7 @@ function AboutBrings({ a }: { a: About }) {
         {a.companion.name}
       </SummaryItem>,
     );
-  // A catalog that only lists it (its package not read yet): Add reads it before anything is added.
+  // Catalog copy alone does not establish which contents the package brings.
   if (!rows.length) return <SummaryNote icon={<Icons.Info size={14} />}>{t("box.bringsUnknown")}</SummaryNote>;
   return <>{rows}</>;
 }

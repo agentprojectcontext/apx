@@ -1402,4 +1402,9 @@ export const MIGRATIONS: readonly string[] = [
     '$.location', '$.deep_every_days')
   WHERE key = 'setting:discovery' AND json_valid(value) AND json_type(value) = 'object';
   `,
+  `
+  -- A deletion card's parts (DECISIONS.md#d-266): what goes, the agent's reason and the command, as JSON, so the app
+  -- shows a list and folds the command away; detail keeps the same as one text for channels.
+  ALTER TABLE pending_inputs ADD COLUMN deletion TEXT;
+  `,
 ];

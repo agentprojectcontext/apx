@@ -22,7 +22,10 @@ const ofServer = (s: McpServerStatus) => (g: ToolApproval) => {
     !!id &&
     id.scope === s.scope &&
     id.name === s.name &&
-    id.project === (s.scope === "project" ? (s.project_id ?? "") : "")
+    id.project === (s.scope === "project" ? (s.project_id ?? "") : "") &&
+    (g.credential_scope !== undefined
+      ? g.credential_scope === (s.values_of ?? null)
+      : (g.project_id ?? "") === (s.values_of ?? s.project_id ?? ""))
   );
 };
 
@@ -53,6 +56,7 @@ export function McpTools({
   const threads = useData((st) => st.threads);
   const [tools, setTools] = useState<Permission[]>();
   const [saved, setSaved] = useState<Mode>();
+  const [byDefault, setByDefault] = useState(false);
   const [failed, setFailed] = useState<string>();
   const [grants, setGrants] = useState<ToolApproval[]>([]);
   const [picking, setPicking] = useState(false);
@@ -65,6 +69,7 @@ export function McpTools({
     if (list) {
       setTools(list.error ? undefined : list.tools);
       setSaved(list.mode);
+      setByDefault(Boolean(list.by_default));
       setFailed(list.error);
     }
     setGrants((all ?? []).filter(ofServer(s)).filter((g) => g.agent_id || g.thread_id));
@@ -77,7 +82,7 @@ export function McpTools({
       setBusy(false);
       onLoaded();
     });
-  }, [s.name, s.scope, project, usable, reload]);
+  }, [s.name, s.scope, s.values_of, s.credential_key, project, usable, reload]);
   useEffect(() => {
     setPicking(pickRequest > 0);
   }, [pickRequest]);
@@ -136,10 +141,26 @@ export function McpTools({
           />
         )}
       </div>
+      {s.scope === "global" && !s.only && (
+        <p className="resd__muted">{t(s.values_of ? "res.permissionsProject" : "res.permissionsShared")}</p>
+      )}
       {tools && tools.length > 0 && (
         <p className="resd__muted">
-          {t(mode === "some" ? "res.toolsPick" : mode === "all" ? "res.toolsAllHelp" : "res.toolsAskHelp")}
+          {t(
+            mode === "some"
+              ? "res.toolsPick"
+              : mode === "all"
+                ? byDefault
+                  ? "res.toolsDefaultHelp"
+                  : "res.toolsAllHelp"
+                : "res.toolsAskHelp",
+          )}
         </p>
+      )}
+      {mode === "all" && byDefault && (
+        <Button size="sm" variant="secondary" disabled={busy} onClick={() => setMode("all")}>
+          {t("res.toolsConfirmAll")}
+        </Button>
       )}
       {shown.length ? (
         <div className="resd__chips">

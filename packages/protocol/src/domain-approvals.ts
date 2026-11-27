@@ -17,6 +17,7 @@ export const ToolApproval = z.object(
     server: () => z.string(),
     project_id: () => Id.optional(),
     tool: () => z.string(),
+    credential_scope: () => Id.nullable().optional(),
     scope: () => z.enum(["session", "always", "tab", "turn"]),
     browser: () =>
       z
@@ -62,6 +63,19 @@ export const FileChange = z.object(
 );
 export type FileChange = z.infer<typeof FileChange>;
 
+/**
+ * What a deletion card shows (DECISIONS.md#d-266): what goes, one line each in the owner's words; the agent's reason,
+ * when it gave one; and the command, for whoever wants to read it.
+ */
+export const DeletionCard = z.object(
+  schemaFields({
+    items: () => z.array(z.string()),
+    reason: () => z.string().optional(),
+    command: () => z.string(),
+  }),
+);
+export type DeletionCard = z.infer<typeof DeletionCard>;
+
 export const InputKind = z.enum(["confirm", "question"]);
 export type InputKind = z.infer<typeof InputKind>;
 /**
@@ -85,6 +99,8 @@ export const PendingInput = z.object(
     artifact_draft: () => z.string().uuid().optional(),
     /** For a confirmation of a file write: what the file would become, as a patch. */
     change: () => FileChange.optional(),
+    /** A deletion card: what goes, why and the command, apart (`detail` keeps them as one text). */
+    deletion: () => DeletionCard.optional(),
     options: () => z.array(z.string()).optional(),
     multi: () => z.boolean().optional(),
     /** A read outside the agent's folders: the folders it would read, which the owner may let it read. */

@@ -1,6 +1,6 @@
 import type { ExtensionConnector, McpServerStatus } from "@apx/protocol";
 import type { Item } from "../resources/extensionItems.ts";
-import { type Auth, authOf, listingIn } from "./itemText.ts";
+import { type Auth, authOf, listingIn, settingCopyIn } from "./itemText.ts";
 
 // What an extension brings, the same before it is added (its catalog entry's contents) and after (its manifest and
 // its servers' state): each connector with its address, sign-in and tools; its skills and agents with their lines;
@@ -118,10 +118,10 @@ export function bringsOf(i: Item, servers: McpServerStatus[], lang: string): Bri
       routines: e.routines.map((r) => r.name),
       device: e.companion ? { name: e.companion.name, platform: e.companion.platform } : undefined,
       widgets: e.apps.length,
-      keys: [...e.secrets.map((s) => s.label), ...e.settings.filter((s) => s.sensitive).map((s) => s.label)],
+      keys: [...e.secrets, ...e.settings.filter((s) => s.sensitive)].map((s) => settingCopyIn(s, lang).label),
       settings: e.settings
         .filter((s) => s.required && !s.sensitive && !s.generate && s.default === undefined)
-        .map((s) => s.label),
+        .map((s) => settingCopyIn(s, lang).label),
       known: true,
     };
   }
@@ -145,8 +145,8 @@ export function bringsOf(i: Item, servers: McpServerStatus[], lang: string): Bri
       routines: k.routines,
       device: k.companion,
       widgets: k.apps ?? (i.brings.includes("apps") ? 1 : 0),
-      keys: k.keys,
-      settings: k.settings ?? [],
+      keys: k.key_labels?.map((s) => settingCopyIn(s, lang).label) ?? k.keys,
+      settings: k.setting_labels?.map((s) => settingCopyIn(s, lang).label) ?? k.settings ?? [],
       known: true,
     };
   }

@@ -5,9 +5,12 @@ import { expect, open, rpc, test } from "./kit.ts";
 
 /** Clicks a connection where it is drawn, halfway along. */
 async function pick(page: Page, link: Locator) {
-  const box = await link.locator(".react-flow__edge-path").boundingBox();
-  if (!box) throw new Error("connection not drawn");
-  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(async () => {
+    const box = await link.locator(".react-flow__edge-path").boundingBox();
+    if (!box) throw new Error("connection not drawn");
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    await expect(link).toHaveClass(/is-picked/, { timeout: 1_000 });
+  }).toPass({ timeout: 7_000 });
 }
 
 test("a connection is picked and removed from the canvas, and a loop is never drawn", async ({ page }) => {

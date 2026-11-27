@@ -1,5 +1,8 @@
 // What APX itself tells the owner about an agent's turn (not the agent's words), in the owner's language.
+import path from "node:path";
+import type { DeletionCard } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
+import { isInside } from "../paths.ts";
 import type { Deletion, GitLoss } from "../tools/command-deletions.ts";
 import type { ConfirmWhy } from "../tools/policy.ts";
 
@@ -13,6 +16,10 @@ const es: Record<ConfirmWhy, (agent: string, tool: string) => string> = {
   rule: (a, t) => `${a} quiere usar ${t}: sus reglas piden tu OK para esta clase de acción.`,
   url_data: (a, t) =>
     `${a} quiere usar ${t} con una URL que lleva datos (lo que va después del «?»), y en este turno hay contenido de una web, otro agente o un mensaje. Mirá que no mande nada tuyo a otro sitio.`,
+  browser_steps: (a) =>
+    `${a} quiere ejecutar pasos que pueden escribir en una web. Como leyó contenido de afuera, revisá qué va a mandar.`,
+  mcp_outside: (a, t) =>
+    `${a} quiere usar ${t} en un servicio conectado. Como leyó contenido de afuera, hace falta tu permiso para esa herramienta y cuenta: el acceso rápido por defecto no alcanza.`,
 };
 
 const en: typeof es = {
@@ -25,6 +32,10 @@ const en: typeof es = {
   rule: (a, t) => `${a} wants to use ${t}: its rules ask for your OK on this kind of action.`,
   url_data: (a, t) =>
     `${a} wants to use ${t} with a URL that carries data (what follows the "?"), and content from a web page, another agent or a message is in this turn. Check it sends nothing of yours to another site.`,
+  browser_steps: (a) =>
+    `${a} wants to run steps that can enter data on a website. Because the turn includes outside content, check what will be sent.`,
+  mcp_outside: (a, t) =>
+    `${a} wants to use ${t} in a connected service. The turn includes outside content, so default access is not enough: your permission must cover this tool and account.`,
 };
 
 /** The question shown when an agent's action waits for the owner. */
@@ -67,36 +78,111 @@ export const deletePrompt = (store: Store, agent: string) =>
     ? `${agent} wants to delete this. In Auto an agent deletes only when you ask:`
     : `${agent} quiere borrar esto. En Auto un agente solo borra cuando vos se lo pedís:`;
 
-/** What a deletion card shows: each path, what only the running command knows, the agent's reason and the command. */
-export function deletionDetail(store: Store, d: Deletion, why: string | undefined, command: string): string {
+/**
+ * What a deletion card shows: what goes, one line each, with paths relative to the project; the agent's reason only
+ * when it gave one; the command apart. `detail` is the same as one text, for a channel's message.
+ */
+export function deletionCard(
+  store: Store,
+  d: Deletion,
+  why: string | undefined,
+  command: string,
+): { detail: string; deletion: DeletionCard } {
   const en = english(store);
-  const lost = en ? GIT_LOSS_EN : GIT_LOSS_ES;
-  return [
-    ...d.paths,
-    ...d.git.map((l) => lost[l.what](l.target)),
-    ...d.later.map((w) => `${en ? "Known only when it runs" : "Se sabe recién al correr"}: ${w}`),
+  const items = deletionItems(d, en ? EN : ES);
+  const reason = why?.trim() || undefined;
+  const detail = [
+    ...items,
+    ...(reason ? ["", `${en ? "Why" : "Por qué"}: ${reason}`] : []),
     "",
-    `${en ? "Why, in its words" : "Por qué, en sus palabras"}: ${why?.trim() || (en ? "it did not say" : "no lo dijo")}`,
     `${en ? "Command" : "Comando"}: ${command}`,
   ].join("\n");
+  return { detail, deletion: { items, ...(reason ? { reason } : {}), command } };
 }
 
-/** What a git command throws away, in the owner's words. */
-const GIT_LOSS_EN: Record<GitLoss["what"], (t: string) => string> = {
-  branch: (t) => `Branch ${t}, even with commits merged nowhere`,
-  worktree: (t) => `Worktree ${t}, with its uncommitted changes`,
+type Words = {
+  project: string;
+  /** Up to this many names, then "and N more". */
+  more: (n: number) => string;
+  path: (p: string) => string;
+  changes: (n: number, names: string, folder: string | undefined) => string;
+  oneChange: (p: string) => string;
+  later: (w: string) => string;
+} & Record<Exclude<GitLoss["what"], "changes">, (t: string, soft: boolean) => string>;
+
+const EN: Words = {
+  project: "the project folder",
+  more: (n) => `and ${n} more`,
+  path: (p) => (p === "the project folder" ? "The project folder" : p),
+  changes: (n, names, folder) => `Unsaved changes in ${n} files${folder ? ` in ${folder}` : ""} (${names})`,
+  oneChange: (p) => `Unsaved changes in ${p}`,
+  later: (w) => `Known only when it runs: ${w}`,
+  branch: (t, soft) =>
+    soft ? `The branch ${t} (git keeps it if its work is not merged)` : `The branch ${t}, even with work not merged`,
+  worktree: (t, soft) =>
+    soft
+      ? `The work folder ${t} (git keeps it if it has unsaved changes)`
+      : `The work folder ${t}, with its unsaved changes`,
   untracked: (t) => `Files git does not keep in ${t}`,
-  changes: (t) => `Uncommitted changes in ${t}`,
-  stash: (t) => `Stash ${t}`,
+  stash: (t) => `The stash ${t}`,
   stashes: () => "Every stash",
   commits: () => "Commits that only git's history of moves still keeps",
 };
-const GIT_LOSS_ES: typeof GIT_LOSS_EN = {
-  branch: (t) => `La rama ${t}, aunque tenga commits sin mergear`,
-  worktree: (t) => `El worktree ${t}, con sus cambios sin commitear`,
+const ES: Words = {
+  project: "la carpeta del proyecto",
+  more: (n) => `y ${n} más`,
+  path: (p) => (p === "la carpeta del proyecto" ? "La carpeta del proyecto" : p),
+  changes: (n, names, folder) => `Cambios sin guardar en ${n} archivos${folder ? ` de ${folder}` : ""} (${names})`,
+  oneChange: (p) => `Cambios sin guardar en ${p}`,
+  later: (w) => `Se sabe recién al correr: ${w}`,
+  branch: (t, soft) =>
+    soft
+      ? `La rama ${t} (git no la borra si tiene trabajo sin mergear)`
+      : `La rama ${t}, aunque tenga trabajo sin mergear`,
+  worktree: (t, soft) =>
+    soft
+      ? `La carpeta de trabajo ${t} (git no la borra si tiene cambios sin guardar)`
+      : `La carpeta de trabajo ${t}, con sus cambios sin guardar`,
   untracked: (t) => `Los archivos que git no guarda en ${t}`,
-  changes: (t) => `Los cambios sin commitear en ${t}`,
   stash: (t) => `El stash ${t}`,
   stashes: () => "Todos los stashes",
   commits: () => "Commits que solo guarda el historial de movimientos de git",
 };
+
+/** Names a card lists before "and N more". */
+const NAMES = 6;
+
+function deletionItems(d: Deletion, w: Words): string[] {
+  // Inside the project a path shows relative to it, with `/`; outside, in full.
+  const shown = (p: string) => {
+    if (!d.root || !isInside(d.root, p)) return p;
+    return path.relative(d.root, p).split(path.sep).join("/") || w.project;
+  };
+  const changed = d.git.filter((l) => l.what === "changes").map((l) => shown(l.target));
+  return [
+    ...d.paths.map((p) => w.path(shown(p))),
+    ...(changed.length ? [changes(changed, w)] : []),
+    ...d.git.flatMap((l) =>
+      l.what === "changes"
+        ? []
+        : [w[l.what](l.what === "worktree" || l.what === "untracked" ? shown(l.target) : l.target, !!l.soft)],
+    ),
+    ...d.later.map(w.later),
+  ];
+}
+
+/** Unsaved changes in one place, or in several files named from the folder they share. */
+function changes(files: string[], w: Words): string {
+  const [first] = files;
+  if (files.length === 1 && first) return w.oneChange(first);
+  const folders = files.map((f) => f.split("/").slice(0, -1));
+  const shared: string[] = [];
+  for (const part of folders[0] ?? []) {
+    if (!folders.every((f) => f[shared.length] === part)) break;
+    shared.push(part);
+  }
+  const names = files.map((f) => f.split("/").slice(shared.length).join("/"));
+  const listed = names.slice(0, NAMES).join(", ");
+  const rest = names.length > NAMES ? ` ${w.more(names.length - NAMES)}` : "";
+  return w.changes(files.length, `${listed}${rest}`, shared.length ? shared.join("/") : undefined);
+}

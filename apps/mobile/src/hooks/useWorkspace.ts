@@ -123,6 +123,8 @@ export type PendingInput = {
   kind: "confirm" | "question";
   prompt: string;
   detail?: string;
+  /** A deletion card: what goes, the agent's reason and the command, apart. */
+  deletion?: { items: string[]; reason?: string; command: string };
   options?: string[];
   /** How long an approval may last, when the core offers more than once. */
   approval_scopes?: Array<"once" | "session" | "always" | "tab" | "turn">;

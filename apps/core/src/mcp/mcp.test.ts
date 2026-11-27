@@ -246,6 +246,84 @@ test("private availability can change without rewriting credentials or granting 
   await env.client.call("mcp.set", { name: "movable", server: null });
 });
 
+test("MCP permission writes and replies stay on the selected credential scope", async () => {
+  const server = "permissions";
+  const base = { scope: "global" as const, server };
+  const variant = { ...base, project, values_of: project };
+  await env.client.call("mcp.set", {
+    name: server,
+    server: { command: process.execPath, args: [SERVER], env: { NOTES_TOKEN: "secret://notes" } },
+  });
+  try {
+    await assert.rejects(
+      env.client.call("mcp.toolMode", { ...base, project, mode: "ask" }),
+      /shared server credentials/,
+    );
+    await env.client.call("secrets.set", { name: "notes", value: "project-credential", project });
+    assert.equal((await env.client.call("mcp.tools", variant)).mode, "ask");
+    const { server: changed } = await env.client.call("mcp.toolMode", { ...variant, mode: "all" });
+    assert.equal(changed.values_of, project);
+    assert.equal(changed.tool_permission_mode, "all");
+    await env.client.call("mcp.toolMode", { ...variant, mode: "ask" });
+    assert.equal((await env.client.call("mcp.tools", { ...base, values_of: null })).mode, "all");
+    await env.client.call("secrets.set", { name: "notes", value: null, project });
+    await assert.rejects(env.client.call("mcp.toolMode", { ...variant, mode: "ask" }), /credentials changed/);
+    assert.equal((await env.client.call("mcp.tools", base)).mode, "all");
+  } finally {
+    await env.client.call("secrets.set", { name: "notes", value: null, project });
+    await env.client.call("mcp.set", { name: server, server: null });
+  }
+});
+
+test("a project MCP grant does not follow a credential inherited then overridden by a child", async () => {
+  const child = (await env.client.call("projects.create", { name: "Credential test", parent: project })).project.id;
+  const base = { scope: "global" as const, server: "accounts" };
+  await env.client.call("mcp.set", {
+    name: base.server,
+    server: { command: process.execPath, args: [SERVER], env: { NOTES_TOKEN: "secret://notes" } },
+  });
+  try {
+    await env.client.call("secrets.set", { name: "notes", value: "parent-account", project });
+    const { servers } = await env.client.call("mcp.list", { project: child });
+    const inherited = servers.find((s) => s.name === base.server);
+    assert.ok(inherited?.credential_key);
+    const selected = { ...base, project: child, values_of: child, credential_key: inherited.credential_key };
+    await env.client.call("mcp.toolMode", { ...selected, mode: "all" });
+    assert.equal((await env.client.call("mcp.tools", selected)).mode, "all");
+    await env.client.call("secrets.set", { name: "notes", value: "child-account", project: child });
+    await assert.rejects(env.client.call("mcp.toolMode", { ...selected, mode: "all" }), /credentials changed/);
+    const current = await env.client.call("mcp.tools", { ...base, project: child, values_of: child });
+    assert.equal(current.mode, "ask");
+    assert.equal((await env.client.call("mcp.tools", base)).mode, "all");
+  } finally {
+    await env.client.call("secrets.set", { name: "notes", value: null, project: child });
+    await env.client.call("secrets.set", { name: "notes", value: null, project });
+    await env.client.call("mcp.set", { name: base.server, server: null });
+  }
+});
+
+test("ask clears a legacy permanent grant for a missing tool without clearing a session grant", async () => {
+  const base = { scope: "global" as const, server: "legacy-grants" };
+  await env.client.call("mcp.set", { name: base.server, server: { command: process.execPath, args: [SERVER] } });
+  try {
+    const approvals = env.core.store.approvals;
+    const old = {
+      key: "legacy-contract",
+      server: JSON.stringify(["global", "", base.server]),
+      tool: "old",
+      permanent: true,
+    };
+    const chat = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
+    approvals.grant(old, "always", "");
+    approvals.grant(old, "session", chat);
+    await env.client.call("mcp.toolMode", { ...base, mode: "ask" });
+    assert.equal(approvals.allows(old), false);
+    assert.equal(approvals.allows(old, chat), true);
+  } finally {
+    await env.client.call("mcp.set", { name: base.server, server: null });
+  }
+});
+
 test("the owner edits a project's server: its file is written, approved as written, and secrets are refused", async () => {
   const { servers } = await env.client.call("mcp.list", { project });
   assert.deepEqual(servers.find((x) => x.name === "notes")?.definition?.args, [SERVER]);

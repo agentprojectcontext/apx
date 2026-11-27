@@ -195,3 +195,20 @@ test("a calendar event's reminder offers to stop that event's reminders, for its
     action: { kind: "muteEvent", series: "merienda", title: "Merienda" },
   });
 });
+
+test("a deletion approval previews what goes, not the command", () => {
+  const [approval] = inboxItems(
+    data({
+      inputs: [
+        input("i1", {
+          detail: "build/old\n\nCommand: rm -rf build/old",
+          deletion: {
+            items: ["build/old", "The branch fix/old, even with work not merged"],
+            command: "rm -rf build/old",
+          },
+        }),
+      ],
+    }),
+  );
+  assert.equal(approval?.body, "build/old\nThe branch fix/old, even with work not merged");
+});

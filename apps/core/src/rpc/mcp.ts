@@ -2,7 +2,8 @@
 
 import { ErrorCode } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
-import { badRequest, CallError, notFound } from "../errors.ts";
+import { badRequest, CallError, conflict, notFound } from "../errors.ts";
+import { mcpServerApproval } from "../mcp/approval.ts";
 import { ARGS_SECRET } from "../mcp/config.ts";
 import type { Mcp } from "../mcp/manager.ts";
 import { finishSignIn, returnAddress } from "../mcp/sign-in.ts";
@@ -10,6 +11,28 @@ import type { Handlers } from "./router.ts";
 
 /** `switchable`: names besides the global servers the owner turns on or off per project (a connected integration). */
 export function mcpHandlers(mcp: Mcp, store: Store, switchable: (name: string) => boolean = () => false) {
+  const permissionTarget = (
+    scope: "global" | "project",
+    name: string,
+    project: string | undefined,
+    expected: string | null | undefined,
+    credentialKey: string | undefined,
+    write = false,
+  ) => {
+    if (project && !store.projects.get(project)) throw notFound(`project ${project}`);
+    const d = mcp.find(scope, name, project);
+    if (!d) throw notFound(`MCP server ${name}`);
+    if (
+      (expected !== undefined && (d.values_of ?? null) !== expected) ||
+      (credentialKey !== undefined && d.credential_key !== credentialKey)
+    )
+      throw conflict("MCP credentials changed. Check the selected server before changing tool permissions.");
+    if (write && expected === undefined && scope === "global" && project && !d.values_of)
+      throw badRequest(
+        "This project uses the shared server credentials. Omit project to change its shared permissions.",
+      );
+    return d;
+  };
   return {
     "tools.approvals": ({ thread }) => ({ approvals: store.approvals.list(thread) }),
     "tools.revoke": ({ key, thread, agent }) => {
@@ -21,14 +44,17 @@ export function mcpHandlers(mcp: Mcp, store: Store, switchable: (name: string) =
       if (!approval) throw notFound(`grant ${key}`);
       return { approval };
     },
-    "mcp.tools": async ({ scope, server, project }) => {
-      const d = mcp.find(scope, server, project);
-      if (!d) throw notFound(`MCP server ${server}`);
+    "mcp.tools": async ({ scope, server, project, values_of, credential_key }) => {
+      const d = permissionTarget(scope, server, project, values_of, credential_key);
       try {
         const tools = await mcp.toolPermissions(d);
+        const mode = mcp.toolMode(d);
+        const ownersOnly =
+          mode === "all" && store.approvals.allows(mcpServerApproval(d), undefined, undefined, undefined, true);
         return {
           tools: tools.map(({ name, key, permanent, approved }) => ({ name, key, permanent, approved })),
-          mode: mcp.toolMode(d),
+          mode,
+          ...(mode === "all" && !ownersOnly ? { by_default: true } : {}),
         };
       } catch (e) {
         // A server that does not start is an answer to "what are its tools", not a failed call.
@@ -46,17 +72,15 @@ export function mcpHandlers(mcp: Mcp, store: Store, switchable: (name: string) =
       if (!d) throw notFound(`MCP server ${server}`);
       return mcp.call(d, tool, args, project);
     },
-    "mcp.approveTool": async ({ scope, server, project, tool }) => {
-      const d = mcp.find(scope, server, project);
-      if (!d) throw notFound(`MCP server ${server}`);
+    "mcp.approveTool": async ({ scope, server, project, tool, values_of, credential_key }) => {
+      const d = permissionTarget(scope, server, project, values_of, credential_key, true);
       const target = (await mcp.toolPermissions(d)).find((t) => t.name === tool);
       if (!target) throw notFound(`MCP tool ${tool}`);
       store.approvals.grant(target, "always", "");
       return { ok: true };
     },
-    "mcp.toolMode": async ({ scope, server, project, mode, ask }) => {
-      const d = mcp.find(scope, server, project);
-      if (!d) throw notFound(`MCP server ${server}`);
+    "mcp.toolMode": async ({ scope, server, project, mode, ask, values_of, credential_key }) => {
+      const d = permissionTarget(scope, server, project, values_of, credential_key, true);
       if (!d.enabled || !mcp.config.trusted(d)) throw badRequest("approve and enable this server first");
       if (ask?.length) {
         if (mode !== "all")
@@ -71,7 +95,16 @@ export function mcpHandlers(mcp: Mcp, store: Store, switchable: (name: string) =
         mcp.setToolMode(d, "ask");
         for (const t of tools) if (!ask.includes(t.name)) store.approvals.grant(t, "always", "");
       } else mcp.setToolMode(d, mode);
-      const s = mcp.status(project ?? d.only).find((x) => x.scope === scope && x.name === server);
+      const s = mcp
+        .status(project ?? d.only)
+        .find(
+          (x) =>
+            x.scope === scope &&
+            x.name === server &&
+            x.values_of === d.values_of &&
+            x.credential_key === d.credential_key &&
+            (scope !== "project" || x.project_id === d.project_id),
+        );
       if (!s) throw new Error("server vanished");
       return { server: s };
     },

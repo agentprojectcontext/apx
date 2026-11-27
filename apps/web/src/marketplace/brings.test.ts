@@ -55,6 +55,7 @@ test("before adding it, its page shows each connector's address, its skills and 
           agents: ["Closer"],
           agent_lines: { Closer: "Follows up on open deals." },
           keys: ["API key"],
+          key_labels: [{ label: "API key", locales: { es: { label: "Clave de API" } } }],
           settings: ["Workspace"],
         }),
       ),
@@ -75,6 +76,108 @@ test("before adding it, its page shows each connector's address, its skills and 
   ]);
   assert.deepEqual(b.agents, [{ name: "Closer", line: "Follows up on open deals." }]);
   assert.deepEqual([b.keys, b.settings], [["API key"], ["Workspace"]]);
+});
+
+test("secret labels translate from inspected catalog contents with English fallback", () => {
+  const i = item({
+    entry: entry(
+      contents({
+        keys: ["Connection string", "API key"],
+        key_labels: [
+          { label: "Connection string", locales: { es: { label: "Cadena de conexión" } } },
+          { label: "API key" },
+        ],
+      }),
+    ),
+  });
+  assert.deepEqual(bringsOf(i, [], "es").keys, ["Cadena de conexión", "API key"]);
+  assert.deepEqual(bringsOf(i, [], "en").keys, ["Connection string", "API key"]);
+});
+
+test("required settings use the same translated copy before and after adding an extension", () => {
+  const settings = [
+    {
+      name: "workspace",
+      label: "Workspace",
+      type: "string",
+      required: true,
+      locales: { es: { label: "Espacio de trabajo" } },
+    },
+    { name: "region", label: "Region", type: "string", required: true },
+  ];
+  const available = item({
+    entry: entry(contents({ settings: ["Workspace", "Region"], setting_labels: settings })),
+  });
+  const installed = item({
+    state: "on",
+    ext: {
+      id: "acme",
+      name: "Acme",
+      mcp: [],
+      skills: [],
+      agents: [],
+      routines: [],
+      apps: [],
+      secrets: [],
+      settings: [
+        ...settings,
+        { name: "optional", label: "Optional", required: false },
+        { name: "preset", label: "Preset", required: true, default: "preset-value" },
+        { name: "private", label: "Private key", required: true, sensitive: true },
+        { name: "generated", label: "Generated", required: true, generate: "token" },
+      ],
+    } as unknown as ExtensionInfo,
+  });
+  for (const i of [available, installed]) {
+    assert.deepEqual(bringsOf(i, [], "es").settings, ["Espacio de trabajo", "Region"]);
+    assert.deepEqual(bringsOf(i, [], "en").settings, ["Workspace", "Region"]);
+    assert.deepEqual(bringsOf(i, [], "fr").settings, ["Workspace", "Region"]);
+  }
+  const legacy = item({ entry: entry(contents({ settings: ["Workspace", "Region"] })) });
+  assert.deepEqual(bringsOf(legacy, [], "es").settings, ["Workspace", "Region"]);
+});
+
+test("connector authorization keeps local access distinct from none and OAuth", () => {
+  for (const [connection, expected] of [
+    ["local", "local"],
+    ["none", "none"],
+    ["oauth", "signIn"],
+  ] as const) {
+    const available = item({
+      connection,
+      entry: entry(contents({ connectors: [{ name: "service", runs_here: true }] })),
+    });
+    assert.equal(bringsOf(available, [], "en").connectors[0]?.auth, expected);
+    const installed = item({
+      connection,
+      state: "on",
+      ext: {
+        id: "acme",
+        name: "Acme",
+        version: "1.0.0",
+        description: "",
+        hash: "0123456789abcdef",
+        source: "~/work/acme",
+        installed_at: "2026-01-01T00:00:00Z",
+        provenance: "third_party",
+        brings: [],
+        needs: [],
+        pages: [],
+        events: [],
+        enabled: true,
+        secrets: [],
+        settings: [],
+        skills: [],
+        mcp: ["acme-service"],
+        agents: [],
+        routines: [],
+        apps: [],
+        hosts: [],
+        runs_code: true,
+      } as ExtensionInfo,
+    });
+    assert.equal(bringsOf(installed, [], "es").connectors[0]?.auth, expected);
+  }
 });
 
 test("the tools its listing names show before connecting; several connectors go by their own names", () => {
