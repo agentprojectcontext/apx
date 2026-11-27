@@ -12,7 +12,7 @@ const BUTTON: Record<Size, { height: number; px: number; font: number; icon: num
   sm: { height: 34, px: 12, font: 12, icon: 14 },
 };
 
-/** A pill button: `primary` is the ink accent, `secondary` a quiet fill. */
+/** A pill button, or a quiet text action with `ghost`. */
 export function Button({
   label,
   accessibilityLabel,
@@ -31,7 +31,7 @@ export function Button({
   accessibilityHint?: string;
   accessibilityExpanded?: boolean;
   onPress: () => void;
-  variant?: "primary" | "secondary";
+  variant?: "primary" | "secondary" | "ghost";
   size?: Size;
   icon?: IconName;
   disabled?: boolean;
@@ -41,7 +41,7 @@ export function Button({
   const t = useTheme();
   const s = useStyles();
   const m = BUTTON[size];
-  const fg = variant === "primary" ? t.accentFg : t.fg;
+  const fg = variant === "primary" ? t.accentFg : variant === "ghost" ? t.fgMuted : t.fg;
   return (
     <Pressable
       accessibilityRole="button"
@@ -49,11 +49,12 @@ export function Button({
       accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: Boolean(disabled), busy: Boolean(busy), expanded: accessibilityExpanded }}
       disabled={disabled || busy}
+      hitSlop={variant === "ghost" ? { top: (48 - m.height) / 2, bottom: (48 - m.height) / 2 } : undefined}
       onPress={onPress}
       style={({ pressed }) => [
         s.button,
         { height: m.height, paddingHorizontal: m.px },
-        { backgroundColor: variant === "primary" ? t.accent : t.fill },
+        { backgroundColor: variant === "primary" ? t.accent : variant === "ghost" ? "transparent" : t.fill },
         (pressed || disabled) && { opacity: disabled ? 0.45 : 0.85 },
         style,
       ]}

@@ -7,6 +7,7 @@ import { BrowserHelp, BrowserReview } from "../BrowserReview";
 import { Icon, type IconName } from "../Icon";
 import { Button, Tag } from "../kit";
 import { makeStyles, useTheme } from "../theme";
+import { CompactRow } from "./CompactRow";
 
 type InputPart = Extract<Message["parts"][number], { type: "input" }>;
 type Settled = Exclude<InputPart["state"], "pending">;
@@ -41,9 +42,7 @@ export function InputCard({ part, respond }: { part: InputPart; respond: Respond
 }
 
 function SettledInput({ part, state }: { part: InputPart; state: Settled }) {
-  const theme = useTheme();
   const s = useStyles();
-  const [open, setOpen] = useState(false);
   const action = isAction(part);
   const what =
     part.tool === "browser_evaluate"
@@ -56,48 +55,21 @@ function SettledInput({ part, state }: { part: InputPart; state: Settled }) {
             ? t("inputAsked", { tool: part.tool ?? t("inputAnAction") })
             : t("inputAskedQuestion");
   const scope = part.approval_scope ? SCOPE[part.approval_scope] : undefined;
-  const outcome = [
-    t(action && state === "approved" ? "inputAccepted" : DONE[state].label),
-    scope ? t(scope) : "",
-    part.answer && part.kind === "question" ? `“${part.answer}”` : "",
-  ]
+  const outcome = [t(action && state === "approved" ? "inputAccepted" : DONE[state].label), scope ? t(scope) : ""]
     .filter(Boolean)
     .join(" · ");
   return (
-    <View style={s.settled}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ expanded: open }}
-        onPress={() => setOpen((value) => !value)}
-        style={s.line}
-      >
-        <Icon name={part.kind === "confirm" ? "Hand" : "MessageCircle"} size={14} color={theme.fgMuted} />
-        <Text numberOfLines={1} style={s.lineText}>
-          {what}
-        </Text>
-        <Icon
-          name={DONE[state].icon}
-          size={12}
-          color={
-            state === "denied"
-              ? theme.danger
-              : state === "approved" || state === "answered"
-                ? theme.brand
-                : theme.fgSubtle
-          }
-        />
-        <Text numberOfLines={1} style={s.lineState}>
-          {outcome}
-        </Text>
-      </Pressable>
-      {open ? (
-        <View style={s.settledBody}>
-          <Text style={s.prompt}>{part.tool === "browser_evaluate" ? t("browserTitle") : part.prompt}</Text>
-          <Detail part={part} />
-          {part.answer && part.kind === "confirm" ? <Text style={s.help}>“{part.answer}”</Text> : null}
-        </View>
-      ) : null}
-    </View>
+    <CompactRow title={what} summary={outcome} icon={part.kind === "confirm" ? "Hand" : "MessageCircle"} compact>
+      <View style={s.settledBody}>
+        <Text style={s.prompt}>{part.tool === "browser_evaluate" ? t("browserTitle") : part.prompt}</Text>
+        <Detail part={part} />
+        {part.answer ? (
+          <Text selectable style={s.help}>
+            “{part.answer}”
+          </Text>
+        ) : null}
+      </View>
+    </CompactRow>
   );
 }
 
@@ -435,21 +407,5 @@ const useStyles = makeStyles((theme) => ({
   stat: { fontSize: 11, fontFamily: theme.mono },
   diff: { paddingHorizontal: 10, paddingVertical: 6, backgroundColor: theme.fill },
   diffLine: { color: theme.fgMuted, fontSize: 11, lineHeight: 16, fontFamily: theme.mono },
-  settled: { alignSelf: "stretch", gap: 6 },
-  line: {
-    minHeight: 36,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: theme.border,
-    borderRadius: 12,
-    alignSelf: "flex-start",
-    maxWidth: "100%",
-  },
-  lineText: { color: theme.fgMuted, fontSize: 13, flexShrink: 1 },
-  lineState: { color: theme.fgSubtle, fontSize: 12, flexShrink: 1 },
-  settledBody: { gap: 8, paddingLeft: 12 },
+  settledBody: { gap: 4 },
 }));

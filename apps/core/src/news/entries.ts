@@ -153,7 +153,7 @@ export type NewsEntry = {
 export const NEWS: readonly NewsEntry[] = [
   {
     id: "stalled-tasks",
-    since: "2.17.3",
+    since: "2.17.5",
     title: { en: "Let progressing tasks keep going", es: "Dejá que las tareas con avances sigan" },
     about: {
       en: "A task can start a new part without asking when its agent has made progress. You can adjust when stalled tasks pause separately from your budget.",

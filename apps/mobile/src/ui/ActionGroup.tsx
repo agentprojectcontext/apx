@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { t as translate } from "../i18n";
 import type { Message } from "../protocol";
 import { ActionBranch } from "./chat/ActionBranch";
 import { isComputerGroup } from "./chat/blocks";
+import { CompactRow } from "./chat/CompactRow";
 import { ComputerIcon } from "./chat/ComputerIcon";
 import { stepLabel, type ToolKind, toolKind } from "./chat/toolKind";
 import { useActionDensity } from "./chat/useActionDensity";
@@ -33,7 +34,6 @@ const ICON: Record<ToolKind, IconName> = {
   skill: "Sparkles",
   tool: "Wrench",
 };
-
 type ToolPart = Extract<Message["parts"][number], { type: "tool" }>;
 
 /** Native version of the desktop's collapsible tool action group. */
@@ -46,10 +46,9 @@ export function ActionGroup({
   waiting?: boolean;
   ended?: boolean;
 }) {
-  const t = useTheme();
+  const theme = useTheme();
   const s = useStyles();
   const compact = useActionDensity();
-  const [open, setOpen] = useState(false);
   const [detail, setDetail] = useState<string>();
   const running = !ended && parts.some((part) => part.status === "running");
   const failed = parts.filter((part) => part.status === "error").length;
@@ -71,103 +70,75 @@ export function ActionGroup({
         : one
           ? "actionsOne"
           : "actionsSummary";
-  const title = translate(key, {
-    n: String(parts.length),
-  });
+  const title = translate(key, { n: String(parts.length) });
+  const status = (part: ToolPart) =>
+    part.status === "error"
+      ? "runFailed"
+      : part.status === "ok"
+        ? "runDone"
+        : ended
+          ? "actionStopped"
+          : waiting
+            ? "runWaiting"
+            : "runWorking";
+  const indicator = (part: ToolPart) =>
+    part.status === "error" ? (
+      <Icon name="CircleX" size={14} color={theme.danger} />
+    ) : part.status !== "running" ? null : ended ? (
+      <Icon name="Square" size={12} color={theme.fgMuted} />
+    ) : waiting ? (
+      <Icon name="Hand" size={14} color={theme.fgMuted} />
+    ) : (
+      <Spinner size={12} />
+    );
   return (
-    <View style={s.group}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={failed ? `${title} ${translate("actionsFailed", { n: failed })}` : title}
-        accessibilityState={{ expanded: open }}
-        onPress={() => setOpen((value) => !value)}
-        style={s.heading}
-      >
-        <Icon name={open ? "ChevronDown" : "ChevronRight"} size={14} color={t.fgMuted} />
-        {computer ? (
-          <ComputerIcon busy={running && !waiting} done={!running} size={16} />
+    <CompactRow
+      title={title}
+      label={failed ? `${title} ${translate("actionsFailed", { n: failed })}` : title}
+      compact
+      branch={false}
+      leading={
+        computer ? (
+          <ComputerIcon busy={running && !waiting} done={!running} size={14} />
         ) : running ? (
           waiting ? (
-            <Icon name="Hand" size={14} color={t.fgMuted} />
+            <Icon name="Hand" size={14} color={theme.fgMuted} />
           ) : (
             <Spinner size={14} />
           )
-        ) : null}
-        <Text style={s.title}>{title}</Text>
-        {failed > 0 ? <Text style={s.failed}>{translate("actionsFailed", { n: String(failed) })}</Text> : null}
-      </Pressable>
-      {open ? (
-        <View style={s.rows}>
-          {parts.map((part, index) => (
-            <ActionBranch
-              key={part.call_id}
-              last={index === parts.length - 1}
-              compact={compact || !part.detail?.trim()}
+        ) : undefined
+      }
+      trailing={
+        failed > 0 ? <Text style={s.failed}>{translate("actionsFailed", { n: String(failed) })}</Text> : undefined
+      }
+    >
+      <View style={s.rows}>
+        {parts.map((part, index) => (
+          <ActionBranch key={part.call_id} last={index === parts.length - 1} compact={compact || !part.detail?.trim()}>
+            <CompactRow
+              title={stepLabel(part.tool, part.title)}
+              label={`${stepLabel(part.tool, part.title)}, ${translate(status(part))}`}
+              icon={ICON[toolKind(part.tool)]}
+              compact
+              nested={compact}
+              expanded={detail === part.call_id}
+              onExpandedChange={(open) => setDetail(open ? part.call_id : undefined)}
+              trailing={indicator(part)}
             >
-              <Pressable
-                accessible
-                accessibilityRole={part.detail?.trim() ? "button" : "text"}
-                accessibilityLabel={`${stepLabel(part.tool, part.title)}, ${translate(part.status === "error" ? "runFailed" : part.status === "ok" ? "runDone" : ended ? "actionStopped" : waiting ? "runWaiting" : "runWorking")}`}
-                accessibilityState={part.detail?.trim() ? { expanded: detail === part.call_id } : undefined}
-                onPress={
-                  part.detail?.trim()
-                    ? () => setDetail((current) => (current === part.call_id ? undefined : part.call_id))
-                    : undefined
-                }
-                style={[s.row, compact && s.compactRow, !part.detail?.trim() && s.staticRow]}
-              >
-                {part.detail?.trim() ? (
-                  <Icon name={detail === part.call_id ? "ChevronDown" : "ChevronRight"} size={14} color={t.fgMuted} />
-                ) : null}
-                <Icon name={ICON[toolKind(part.tool)]} size={14} color={t.fgMuted} />
-                <Text
-                  style={[s.summary, part.status === "error" && s.failed]}
-                  numberOfLines={!part.detail?.trim() || detail === part.call_id ? undefined : 1}
-                >
-                  {stepLabel(part.tool, part.title)}
-                </Text>
-                {part.status === "error" ? (
-                  <Icon name="CircleX" size={14} color={t.danger} />
-                ) : part.status === "running" ? (
-                  ended ? (
-                    <Icon name="Square" size={12} color={t.fgMuted} />
-                  ) : waiting ? (
-                    <Icon name="Hand" size={14} color={t.fgMuted} />
-                  ) : (
-                    <Spinner size={12} />
-                  )
-                ) : null}
-              </Pressable>
-              {detail === part.call_id && part.detail ? (
+              {part.detail?.trim() ? (
                 <Text selectable style={s.detail}>
                   {part.detail}
                 </Text>
-              ) : null}
-            </ActionBranch>
-          ))}
-        </View>
-      ) : null}
-    </View>
+              ) : undefined}
+            </CompactRow>
+          </ActionBranch>
+        ))}
+      </View>
+    </CompactRow>
   );
 }
-const useStyles = makeStyles((t) => ({
-  group: { alignSelf: "stretch", gap: 0 },
-  heading: {
-    minHeight: 48,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingLeft: 8,
-    paddingRight: 12,
-    paddingVertical: 6,
-    alignSelf: "flex-start",
-  },
-  title: { color: t.fgMuted, fontSize: 13, flexShrink: 1 },
-  failed: { color: t.danger, fontSize: 12 },
-  rows: { gap: 0, marginLeft: 8, paddingRight: 4 },
-  row: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 48 },
-  compactRow: { minHeight: 32, paddingVertical: 4 },
-  staticRow: { minHeight: 32, paddingVertical: 4 },
-  summary: { color: t.fgMuted, fontSize: 12, flex: 1 },
-  detail: { color: t.fgMuted, fontSize: 11, lineHeight: 17, marginLeft: 20, paddingVertical: 6, fontFamily: t.mono },
+const useStyles = makeStyles((theme) => ({
+  failed: { color: theme.danger, fontSize: 12 },
+  rows: { gap: 0, paddingRight: 4 },
+  detail: { color: theme.fgMuted, fontSize: 11, lineHeight: 17, fontFamily: theme.mono },
 }));

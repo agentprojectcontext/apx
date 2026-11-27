@@ -3,11 +3,28 @@ import { View } from "react-native";
 import { makeStyles } from "../theme";
 
 /** Keeps each nested action connected, with the last branch ending at its label. */
-export function ActionBranch({ children, last, compact }: { children: ReactNode; last: boolean; compact: boolean }) {
+export function ActionBranch({
+  children,
+  last,
+  compact,
+  enabled = true,
+}: {
+  children: ReactNode;
+  last: boolean;
+  compact: boolean;
+  enabled?: boolean;
+}) {
   const s = useStyles();
+  if (!enabled) return children;
   return (
     <View style={s.wrap}>
-      <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" style={s.guide}>
+      <View
+        testID="action-guide"
+        pointerEvents="none"
+        accessible={false}
+        importantForAccessibility="no-hide-descendants"
+        style={s.guide}
+      >
         {!last ? <View style={s.stem} /> : null}
         <View style={[s.curve, compact && s.compactCurve]} />
       </View>

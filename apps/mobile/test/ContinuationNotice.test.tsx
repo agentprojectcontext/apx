@@ -36,6 +36,15 @@ test("pending checks cancel through the registered protocol and show the confirm
   const ui = await render(<ContinuationNotice part={part} client={client} />);
   expect(ui.queryByText("Check the report")).toBeNull();
   expect(focus).not.toHaveBeenCalled();
+  const cancelButton = ui.getByRole("button", {
+    name: noticeText(
+      { code: "continuation.cancelLabel", text: "cancelLabel", vars: { purpose: "Check the report" } },
+      lang,
+    ),
+  });
+  expect(cancelButton).toHaveStyle({ height: 34, backgroundColor: "transparent" });
+  expect(Native.StyleSheet.flatten(cancelButton.props.style).minHeight).toBeUndefined();
+  expect(cancelButton.props.hitSlop).toEqual({ top: 7, bottom: 7 });
   await fireEvent.press(ui.getByRole("button", { name: `${t("followup")} · ${label("scheduled")}` }));
   expect(ui.getByText("Check the report")).toBeTruthy();
   await fireEvent.press(ui.getByText(label("cancel")));
@@ -57,11 +66,20 @@ test("a cancellation failure stays visible even when folded and allows retry", a
       client={new ApxClient({ ...credentials, client: { name: "test", version: "1" } })}
     />,
   );
-  await fireEvent.press(ui.getByRole("button"));
+  expect(
+    ui.getByRole("button", {
+      name: noticeText(
+        { code: "continuation.cancelLabel", text: "cancelLabel", vars: { purpose: "Check the report" } },
+        lang,
+      ),
+    }),
+  ).toBeTruthy();
+  await fireEvent.press(ui.getByRole("button", { name: `${t("followup")} · ${label("scheduled")}` }));
   await fireEvent.press(ui.getByText(label("cancel")));
   await waitFor(() => expect(ui.getByRole("alert")).toBeTruthy());
   await fireEvent.press(ui.getByRole("button", { name: `${t("followup")} · ${label("scheduled")}` }));
-  expect(ui.queryByText(label("cancel"))).toBeNull();
+  expect(ui.getByText(label("cancel"))).toBeTruthy();
+  expect(ui.queryByText("Check the report")).toBeNull();
   expect(ui.getByText(label("cancelError"))).toBeTruthy();
   await fireEvent.press(ui.getByRole("button", { name: `${t("followup")} · ${label("scheduled")}` }));
   delete net.faults["continuations.cancel"];

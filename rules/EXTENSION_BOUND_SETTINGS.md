@@ -30,6 +30,10 @@ Regression coverage: `apps/core/src/extensions/bound-settings.test.ts`, `apps/co
 
 ## Español
 
+Un ajuste string sensible de manifest 2 puede declarar `boundTo: ["address", "username"]`; cada nombre debe corresponder a un ajuste no sensible declarado. Los secretos generados no admiten esta opción. APX valida la solicitud completa antes de escribir: una vinculación distinta, un formato antiguo incompatible o metadatos ausentes exigen otra credencial no vacía. Cambiar solo espacios no cuenta como reemplazo. Si falla la validación, conserva los valores anteriores; con la vinculación intacta, omitir la credencial la conserva.
+
+El almacén guarda un sobre JSON con `format: "apx-bound-secret@1"`, `binding` (los ajustes completos vinculados) y `value` (la credencial). El puente lo recibe por su referencia de entorno `secret://`, no como contraseña directa. Antes de extraer el valor o hacer solicitudes debe validar el formato y todos los valores contra los ajustes actuales, exigir HTTPS y rechazar redirecciones. No debe incluir el sobre ni su valor en argumentos, registros o errores, ni aceptar contraseñas antiguas sin sobre como alternativa. Las versiones anteriores de APX no entienden `boundTo`; los paquetes deben exigir una versión que incluya este contrato.
+
 La revocación queda persistida en el índice local antes de intentar el borrado físico en el llavero. Aunque ese borrado falle, ni la caché, ni un reinicio, ni la importación de un archivo antiguo, ni una reversión recuperan el valor revocado. Un índice ilegible o inválido falla de forma cerrada. La invalidación ocurre antes de intercambiar los archivos instalados: si falla, los archivos y el manifiesto registrado siguen alineados. El índice conserva marcas de revocación, no los valores; guardar explícitamente un reemplazo borra su marca.
 
 Los conectores sin sustituciones de ajustes no sensibles conservan su huella, confianza y aprobaciones. Cada segmento original de una plantilla se resuelve una sola vez: un secreto que contiene texto parecido a un marcador llega intacto al conector.

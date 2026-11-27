@@ -105,8 +105,14 @@ export function mediaRows(
 ): Row[] {
   const rows: Row[] = [];
   const seen = new Map<string, number>();
+  const settledQuestions = new Set(
+    parts.flatMap((part) =>
+      part.type === "input" && part.kind === "question" && part.state !== "pending" ? [part.prompt.trim()] : [],
+    ),
+  );
   for (const part of parts) {
     if (!part || part.type === "tool") continue;
+    if (part.type === "text" && settledQuestions.has(part.text.trim())) continue;
     const base =
       part.type === "input" ? part.input_id : "media_id" in part && part.media_id ? part.media_id : part.type;
     const n = seen.get(base) ?? 0;
