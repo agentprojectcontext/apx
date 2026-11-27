@@ -243,7 +243,7 @@ export function ItemBrings({
   // What it asks for matters until it works.
   const asks =
     item.state === "available" || item.state === "off" || item.attention === "keys" || item.attention === "settings";
-  // A catalog that only lists it (its files not read yet): adding it reads them first.
+  // Descriptive catalog copy is not an inspected list of package contents.
   if (!b.known && !b.connectors.length)
     return (
       <section className="mkt-brings" aria-label={t("extx.sec.brings")}>

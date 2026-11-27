@@ -268,8 +268,7 @@ export const esMarketplace = {
   "box.update.keepsReconnect": "Podés volver a la {from} desde ⋯. Si lo hacés, vas a tener que conectarla de nuevo.",
   "box.collapse": "Mostrar menos",
   "box.expand": "Ver qué trae",
-  "box.bringsUnknown":
-    "Su catálogo todavía no lo dice. Tocá Agregar: APX la lee y te muestra qué trae antes de sumar nada.",
+  "box.bringsUnknown": "Este catálogo no detalla qué incluye.",
   "mkt.catalogApxCount": "marketplace.apxagent.app · {n} extensiones",
   "mkt.catalogFixed": "Siempre está",
   "mkt.catalogSee": "Ver en Explorar",

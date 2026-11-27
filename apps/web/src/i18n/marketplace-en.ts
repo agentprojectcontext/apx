@@ -263,8 +263,7 @@ export const enMarketplace = {
   "box.update.keepsReconnect": "You can go back to {from} from ⋯. If you do, you’ll need to connect again.",
   "box.collapse": "Show less",
   "box.expand": "Show what it brings",
-  "box.bringsUnknown":
-    "Its catalog doesn't say yet. Press Add: APX reads it and shows you what it brings before adding anything.",
+  "box.bringsUnknown": "This catalog doesn't list what it includes.",
   "mkt.catalogApxCount": "marketplace.apxagent.app · {n} extensions",
   "mkt.catalogFixed": "Always there",
   "mkt.catalogSee": "See in Explore",

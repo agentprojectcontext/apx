@@ -360,7 +360,7 @@
 }
 .mkt-page__head {
   display: grid;
-  grid-template-columns: 56px minmax(0, 1fr) auto;
+  grid-template-columns: 56px minmax(0, 1fr);
   gap: 16px;
   align-items: start;
   padding-bottom: 18px;
@@ -390,6 +390,7 @@
   margin: 4px 0 0;
 }
 .mkt-page__act {
+  grid-column: 1 / -1;
   display: flex;
   align-items: center;
   gap: 6px;
