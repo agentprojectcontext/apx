@@ -60,7 +60,11 @@ test("from a folder: looked at, added without running, then connected with its k
     .getByRole("button", { name: "Northwind Notes" });
   const mark = installed.locator("img");
   await expect(mark).toBeVisible();
+  await expect(installed).toHaveCSS("height", "44px");
   await expect(mark).toHaveCSS("height", "36px");
+  const label = installed.locator(".apx-nav__label");
+  await expect(label).toHaveText("Northwind Notes");
+  await expect.poll(() => label.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
   await expect(installed.locator(".mkt-dot--wait")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Conector", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Conector", exact: true }).locator("..").locator("img")).toHaveCount(
