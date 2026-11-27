@@ -15,9 +15,9 @@ const auto = test.extend<{ autoCore: Awaited<ReturnType<typeof startCore>> }>({
       port: 0,
       llm: scriptedLlm((req, { said, afterTool }) => {
         if (String(req.messages[0]?.content).startsWith(JUDGE))
-          return say('{"decision":"run","why":"registros que dejó esta misma tarea"}');
+          return say('{"decision":"run","why":"registros de esta tarea"}');
         if (String(req.messages[0]?.content).startsWith(ACTION_JUDGE))
-          return say('{"decision":"run","why":"revisa el runner del proyecto"}');
+          return say('{"decision":"run","why":"Para revisar el runner."}');
         if (afterTool) return say("Listo.");
         if (said.includes("coverage")) return callTool("c1", "shell", { command: "rm -rf coverage" });
         if (said.includes("runner"))
@@ -65,13 +65,16 @@ auto("the step says what Auto decided and the settings list every decision", asy
     ] as const) {
       await page.setViewportSize({ width, height: 844 });
       await page.goto(`${env.core.url}/#thread=${chat.id}`);
-      await expect(lines).toHaveCount(4);
-      await expect(lines.nth(0)).toContainText("Auto lo borró: salida de build o de tests");
-      await expect(lines.nth(1)).toContainText("Auto lo borró: registros que dejó esta misma tarea");
-      await expect(lines.nth(2)).toContainText("Auto siguió: revisa el runner del proyecto");
-      await expect(lines.nth(3)).toContainText("Auto te preguntó: archivos tuyos que no hizo en esta tarea");
+      // Only what went ahead has a line: what waited for the owner is its card.
+      await expect(lines).toHaveCount(3);
+      await expect(lines.nth(0)).toHaveText("Auto lo aprobó");
+      await expect(lines.nth(2)).toHaveText("Auto lo aprobó");
+      await lines.nth(0).getByRole("button").first().click();
+      await expect(lines.nth(0)).toContainText("Regla fija");
+      // The why waits for the line to open.
+      await expect(lines.nth(2)).not.toContainText("para revisar el runner");
       await lines.nth(2).getByRole("button").first().click();
-      await expect(lines.nth(2)).toContainText("Lo decidió el modelo ayudante: revisa el runner del proyecto");
+      await expect(lines.nth(2)).toContainText("fake-1 · para revisar el runner");
       await lines.nth(2).scrollIntoViewIfNeeded();
       const file = info.outputPath(`auto-decisions-${layout}-chat.png`);
       await page.screenshot({ path: file, animations: "disabled" });
@@ -84,14 +87,17 @@ auto("the step says what Auto decided and the settings list every decision", asy
       await expect(list.locator(".autodels__row")).toHaveCount(4);
       await expect(list.locator(".autodels__row").first()).toContainText("Auto te preguntó");
       const judged = list.locator(".autodels__row").nth(1);
-      await expect(judged).toContainText("Roby · Modelo ayudante");
+      await expect(judged).toContainText("Auto lo aprobó");
+      await expect(judged.locator(".autodels__who")).toHaveText(
+        "Roby · Ejecutó ssh -o BatchMode=yes -o ConnectTimeout=1 runner.host.invalid",
+      );
       await judged.getByRole("button").first().click();
-      await expect(judged).toContainText("Lo decidió el modelo ayudante: revisa el runner del proyecto");
+      await expect(judged).toContainText("fake-1 · para revisar el runner");
       await list.scrollIntoViewIfNeeded();
       const shot = info.outputPath(`auto-decisions-${layout}-settings.png`);
       await page.screenshot({ path: shot, animations: "disabled" });
       await info.attach(`auto-decisions-${layout}-settings`, { path: shot, contentType: "image/png" });
-      await list.getByRole("radio", { name: "Siguió" }).click();
+      await list.getByRole("radio", { name: "Aprobados" }).click();
       await expect(list.locator(".autodels__row")).toHaveCount(3);
       await list.getByRole("radio", { name: "Todos" }).click();
       await expect(list.locator(".autodels__row")).toHaveCount(4);

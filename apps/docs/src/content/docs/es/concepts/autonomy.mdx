@@ -154,10 +154,10 @@ Un `rm` simple, `find -delete` o `find -exec rm` sin esas opciones corre como cu
 A los agentes se les dice que borren en un comando aparte. Si un borrado viene encadenado después de otro trabajo, se
 mira solo, y la tarjeta muestra solo esa parte.
 
-Cada borrado que Auto mira deja una línea debajo de los pasos del agente, como «Auto lo borró: salida de build o de
-tests» o «Auto te preguntó: archivos tuyos que no hizo en esta tarea». Abrila para ver qué se va y quién lo decidió:
-una regla fija, o el modelo ayudante con sus propias palabras. **Configuración › Agentes › Lo que decidió Auto** los
-lista a todos, junto con las otras acciones, del más nuevo al más viejo, con **Siguió** y **Te preguntó** para
+Cuando Auto deja seguir un borrado, queda una línea corta debajo de los pasos del agente, «Auto lo aprobó», que se abre
+a quién lo decidió: «GPT-6-Luna · lo pediste vos» (el modelo ayudante por su nombre y su motivo en pocas palabras) o
+«Regla fija». Cuando te pregunta, la tarjeta es la línea. **Configuración › Agentes › Lo que decidió Auto** los
+lista a todos, junto con las otras acciones, del más nuevo al más viejo, con **Aprobados** y **Te preguntó** para
 filtrar; cada uno abre su chat. Se guardan 90 días.
 
 Cuando un borrado pregunta, su tarjeta lista lo que se borraría en palabras simples, con las rutas relativas al
@@ -186,7 +186,7 @@ mensaje), cuando lo pide una página o un mensaje y no vos, y ante scripts clara
 te llega la tarjeta. Esto nunca le llega y siempre pregunta: mandar o publicar en tu nombre, pagar, contraseñas, claves
 y todo lo que se les parezca, `sudo` y cambios del sistema, la configuración de APX, `AGENTS.md` y `.apx/`, escribir
 fuera de tus proyectos, tu propio Chrome, y la regla propia de un agente de preguntar. Cada respuesta se ve debajo del
-paso («Auto siguió: …») y en **Lo que decidió Auto**.
+paso («Auto lo aprobó») y en **Lo que decidió Auto**.
 
 Los comandos de git que tiran trabajo que git guardaría también son borrados, se miran igual, y su tarjeta nombra la
 rama, el worktree, los archivos o el stash que se pierden: `git worktree remove --force`, `git branch -D`, `git clean -f` (o `-fd`, `-fdx`),

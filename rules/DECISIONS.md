@@ -6662,6 +6662,13 @@ Claude Code's auto mode does; Manual and Total are unchanged.
   action) and the tool, `auto_decisions.list` replaces `auto_deletions.list`, the step's part is `auto_decision`, and
   Settings › Agents shows "What Auto decided". Calls are recorded under the auxiliary purpose `action`.
 
+- Concrete, as a summary's «Se resumió la charla»: a call Auto let go has one line under the steps, «Auto lo aprobó»,
+  opening to one detail, «GPT-6-Luna · lo pediste vos» (the model by its catalog name, its id when the catalog has
+  none) or «Regla fija»; a call that asked has no line, its card is it. The owner's list uses the same line, «Auto te
+  preguntó» for what waited. The judge's why is 2 to 4 words in the owner's language, no subject, no final period;
+  the answer is trimmed (quotes, final period, lowercase start) and one of another length, or about "the person",
+  "the user" or "the owner", is not kept (the owner: «no fue una persona, fue el agente»).
+
 Known limits: the judge reads what the call and the turn say, not the page the browser will reach; an owner logging in
 on an agent's tab without taking it over (the desktop app needs the takeover to type there) would not mark the profile.
 
