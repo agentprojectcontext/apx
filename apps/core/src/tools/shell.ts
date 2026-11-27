@@ -13,7 +13,7 @@ import { AGENT_WORKSPACE } from "../environments/worker.ts";
 import { insideReal } from "../paths.ts";
 import { commandShell } from "../processes.ts";
 import { apxReads } from "./apx-reads.ts";
-import { deletes, deletionTargets } from "./command-deletions.ts";
+import { deletes, deletionTargets, losesWork } from "./command-deletions.ts";
 import { shellCode } from "./command-heredocs.ts";
 import { namedPaths } from "./command-paths.ts";
 import { mayChange, readsOnly } from "./command-reads.ts";
@@ -90,19 +90,29 @@ export function broadScan(command: string, home = os.homedir()): string | undefi
 }
 
 /**
- * How much the owner must be asked for this command. Commands that only read on this machine run without asking
- * (DECISIONS.md#d-098); anything the classifier cannot be sure of asks.
+ * Whether the command throws work away: read from its words, or, given where it runs (`at`), with git saying what a
+ * restore would overwrite (bringing back deleted files loses nothing).
  */
-export function commandRisk(command: string, apxPort?: number): Confirm {
-  return deletes(command) ? "always" : riskBesides(command, apxPort);
+function deletesWork(command: string, at?: () => string | undefined): boolean {
+  if (!deletes(command)) return false;
+  const cwd = at?.();
+  return cwd === undefined || losesWork(command, cwd);
+}
+
+/**
+ * How much the owner must be asked for this command. Commands that only read on this machine run without asking
+ * (DECISIONS.md#d-098); anything the classifier cannot be sure of asks. `at`: where it runs, when known.
+ */
+export function commandRisk(command: string, apxPort?: number, at?: () => string | undefined): Confirm {
+  return deletesWork(command, at) ? "always" : riskBesides(command, apxPort);
 }
 
 /**
  * A forced deletion is all that makes this command always ask: its card is a deletion's, and the owner's OK for this
  * chat (`apx:delete`) covers it (DECISIONS.md#d-266).
  */
-export const onlyDeletes = (command: string, apxPort?: number) =>
-  deletes(command) && riskBesides(command, apxPort) !== "always";
+export const onlyDeletes = (command: string, apxPort?: number, at?: () => string | undefined) =>
+  deletesWork(command, at) && riskBesides(command, apxPort) !== "always";
 
 function riskBesides(command: string, apxPort?: number): Confirm {
   const c = command.trim();
@@ -120,6 +130,15 @@ function riskBesides(command: string, apxPort?: number): Confirm {
   if (runsApxCli(code)) return "always";
   // Agent files (.apx/) and AGENTS.md set agents' modes: changed by a command as by file_write, the owner says yes first.
   return mayChange(c, namesAgentFiles) ? "always" : "ask";
+}
+
+/**
+ * The folder a deletion card shows paths from, given the one the agent works in (`at`): its project's when `at` is
+ * inside it, so a worktree's files read as `.worktrees/…`, never as if in the main checkout.
+ */
+export function deletionRoot(store: Store, thread: { project_id?: string | undefined }, at: string): string {
+  const project = thread.project_id ? store.projects.get(thread.project_id)?.path : undefined;
+  return project && insideReal(project, at) ? project : at;
 }
 
 /** Programs that run the command after them: `env apx …`, `xargs apx`, `bash -c "apx …"`, `pnpm exec apx`. */
@@ -298,6 +317,12 @@ export function shellTools(
   apxPort: () => number,
   vm?: { hasThread(id: string): boolean },
 ): Tool[] {
+  /** The folder a command runs in on this machine, or undefined in a computer of its own or where it is refused. */
+  const runsAt = (a: { command: string; cwd?: string | undefined }, thread: Parameters<typeof commandFolder>[2]) => {
+    if (vm?.hasThread(thread.id)) return undefined;
+    const where = commandFolder(store, home, thread, a);
+    return "refused" in where ? undefined : where.at;
+  };
   return [
     defineTool({
       name: "shell",
@@ -330,18 +355,22 @@ export function shellTools(
           .describe("relative to the project, or an absolute temp or read-only folder"),
       }),
       effect: "external",
-      confirm: (a) => commandRisk(a.command, apxPort()),
+      confirm: (a, ctx) => commandRisk(a.command, apxPort(), ctx && (() => runsAt(a, ctx.thread))),
       // A deletion has its own grant, never one for sudo or a release (DECISIONS.md#d-266).
-      approvalForCall: async (a) =>
-        onlyDeletes(a.command, apxPort())
-          ? deleteApproval
-          : commandRisk(a.command, apxPort()) === "always"
-            ? strictApproval(nativeApproval("shell"))
-            : nativeApproval("shell"),
+      approvalForCall: async (a, ctx) => {
+        const at = () => runsAt(a, ctx.thread);
+        if (onlyDeletes(a.command, apxPort(), at)) return deleteApproval;
+        return commandRisk(a.command, apxPort(), at) === "always"
+          ? strictApproval(nativeApproval("shell"))
+          : nativeApproval("shell");
+      },
       deletes(a, ctx) {
         if (!deletes(a.command)) return undefined;
-        const where = vm?.hasThread(ctx.thread.id) ? undefined : commandFolder(store, home, ctx.thread, a);
-        return deletionTargets(a.command, where && !("refused" in where) ? where.at : (a.cwd ?? "."));
+        const at = runsAt(a, ctx.thread);
+        if (at !== undefined && !losesWork(a.command, at)) return undefined;
+        const own = vm?.hasThread(ctx.thread.id) ? undefined : rootsOf(store, home, ctx.thread)[0]?.dir;
+        const root = own && deletionRoot(store, ctx.thread, own);
+        return { ...deletionTargets(a.command, at ?? a.cwd ?? "."), ...(root ? { root } : {}) };
       },
       keepsCard: (a) => publishCard(a.command, store.settings.read("owner_profile").publish ?? "auto"),
       // A command that could only be refused is not put to the owner.

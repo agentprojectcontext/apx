@@ -6065,6 +6065,16 @@ Now:
   every action that always asks; a rule for deletions alone does not exist. `git filter-branch` and
   `git update-ref -d` stay high-impact actions (they rewrite history) and a push that deletes a branch keeps its
   release card (D-208).
+- The card is read where the command runs (2026-11-27, the owner: a cleanup that restored three lost files was shown
+  as a deletion, in one block of monospace with absolute paths). A git command's paths are resolved in its `-C`
+  folder. `git restore`/`git checkout -- paths` count only for the files `git status` says hold edits (`M`/`T` in the
+  working tree, and with the index restored, staged `M`/`T`/`A`): files deleted in the working tree come back, so a
+  restore of only those, or of a clean tree, asks nothing (`command-git-status.ts`; when git cannot say, every path
+  counts). `git worktree remove` and `git branch -d` are listed, as git keeps them when work would be lost, on a card
+  another deletion opens. The card carries its parts apart (`deletion`: what goes, one line each with paths relative to
+  the project; the reason only when an outside agent gave one, as APX's own agents' reason is their message right
+  above the card; the command), and the panel and phone fold the command away ("See command"); `detail` keeps them as
+  one text, reason included, for channels.
 - `start_session` is `untrusted`: its calls pass the same policy in the caller's mode, and its write policy is never
   more than the caller's, so in Auto it starts without a card unless outside content is in the turn (rule 10: an
   injected page must not launch a session), as a delegation does. Manual asks, Plan refuses.

@@ -48,6 +48,8 @@ export const esApprovals: Record<ApprovalKey, string> = {
   "input.browserSource": "Código JavaScript completo",
   "input.browserTabNumber": "Pestaña {n}",
   "input.approveOnce": "Aceptar una vez",
+  "input.deletionWhy": "Por qué: {reason}",
+  "input.seeCommand": "Ver comando",
   "input.callDetail": "Detalles y código completos de la llamada",
   "input.approveTab": "Permitir en esta pestaña",
   "input.approveTurn": "Durante este turno",

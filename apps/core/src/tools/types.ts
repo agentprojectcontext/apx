@@ -146,8 +146,11 @@ export type Tool = {
   /** JSON Schema of the arguments, derived from the zod schema. */
   parameters: object;
   effect: Effect;
-  /** Fixed, or decided per call from the arguments (a shell command that only reads vs one that deletes). */
-  confirm(args: Record<string, unknown>): Confirm;
+  /**
+   * Fixed, or decided per call from the arguments (a shell command that only reads vs one that deletes) and, given
+   * `ctx`, from where it runs (a restore that only brings deleted files back deletes nothing).
+   */
+  confirm(args: Record<string, unknown>, ctx?: CheckContext): Confirm;
   /** Why an `untrusted` call waits, when the tool knows better than "outside content is in this turn". */
   untrustedWhy?: UntrustedWhy | undefined;
   /**
@@ -225,7 +228,7 @@ export function defineTool<S extends Args>(def: {
     args: z.output<S>,
     ctx: Pick<ToolContext, "agent" | "thread" | "run" | "call">,
   ) => Promise<ApprovalTarget>;
-  confirm?: Confirm | ((args: z.output<S>) => Confirm);
+  confirm?: Confirm | ((args: z.output<S>, ctx?: CheckContext) => Confirm);
   untrustedWhy?: UntrustedWhy;
   onThisComputer?: (args: z.output<S>, ctx: Pick<ToolContext, "agent" | "call">) => Promise<boolean>;
   deadlineMs: number;
@@ -260,7 +263,8 @@ export function defineTool<S extends Args>(def: {
             approvalForCall(a as z.output<S>, ctx),
         }
       : {}),
-    confirm: (a) => (typeof def.confirm === "function" ? def.confirm(a as z.output<S>) : (def.confirm ?? "never")),
+    confirm: (a, ctx) =>
+      typeof def.confirm === "function" ? def.confirm(a as z.output<S>, ctx) : (def.confirm ?? "never"),
     deadlineMs: def.deadlineMs,
     ...(def.cut ? { cut: def.cut } : {}),
     ...(def.untrustedWhy ? { untrustedWhy: def.untrustedWhy } : {}),

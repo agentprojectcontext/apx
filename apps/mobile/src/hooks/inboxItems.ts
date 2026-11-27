@@ -88,7 +88,7 @@ export function inboxItems(data: Data): InboxItem[] {
         context: ctx(name, thread?.title),
         at: notice?.created_at ?? "",
         title: input.prompt,
-        body: input.detail,
+        body: input.deletion ? input.deletion.items.join("\n") : input.detail,
         reviewOnComputer,
         quote: input.options?.length ? input.options.join(" · ") : undefined,
         agentId: input.agent_id,

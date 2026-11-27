@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { mkdir, writeFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import type { PendingInput } from "@apx/protocol";
@@ -284,6 +285,8 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
   if (said.includes("list then write")) return callTool("l1", "shell", { command: "ls" });
   if (said.includes("quote search please")) return callTool("s10", "shell", { command: runtimeSearch });
   if (said.includes("quote search plus deletion please")) return callTool("s11", "shell", { command: searchAndDelete });
+  if (said.includes("restore please"))
+    return callTool("r1", "shell", { command: "git -C restore-repo restore --worktree -- a.txt b.txt" });
   if (said.includes("echo please")) return callTool("s1", "shell", { command: "echo hi-from-shell" });
   if (said.includes("whose please")) return callTool("s9", "shell", { command: "echo agent=$APX_AGENT" });
   if (said.includes("background please"))
@@ -497,7 +500,7 @@ test("auto: quoted search runs without a card; a separate deletion still gets th
   const [card] = await inputsOrEnd(env.client, remove);
   assert.equal(card?.tool, "shell");
   assert.match(card?.prompt ?? "", /delete|borrar/);
-  assert.match(card?.detail ?? "", /[\\/]work[\\/]build output$/m);
+  assert.deepEqual(card?.deletion?.items, ["work/build output"], "relative to the project");
   assert.doesNotMatch(card?.detail ?? "", /^(?:Known only when it runs|Se sabe recién al correr):/m);
   assert.ok(card?.detail?.endsWith(searchAndDelete), "the original command is still shown");
   assert.deepEqual(card?.approval_scopes, ["once", "session"]);
@@ -588,7 +591,9 @@ test("auto: a deletion asks with what goes and why; the owner's OK for this chat
   const [card] = await inputsOrEnd(env.client, t);
   assert.equal(card?.tool, "shell");
   assert.match(card?.prompt ?? "", /delete|borrar/);
-  assert.match(card?.detail ?? "", /[\\/]build[\\/]old$/m, "the resolved path, on a line of its own");
+  // The reason is the agent's own message right above the card; only the channels' text repeats it.
+  assert.deepEqual(card?.deletion, { items: ["build/old"], command: "rm -rf build/old" });
+  assert.match(card?.detail ?? "", /^build\/old$/m, "the path, on a line of its own");
   assert.match(card?.detail ?? "", /removing it/);
   assert.match(card?.detail ?? "", /rm -rf build\/old/);
   assert.deepEqual(card?.approval_scopes, ["once", "session"], "for this chat at most, never for good");
@@ -598,6 +603,36 @@ test("auto: a deletion asks with what goes and why; the owner's OK for this chat
   await env.settle(t);
   assert.deepEqual((await env.client.call("runs.pending", { thread: t })).inputs, []);
   assert.match(lastSeen(), /exit 0/);
+});
+
+test("auto: restoring files deleted in a repository runs without a card; over real edits it asks, naming the edited file", async () => {
+  const repo = path.join(workDir(env.core.store, env.home, {}), "restore-repo");
+  await mkdir(repo, { recursive: true });
+  const git = (...args: string[]) =>
+    execFileSync("git", ["-c", "user.name=Acme", "-c", "user.email=user@example.com", "-C", repo, ...args], {
+      stdio: "ignore",
+    });
+  git("init", "-q");
+  await writeFile(path.join(repo, "a.txt"), "a\n");
+  await writeFile(path.join(repo, "b.txt"), "b\n");
+  git("add", ".");
+  git("commit", "-q", "-m", "chore: start");
+  await rm(path.join(repo, "a.txt"));
+  await rm(path.join(repo, "b.txt"));
+  const t = await thread();
+  await env.client.call("threads.send", { thread: t, text: "restore please" });
+  assert.deepEqual(await inputsOrEnd(env.client, t), []);
+  assert.match(lastSeen(), /exit 0/);
+  assert.equal(await readFile(path.join(repo, "a.txt"), "utf8"), "a\n", "brought back");
+
+  await writeFile(path.join(repo, "b.txt"), "edited\n");
+  await env.client.call("threads.send", { thread: t, text: "restore please" });
+  const [card] = await inputsOrEnd(env.client, t);
+  assert.match(card?.prompt ?? "", /delete|borrar/);
+  assert.deepEqual(card?.deletion?.items, ["Cambios sin guardar en restore-repo/b.txt"]);
+  await env.client.call("runs.respond", { input: card?.id ?? "", decision: "deny" });
+  await env.settle(t);
+  assert.equal(await readFile(path.join(repo, "b.txt"), "utf8"), "edited\n");
 });
 
 test("auto: a command that changes something where the agent works runs without a card", async () => {

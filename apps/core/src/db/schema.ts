@@ -541,6 +541,7 @@ export interface PendingInputsTable {
   multi: number | null;
   folders: string | null;
   app_only: number | null;
+  deletion: string | null;
 }
 
 export interface PersonsTable {

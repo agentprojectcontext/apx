@@ -106,6 +106,7 @@ function Detail({ part }: { part: InputPart }) {
   const theme = useTheme();
   const s = useStyles();
   const change = part.change;
+  if (part.deletion) return <Deletion deletion={part.deletion} />;
   if (part.tool === "browser_evaluate" && part.browser)
     return <BrowserReview review={part.browser} source={part.detail ?? ""} />;
   if (!change)
@@ -145,6 +146,37 @@ function Detail({ part }: { part: InputPart }) {
           ))}
           {lines.length > DIFF_LINES || change.truncated ? <Text style={s.diffLine}>…</Text> : null}
         </View>
+      ) : null}
+    </View>
+  );
+}
+
+/** A deletion card: what goes as a list, the agent's reason as it said it, and the command folded away. */
+function Deletion({ deletion }: { deletion: NonNullable<InputPart["deletion"]> }) {
+  const s = useStyles();
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={s.deletion}>
+      {deletion.items.map((item) => (
+        <View key={item} style={s.gone}>
+          <Text style={s.bullet}>•</Text>
+          <Text style={s.goneText}>{item}</Text>
+        </View>
+      ))}
+      {deletion.reason ? <Text style={s.reason}>{t("deletionWhy", { reason: deletion.reason })}</Text> : null}
+      <Button
+        size="sm"
+        variant="secondary"
+        icon={open ? "ChevronDown" : "ChevronRight"}
+        label={t("seeCommand")}
+        accessibilityExpanded={open}
+        onPress={() => setOpen((value) => !value)}
+        style={s.toggle}
+      />
+      {open ? (
+        <Text selectable style={s.command}>
+          {deletion.command}
+        </Text>
       ) : null}
     </View>
   );
@@ -357,6 +389,20 @@ const useStyles = makeStyles((theme) => ({
     backgroundColor: theme.fill,
   },
   code: { color: theme.fgMuted, fontSize: 12, fontFamily: theme.mono },
+  deletion: { gap: 6 },
+  gone: { flexDirection: "row", gap: 8 },
+  bullet: { color: theme.fgMuted, fontSize: 14, lineHeight: 20 },
+  goneText: { flex: 1, color: theme.fg, fontSize: 14, lineHeight: 20 },
+  reason: { color: theme.fgMuted, fontSize: 13, lineHeight: 18 },
+  toggle: { alignSelf: "flex-start" },
+  command: {
+    color: theme.fgMuted,
+    fontSize: 12,
+    fontFamily: theme.mono,
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: theme.fill,
+  },
   help: { color: theme.fgMuted, fontSize: 12, lineHeight: 16 },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   option: {

@@ -17,13 +17,13 @@ import { deletionTargets } from "../tools/command-deletions.ts";
 import { foundLater, TOOL_RUN, TOOL_SEARCH, unwrapCall } from "../tools/mcp-bridge.ts";
 import { authorize, type Decision, decide, keepsCard, modeOf, sessionGate } from "../tools/policy.ts";
 import { cap, UNTRUSTED_MARK } from "../tools/result.ts";
-import { commandRisk, onlyDeletes } from "../tools/shell.ts";
+import { commandRisk, deletionRoot, onlyDeletes } from "../tools/shell.ts";
 import type { CheckContext, Confirm, ScopedThread, Tool, ToolContext } from "../tools/types.ts";
 import { prepareBrowserConsent } from "./browser-consent.ts";
 import type { Display } from "./display.ts";
 import { folderBinding, type Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
-import { confirmPrompt, deletePrompt, deletionDetail, folderPrompt, ownerCardPrompt } from "./owner-words.ts";
+import { confirmPrompt, deletePrompt, deletionCard, folderPrompt, ownerCardPrompt } from "./owner-words.ts";
 import { guarded, inGitFolder, namesAgentFiles, pathsOf } from "./paths.ts";
 import type { Permissions } from "./permissions.ts";
 import { handedOff } from "./task-handoff.ts";
@@ -331,7 +331,13 @@ export function createExecutor(o: {
       return { ok: false, text: `${parsed.error}${schema}` };
     }
     const args = parsed.args;
-    const asked = authorize(tool, args, agent, untrusted);
+    const asked = authorize(
+      tool,
+      args,
+      agent,
+      untrusted,
+      tool.confirm(args, { agent, thread: o.permissions.scope(agent, thread) }),
+    );
     const here = await onThisComputer(tool, args, agent, untrusted, asked, signal, (method, params) =>
       o.call(method, params, { run, callId }),
     );
@@ -368,7 +374,7 @@ export function createExecutor(o: {
 
     // A read-only code thread refuses anything that would need an OK, and any change to files, before anyone is asked;
     // its temp files are not the code.
-    const level = tool.confirm(args);
+    const level = tool.confirm(args, { agent, thread: callThread });
     const changesFiles = Boolean(tool.workspace) && !tool.reads?.(args) && !tool.scratch?.(args);
     if (
       worksInFolder(thread) &&
@@ -418,7 +424,8 @@ export function createExecutor(o: {
       (target?.browser || !o.inputs.takeGrant(thread.id, agent.id, name, raw, target?.key))
     ) {
       // A deletion shows what goes and why, in the agent's words just before the call (DECISIONS.md#d-266).
-      const gone = target?.key === DELETE_GRANT ? tool.deletes?.(args, { agent, thread: callThread }) : undefined;
+      const deleted = target?.key === DELETE_GRANT ? tool.deletes?.(args, { agent, thread: callThread }) : undefined;
+      const gone = deleted && deletionCard(store, deleted, lastWords(display), String(args.command ?? ""));
       const answer = await o.inputs.ask({
         run,
         agent,
@@ -433,9 +440,9 @@ export function createExecutor(o: {
         tool: name,
         approval: target,
         args: raw,
-        detail: gone
-          ? deletionDetail(store, gone, lastWords(display), String(args.command ?? ""))
-          : (tool.explain?.(args) ?? describe(args)),
+        detail: gone ? gone.detail : (tool.explain?.(args) ?? describe(args)),
+        // Its reason is its own message just above the card: the card does not say it twice (channels still do).
+        ...(gone ? { deletion: { items: gone.deletion.items, command: gone.deletion.command } } : {}),
         // A preview that fails only costs the patch: the owner still sees the arguments.
         change: await tool.preview?.(args, { agent, thread: callThread }).catch(() => undefined),
         external: o.external(),
@@ -639,7 +646,7 @@ export function createExecutor(o: {
     if (READING.has(kind)) return inside ? "never" : "ask";
     // Fetching sends something out; in a code thread it could carry the code with it.
     if (kind === "fetch") return worksInFolder(thread) ? "ask" : "untrusted";
-    if (kind === "execute" && typeof command === "string") return commandRisk(command, o.apxPort());
+    if (kind === "execute" && typeof command === "string") return commandRisk(command, o.apxPort(), () => o.workDir);
     // Agent files and AGENTS.md define agents and their modes: changing them is high impact, as file_write's.
     if (paths.some((p) => namesAgentFiles(p) || guarded(o.workDir, p))) return "always";
     return "ask";
@@ -687,7 +694,7 @@ export function createExecutor(o: {
     if (decision.kind === "deny") return false;
     // A deletion is the owner's to ask for: its card says what goes and why, and their OK for this chat covers the next
     // one in the folders it may change (a deletion elsewhere asks each time).
-    const deletion = decision.why === "always" && ran && onlyDeletes(command, o.apxPort());
+    const deletion = decision.why === "always" && ran && onlyDeletes(command, o.apxPort(), () => base);
     const grantable = deletion && inside;
     if (grantable && store.approvals.allows(deleteApproval, thread.id, agent.id)) return allow();
     // A change outside its folders is the same folder card as ours: once, or always for this agent (DECISIONS.md#d-108).
@@ -711,14 +718,12 @@ export function createExecutor(o: {
       ...(grantable ? { approval: deleteApproval } : {}),
       ...(folders ? { folders, write: true } : {}),
       ...(deletion
-        ? {
-            detail: deletionDetail(
-              store,
-              deletionTargets(command, base),
-              typeof reason === "string" ? reason : undefined,
-              command,
-            ),
-          }
+        ? deletionCard(
+            store,
+            { ...deletionTargets(command, base), root: deletionRoot(store, thread, base) },
+            typeof reason === "string" ? reason : undefined,
+            command,
+          )
         : req.detail
           ? { detail: req.detail }
           : {}),
