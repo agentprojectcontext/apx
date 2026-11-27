@@ -1018,6 +1018,7 @@ export const en = {
   "browser.handoffDone": "When you finish, press Done and it takes the tab back.",
   "browser.handedYou": "handed you the tab",
   "browser.liveView": "Live view of the tab",
+  "browser.typeOnPage": "Type on the page",
   "browser.noImage": "No image",
   "browser.noImageBody": "We couldn't get a picture of this tab. Try again in a moment.",
   "browser.previewOnly": "You can watch this tab, but you can't click or type here.",

@@ -54,6 +54,7 @@ import { RESEARCH_FROM_CHAT_NEWS } from "./research-from-chat.ts";
 import { ROOM_AGENT_NEWS } from "./room-agent.ts";
 import { ROOM_HANDOFF_NEWS } from "./room-handoff.ts";
 import { ROUTINE_PERMISSIONS_NEWS } from "./routine-permissions.ts";
+import { SERVER_BROWSER_CONTROL_NEWS } from "./server-browser-control.ts";
 import { SIDE_QUESTION_NEWS } from "./side-question.ts";
 import { SIGN_IN_CARDS_NEWS } from "./sign-in-cards.ts";
 import { SIMPLE_PANEL_NEWS } from "./simple-panel.ts";
@@ -98,6 +99,8 @@ export type NewsFacts = {
   claude?: boolean;
   /** At least one paired Desktop can use coordinated remote updates. */
   desktop?: boolean;
+  /** Devices paired to reach this core from elsewhere (a desktop app by address, a phone, a browser). */
+  devices?: number;
   /** Open tasks with an agent on them. */
   tasks?: number;
   /** Open tasks whose comments piled up (worth cleaning). */
@@ -151,6 +154,7 @@ export type NewsEntry = {
 };
 
 export const NEWS: readonly NewsEntry[] = [
+  SERVER_BROWSER_CONTROL_NEWS,
   {
     id: "stalled-tasks",
     since: "2.17.5",
@@ -771,6 +775,7 @@ export const newsFacts = (store: Store, o: { hermes?: boolean; storeSize?: Store
   bigStore: o.storeSize !== undefined && !o.storeSize.incremental && o.storeSize.bytes >= BIG_STORE_BYTES,
   artifacts: store.surfaces.list().length,
   desktop: store.devices.list().some((d) => d.platform === "desktop"),
+  devices: store.devices.list().length,
   codex: store.threads.list({ engine: "codex", limit: 1 }).length > 0,
   claude: store.threads.list({ engine: "claude", limit: 1 }).length > 0,
   google: {

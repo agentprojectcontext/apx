@@ -287,8 +287,9 @@ More in [MCP servers](/extend/mcp/).
 
 ## The browser needs the desktop app
 
-Agents drive the browser the desktop app lends. Without the app the core uses its own headless Chrome, which can't
-hand control to you and never uses your logins. Errors you may see:
+Agents drive the browser the desktop app lends. Without the app the core uses its own headless Chrome: you watch and
+take over its tabs from the Browser panel, but it never uses the logins in your computer's browsers. Errors you may
+see:
 
 - `no connected node offers "browser" (open the APX desktop app)`: open the desktop app on the computer that runs the
   core, or one connected to it over SSH. An app connected **by address** doesn't lend its browser yet.

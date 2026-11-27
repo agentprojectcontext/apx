@@ -24,11 +24,19 @@ aparte o en tu propio navegador.
 
 ## Tomar el control
 
-Cuando esta app de escritorio está ejecutando la pestaña, apretá **Tomar control** para hacer clic, escribir y
-scrollear. El agente espera. **Devolver** se la devuelve. Si la pestaña corre en otro lugar (por ejemplo, en un
-servidor sin escritorio), el panel Navegador muestra una vista de solo lectura. Si abrís la dirección en tu
-propio navegador, abrís una sesión aparte. Si la pestaña local no aparece después de actualizar una
-instalación remota, actualizá tanto el servidor como Desktop.
+Apretá **Tomar control** para hacer clic, escribir y scrollear en la pestaña. El agente espera. **Devolver** se la
+devuelve.
+
+- Una pestaña que corre esta app de escritorio es su propia vista del navegador, como cualquier página.
+- Una pestaña del navegador del servidor (APX en un VPS o un servidor en casa, al que llegás desde la app de escritorio
+  por dirección, el panel web o tu teléfono) se ve en vivo desde el servidor. Cuando la tomás, tus clics, el scroll y
+  lo que escribís van a esa pestaña: si iniciás sesión en un sitio ahí, la sesión queda en el servidor y los agentes
+  la siguen usando con tu compu apagada. En el teléfono, tocá donde querés escribir y aparece el teclado.
+- Mientras tenés la pestaña, los agentes no pueden actuar en ella ni leerla, y lo que escribís nunca les llega.
+
+Si la pestaña corre en un lugar que no la puede transmitir (la app de escritorio de otra compu), el panel Navegador
+muestra una vista de solo lectura. Si abrís la dirección en tu propio navegador, abrís una sesión aparte. Si la
+pestaña local no aparece después de actualizar una instalación remota, actualizá tanto el servidor como Desktop.
 
 El agente también te puede pedir que sigas vos. Cuando un sitio pide login, una contraseña, un código 2FA o un
 captcha, el agente te pasa la pestaña ("Vera necesita que sigas vos") y espera hasta 5 minutos mientras terminás.
@@ -257,9 +265,10 @@ pestaña.
 ## Sin la app de escritorio
 
 Cuando ninguna app de escritorio presta un navegador (un servidor, o una Mac con la app cerrada), el core arranca su
-propio Chrome, Chromium o Edge **headless**, sin ventana, en el primer pedido de navegador. Navega igual, pero ahí
-nadie puede tomar el control y no se usan tus sesiones. `APX_HEADLESS=off` lo apaga; `APX_CHROME` lo apunta a un
-navegador específico.
+propio Chrome, Chromium o Edge **headless**, sin ventana, en el primer pedido de navegador. Navega igual: mirás sus
+pestañas en vivo desde el panel Navegador y las tomás ahí, y los sitios donde iniciás sesión quedan con la sesión
+iniciada en esa compu. Las sesiones de los navegadores de tu propia compu no se copian ahí. `APX_HEADLESS=off` lo
+apaga; `APX_CHROME` lo apunta a un navegador específico.
 
 ## En tu propio Chrome
 

@@ -1003,6 +1003,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "browser.handoffDone": "Cuando termines, tocá Listo y la retoma.",
   "browser.handedYou": "te pasó la pestaña",
   "browser.liveView": "Vista en vivo de la pestaña",
+  "browser.typeOnPage": "Escribir en la página",
   "browser.noImage": "Sin imagen",
   "browser.noImageBody": "No pudimos obtener una imagen de esta pestaña. Volvé a intentar en un momento.",
   "browser.previewOnly": "Podés ver esta pestaña, pero no hacer clic ni escribir acá.",

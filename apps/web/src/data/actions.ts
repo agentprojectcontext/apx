@@ -1,5 +1,5 @@
 // Every write the panel makes. Components call these; they never call the client directly.
-import type { ApprovalScope, Message, Part, SurfaceState, Thread } from "@apx/protocol";
+import type { ApprovalScope, LiveInput, Message, Part, SurfaceState, Thread } from "@apx/protocol";
 import { ApxError, secureRequestKey } from "@apx/protocol/client";
 import { computersOf, NO_COMPUTERS } from "../computers/summary.ts";
 import { t } from "../i18n/index.ts";
@@ -404,6 +404,26 @@ export async function browserControl(tab: string, mode: "user" | "idle" | "done"
   } catch (e) {
     notify(t("error.browserControl", { error: errText(e) }));
   }
+}
+
+/** The next live frame of a server tab after `after` (no `src` when nothing changed while it waited). */
+export async function liveFrame(
+  tab: string,
+  after: number,
+  maxWidth: number,
+): Promise<{ seq: number; src?: string; width: number; height: number }> {
+  const r = await client.call("browser.frame", { tab, after, max_width: maxWidth });
+  return {
+    seq: r.seq,
+    width: r.width,
+    height: r.height,
+    ...(r.data ? { src: `data:${r.mime};base64,${r.data}` } : {}),
+  };
+}
+
+/** The owner's own clicks and keys on a server tab they hold. */
+export async function browserInput(tab: string, events: LiveInput[]): Promise<void> {
+  await client.call("browser.input", { tab, events });
 }
 
 /** Latest JPEG of a tab as a data URL. */

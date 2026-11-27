@@ -122,6 +122,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "environments.configure": MACHINE,
   "environments.stop": MACHINE,
   "browser.control": MACHINE,
+  "browser.input": "the owner's own hand on a tab they hold; agents use browser_click and browser_type instead",
   "browser.preview_edits": "the owner's own preview of a page's edits; agents change the page's code instead",
   "surfaces.edit_open": "the owner's own edit view of a widget; agents change the widget itself instead",
   "surfaces.edit_preview": "the owner's own preview of a widget's edits; agents change the widget itself instead",

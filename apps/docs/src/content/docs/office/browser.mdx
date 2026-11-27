@@ -23,10 +23,18 @@ is browsing · supplier.example.com". From the panel you can open the tab in a s
 
 ## Taking control
 
-When this desktop app is running the tab, press **Take control** to click, type and scroll. The agent waits.
-**Give back** returns it. If the tab is running elsewhere (for example, on a headless server), the Browser panel
-shows a read-only preview instead. Opening the address in your own browser starts a separate session.
-If the local tab doesn't appear after updating a remote install, bring both the server and Desktop up to date.
+Press **Take control** to click, type and scroll in the tab. The agent waits. **Give back** returns it.
+
+- A tab this desktop app runs is its own browser view, as on any page.
+- A tab in the server's browser (APX on a VPS or a home server, reached from the desktop app by address, the web
+  panel or your phone) shows live from the server. Once you take it, your clicks, scrolling and typing go to that
+  tab: sign in to a site there and the session stays on the server, so agents keep using it with your computer off.
+  On a phone, tap where you want to type and the keyboard comes up.
+- While you hold the tab, agents can neither act in it nor read it, and what you type never reaches them.
+
+If a tab runs somewhere that can't stream it (another computer's desktop app), the Browser panel shows a read-only
+preview instead. Opening the address in your own browser starts a separate session. If the local tab doesn't appear
+after updating a remote install, bring both the server and Desktop up to date.
 
 The agent can also ask you to take over. When a site wants a login, a password, a 2FA code or a captcha, the agent
 hands the tab to you ("Vera needs you to take over") and waits up to 5 minutes while you finish. Then it carries on
@@ -247,9 +255,10 @@ asks your OK every time (only total autonomy skips it), and agents try it before
 ## Without the desktop app
 
 When no desktop app lends a browser (a server, or a Mac with the app closed), the core starts its own **headless**
-Chrome, Chromium or Edge, without a window, on its first browser call. It browses the same way, but nobody can take
-over there and your own logins are not used. `APX_HEADLESS=off` turns it off; `APX_CHROME` points it to a specific
-browser.
+Chrome, Chromium or Edge, without a window, on its first browser call. It browses the same way: you watch its tabs
+live from the Browser panel and take them over there, and the sites you sign in to stay signed in on that computer.
+Logins from your own computer's browsers are not copied there. `APX_HEADLESS=off` turns it off; `APX_CHROME` points
+it to a specific browser.
 
 ## In your own Chrome
 

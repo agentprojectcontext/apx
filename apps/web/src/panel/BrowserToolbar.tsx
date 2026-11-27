@@ -31,10 +31,13 @@ export function BrowserToolbar({
   tab,
   onOpened,
   interactive,
+  remote = false,
 }: {
   tab: TabInfo | undefined;
   onOpened: () => void;
   interactive: boolean;
+  /** A tab of the server's browser shown live: free, it is taken before clicking (the app's own tabs take clicks). */
+  remote?: boolean;
 }) {
   const t = useT();
   const [editing, setEditing] = useState<string>();
@@ -138,6 +141,11 @@ export function BrowserToolbar({
         <span className="btoolbar__status">
           <span className="btoolbar__statustext">{t("browser.free")}</span>
         </span>
+      )}
+      {remote && c?.kind === "idle" && draft == null && (
+        <Button size="sm" className="btoolbar__btn" onClick={control("user")} loading={busy}>
+          {t("browser.takeControl")}
+        </Button>
       )}
       {editButton}
       {interactive && c?.kind === "user" && draft == null && (
