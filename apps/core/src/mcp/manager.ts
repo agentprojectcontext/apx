@@ -22,6 +22,7 @@ import { ARGS_SECRET, type McpDef, mcpConfig } from "./config.ts";
 import { connectionErrors, MCP_SECRET_REF } from "./connection-errors.ts";
 import { fileRefs, fillFileArgs, hasFileRefs, type OpenFile, refOf } from "./file-args.ts";
 import { createStderrLogs } from "./logs.ts";
+import { closePosixTree } from "./posix-process-tree.ts";
 import { createProcessExits } from "./process-exits.ts";
 import { watchSignIn } from "./sign-in.ts";
 import { allowsAll, forgetOpened, type OpenedBy, openNew, setMcpToolMode } from "./tool-mode.ts";
@@ -208,7 +209,7 @@ export function createMcp(deps: {
           cwd: d.cwd ?? ownDir(d.name),
           stderr: "pipe",
         });
-        if (process.platform === "win32") closeWindowsTree(stdio);
+        (process.platform === "win32" ? closeWindowsTree : closePosixTree)(stdio);
         trackProcess = processes.watch(keyOf(d), stdio);
         // A server may print what it was given: its secrets and credential-like variables are masked in its log.
         const hidden = [

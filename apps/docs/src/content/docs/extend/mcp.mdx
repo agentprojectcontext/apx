@@ -117,6 +117,18 @@ first time it starts. If you don't finish, it shows **Needs you to sign in** and
 itself, so your browser doesn't keep opening. Click **Sign in** on the server (or run `apx mcp signin <server>`) when
 you are ready, and finish on the page it opens.
 
+While it waits, the server shows **Open the sign-in page**, and **Sign in** becomes **Start over**: use it only if
+you want a new page, since the one you opened stops working. You have five minutes to finish.
+
+### APX on another computer
+
+When APX runs on a server or another computer, the sign-in page returns to a `localhost` address on that computer,
+so your browser ends on a page that does not load (`http://localhost:44776/oauth/callback?code=…`). That is
+expected. Copy that whole address, paste it in the field under the link and click **Finish**: APX opens it on its
+own computer and the server starts. Only the address of the sign-in in progress is taken, with its own code and
+state. Services such as Tiendanube only accept a `localhost` return address, so this works where pointing the
+return at the server's IP is refused.
+
 ## Try a server from the terminal
 
 `apx mcp tools`, `run` and `check` talk to a server directly, which is handy when something doesn't work:

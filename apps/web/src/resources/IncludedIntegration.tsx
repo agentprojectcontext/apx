@@ -26,6 +26,7 @@ export type { Integration } from "./extensionItems.ts";
 
 import { ConnectHead } from "../marketplace/ConnectHead.tsx";
 import type { Integration } from "./extensionItems.ts";
+import { SignInElsewhere } from "./SignInElsewhere.tsx";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 /** What each one is, in the owner's language (`int.desc.<id without dashes>`; the core's text otherwise). */
@@ -236,13 +237,16 @@ function BrowserSignIn({ id }: { id: string }) {
     await load();
   };
   return (
-    <div className="resd__callout resd__callout--line">
-      <Icons.LogIn size={16} />
-      <strong>{t(waiting ? "res.signInWaiting" : "mcp.status.needsSignIn")}</strong>
-      <Button size="sm" loading={busy} onClick={() => void signIn()}>
-        {t("res.signIn")}
-      </Button>
-    </div>
+    <>
+      <div className="resd__callout resd__callout--line">
+        <Icons.LogIn size={16} />
+        <strong>{t(waiting ? "res.signInWaiting" : "mcp.status.needsSignIn")}</strong>
+        <Button size="sm" variant={waiting ? "secondary" : "primary"} loading={busy} onClick={() => void signIn()}>
+          {t(waiting ? "res.signInStartOver" : "res.signIn")}
+        </Button>
+      </div>
+      {waiting && <SignInElsewhere server={server} page={server.sign_in_url} onDone={() => void load()} />}
+    </>
   );
 }
 
