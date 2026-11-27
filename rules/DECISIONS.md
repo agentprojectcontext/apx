@@ -6032,6 +6032,10 @@ Now:
 - A heredoc's body is its program's data unless a shell reads it (`bash <<EOF`, `cat <<EOF | sh`, `ssh host <<EOF`,
   `sudo`, `eval`, `exec`, `osascript`…): a script for Python or a file written with `cat > f <<EOF` is judged like a
   script file, which was never scanned (`tools/command-heredocs.ts`). A body fed to a shell is still scanned whole.
+- The forced `rm` check treats a plain, leading `rg` or `grep` invocation's statically quoted pattern as data, in both
+  the raw and normalized scans. In a compound command it omits the pattern only when the rest independently triggers
+  deletion approval. Pipelines that could feed commands to a shell and forms the classifier cannot prove keep the
+  previous scan. The deletion card uses the same check; it still shows the original command.
 - An agent deletes only when the owner asked for it, in the chat or as a standing rule of theirs ("tiene que estar muy
   claro que solo va a borrar cuando se lo pido"). APX cannot read intent, so a forced deletion (`rm -r`/`rm -f`,
   also inside the agent's folder or a script fed to a shell) keeps asking in Auto, as decided on 2026-11-01, and the
