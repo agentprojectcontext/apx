@@ -3,7 +3,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import type { DeletionReason } from "@apx/protocol";
+import type { DecisionReason } from "@apx/protocol";
 import { insideReal } from "../paths.ts";
 import type { Deletion, GitLoss } from "./command-deletions.ts";
 import { type GitFacts, gitFacts } from "./command-git-status.ts";
@@ -12,10 +12,23 @@ import { type GitFacts, gitFacts } from "./command-git-status.ts";
 export type Verdict = "run" | "ask" | "judge";
 
 /** One thing a command deletes and what Auto does with it, and why. */
-export type Weighed = { what: string; verdict: Verdict; why: DeletionReason };
+export type Weighed = { what: string; verdict: Verdict; why: DeletionWhy };
+
+/** The reasons about what a deletion removes; the others say why another call reached the judge. */
+type DeletionWhy = Exclude<
+  DecisionReason,
+  | "outside_content"
+  | "url_data"
+  | "browser_steps"
+  | "connected_service"
+  | "needs_ok"
+  | "remote"
+  | "script"
+  | "credential"
+>;
 
 /** Each reason in a few words, as the judge reads it. */
-export const REASON_TEXT: Record<DeletionReason, string> = {
+export const REASON_TEXT: Record<DeletionWhy, string> = {
   scratch: "the chat's temp folder",
   gone: "does not exist",
   output: "build or test output",

@@ -15,6 +15,7 @@ RUN apt-get update \
  && npm install -g "pnpm@${PNPM}" \
  && node --version && pnpm --version
 
+LABEL apx-remote=image
 COPY entry.sh /usr/local/bin/apx-remote-entry
 RUN chmod +x /usr/local/bin/apx-remote-entry
 # No core started in the box reports to APX's telemetry: test installs are not people (DECISIONS.md#d-092).

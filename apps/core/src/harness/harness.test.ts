@@ -81,7 +81,13 @@ const codex: Harness = {
     };
   },
 };
-const native = scriptedLlm(() => say("native answer"));
+// Auto's judge (DECISIONS.md#d-283) lets a check on the project's runner go; anything else gets an unclear answer: a card.
+const native = scriptedLlm((req) =>
+  String(req.messages[0]?.content).startsWith("You decide whether an AI agent working for its owner") &&
+  /Arguments:\n[^\n]*runner\.host\.invalid/.test(String(req.messages.at(-1)?.content))
+    ? say('{"decision":"run","why":"a check on the project runner"}')
+    : say("native answer"),
+);
 
 let env: Awaited<ReturnType<typeof startCore>>;
 before(async () => {
@@ -403,7 +409,7 @@ test("an automatic outside session allows local commands but still asks before f
     assert.match(card.prompt, /delete|borrar/);
     assert.match(card.detail ?? "", /rm -f/);
     // Auto's decision is kept for the owner's review, as for APX's own agents.
-    const [kept] = (await env.client.call("auto_deletions.list", { limit: 1 })).decisions;
+    const [kept] = (await env.client.call("auto_decisions.list", { limit: 1 })).decisions;
     assert.deepEqual(kept && [kept.thread_id, kept.command, kept.verdict, kept.by, kept.reasons, kept.items], [
       thread.id,
       "rm -f audio/clip.raw.wav",
@@ -415,6 +421,38 @@ test("an automatic outside session allows local commands but still asks before f
     await env.client.call("runs.respond", { input: card.id, decision: "deny" });
     const done = await env.settle(thread.id);
     assert.deepEqual(texts(done.messages.slice(-1)), ["[true,false]"]);
+  } finally {
+    await env.client.call("agents.update", { agent: "superagent", autonomy: null });
+  }
+});
+
+test("an automatic outside session's command on another machine goes to the judge: run without a card, or ask (DECISIONS.md#d-283)", async (t) => {
+  const thread = await session("claude");
+  env.core.store.settings.set("model_aux", "openai/gpt-4o-mini");
+  t.after(() => env.core.store.settings.set("model_aux", ""));
+  await env.client.call("agents.update", { agent: "superagent", autonomy: "auto" });
+  try {
+    const checks = [
+      { kind: "execute", command: "ssh -o BatchMode=yes -o ConnectTimeout=1 runner.host.invalid 'docker ps'" },
+      { kind: "execute", command: "ssh -o BatchMode=yes -o ConnectTimeout=1 other.host.invalid 'docker ps'" },
+    ];
+    await env.client.call("threads.send", { thread: thread.id, text: `probe ${JSON.stringify(checks)}` });
+    const card = await waitFor(
+      async () => (await env.client.call("runs.pending", { thread: thread.id })).inputs[0],
+      "the judge's card",
+    );
+    assert.match(card.detail ?? "", /other\.host\.invalid/);
+    await env.client.call("runs.respond", { input: card.id, decision: "deny" });
+    const done = await env.settle(thread.id);
+    assert.deepEqual(texts(done.messages.slice(-1)), ["[true,false]"]);
+    const kept = (await env.client.call("auto_decisions.list", { limit: 2 })).decisions;
+    assert.deepEqual(
+      kept.map((d) => [d.tool, d.verdict, d.by, d.reasons]),
+      [
+        ["external:execute", "ask", "judge", ["remote"]],
+        ["external:execute", "run", "judge", ["remote"]],
+      ],
+    );
   } finally {
     await env.client.call("agents.update", { agent: "superagent", autonomy: null });
   }

@@ -15,6 +15,11 @@ export function nodeSocket(url: string): SocketTransport {
     close: () => {
       if (closing) return;
       closing = true;
+      // A refused or failed handshake has no stream to pause: ws reports it as closing with none attached.
+      if (socket.readyState !== WebSocket.OPEN) {
+        socket.terminate();
+        return;
+      }
       // Drain the current read turn before destruction; late reads must not reach a destroyed native stream.
       socket.pause();
       setImmediate(() => socket.terminate());

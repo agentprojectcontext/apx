@@ -3,7 +3,7 @@
 // model a capped copy.
 import path from "node:path";
 
-import type { AutoDeletionNote, MethodName, Params, Result, Thread } from "@apx/protocol";
+import type { AutoDecisionNote, MethodName, Params, Result, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import { type ApprovalTarget, DELETE_GRANT, deleteApproval, strictApproval } from "../domain/approvals.ts";
 import { type Asked, HELD_ANSWER } from "../domain/inputs.ts";
@@ -19,6 +19,7 @@ import { authorize, type Decision, decide, keepsCard, modeOf, sessionGate } from
 import { cap, UNTRUSTED_MARK } from "../tools/result.ts";
 import { commandRisk, deletionRoot, onlyDeletes } from "../tools/shell.ts";
 import type { CheckContext, Confirm, ScopedThread, Tool, ToolContext } from "../tools/types.ts";
+import { actionRuns, judgeReasons, outsideReasons } from "./action-judge.ts";
 import { prepareBrowserConsent } from "./browser-consent.ts";
 import { type AuxJudge, deletionRuns } from "./deletion-judge.ts";
 import type { Display } from "./display.ts";
@@ -106,6 +107,18 @@ const FOREGROUND_OUTPUT_CHARS = 60_000;
 const STORED_OUTPUT_CHARS = 2_000_000;
 const STEP_SUMMARY_CHARS = 4000;
 const CARD_DETAIL_CHARS = 300;
+
+/** The card Auto's judge asks for where the mode would have let a call run (DECISIONS.md#d-283). */
+const JUDGE_ASKS = { kind: "confirm", why: "needs_ok", reason: "Auto's judge asks the owner first" } as const;
+
+/** A tool's own words for its call, for the judge; a tool that cannot say them yet leaves only the arguments. */
+function tryExplain(tool: Tool, args: Record<string, unknown>): string | undefined {
+  try {
+    return tool.explain?.(args);
+  } catch {
+    return undefined;
+  }
+}
 
 /** What the agent said just before a call: its reason, as the owner reads it on a deletion card (D-266). */
 function lastWords(display: Display): string | undefined {
@@ -311,7 +324,7 @@ export function createExecutor(o: {
     const title = tool ? toolTitle(store, tool, raw) : name;
     const began = now();
     // What Auto decided about the deletion, shown on the step from then on (DECISIONS.md#d-281).
-    let auto: AutoDeletionNote | undefined;
+    let auto: AutoDecisionNote | undefined;
     const card = (status: "running" | "ok" | "error", detail?: string) =>
       display.upsert((p) => p.type === "tool" && p.call_id === callId, {
         type: "tool",
@@ -321,7 +334,7 @@ export function createExecutor(o: {
         status,
         ...(detail ? { detail } : {}),
         ...(status === "running" ? {} : { ms: Math.max(0, Math.round(now() - began)) }),
-        ...(auto ? { auto_deletion: auto } : {}),
+        ...(auto ? { auto_decision: auto } : {}),
       });
     card("running");
     signal.throwIfAborted();
@@ -398,7 +411,7 @@ export function createExecutor(o: {
       return { ok: false, text: `refused: this code thread is read-only; ${why}` };
     }
     // The owner's own chats follow the agent's mode (DECISIONS.md#d-106); a delegated session may ask before changes.
-    const gate = sessionGate(thread, decision, level === "ask" || level === "always" || changesFiles);
+    const gated = sessionGate(thread, decision, level === "ask" || level === "always" || changesFiles);
     const keeps = keepsCard(tool, args, agent);
     // A call that always asks has its own grant, apart from the tool's ordinary one (DECISIONS.md#d-089); one that
     // keeps its card whatever is granted offers none (DECISIONS.md#d-143).
@@ -421,14 +434,14 @@ export function createExecutor(o: {
     }
     const approvalVersion = target && store.approvals.browserVersion(target, thread.id, agent.id);
     // A server's tools opened by default stay behind the card while outside content is in the turn (DECISIONS.md#d-279).
-    const outside = gate.kind === "confirm" && untrusted;
+    const outside = gated.kind === "confirm" && untrusted;
     const granted = !!target && store.approvals.allows(target, thread.id, agent.id, args, outside);
     let checkConsentAtDispatch = !!target?.browser && granted;
     let pendingBrowserScope: "tab" | "turn" | undefined;
     // A deletion shows what goes and why, in the agent's words just before the call (DECISIONS.md#d-266); in Auto what
     // is plainly the agent's own, or what the judge finds the work asked for, runs without it (DECISIONS.md#d-281).
     const deleted =
-      gate.kind === "confirm" && target?.key === DELETE_GRANT
+      gated.kind === "confirm" && target?.key === DELETE_GRANT
         ? tool.deletes?.(args, { agent, thread: callThread })
         : undefined;
     const decided =
@@ -447,11 +460,34 @@ export function createExecutor(o: {
             command: String(args.command ?? ""),
           })
         : undefined;
-    if (decided) {
-      auto = decided.note;
+    // Other calls Auto would card, and a command on another machine, are the judge's too (DECISIONS.md#d-283).
+    const asJudged =
+      !decided && !granted && modeOf(agent) === "auto" ? judgeReasons(store, tool, gated, args, agent) : undefined;
+    const acted = asJudged
+      ? await actionRuns({
+          store,
+          run,
+          agentId: agent.id,
+          thread,
+          reason: lastWords(display),
+          judge: o.judge,
+          untrusted,
+          callId,
+          tool: name,
+          title,
+          args,
+          detail: tool.explain ? tryExplain(tool, args) : undefined,
+          reasons: asJudged,
+        })
+      : undefined;
+    const choice = decided ?? acted;
+    if (choice) {
+      auto = choice.note;
       card("running");
     }
-    const judged = !!decided?.runs;
+    const judged = !!choice?.runs;
+    // A command that would run unasked waits for the owner when the judge says so.
+    const gate = choice && !choice.runs && gated.kind === "allow" ? JUDGE_ASKS : gated;
     if (
       !judged &&
       gate.kind === "confirm" &&
@@ -725,11 +761,17 @@ export function createExecutor(o: {
     const effect = reads ? "none" : req.kind === "edit" && workspace ? "local" : "external";
     const changes = !reads && (level === "ask" || level === "always" || req.kind === "edit" || req.kind === "execute");
     const decision = sessionGate(thread, decide(level, effect, agent, untrusted, workspace), changes);
-    if (decision.kind === "allow") return allow();
     if (decision.kind === "deny") return false;
+    // In Auto the judge answers this session's cards where it may write, and its commands on another machine
+    // (DECISIONS.md#d-283); writing outside its folders keeps the folder card.
+    const reason = (req.input as { description?: unknown } | undefined)?.description;
+    const toJudge =
+      modeOf(agent) === "auto" && inside ? outsideReasons(req.kind, decision, ran ? command : undefined) : undefined;
+    if (decision.kind === "allow" && !toJudge) return allow();
+    const asking = decision.kind === "confirm" ? decision : JUDGE_ASKS;
     // A deletion is the owner's to ask for: its card says what goes and why, and their OK for this chat covers the next
     // one in the folders it may change (a deletion elsewhere asks each time).
-    const deletion = decision.why === "always" && ran && onlyDeletes(command, o.apxPort(), () => base);
+    const deletion = asking.why === "always" && ran && onlyDeletes(command, o.apxPort(), () => base);
     const grantable = deletion && inside;
     if (grantable && store.approvals.allows(deleteApproval, thread.id, agent.id)) return allow();
     const gone = deletion ? { ...deletionTargets(command, base), root: deletionRoot(store, thread, base) } : undefined;
@@ -753,14 +795,31 @@ export function createExecutor(o: {
             command: String(command ?? ""),
           })
         : undefined;
-    if (decided) noteDeletion(req.callId, decided.note);
-    if (decided?.runs) return allow();
+    const acted =
+      !gone && toJudge
+        ? await actionRuns({
+            store,
+            run: o.run(),
+            agentId: agent.id,
+            thread,
+            reason: typeof reason === "string" ? reason : undefined,
+            judge: o.judge,
+            untrusted,
+            callId: req.callId,
+            tool: `external:${req.kind}`,
+            title: req.title,
+            args: req.input && typeof req.input === "object" ? (req.input as Record<string, unknown>) : {},
+            reasons: toJudge,
+          })
+        : undefined;
+    const choice = decided ?? acted;
+    if (choice) noteDecision(req.callId, choice.note);
+    if (choice?.runs) return allow();
     // A change outside its folders is the same folder card as ours: once, or always for this agent (DECISIONS.md#d-108).
     const offered = [...new Set(judged.flatMap((r) => ("refused" in r && r.offer ? [r.offer] : [])))];
     // A command that only reads keeps the plain card, and so does one asking to read first (its offer may be a read).
     const changing = !reading && !deletion && own !== "always" && own !== "never" && (!ran || scope.reach === "read");
     const folders = changing && offered.length ? offered : undefined;
-    const reason = (req.input as { description?: unknown } | undefined)?.description;
     const answer = await o.inputs.ask({
       run: o.run(),
       agent,
@@ -771,7 +830,7 @@ export function createExecutor(o: {
         ? deletePrompt(store, agent.name)
         : folders
           ? folderPrompt(store, agent.name, folders, true)
-          : confirmPrompt(store, decision.why, agent.name, req.title),
+          : confirmPrompt(store, asking.why, agent.name, req.title),
       tool: req.kind,
       ...(grantable ? { approval: deleteApproval } : {}),
       ...(folders ? { folders, write: true } : {}),
@@ -802,12 +861,12 @@ export function createExecutor(o: {
   /** Why the owner's answer was no, per external call (see approve). */
   const refused = new Map<string, string>();
   /** What Auto decided about an external call's deletion, for its step (DECISIONS.md#d-281). */
-  const autoNotes = new Map<string, AutoDeletionNote>();
-  const noteDeletion = (callId: string, note: AutoDeletionNote) => {
+  const autoNotes = new Map<string, AutoDecisionNote>();
+  const noteDecision = (callId: string, note: AutoDecisionNote) => {
     autoNotes.set(callId, note);
     const shown = display.find((p) => p.type === "tool" && p.call_id === callId);
     if (shown?.type === "tool")
-      display.upsert((p) => p.type === "tool" && p.call_id === callId, { ...shown, auto_deletion: note });
+      display.upsert((p) => p.type === "tool" && p.call_id === callId, { ...shown, auto_decision: note });
   };
 
   /** When each of an external agent's tool calls began. */
@@ -838,7 +897,7 @@ export function createExecutor(o: {
       status: ev.status,
       ...(ev.detail ? { detail: ev.detail } : {}),
       ...(ev.status === "running" ? {} : { ms: Math.max(0, Math.round(now() - (seen.get(ev.callId) ?? now()))) }),
-      ...(autoNotes.has(ev.callId) ? { auto_deletion: autoNotes.get(ev.callId) } : {}),
+      ...(autoNotes.has(ev.callId) ? { auto_decision: autoNotes.get(ev.callId) } : {}),
     });
   };
 

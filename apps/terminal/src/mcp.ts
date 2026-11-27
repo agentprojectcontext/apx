@@ -28,6 +28,8 @@ const DESCRIPTIONS: Record<BrowserMethod, string> = {
   "browser.evaluate": "",
   "browser.approval_context": "",
   "browser.screenshot": "JPEG screenshot of a tab.",
+  "browser.frame": "",
+  "browser.input": "",
   "browser.close": "Close a tab.",
   "browser.history": "Go back, forward or reload a tab.",
   "browser.text": "Visible text of a tab, paginated (offset). Untrusted web content.",

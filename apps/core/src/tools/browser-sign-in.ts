@@ -3,6 +3,7 @@
 // Without a name, APX finds the owner's sign-in for the site, asks which one, or has them type one (DECISIONS.md#d-264).
 import { BROWSER_CAP, SecretFieldKind, siteOrigin } from "@apx/protocol";
 import { z } from "zod";
+import { markOwnerSessions, profileOf } from "../domain/browser-sessions.ts";
 import { lineage } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import type { SignIn } from "../sign-in.ts";
@@ -133,6 +134,8 @@ export function browserSignInTool(
       const url = (await ctx.call("browser.tabs", {})).tabs.find((t) => t.tab === tab)?.url ?? "";
       const origin = siteOrigin(url);
       if (!origin) return "refused: this tab is not on a website";
+      // A sign-in leaves the owner's session in this profile (DECISIONS.md#d-283).
+      markOwnerSessions(store, profileOf(ctx.agent));
       let pick: Found;
       if (a.secret) {
         const key = signIn.keyFor(lineage(store.projects, ctx.thread.project_id ?? undefined), a.secret);

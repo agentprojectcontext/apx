@@ -1429,4 +1429,15 @@ export const MIGRATIONS: readonly string[] = [
   CREATE INDEX auto_deletions_at ON auto_deletions(at);
   CREATE INDEX auto_deletions_thread ON auto_deletions(thread_id);
   `,
+  `
+  -- Auto's judge decides other calls than deletions (DECISIONS.md#d-283): the record holds every decision, with its kind
+  -- and, for a call, the tool.
+  ALTER TABLE auto_deletions RENAME TO auto_decisions;
+  ALTER TABLE auto_decisions ADD COLUMN kind TEXT NOT NULL DEFAULT 'deletion' CHECK(kind IN ('deletion', 'action'));
+  ALTER TABLE auto_decisions ADD COLUMN tool TEXT;
+  DROP INDEX auto_deletions_at;
+  DROP INDEX auto_deletions_thread;
+  CREATE INDEX auto_decisions_at ON auto_decisions(at);
+  CREATE INDEX auto_decisions_thread ON auto_decisions(thread_id);
+  `,
 ];

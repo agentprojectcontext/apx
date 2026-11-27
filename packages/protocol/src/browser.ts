@@ -52,6 +52,8 @@ export const TabInfo = z.object(
     profile: () => BrowserProfile,
     control: () => TabControl,
     consent_epoch: () => z.string().max(100).optional(),
+    /** The tab's browser streams it live and takes the owner's hand (`browser.frame`, `browser.input`). */
+    live: () => z.literal(true).optional(),
   }),
 );
 export type TabInfo = z.infer<typeof TabInfo>;
@@ -68,6 +70,54 @@ const Url = z.string().url().max(4096);
 /** Who drives the tab; shown in the pill ("Roby is using this tab"). */
 const By = z.string().min(1).max(64).default("operator");
 const Fraction = z.number().min(0).max(1);
+/** The widest live frame of a server tab; wider panels scale it up. */
+export const LIVE_MAX_WIDTH = 1600;
+/** How long one `browser.frame` call waits for a new frame (under every client's deadline). */
+export const LIVE_WAIT_MS = 5000;
+export const LIVE_INPUT_MAX = 50;
+/** Ctrl, Alt, Meta and Shift as CDP counts them: 2, 1, 4 and 8. */
+const Modifiers = z.number().int().min(0).max(15).default(0);
+const MouseButton = z.enum(["none", "left", "middle", "right"]);
+/** One step of the owner's hand on a live tab. */
+export const LiveInput = z.discriminatedUnion("type", [
+  z
+    .object({
+      type: z.literal("mouse"),
+      action: z.enum(["down", "up", "move"]),
+      x: Fraction,
+      y: Fraction,
+      button: MouseButton.default("left"),
+      clicks: z.number().int().min(0).max(3).default(1),
+      modifiers: Modifiers,
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("wheel"),
+      x: Fraction,
+      y: Fraction,
+      dx: z.number().min(-5000).max(5000),
+      dy: z.number().min(-5000).max(5000),
+      modifiers: Modifiers,
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("key"),
+      action: z.enum(["down", "up"]),
+      key: z.string().min(1).max(32),
+      code: z.string().max(32).default(""),
+      modifiers: Modifiers,
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("text"),
+      text: z.string().min(1).max(2000),
+    })
+    .strict(),
+]);
+export type LiveInput = z.infer<typeof LiveInput>;
 /** Only a hex color: a value that can never close the declaration it goes into. */
 const HexColor = z.string().regex(/^#[0-9a-fA-F]{3,8}$/);
 
@@ -323,6 +373,52 @@ export const browserMethods = {
         bytes: z.number().int(),
       }),
     effect: false,
+  }),
+  /**
+   * The live picture of a tab in the core's own browser, for the owner watching it: the next frame after `after`, or
+   * the same one again once `wait_ms` passes with nothing new (then without `data`). Frames come only while asked for.
+   */
+  "browser.frame": deferMethod({
+    params: () =>
+      z
+        .object({
+          tab: Tab,
+          after: z.number().int().min(0).default(0),
+          max_width: z.number().int().min(320).max(LIVE_MAX_WIDTH).default(1280),
+          wait_ms: z.number().int().min(0).max(LIVE_WAIT_MS).default(LIVE_WAIT_MS),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        seq: z.number().int(),
+        mime: z.literal("image/jpeg"),
+        data: z.string().optional(),
+        /** The page's visible size in CSS pixels, which the frame shows. */
+        width: z.number(),
+        height: z.number(),
+      }),
+    effect: false,
+    access: "human",
+  }),
+  /**
+   * The owner's own hand on a tab of the core's browser while they hold it (`browser.control` user): pointer, wheel and
+   * keys at fractions 0–1 of the visible page, and text as typed. Never logged, never shown to an agent.
+   */
+  "browser.input": deferMethod({
+    params: () =>
+      z
+        .object({
+          tab: Tab,
+          events: z.array(LiveInput).min(1).max(LIVE_INPUT_MAX),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        ok: z.literal(true),
+      }),
+    effect: true,
+    access: "human",
+    replay: false,
   }),
   /** Edit mode: the element under a point of the visible page (fractions 0–1), or null. Owner only. */
   "browser.inspect": deferMethod({

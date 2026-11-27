@@ -154,17 +154,39 @@ Un `rm` simple, `find -delete` o `find -exec rm` sin esas opciones corre como cu
 A los agentes se les dice que borren en un comando aparte. Si un borrado viene encadenado después de otro trabajo, se
 mira solo, y la tarjeta muestra solo esa parte.
 
-Cada borrado que Auto mira deja una línea debajo de los pasos del agente, como «Auto lo borró: salida de build o de
-tests» o «Auto te preguntó: archivos tuyos que no hizo en esta tarea». Abrila para ver qué se va y quién lo decidió:
-una regla fija, o el modelo ayudante con sus propias palabras. **Configuración › Agentes › Lo que borró Auto** los
-lista a todos, del más nuevo al más viejo, con **Borrados** y **Preguntados** para filtrar; cada uno abre su chat. Se
-guardan 90 días.
+Cuando Auto deja seguir un borrado, queda una línea corta debajo de los pasos del agente, «Auto lo aprobó», que se abre
+a quién lo decidió: «GPT-6-Luna · lo pediste vos» (el modelo ayudante por su nombre y su motivo en pocas palabras) o
+«Regla fija». Cuando te pregunta, la tarjeta es la línea. **Configuración › Agentes › Lo que decidió Auto** los
+lista a todos, junto con las otras acciones, del más nuevo al más viejo, con **Aprobados** y **Te preguntó** para
+filtrar; cada uno abre su chat. Se guardan 90 días.
 
 Cuando un borrado pregunta, su tarjeta lista lo que se borraría en palabras simples, con las rutas relativas al
 proyecto, y el comando en **Ver comando**. Por qué quiere hacerlo es su propio mensaje, justo arriba de la tarjeta
 (para Claude Code o Codex, el motivo que dio, en la tarjeta). Podés aceptarlo una vez, o durante este chat: entonces
 los próximos borrados de ese agente en este chat corren sin preguntar. Nunca se permite para siempre, y nunca cubre
 otra cosa que siempre pregunta, como `sudo` o una versión.
+
+### Otras acciones que decide el juez
+
+En Auto, el mismo juez contesta otras tarjetas que el modo mostraría donde trabaja el agente, así solo te pregunta lo
+dudoso o lo dañino:
+
+- leer una página (`web_read`) o usar el navegador (abrir, hacer clic, escribir, pasos) con contenido de afuera en el
+  turno, o con datos en la dirección;
+- una herramienta de un servicio conectado (MCP) con contenido de afuera en el turno;
+- un comando, un archivo nuevo o una edición en tus proyectos que igual preguntaría, y abrir una sesión;
+- un comando que corre en otra máquina por `ssh`, aunque correría sin preguntar. Lo que va entre sus comillas es de
+  esa máquina; una redirección afuera de ellas (`> /dev/shm/run.log`) igual escribe en esta computadora;
+- JavaScript en una página (`browser_evaluate`), solo cuando el navegador del agente no tiene ninguna sesión tuya: su
+  perfil propio o incógnito, hasta que le prestes tu sesión, lo hagas iniciar sesión, tomes una de sus pestañas o
+  respondas un traspaso. En el perfil compartido, donde estás logueado, siempre pregunta.
+
+Contesta «preguntar» cuando la acción podría mandar tus datos a donde no pediste (en una dirección, un formulario o un
+mensaje), cuando lo pide una página o un mensaje y no vos, y ante scripts claramente dañinos. Si falla, tarda o duda,
+te llega la tarjeta. Esto nunca le llega y siempre pregunta: mandar o publicar en tu nombre, pagar, contraseñas, claves
+y todo lo que se les parezca, `sudo` y cambios del sistema, la configuración de APX, `AGENTS.md` y `.apx/`, escribir
+fuera de tus proyectos, tu propio Chrome, y la regla propia de un agente de preguntar. Cada respuesta se ve debajo del
+paso («Auto lo aprobó») y en **Lo que decidió Auto**.
 
 Los comandos de git que tiran trabajo que git guardaría también son borrados, se miran igual, y su tarjeta nombra la
 rama, el worktree, los archivos o el stash que se pierden: `git worktree remove --force`, `git branch -D`, `git clean -f` (o `-fd`, `-fdx`),

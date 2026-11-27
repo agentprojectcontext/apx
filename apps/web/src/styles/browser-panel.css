@@ -122,6 +122,29 @@
   display: block;
   pointer-events: none;
 }
+/* A tab of the server's browser, live; held by the owner, it takes their pointer and keys. */
+.browser__live {
+  position: relative;
+}
+.browser__live.is-held {
+  touch-action: none;
+  outline: 2px solid var(--apx-accent);
+  outline-offset: -2px;
+}
+/* Catches the owner's keys and typed text (16px so a phone does not zoom on focus); never seen. */
+.browser__keys {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  resize: none;
+  font-size: 16px;
+  pointer-events: none;
+}
 .browser__shot {
   width: 100%;
   height: 100%;

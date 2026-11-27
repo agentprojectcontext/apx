@@ -6,7 +6,7 @@ import { setTimeout } from "node:timers/promises";
 import { BROWSER_CAP, BROWSER_REF, type BrowserDialog, chromeTabId, type TabInfo } from "@apx/protocol";
 import { servedHere } from "@apx/protocol/browser-urls";
 import { z } from "zod";
-import type { AgentRecord } from "../domain/agents.ts";
+import { markOwnerSessions, profileOf } from "../domain/browser-sessions.ts";
 import type { Store } from "../domain/store.ts";
 import { expandHome } from "../paths.ts";
 import { pruneUploads, saveUpload } from "../services/uploads.ts";
@@ -26,11 +26,7 @@ const SNAPSHOTS_KEPT = 4;
 /** Messages back a chat's own tab is looked for: past them a new tab opens. */
 const CHAT_TAB_LOOKBACK = 40;
 
-function profileFor(agent: AgentRecord): string {
-  if (agent.browser_profile === "incognito") return "incognito";
-  if (agent.browser_profile === "isolated") return `agent:${agent.id.toLowerCase().replace(/[^a-z0-9-]/g, "-")}`;
-  return "shared";
-}
+const profileFor = profileOf;
 
 const host = (url: unknown) => {
   try {
@@ -144,7 +140,7 @@ export function browserTools(
       needsCap: BROWSER_CAP,
       name: "browser_open",
       description:
-        "Open a URL in your browser: in the tab this chat already uses (or `tab`), else a new one; `new_tab` for another beside it. The owner's embedded browser when the APX app is open (they can watch it), APX's own headless one otherwise (nobody sees it, nobody can log in for you). Returns the tab id. For reading or looking something up, web_read and web_search are faster; use the browser when a page needs JavaScript, clicks or forms, or when they failed. This is your browser for any site: not the owner's screen (screen_ tools, only when they ask for their computer) nor a browser an MCP server brings (another profile, logged out, the owner cannot see it). When a page fails, retry or browser_handoff; never switch. Then browser_snapshot gives refs for browser_click and browser_type (wait_s waits for the page); browser_text reads it.",
+        "Open a URL in your browser: in the tab this chat already uses (or `tab`), else a new one; `new_tab` for another beside it. The owner's embedded browser when the APX app is open, else APX's own on its computer; either way they can watch and take over. Returns the tab id. For reading or looking something up, web_read and web_search are faster; use the browser when a page needs JavaScript, clicks or forms, or when they failed. This is your browser for any site: not the owner's screen (screen_ tools, only when they ask for their computer) nor a browser an MCP server brings (another profile, logged out, the owner cannot see it). When a page fails, retry or browser_handoff; never switch. Then browser_snapshot gives refs for browser_click and browser_type (wait_s waits for the page); browser_text reads it.",
       args: z.object({
         url: z.string().describe("http(s) URL"),
         tab: tabArg.optional().describe("tab id to load it in"),
@@ -311,6 +307,8 @@ export function browserTools(
             best = { source: s.id, browser: `${s.browser} (${s.profile})`, domains: found.map((d) => d.domain), count };
         }
         if (!best) return `no session for ${site} in the owner's browsers; use browser_handoff so they log in`;
+        // From here on the owner's sessions may be in this profile (DECISIONS.md#d-283).
+        markOwnerSessions(store, profile);
         const r = await asOwner("browser.import_cookies", {
           source: best.source,
           domains: best.domains.slice(0, 50),
@@ -330,6 +328,8 @@ export function browserTools(
       title: (a) => `Asked you to: ${String(a.reason).slice(0, 60)}`,
       async run(a, ctx) {
         const tab = await own(ctx, a.tab);
+        // The owner may log in while they have the tab (DECISIONS.md#d-283).
+        markOwnerSessions(store, profileFor(ctx.agent));
         await card(ctx, tab, "handoff", a.reason);
         const r = await ctx.call("browser.handoff", { tab, reason: a.reason, by: ctx.agent.id, timeout_s: HANDOFF_S });
         await card(ctx, tab, r.resolved ? "agent" : "handoff", r.resolved ? undefined : "no answer");

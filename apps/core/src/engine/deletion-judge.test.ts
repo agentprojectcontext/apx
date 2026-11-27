@@ -57,7 +57,7 @@ test("the judge decides only what the rules leave open, within its deadline; any
     { timeoutMs: JUDGE_MS, purpose: "deletion" },
   );
   assert.match(asked[0]?.user ?? "", /rm -r ~\/ci\/slots\/x\/coverage[\s\S]*Leftovers of a canceled run/);
-  assert.match(asked[0]?.user ?? "", /write it in Spanish/, "the owner reads its why in their language");
+  assert.match(asked[0]?.user ?? "", /2 to 4 words in Spanish/, "the owner reads its why in their language");
   for (const answer of ['{"decision":"ask"}', "Sure, go ahead.", "", new Error("timed out")])
     assert.equal((await deletionRuns(call(answering(answer), REMOTE))).runs, false, String(answer));
   assert.equal((await deletionRuns(call(undefined, REMOTE))).runs, false, "no auxiliary model: a card");
@@ -85,6 +85,7 @@ test("each decision is kept with what went, who decided and why, newest first (D
     { ...ran.note, id: "" },
     {
       id: "",
+      kind: "deletion",
       verdict: "run",
       by: "judge",
       reasons: ["runtime"],
@@ -103,7 +104,7 @@ test("each decision is kept with what went, who decided and why, newest first (D
     [silent.note.by, silent.note.verdict, silent.note.why, silent.note.model],
     ["judge", "ask", undefined, undefined],
   );
-  const page = store.autoDeletions.page({ limit: 3 });
+  const page = store.autoDecisions.page({ limit: 3 });
   assert.equal(page.decisions.length, 3);
   assert.ok(page.next);
   assert.deepEqual(
@@ -113,10 +114,10 @@ test("each decision is kept with what went, who decided and why, newest first (D
   assert.equal(page.decisions[2]?.command, "rm -rf coverage dist");
   assert.equal(page.decisions[0]?.thread_id, "th_x");
   assert.deepEqual(
-    store.autoDeletions.page({ limit: 10, verdict: "run" }).decisions.map((d) => d.id),
+    store.autoDecisions.page({ limit: 10, verdict: "run" }).decisions.map((d) => d.id),
     [output.note.id, ran.note.id],
   );
-  assert.equal(store.autoDeletions.page({ limit: 10, before: page.next }).decisions[0]?.id, ran.note.id);
+  assert.equal(store.autoDecisions.page({ limit: 10, before: page.next }).decisions[0]?.id, ran.note.id);
   // The record shows only what deletes of a longer command.
-  assert.equal(store.autoDeletions.page({ limit: 10, verdict: "run" }).decisions[1]?.command, REMOTE);
+  assert.equal(store.autoDecisions.page({ limit: 10, verdict: "run" }).decisions[1]?.command, REMOTE);
 });

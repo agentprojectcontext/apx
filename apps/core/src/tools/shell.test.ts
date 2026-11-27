@@ -6,11 +6,11 @@ import { after, before, test } from "node:test";
 import type { PendingInput } from "@apx/protocol";
 import { callTool, inputOrEnd, inputsOrEnd, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { realpath } from "../paths.ts";
-import { removeDir } from "../testkit/platform.ts";
+import { removeDir, tempDir } from "../testkit/platform.ts";
 import { waitFor } from "../testkit/wait.ts";
 import { deletionTargets } from "./command-deletions.ts";
 import { workDir } from "./folders.ts";
-import { broadScan, commandFailed, commandRisk, onlyDeletes, reachesOut } from "./shell.ts";
+import { broadScan, commandFailed, commandRisk, judgeCommand, onlyDeletes, reachesOut } from "./shell.ts";
 
 test("command risk: reading runs, changing asks, destroying always asks", () => {
   for (const c of [
@@ -277,6 +277,10 @@ test("quoted search patterns are not deletion commands, even in the normalized f
 const HOMELAB =
   'ssh homelab-vps \'tar -C "$HOME/apx-ci/slots/fix-x/coverage/all" -czf - logs\' > logs.tgz && ssh homelab-vps \'docker rm apx-fix-x && rm -r "$HOME/apx-ci/slots/fix-x/coverage"; df -h "$HOME/apx-ci"\'';
 
+/** A run started on the owner's Linux box over ssh: the paths inside the quotes are that machine's, not this one's. */
+const FAUSTO =
+  "ssh homelab-vps 'mkdir -p /dev/shm/apx-ci-x && docker run --rm -v /dev/shm/apx-ci-x:/work apx-ci:latest true'";
+
 const llm = scriptedLlm((req, { said, afterTool }) => {
   // Auto's judge of a deletion (DECISIONS.md#d-281): the agent's own logs run, anything else asks.
   if (String(req.messages[0]?.content).startsWith("You decide whether an AI agent may run a deletion"))
@@ -284,6 +288,13 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
       said.includes("tmp-judge")
         ? '{"decision":"run","why":"its own logs"}'
         : '{"decision":"ask","why":"not sure whose it is"}',
+    );
+  // Auto's judge of other calls (DECISIONS.md#d-283): a check on a machine that does not exist runs, the rest asks.
+  if (String(req.messages[0]?.content).startsWith("You decide whether an AI agent working for its owner"))
+    return say(
+      said.includes("host.invalid")
+        ? '{"decision":"run","why":"revisa el runner"}'
+        : '{"decision":"ask","why":"not sure"}',
     );
   if (req.messages.some((m) => m.role === "user" && String(m.content).includes("background then keep working"))) {
     const tools = req.messages.filter((m) => m.role === "tool").length;
@@ -306,6 +317,11 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
   if (said.includes("coverage please")) return callTool("c1", "shell", { command: "rm -r coverage" });
   if (said.includes("glob please")) return callTool("g1", "shell", { command: "rm -rf tmp-glob/*" });
   if (said.includes("homelab please")) return callTool("h1", "shell", { command: HOMELAB });
+  if (said.includes("fausto please")) return callTool("f1", "shell", { command: FAUSTO });
+  if (said.includes("remote check please"))
+    return callTool("f2", "shell", {
+      command: "ssh -o BatchMode=yes -o ConnectTimeout=1 runner.host.invalid 'mkdir -p /dev/shm/apx-check'",
+    });
   if (said.includes("restore please"))
     return callTool("r1", "shell", { command: "git -C restore-repo restore --worktree -- a.txt b.txt" });
   if (said.includes("echo please")) return callTool("s1", "shell", { command: "echo hi-from-shell" });
@@ -687,8 +703,9 @@ test("auto: test output it did not make goes without a card; what only the task 
       .flatMap((m) => m.parts)
       .find((p) => p.type === "tool" && p.call_id === callId);
   const ruled = step("c1");
-  assert.deepEqual(ruled?.type === "tool" && { ...ruled.auto_deletion, id: "" }, {
+  assert.deepEqual(ruled?.type === "tool" && { ...ruled.auto_decision, id: "" }, {
     id: "",
+    kind: "deletion",
     verdict: "run",
     by: "rule",
     reasons: ["output"],
@@ -698,11 +715,11 @@ test("auto: test output it did not make goes without a card; what only the task 
   assert.deepEqual(await inputsOrEnd(env.client, chat), [], "the judge let it run");
   await assert.rejects(readFile(path.join(cwd, "tmp-judge", "run.log")));
   const judgedStep = step("j1");
-  assert.deepEqual(judgedStep?.type === "tool" && [judgedStep.auto_deletion?.by, judgedStep.auto_deletion?.why], [
+  assert.deepEqual(judgedStep?.type === "tool" && [judgedStep.auto_decision?.by, judgedStep.auto_decision?.why], [
     "judge",
     "its own logs",
   ]);
-  const listed = await env.client.call("auto_deletions.list", { limit: 2 });
+  const listed = await env.client.call("auto_decisions.list", { limit: 2 });
   assert.deepEqual(
     listed.decisions.map((d) => [d.command, d.verdict, d.by, d.thread_id]),
     [
@@ -750,6 +767,49 @@ test("auto: the homelab cleanup chained after other work asks the judge, and its
   assert.match(String(judged?.messages.at(-1)?.content), /apx-ci\/slots\/fix-x\/coverage/);
   await env.client.call("runs.respond", { input: card?.id ?? "", decision: "deny" });
   await env.settle(chat);
+});
+
+test("the paths of a command run over ssh are the other machine's; a redirect outside its quotes writes here", async () => {
+  await using tmp = tempDir("apx-ssh-");
+  const roots = [{ dir: tmp.path, write: true, scratch: false }];
+  assert.equal(judgeCommand(roots, FAUSTO, tmp.path), undefined);
+  assert.equal(judgeCommand(roots, "ssh homelab-vps mkdir -p /dev/shm/apx-x", tmp.path), undefined);
+  // A file named on the other machine is not one of this computer's to refuse.
+  assert.equal(judgeCommand(roots, "ssh homelab-vps tail -80 /home/ci/apx-ci/run.log", tmp.path), undefined);
+  // The key ssh reads is this computer's.
+  assert.match(judgeCommand(roots, "ssh -i ~/.ssh/ci homelab-vps true", tmp.path)?.refused ?? "", /\.ssh[\\/]ci/);
+  // The command that opened "Fausto wants to change files in /dev": its log went to this computer's /dev/shm.
+  const local = `${FAUSTO} > /dev/shm/apx-ci-x/preflight.log 2>&1; tail -80 /dev/shm/apx-ci-x/preflight.log`;
+  assert.match(judgeCommand(roots, local, tmp.path)?.refused ?? "", /dev[\\/]shm/);
+});
+
+test("auto: a command on another machine goes to the judge, never to a folder card for its remote paths (DECISIONS.md#d-283)", async (t) => {
+  env.core.store.settings.set("model_aux", "openai/gpt-4o-mini");
+  t.after(() => env.core.store.settings.set("model_aux", ""));
+  const chat = await thread();
+  const judgeCalls = () =>
+    llm.calls.filter((c) => String(c.messages[0]?.content).startsWith("You decide whether an AI agent working for"));
+  await env.client.call("threads.send", { thread: chat, text: "fausto please" });
+  const [card] = await inputsOrEnd(env.client, chat);
+  // The judge said ask: the plain card, not "wants to change files in /dev".
+  assert.equal(card?.folders, undefined);
+  assert.doesNotMatch(card?.prompt ?? "", /\/dev/);
+  assert.match(String(judgeCalls().at(-1)?.messages.at(-1)?.content), /Runs on: homelab-vps \(over ssh\)/);
+  await env.client.call("runs.respond", { input: card?.id ?? "", decision: "deny" });
+  await env.settle(chat);
+  // The judge said run: no card, and the step says why.
+  await env.client.call("threads.send", { thread: chat, text: "remote check please" });
+  assert.deepEqual(await inputsOrEnd(env.client, chat), []);
+  const step = env.core.store.messages
+    .list(chat)
+    .flatMap((m) => m.parts)
+    .find((p) => p.type === "tool" && p.call_id === "f2");
+  assert.deepEqual(
+    step?.type === "tool" && [step.auto_decision?.kind, step.auto_decision?.verdict, step.auto_decision?.reasons],
+    ["action", "run", ["remote"]],
+  );
+  const [kept] = (await env.client.call("auto_decisions.list", { limit: 1 })).decisions;
+  assert.deepEqual([kept?.tool, kept?.why], ["shell", "revisa el runner"]);
 });
 
 test("auto: a command that changes something where the agent works runs without a card", async () => {

@@ -5,7 +5,7 @@ export * from "./app-links.ts";
 export * from "./app-methods.ts";
 export * from "./artifact-methods.ts";
 export * from "./asana-methods.ts";
-export * from "./auto-deletions.ts";
+export * from "./auto-decisions.ts";
 export * from "./browser.ts";
 export * from "./call-methods.ts";
 export * from "./chrome.ts";

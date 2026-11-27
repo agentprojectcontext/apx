@@ -9,7 +9,9 @@ import {
   siteOrigin,
   type TabInfo,
 } from "@apx/protocol";
+
 import type { Bus } from "../bus.ts";
+import { markOwnerSessions } from "../domain/browser-sessions.ts";
 import { chromeReach, reachIn, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { Computer } from "../environments/computer.ts";
@@ -218,6 +220,9 @@ export function browserHandlers(
           ? headless?.handle(method, bound)
           : broker.invoke(BROWSER_CAP, method, bound, deadlineFor(method, bound)),
       );
+      // The owner taking over a tab may log in there: its profile may hold their sessions (DECISIONS.md#d-283).
+      if (store && method === "browser.control" && (params as { mode?: unknown }).mode === "user")
+        markOwnerSessions(store, (out as { profile: string }).profile);
       const tab =
         (params as { tab?: unknown }).tab ?? (method === "browser.open" ? (out as { tab?: unknown }).tab : undefined);
       if (ctx.agent && method !== "browser.close" && typeof tab === "string") holds.hold(ctx.agent.run_id, tab);
