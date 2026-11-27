@@ -36,6 +36,15 @@ test("pending checks cancel through the registered protocol and show the confirm
   const ui = await render(<ContinuationNotice part={part} client={client} />);
   expect(ui.queryByText("Check the report")).toBeNull();
   expect(focus).not.toHaveBeenCalled();
+  const cancelButton = ui.getByRole("button", {
+    name: noticeText(
+      { code: "continuation.cancelLabel", text: "cancelLabel", vars: { purpose: "Check the report" } },
+      lang,
+    ),
+  });
+  expect(cancelButton).toHaveStyle({ height: 34, backgroundColor: "transparent" });
+  expect(Native.StyleSheet.flatten(cancelButton.props.style).minHeight).toBeUndefined();
+  expect(cancelButton.props.hitSlop).toEqual({ top: 7, bottom: 7 });
   await fireEvent.press(ui.getByRole("button", { name: `${t("followup")} · ${label("scheduled")}` }));
   expect(ui.getByText("Check the report")).toBeTruthy();
   await fireEvent.press(ui.getByText(label("cancel")));

@@ -75,8 +75,7 @@ export function ContinuationNotice({ part, client }: { part: Notice; client?: Ap
         state === "pending" && client && v.id && v.thread ? (
           <Button
             size="sm"
-            style={{ minHeight: 48 }}
-            variant="secondary"
+            variant="ghost"
             label={words("cancel")}
             accessibilityLabel={words("cancelLabel", { purpose })}
             busy={busy}
