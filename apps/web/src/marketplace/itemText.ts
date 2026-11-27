@@ -6,6 +6,7 @@ export function connectionUpdateText(
   update: NonNullable<ExtensionInfo["update"]>,
   settings: Pick<ExtensionInfo["settings"][number], "name" | "boundTo">[],
   label: (power: ExtensionPower) => string,
+  display?: { singleConnection?: { id: string; name: string } | undefined; addedLabel?: typeof label },
 ) {
   const bound = update.adds.filter(
     (power) =>
@@ -22,9 +23,11 @@ export function connectionUpdateText(
   );
   const changed = (power: ExtensionPower) => power.kind === "mcp" && changedNames.has(power.name);
   return {
-    adds: update.adds.filter((power) => !changed(power)).map(label),
+    adds: update.adds.filter((power) => !changed(power)).map(display?.addedLabel ?? label),
     drops: update.removes.filter((power) => !changed(power)).map(label),
-    changed: [...changedNames],
+    changed: [...changedNames].map((name) =>
+      display?.singleConnection?.id === name ? display.singleConnection.name : name,
+    ),
     reconnect,
   };
 }

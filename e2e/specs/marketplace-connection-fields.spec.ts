@@ -102,6 +102,9 @@ for (const language of ["en", "es"] as const) {
     await expect(dialog).toContainText(
       spanish ? "Cambia cómo se conecta: store · inventory" : "Changes how it connects: store · inventory",
     );
+    await expect(dialog).toContainText(
+      spanish ? "Suma: Pide Contraseña de aplicación" : "It adds: Asks for Application password",
+    );
     await expect(dialog).toContainText("Legacy credential");
     const submit = dialog.getByRole("button", { name: connect, exact: true });
     const address = dialog.getByLabel(spanish ? "Dirección de la tienda" : "Store address", { exact: true });

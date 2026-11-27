@@ -64,6 +64,18 @@ test("a credential replacement asks for reconnection without hiding unrelated ac
     },
   );
   assert.deepEqual(
+    connectionUpdateText(update, settings, (p) => p.name, {
+      addedLabel: (p) => (p.name === "app_password" ? "Contraseña de aplicación" : p.name),
+      singleConnection: { id: "store", name: "Northwind Store" },
+    }),
+    {
+      adds: ["Contraseña de aplicación", "shop.example.com", "other_key"],
+      drops: ["old_password", "warehouse"],
+      changed: ["Northwind Store", "inventory"],
+      reconnect: true,
+    },
+  );
+  assert.deepEqual(
     connectionUpdateText(update, [], (p) => p.name),
     {
       adds: ["app_password", "shop.example.com", "other_key"],

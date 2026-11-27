@@ -23,7 +23,7 @@ import { type About, aboutAddress, aboutExtension, type Origin, originOf } from 
 import { nothingToConnect, type Problem, problemOf } from "./adding.ts";
 import { ApxMark, ItemIcon } from "./ConnectHead.tsx";
 import { SettingField } from "./ExtensionConfig.tsx";
-import { connectionUpdateText, nameFor } from "./itemText.ts";
+import { connectionUpdateText, nameFor, settingCopyIn } from "./itemText.ts";
 import { PairBody, usePairing } from "./PairStep.tsx";
 import "../styles/install-box.css";
 
@@ -126,6 +126,15 @@ export function InstallBox({
   const t = useT();
   const lang = useLanguage();
   const power = usePowerText();
+  const updateText = (update: NonNullable<ExtensionInfo["update"]>, extension: ExtensionInfo) =>
+    connectionUpdateText(update, extension.settings, power, {
+      addedLabel: (entry) => {
+        const setting = entry.kind === "secret" && extension.settings.find((field) => field.name === entry.name);
+        return power(setting ? { ...entry, detail: settingCopyIn(setting, lang).label } : entry);
+      },
+      singleConnection:
+        extension.mcp.length === 1 && extension.mcp[0] ? { id: extension.mcp[0], name: extension.name } : undefined,
+    });
   const [seen, setSeen] = useState<ExtensionInfo>();
   const [ext, setExt] = useState<ExtensionInfo>();
   const [own, setOwn] = useState<string>();
@@ -541,17 +550,12 @@ export function InstallBox({
           <UpdateNote
             from={update.from}
             to={seen.version}
-            {...connectionUpdateText(update, seen.settings, power)}
+            {...updateText(update, seen)}
             stays={Boolean(update.keeps_on)}
           />
         )}
         {phase === "connect" && ext && !ext.enabled && ext.update && ext.update.adds.length > 0 && (
-          <UpdateNote
-            from={ext.update.from}
-            to={ext.version}
-            {...connectionUpdateText(ext.update, ext.settings, power)}
-            stays={false}
-          />
+          <UpdateNote from={ext.update.from} to={ext.version} {...updateText(ext.update, ext)} stays={false} />
         )}
         {phase === "connect" &&
           ext &&
