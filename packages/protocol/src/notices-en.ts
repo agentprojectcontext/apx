@@ -1,4 +1,5 @@
 export const noticeEn = {
+  "notice.continuation.loading": "Loading follow-up…",
   "notice.continuation.scheduled": "Scheduled",
   "notice.continuation.waiting": "Waiting",
   "notice.continuation.started": "In progress",

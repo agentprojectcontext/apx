@@ -34,7 +34,7 @@ test("expired and revoked follow-ups explain why they did not start, without inv
     await expect(receipts.first()).toContainText("Venció la espera");
     await expect(receipts.last()).toContainText("No pude continuar");
     await expect(receipts.last()).toContainText("Cambió el acceso");
-    await expect(receipts.getByRole("button")).toHaveCount(0);
+    await expect(receipts.getByRole("button", { name: /Cancelar|Ver ejecución/ })).toHaveCount(0);
     expect(llm.calls.length).toBe(0);
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, "continuation-blocked-desktop.png") });
     await page.setViewportSize({ width: 390, height: 844 });
@@ -91,7 +91,9 @@ test("a chat follow-up keeps its receipt through reload, cancels by keyboard, an
     await page.getByRole("button", { name: "Enviar", exact: true }).click();
     await expect(receipts).toHaveCount(1);
     await expect(receipts.first()).toContainText("Programado");
-    await expect(receipts.first()).toContainText("Hasta");
+    await expect(receipts.first().getByText(/^Hasta/)).toBeHidden();
+    await receipts.first().getByRole("button", { name: "Programado" }).click();
+    await expect(receipts.first().getByText(/^Hasta/)).toBeVisible();
     await expect(receipts.first().getByRole("button", { name: "Ver ejecución", exact: true })).toHaveCount(0);
     await page.reload();
     await expect(receipts.first()).toContainText("Programado");
@@ -106,7 +108,7 @@ test("a chat follow-up keeps its receipt through reload, cancels by keyboard, an
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, "continuation-scheduled-phone.png") });
     await cancel.press("Enter");
     await expect(receipts.first()).toContainText("Cancelado");
-    await expect(receipts.first().locator("strong")).toBeFocused();
+    await expect(receipts.first().getByRole("button", { name: "Cancelado" })).toBeFocused();
     await expect(cancel).toHaveCount(0);
     await page.reload();
     await expect(receipts.first()).toContainText("Cancelado");
@@ -114,7 +116,8 @@ test("a chat follow-up keeps its receipt through reload, cancels by keyboard, an
     await page.getByRole("button", { name: "Enviar", exact: true }).click();
     await expect(receipts).toHaveCount(2);
     await expect(receipts.last()).toContainText("En espera");
-    await expect(receipts.last()).toContainText("Fin del ciclo simulado");
+    await receipts.last().getByRole("button", { name: "En espera" }).click();
+    await expect(receipts.last().getByText(/Fin del ciclo simulado/)).toBeVisible();
     const calls = llm.calls.length;
     clock = new Date("2026-10-05T10:11:00Z");
     env.core.scheduler.tick();

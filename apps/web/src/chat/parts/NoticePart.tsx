@@ -38,7 +38,7 @@ export function NoticePart({ part, parts }: { part: NoticeData; parts?: readonly
     );
   if (part.code === "continuation.receipt")
     return (
-      <Suspense fallback={<span>{part.text}</span>}>
+      <Suspense fallback={<span className="noticeline">{t("notice.continuation.loading")}</span>}>
         <ContinuationNotice part={part} />
       </Suspense>
     );
