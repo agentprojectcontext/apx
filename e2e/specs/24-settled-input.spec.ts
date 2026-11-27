@@ -136,3 +136,74 @@ taskInput(
     }
   },
 );
+
+const movedOn = test.extend<{ chatCore: Awaited<ReturnType<typeof startCore>> }>({
+  chatCore: async ({ baseURL: _baseURL }, use) => {
+    const env = await startCore({
+      port: 0,
+      // The turn stops waiting at once: the card is left open behind an ended turn, as after D-045's wait.
+      inputWaits: { turn: 150, external: 150 },
+      llm: scriptedLlm((req, { said, afterTool }) => {
+        if (afterTool) return say("Waiting for your answer.");
+        if (String(req.messages.at(-1)?.content).includes("[withdrawn cards]"))
+          return callTool("again", "ask_owner", { question: "Which day works for the Northwind review?" });
+        if (said.includes("ask me")) return callTool("first", "ask_owner", { question: "Which day works?" });
+        return say("Hi.");
+      }),
+    });
+    try {
+      await use(env);
+    } finally {
+      await env.core.close();
+      await env.cleanup();
+    }
+  },
+});
+
+movedOn(
+  "a card the chat moved past is withdrawn to one line and asked again below",
+  async ({ page, chatCore: env }, info) => {
+    try {
+      await env.client.call("setup.finish", {});
+      const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "Fechas" });
+      await page.goto(`${env.core.url}/#thread=${chat.id}`);
+      const box = page.getByRole("textbox", { name: /Escribile/ });
+      await box.fill("ask me a day");
+      await page.keyboard.press("Enter");
+      await expect(page.locator(".inputcard.is-pending")).toContainText("Which day works?");
+      await expect
+        .poll(async () => (await env.client.call("threads.get", { thread: chat.id })).runs.at(-1)?.ended_at)
+        .toBeTruthy();
+      await box.fill("Something else first");
+      await page.keyboard.press("Enter");
+
+      const line = page.locator(".inputline.is-withdrawn");
+      const card = page.locator(".inputcard.is-pending");
+      await expect(line).toContainText("Retirada");
+      await expect(card).toHaveCount(1);
+      await expect(card).toContainText("Which day works for the Northwind review?");
+      // The new card is below the withdrawn line.
+      const [lineBox, cardBox] = [await line.boundingBox(), await card.boundingBox()];
+      expect((cardBox?.y ?? 0) > (lineBox?.y ?? 0)).toBe(true);
+      for (const [width, layout] of [
+        [1280, "desktop"],
+        [390, "narrow"],
+      ] as const) {
+        await page.setViewportSize({ width, height: 844 });
+        await page.reload();
+        await expect(line).toContainText("Retirada");
+        await expect(line.getByRole("button", { name: /Aceptar|Enviar|Omitir/ })).toHaveCount(0);
+        await expect(card).toHaveCount(1);
+        await info.attach(`withdrawn-card-${layout}`, {
+          body: await page.screenshot({
+            animations: "disabled",
+            path: info.outputPath(`withdrawn-card-${layout}.png`),
+          }),
+          contentType: "image/png",
+        });
+      }
+    } finally {
+      if (!page.isClosed()) await page.goto("about:blank");
+    }
+  },
+);

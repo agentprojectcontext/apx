@@ -601,6 +601,8 @@ export type TurnOpts = {
   extension?: string | undefined;
   /** People on channels waiting for the owner's OK (codes and numbers only). */
   waiting?: string | undefined;
+  /** This agent's unanswered cards withdrawn as the turn started (retiredBlock). */
+  retired?: string | undefined;
   /** A routine's turn: how the owner rated its earlier messages. */
   feedback?: string | undefined;
   /** A research appendix the owner can rate in this report's chat, framed as untrusted observations. */
@@ -693,6 +695,7 @@ export function turnBlocks(opts: TurnOpts): InputBlock[] {
     ["flow editor", opts.flowEditor ? `[flow editor] ${opts.flowEditor}` : ""],
     ["extension", opts.extension ? `[extension context]\n${opts.extension}` : ""],
     ["waiting", opts.waiting ? `[waiting]\n${opts.waiting}` : ""],
+    ["withdrawn cards", opts.retired ? `[withdrawn cards]\n${opts.retired}` : ""],
     ["owner feedback", opts.feedback ? `[owner feedback]\n${opts.feedback}` : ""],
     ["research finding", opts.research ?? ""],
     [

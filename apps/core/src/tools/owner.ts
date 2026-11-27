@@ -84,6 +84,10 @@ export function ownerTools(store: Store): Tool[] {
             : `Asked you: ${String(a.question ?? "").slice(0, 60)}`,
       async run(a, ctx) {
         if (a.withdraw) {
+          // Withdrawn already when the chat moved on (DECISIONS.md#d-282): nothing more to take back.
+          const was = store.inputs.get(a.withdraw);
+          if (was?.state === "withdrawn" && was.agent_id === ctx.agent.id)
+            return `Question ${was.id} was already withdrawn; the owner is not asked again.`;
           const r = ctx.withdrawQuestion(a.withdraw);
           return `Question ${r.id} withdrawn; the owner is not asked again.`;
         }
