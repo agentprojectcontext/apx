@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react-native";
 import { NoticePrefs } from "../../../packages/protocol/src/index.ts";
 import { type Notice, type Routine, type Task, type Thread, useWorkspace } from "../src/hooks/useWorkspace";
+import { t } from "../src/i18n";
 import { credentials, transport } from "./transport.test-support";
 
 let net: ReturnType<typeof transport>;
@@ -203,6 +204,70 @@ test("opening a thread continues when read acknowledgement fails and answering a
     method: "runs.respond",
     params: { input: "inp_one", decision: "approve", scope: "once" },
   });
+  await hook.unmount();
+});
+
+test("an unavailable confirmation refreshes the inbox when its settlement event was missed", async () => {
+  const input = {
+    id: "inp_old",
+    run_id: "run_old",
+    thread_id: thread.id,
+    agent_id: "april",
+    kind: "confirm",
+    state: "pending",
+    prompt: "Continue?",
+  };
+  net.responses["runs.pending"] = { inputs: [input] };
+  const hook = await mount();
+  expect(hook.result.current.data.inputs).toEqual([input]);
+  net.responses["runs.pending"] = { inputs: [] };
+  net.faults["runs.respond"] = {
+    code: "conflict",
+    message: "Internal input state",
+    status: 409,
+    detail: { reason: "input_unavailable" },
+  };
+  net.calls.length = 0;
+  await act(async () => {
+    await expect(hook.result.current.respond(input.id, { decision: "approve", scope: "once" })).rejects.toThrow(
+      t("inputUnavailable"),
+    );
+  });
+  expect(hook.result.current.data.inputs).toEqual([]);
+  expect(net.calls.filter((call) => call.method === "runs.respond")).toHaveLength(1);
+  expect(net.calls.filter((call) => call.method === "runs.pending")).toHaveLength(1);
+  await hook.unmount();
+});
+
+test("a settled input message refreshes the inbox without waiting for another run event", async () => {
+  const input = {
+    id: "inp_old",
+    run_id: "run_old",
+    thread_id: thread.id,
+    agent_id: "april",
+    kind: "question",
+    state: "pending",
+    prompt: "Which option?",
+  };
+  net.responses["runs.pending"] = { inputs: [input] };
+  const hook = await mount();
+  expect(hook.result.current.data.inputs).toEqual([input]);
+  net.responses["runs.pending"] = { inputs: [] };
+  await act(async () => {
+    net.sockets[0]?.event({
+      type: "message.updated",
+      message: {
+        id: "msg_input",
+        thread_id: thread.id,
+        seq: 1,
+        author: { kind: "agent", id: "april" },
+        created_at: "2026-10-18T10:00:00Z",
+        parts: [{ type: "input", input_id: input.id, kind: "question", state: "expired", prompt: input.prompt }],
+      },
+    });
+  });
+  await act(() => jest.advanceTimersByTimeAsync(3000));
+  expect(hook.result.current.data.inputs).toEqual([]);
   await hook.unmount();
 });
 

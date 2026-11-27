@@ -24,6 +24,7 @@ import { DEFAULT_COLUMNS, type TaskColumn, type TaskPatch } from "../tasks/field
 import { continueSession } from "./continueSession";
 import { keepSame, RELOADS } from "./keepSame";
 import { reloadGate } from "./reloadGate";
+import { respondToInput } from "./respondToInput";
 
 export type Agent = {
   id: string;
@@ -418,7 +419,12 @@ export function useWorkspace(creds: Creds) {
               }));
           }
           // Only for what the lists show, one reload at a time; in the background the next return reloads.
-          if (RELOADS.has(event.type) && !away()) gate.later();
+          if (
+            (RELOADS.has(event.type) ||
+              (event.type === "message.updated" && event.message.parts.some((part) => part.type === "input"))) &&
+            !away()
+          )
+            gate.later();
         });
         await refresh();
         await socket.closed;
@@ -504,10 +510,7 @@ export function useWorkspace(creds: Creds) {
   );
 
   const respond = useCallback(
-    async (input: string, response: Answer) => {
-      await rpc(client, "runs.respond", { input, ...response });
-      await loadSecondary();
-    },
+    (input: string, response: Answer) => respondToInput(client, input, response, loadSecondary),
     [client, loadSecondary],
   );
 
@@ -789,6 +792,7 @@ export function useWorkspace(creds: Creds) {
     error,
     client,
     refresh,
+    refreshInputs: loadSecondary,
     openThread,
     readThreads,
     updateThread,

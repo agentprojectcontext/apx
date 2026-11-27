@@ -272,6 +272,7 @@ export const es: Record<Key, string> = {
   agent: "Agente",
   filesChanged: "{n} archivos cambiados",
   couldNotAnswer: "No se pudo responder",
+  inputUnavailable: "Esta solicitud ya no está disponible.",
   answered: "Respondida",
   withdrawn: "Retirada",
   deny: "Rechazar",

@@ -1,7 +1,7 @@
 import { fireEvent, render } from "@testing-library/react-native";
 import { Text } from "react-native";
 import { mediaRows } from "../src/chat/media";
-import { t } from "../src/i18n";
+import { t, translator } from "../src/i18n";
 import type { Message } from "../src/protocol";
 import { DetailBranch } from "../src/ui/chat/DetailBranch";
 import { InputCard } from "../src/ui/chat/InputCard";
@@ -69,6 +69,38 @@ test("long notes and notices with supporting detail still fold", async () => {
     />,
   );
   expect(ui.getByText("Supporting explanation")).toBeTruthy();
+});
+
+test.each(["question", "confirm"] as const)(
+  "expired %s retains readable history but no response controls",
+  async (kind) => {
+    const respond = jest.fn();
+    const ui = await render(
+      <InputCard
+        part={{
+          type: "input",
+          input_id: "expired",
+          kind,
+          state: "expired",
+          prompt: "Old request",
+          options: ["Yes", "No"],
+        }}
+        respond={respond}
+      />,
+    );
+    expect(ui.getByText(t("inputExpired"), { exact: false })).toBeTruthy();
+    await fireEvent.press(ui.getByRole("button"));
+    expect(ui.getByText("Old request")).toBeTruthy();
+    expect(ui.queryByText("Yes")).toBeNull();
+    expect(ui.queryByRole("textbox")).toBeNull();
+    expect(ui.getAllByRole("button")).toHaveLength(1);
+    expect(respond).not.toHaveBeenCalled();
+  },
+);
+
+test("the unavailable response message is localized for questions and confirmations", () => {
+  expect(translator("en")("inputUnavailable")).toBe("This request is no longer available.");
+  expect(translator("es")("inputUnavailable")).toBe("Esta solicitud ya no está disponible.");
 });
 
 test("answered questions fold question and answer together under an independent row", async () => {

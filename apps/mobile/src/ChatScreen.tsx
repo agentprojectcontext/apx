@@ -57,6 +57,7 @@ export function ChatScreen({
   routineRuns,
   onOpenRun,
   onRoutine,
+  refreshInputs,
 }: {
   creds: Creds;
   onUnpair: () => void;
@@ -81,10 +82,11 @@ export function ChatScreen({
   onOpenRun?: (id: string) => void;
   /** Opens a routine's page. */
   onRoutine?: (routineId: string) => void;
+  refreshInputs?: () => Promise<void>;
 }) {
   const theme = useTheme();
   const s = useStyles();
-  const live = useThread(creds, base.id, onUnpair);
+  const live = useThread(creds, base.id, onUnpair, refreshInputs);
   const insets = useSafeAreaInsets();
   const thread = (live.thread as Thread | undefined) ?? base;
   const agent = data.agents.find((item) => item.id === thread.agent_ids[0]);

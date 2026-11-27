@@ -215,6 +215,7 @@ export function WorkspaceScreen({
       case "chat":
         return (
           <ChatScreen
+            refreshInputs={workspace.refreshInputs}
             key={item.thread.id}
             creds={creds}
             onUnpair={onUnpair}

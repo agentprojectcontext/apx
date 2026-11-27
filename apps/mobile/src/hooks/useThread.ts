@@ -25,6 +25,7 @@ import { movedRuns } from "../chat/waiting";
 import { textOrder } from "../format";
 import type { ComputerStage } from "../ui/chat/ComputerProgress";
 import { isWorking } from "./chatSelectors";
+import { respondToInput } from "./respondToInput";
 
 function upsert(messages: Message[], message: Message, matchOptimistic = true): Message[] {
   const realText =
@@ -71,7 +72,7 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
   const [thread, setThread] = useState<Thread>();
   const [usage, setUsage] = useState<Usage>();
   const [computer, setComputer] = useState<ComputerStage>();
-  const reload = useRef<() => Promise<void>>(async () => {});
+  const reload = useRef<(unavailableInput?: string) => Promise<void>>(async () => {});
   useEffect(() => {
     let socket: ApxSocket | undefined;
     let stopped = false;
@@ -125,7 +126,14 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
         setError(err instanceof Error ? err.message : String(err));
       }
     };
-    reload.current = load;
+    reload.current = async (unavailableInput) => {
+      // A streamed pending card must not override the authoritative settlement fetched after a conflict.
+      if (unavailableInput)
+        for (const [id, message] of changes)
+          if (message.parts.some((part) => part.type === "input" && part.input_id === unavailableInput))
+            changes.delete(id);
+      await load();
+    };
     const scheduleLoad = () => {
       if (!refetch)
         refetch = setTimeout(() => {
@@ -250,7 +258,7 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
 }
 
 /** Native counterpart of the web's live store: subscribe, load, fold events, recover missing parts. */
-export function useThread(creds: Creds, threadId: string, onUnpair: () => void) {
+export function useThread(creds: Creds, threadId: string, onUnpair: () => void, refreshInputs?: () => Promise<void>) {
   const client = useMemo(() => new ApxClient({ url: creds.url, token: creds.token, client: APP_CLIENT }), [creds]);
   const sequence = useRef(0);
   const [stopping, setStopping] = useState(false);
@@ -321,11 +329,12 @@ export function useThread(creds: Creds, threadId: string, onUnpair: () => void) 
     }
   }, [client, threadId, reload, setError]);
   const respond = useCallback(
-    async (input: string, answer: Answer) => {
-      await client.call("runs.respond", { input, ...answer });
-      await reload.current();
-    },
-    [client, reload],
+    (input: string, answer: Answer) =>
+      respondToInput(client, input, answer, async (unavailable) => {
+        await reload.current(unavailable);
+        await refreshInputs?.();
+      }),
+    [client, reload, refreshInputs],
   );
   const failed = useCallback((err: unknown) => setError(err instanceof Error ? err.message : String(err)), [setError]);
   /** The agent takes a waiting message at once: the step it is on stops, or it goes first in line. */
