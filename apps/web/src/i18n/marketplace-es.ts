@@ -200,6 +200,7 @@ export const esMarketplace = {
   "box.err.noAnswer": "no respondió",
   "box.err.address":
     "{name} no respondió en esa dirección. Queda en tus extensiones: revisá la dirección y probá de nuevo.",
+  "box.err.checkFields": "Revisá lo que ingresaste y volvé a intentar."
   "box.err.connect":
     "{name} no se pudo conectar. Quedó agregada, sin conectar: probá ahora o más tarde desde su ficha.",
   "box.state.connected": "Conectada",

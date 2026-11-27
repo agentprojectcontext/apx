@@ -139,6 +139,7 @@ export function InstallBox({
     setPhase("review");
     setLink("idle");
     setProblem(undefined);
+    setValues({});
     setTools(undefined);
     setSignInUrl(undefined);
     // Whole to decide on adding it; folded for anything done to one already there (an update, connecting, pairing).
@@ -324,22 +325,31 @@ export function InstallBox({
         return;
       }
       setTools(await startServers(on.mcp));
+      setValues({});
       setLink("connected");
       setPhase("done");
     } catch (e) {
       setLink("broken");
-      setProblem({ key: "box.err.connect", vars: { name: ext.name }, detail: errText(e), retry: true });
+      setProblem(
+        fields.length > 0
+          ? { key: "box.err.checkFields", retry: true }
+          : { key: "box.err.connect", vars: { name: ext.name }, detail: errText(e), retry: true },
+      );
     } finally {
       setBusy(false);
     }
   };
 
-  // What still needs typing before it can connect: its keys and the settings it requires.
+  // Keep this attempt's fields editable even if saving succeeded but the connection failed.
   const fields = ext
     ? [
-        ...ext.secrets.filter((s) => !s.set).map((s) => ({ kind: "secret" as const, s })),
+        ...ext.secrets
+          .filter((s) => Object.hasOwn(values, s.name) || !s.set)
+          .map((s) => ({ kind: "secret" as const, s })),
         ...ext.settings
-          .filter((s) => !s.set && s.value === undefined && (s.required || s.sensitive))
+          .filter(
+            (s) => Object.hasOwn(values, s.name) || (!s.set && s.value === undefined && (s.required || s.sensitive)),
+          )
           .map((s) => ({ kind: "setting" as const, s })),
       ]
     : [];

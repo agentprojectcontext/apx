@@ -8,6 +8,16 @@ import { type Item, kindOf } from "../resources/extensionItems.ts";
 
 type T = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
+type SettingCopy = { label: string; description?: string | undefined };
+
+export function settingCopyIn(
+  setting: SettingCopy & { locales?: { es?: Partial<SettingCopy> | undefined } | undefined },
+  lang: string,
+): SettingCopy {
+  const copy = lang === "es" ? setting.locales?.es : undefined;
+  return { label: copy?.label ?? setting.label, description: copy?.description ?? setting.description };
+}
+
 /** Its one next step, the only button its row and its page show. */
 export type Step =
   | "add"

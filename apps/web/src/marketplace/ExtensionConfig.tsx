@@ -3,8 +3,9 @@ import { Button, Dialog, Field, Icons, Input, Select, Switch } from "@apx/ui";
 import { useEffect, useRef, useState } from "react";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
-import { useT } from "../i18n/index.ts";
+import { useLanguage, useT } from "../i18n/index.ts";
 import { attempt } from "../resources/InstalledExtension.tsx";
+import { settingCopyIn } from "./itemText.ts";
 
 // An extension's own settings page (manifest 2): a form built from its settings, and its pages, each opened in a
 // sandboxed frame that may read and set only its own settings through a small bridge.
@@ -23,18 +24,19 @@ export function SettingField({
   onChange(v: Value): void;
 }) {
   const t = useT();
+  const { label, description } = settingCopyIn(s, useLanguage());
   if (s.type === "boolean")
     return (
-      <Field label={s.label} hint={s.description}>
-        {() => <Switch aria-label={s.label} checked={value === true} onCheckedChange={(v) => onChange(v)} />}
+      <Field label={label} hint={description}>
+        {() => <Switch aria-label={label} checked={value === true} onCheckedChange={(v) => onChange(v)} />}
       </Field>
     );
   if (s.options)
     return (
-      <Field label={s.label} hint={s.description}>
+      <Field label={label} hint={description}>
         {() => (
           <Select
-            label={s.label}
+            label={label}
             value={String(value ?? "")}
             onValueChange={(v) => onChange(String(v))}
             options={s.options?.map((o) => ({ value: o, label: o })) ?? []}
@@ -43,7 +45,7 @@ export function SettingField({
       </Field>
     );
   return (
-    <Field label={s.label} hint={s.description}>
+    <Field label={label} hint={description}>
       {(id) => (
         <Input
           id={id}

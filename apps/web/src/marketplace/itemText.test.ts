@@ -2,7 +2,37 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { ExtensionInfo, McpServerStatus } from "@apx/protocol";
 import type { Item } from "../resources/extensionItems.ts";
-import { accessLines, authText, fromText, kindText, nameFor, newest, nextStep, waitReason } from "./itemText.ts";
+import {
+  accessLines,
+  authText,
+  fromText,
+  kindText,
+  nameFor,
+  newest,
+  nextStep,
+  settingCopyIn,
+  waitReason,
+} from "./itemText.ts";
+
+test("connection fields use their Spanish copy and fall back per field to the original wording", () => {
+  const setting = {
+    label: "Application password",
+    description: "Create it in your profile.",
+    locales: { es: { label: "Contraseña de aplicación", description: "Creala en tu perfil." } },
+  };
+  assert.deepEqual(settingCopyIn(setting, "es"), {
+    label: "Contraseña de aplicación",
+    description: "Creala en tu perfil.",
+  });
+  assert.deepEqual(settingCopyIn(setting, "en"), {
+    label: "Application password",
+    description: "Create it in your profile.",
+  });
+  assert.deepEqual(settingCopyIn({ ...setting, locales: { es: { label: "Contraseña de aplicación" } } }, "es"), {
+    label: "Contraseña de aplicación",
+    description: "Create it in your profile.",
+  });
+});
 
 // The key with its values, so a test reads what the screen would say without the dictionaries.
 const t = (key: string, vars?: Record<string, string | number>) =>
