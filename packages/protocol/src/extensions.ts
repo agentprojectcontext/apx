@@ -31,6 +31,19 @@ export const ExtensionSetting = z
       name: () => ExtName,
       label: () => z.string().trim().min(1).max(120),
       description: () => z.string().max(300).optional(),
+      locales: () =>
+        z
+          .object({
+            es: z
+              .object({
+                label: z.string().trim().min(1).max(120).optional(),
+                description: z.string().max(300).optional(),
+              })
+              .strict()
+              .optional(),
+          })
+          .strict()
+          .optional(),
       type: () => z.enum(["string", "number", "boolean", "directory", "file"]),
       required: () => z.boolean().default(false),
       sensitive: () => z.boolean().default(false),

@@ -165,7 +165,7 @@ other variables or the environment, so a bundle can't carry your credentials els
 
 | Field | What it holds |
 |---|---|
-| `settings` | Values the owner sets, with a `type` (`string`, `number`, `boolean`, `directory`, `file`), a `label`, optional `description`, `default`, `options` (a choice), `required`. A `sensitive` one goes to the secret store and is referenced as `secret://name`; a plain one is referenced as `setting://name` in its servers' arguments, environment, address or headers (in an address, `setting://address/api` drops a final `/` the owner typed). `"generate": "random"` (sensitive strings only) makes APX fill a random key at install. |
+| `settings` | Values the owner sets, with a `type` (`string`, `number`, `boolean`, `directory`, `file`), a `label`, optional `description`, `locales.es.label` and `locales.es.description` (Spanish copy, each falling back independently to English), `default`, `options` (a choice), `required`. A `sensitive` one goes to the secret store and is referenced as `secret://name`; a plain one is referenced as `setting://name` in its servers' arguments, environment, address or headers (in an address, `setting://address/api` drops a final `/` the owner typed). `"generate": "random"` (sensitive strings only) makes APX fill a random key at install. |
 | `agents` | Ready-made agents (`id`, `name`, `description`, `prompt`) the owner adds from its page. |
 | `pages` | Its own HTML pages (`id`, `title`, `entry`), opened from its settings in a sandboxed frame with no network. A page reads and sets only its own settings through `window.apx` (`settings.get`, `settings.set`, `secrets.has`, `secrets.set`, `close`). |
 | `apps` | Widgets or apps (`.apxart` files) the owner adds to Apps from its page. |

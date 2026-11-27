@@ -28,7 +28,14 @@ const manifest = (extra: Record<string, unknown> = {}) => ({
     },
   },
   settings: [
-    { name: "region", label: "Region", type: "string", options: ["us", "eu"], default: "us" },
+    {
+      name: "region",
+      label: "Region",
+      locales: { es: { label: "Región" } },
+      type: "string",
+      options: ["us", "eu"],
+      default: "us",
+    },
     { name: "volume", label: "Starting volume", type: "number" },
     { name: "library", label: "Media folder", type: "directory", required: true },
     { name: "connection_key", label: "Connection key", type: "string", sensitive: true, generate: "random" },
@@ -82,6 +89,7 @@ test("a manifest 2 says what it brings and needs: agents, apps, a TV app, the ho
   assert.equal(seen.agents[0]?.name, "Movie night host");
   assert.deepEqual(seen.pages, [{ id: "setup", title: "Set up the TV" }]);
   assert.equal(seen.companion?.pairing.with, "extension");
+  assert.deepEqual(seen.settings[0]?.locales, { es: { label: "Región" } });
   // Its settings before install: defaults shown, nothing set.
   assert.deepEqual(
     seen.settings.map((s) => [s.name, s.value ?? null, s.set]),
@@ -117,6 +125,7 @@ test("what a manifest 2 names must hold: declared references, files that exist, 
 
 test("settings: typed and checked; a sensitive one generated and kept as a secret; plain ones fill its server", async () => {
   const installed = await env.client.call("extensions.install", { path: src.path });
+  assert.deepEqual(installed.settings[0]?.locales, { es: { label: "Región" } });
   const key = installed.settings.find((s) => s.name === "connection_key");
   assert.equal(key?.set, true);
   assert.equal(key?.value, undefined);
