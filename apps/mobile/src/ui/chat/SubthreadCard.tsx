@@ -39,6 +39,7 @@ export function SubthreadCard({
       summary={t(status.label)}
       icon="Bot"
       compact
+      straight
       warning={status.status === "failed"}
     >
       <Text style={s.subtitle}>

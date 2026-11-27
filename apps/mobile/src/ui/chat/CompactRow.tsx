@@ -16,6 +16,7 @@ export function CompactRow({
   compact = false,
   branch = true,
   trailing,
+  straight = false,
 }: {
   title: string;
   summary?: string;
@@ -27,6 +28,7 @@ export function CompactRow({
   compact?: boolean;
   branch?: boolean;
   trailing?: ReactNode;
+  straight?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const s = useStyles();
@@ -67,7 +69,13 @@ export function CompactRow({
         {trailing}
       </View>
       {feedback}
-      {open ? branch ? <DetailBranch>{children}</DetailBranch> : <View style={s.branches}>{children}</View> : null}
+      {open ? (
+        branch ? (
+          <DetailBranch straight={straight}>{children}</DetailBranch>
+        ) : (
+          <View style={s.branches}>{children}</View>
+        )
+      ) : null}
     </View>
   );
 }

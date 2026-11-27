@@ -1,7 +1,9 @@
 import { fireEvent, render } from "@testing-library/react-native";
+import { Text } from "react-native";
 import { mediaRows } from "../src/chat/media";
 import { t } from "../src/i18n";
 import type { Message } from "../src/protocol";
+import { DetailBranch } from "../src/ui/chat/DetailBranch";
 import { InputCard } from "../src/ui/chat/InputCard";
 import { NoticeCard } from "../src/ui/chat/NoticeCard";
 
@@ -22,6 +24,25 @@ test("only an exact echo of a settled question folds into its question row", () 
   ]);
   expect(mediaRows([echoed, { ...question, state: "pending" }, other])).toHaveLength(3);
   expect(mediaRows([{ type: "text", text: "Which option? More context." }, question, other])).toHaveLength(3);
+});
+
+test("agent reports use a full-height side line while other disclosures keep the curved connector", async () => {
+  const ui = await render(
+    <DetailBranch straight>
+      <Text>Full report</Text>
+    </DetailBranch>,
+  );
+  const guide = () => ui.getByTestId("detail-guide", { includeHiddenElements: true });
+  expect(guide().props.style).toMatchObject({ top: 0, bottom: 0, borderLeftWidth: 1 });
+  expect(guide().props.style.borderBottomWidth).toBeUndefined();
+  expect(guide().props.accessible).toBe(false);
+  expect(ui.getByText("Full report")).toBeTruthy();
+  await ui.rerender(
+    <DetailBranch>
+      <Text>Other detail</Text>
+    </DetailBranch>,
+  );
+  expect(guide().props.style).toMatchObject({ borderLeftWidth: 1, borderBottomWidth: 1, borderBottomLeftRadius: 8 });
 });
 
 jest.mock("../src/ui/Icon", () => {
