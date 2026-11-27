@@ -28,7 +28,8 @@ test("plain extension settings reach a child as literal text, including referenc
     );
     await env.client.call("extensions.install", { path: source.path });
     const target = { scope: "global" as const, server: "literal-fixture" };
-    for (const text of ["ordinary text", "env:ACME_LITERAL", "setting://literal"]) {
+    await env.client.call("secrets.set", { name: "literal_fixture", value: "fixture value must not be substituted" });
+    for (const text of ["ordinary text", "env:ACME_LITERAL", "setting://literal", "secret://literal_fixture"]) {
       await env.client.call("extensions.settings", { id: "literal", values: { text } });
       await env.client.call("extensions.enable", { id: "literal", enabled: true });
       const result = await env.client.call("mcp.call", { ...target, tool: "token", arguments: {} });
