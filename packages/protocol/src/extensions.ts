@@ -433,6 +433,8 @@ export const ExtensionContents = z.object(
     agent_lines: () => z.record(z.string(), z.string()).optional(),
     /** The settings it asks for before it works (required, not keys), by their labels. */
     settings: () => z.array(z.string()).optional(),
+    /** Display copy for required settings, when translations are available; never their values. */
+    setting_labels: () => z.array(ExtensionSetting.pick({ label: true, locales: true })).optional(),
     /** Its widgets. */
     apps: () => z.number().int().optional(),
   }),

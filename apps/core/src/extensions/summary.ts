@@ -189,6 +189,9 @@ export function contentsOf(
     hash,
     connectors: connectorsOf(m),
     ...(settings.length ? { settings: settings.map((s) => s.label) } : {}),
+    ...(settings.some((s) => s.locales)
+      ? { setting_labels: settings.map(({ label, locales }) => ({ label, ...(locales ? { locales } : {}) })) }
+      : {}),
     ...(m.apps.length ? { apps: m.apps.length } : {}),
   };
 }

@@ -77,6 +77,49 @@ test("before adding it, its page shows each connector's address, its skills and 
   assert.deepEqual([b.keys, b.settings], [["API key"], ["Workspace"]]);
 });
 
+test("required settings use the same translated copy before and after adding an extension", () => {
+  const settings = [
+    {
+      name: "workspace",
+      label: "Workspace",
+      type: "string",
+      required: true,
+      locales: { es: { label: "Espacio de trabajo" } },
+    },
+    { name: "region", label: "Region", type: "string", required: true },
+  ];
+  const available = item({
+    entry: entry(contents({ settings: ["Workspace", "Region"], setting_labels: settings })),
+  });
+  const installed = item({
+    state: "on",
+    ext: {
+      id: "acme",
+      name: "Acme",
+      mcp: [],
+      skills: [],
+      agents: [],
+      routines: [],
+      apps: [],
+      secrets: [],
+      settings: [
+        ...settings,
+        { name: "optional", label: "Optional", required: false },
+        { name: "preset", label: "Preset", required: true, default: "preset-value" },
+        { name: "private", label: "Private key", required: true, sensitive: true },
+        { name: "generated", label: "Generated", required: true, generate: "token" },
+      ],
+    } as unknown as ExtensionInfo,
+  });
+  for (const i of [available, installed]) {
+    assert.deepEqual(bringsOf(i, [], "es").settings, ["Espacio de trabajo", "Region"]);
+    assert.deepEqual(bringsOf(i, [], "en").settings, ["Workspace", "Region"]);
+    assert.deepEqual(bringsOf(i, [], "fr").settings, ["Workspace", "Region"]);
+  }
+  const legacy = item({ entry: entry(contents({ settings: ["Workspace", "Region"] })) });
+  assert.deepEqual(bringsOf(legacy, [], "es").settings, ["Workspace", "Region"]);
+});
+
 test("connector authorization keeps local access distinct from none and OAuth", () => {
   for (const [connection, expected] of [
     ["local", "local"],
