@@ -646,6 +646,8 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "extx.origin.folder": "Desde una carpeta · v{version}",
   "mkt.settings": "Configuración",
   "mkt.settingsSaved": "Guardado.",
+  "mkt.revokeBeforeChanging": "Revocá la credencial anterior antes de cambiar este dato.",
+  "mkt.enterReplacementSecret": "Ingresá una credencial nueva para guardar este cambio.",
   "mkt.openPage": "Abrir {title}",
   "mkt.agents": "Agentes que trae",
   "mkt.addAgent": "Agregar agente",

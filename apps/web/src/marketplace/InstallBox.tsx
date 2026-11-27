@@ -23,7 +23,7 @@ import { type About, aboutAddress, aboutExtension, type Origin, originOf } from 
 import { nothingToConnect, type Problem, problemOf } from "./adding.ts";
 import { ApxMark, ItemIcon } from "./ConnectHead.tsx";
 import { SettingField } from "./ExtensionConfig.tsx";
-import { nameFor } from "./itemText.ts";
+import { connectionUpdateText, nameFor, settingCopyIn } from "./itemText.ts";
 import { PairBody, usePairing } from "./PairStep.tsx";
 import "../styles/install-box.css";
 import { SignInElsewhere } from "../resources/SignInElsewhere.tsx";
@@ -69,13 +69,17 @@ function UpdateNote({
   to,
   adds,
   drops,
+  changed,
   stays,
+  reconnect,
 }: {
   from: string;
   to: string;
   adds: string[];
   drops: string[];
+  changed: string[];
   stays: boolean;
+  reconnect: boolean;
 }) {
   const t = useT();
   return (
@@ -85,9 +89,22 @@ function UpdateNote({
         {drops.length > 0 && (
           <span className="mkt-box__line">{t("box.update.drops", { list: drops.join(" · ") })}</span>
         )}
-        {!adds.length && !drops.length && <span className="mkt-box__line">{t("box.update.nothingNew")}</span>}
-        <span className="mkt-box__line">{t(stays ? "box.update.stays" : "box.update.waits")}</span>
-        <span className="mkt-box__line">{t("box.update.keeps", { from })}</span>
+        {changed.length > 0 && (
+          <span className="mkt-box__line">{t("box.update.changed", { list: changed.join(" · ") })}</span>
+        )}
+        {reconnect ? (
+          <span className="mkt-box__line">{t("box.update.reconnect")}</span>
+        ) : (
+          <>
+            {!adds.length && !drops.length && !changed.length && (
+              <span className="mkt-box__line">{t("box.update.nothingNew")}</span>
+            )}
+            <span className="mkt-box__line">{t(stays ? "box.update.stays" : "box.update.waits")}</span>
+          </>
+        )}
+        <span className="mkt-box__line">
+          {t(reconnect ? "box.update.keepsReconnect" : "box.update.keeps", { from })}
+        </span>
       </SummaryItem>
     </SummaryCard>
   );
@@ -110,6 +127,17 @@ export function InstallBox({
   const t = useT();
   const lang = useLanguage();
   const power = usePowerText();
+  const updateText = (update: NonNullable<ExtensionInfo["update"]>, extension: ExtensionInfo) =>
+    connectionUpdateText(update, extension.settings, power, {
+      addedLabel: (entry) => {
+        const setting = entry.kind === "secret" && extension.settings.find((field) => field.name === entry.name);
+        return power(setting ? { ...entry, detail: settingCopyIn(setting, lang).label } : entry);
+      },
+      singleConnection:
+        extension.mcp.length === 1 && extension.mcp[0]
+          ? { extensionId: extension.id, registeredId: extension.mcp[0], name: extension.name }
+          : undefined,
+    });
   const [seen, setSeen] = useState<ExtensionInfo>();
   const [ext, setExt] = useState<ExtensionInfo>();
   const [own, setOwn] = useState<string>();
@@ -141,6 +169,7 @@ export function InstallBox({
     setPhase("review");
     setLink("idle");
     setProblem(undefined);
+    setValues({});
     setTools(undefined);
     setSignInUrl(undefined);
     // Whole to decide on adding it; folded for anything done to one already there (an update, connecting, pairing).
@@ -329,22 +358,31 @@ export function InstallBox({
         return;
       }
       setTools(await startServers(on.mcp));
+      setValues({});
       setLink("connected");
       setPhase("done");
     } catch (e) {
       setLink("broken");
-      setProblem({ key: "box.err.connect", vars: { name: ext.name }, detail: errText(e), retry: true });
+      setProblem(
+        fields.length > 0
+          ? { key: "box.err.checkFields", retry: true }
+          : { key: "box.err.connect", vars: { name: ext.name }, detail: errText(e), retry: true },
+      );
     } finally {
       setBusy(false);
     }
   };
 
-  // What still needs typing before it can connect: its keys and the settings it requires.
+  // Keep this attempt's fields editable even if saving succeeded but the connection failed.
   const fields = ext
     ? [
-        ...ext.secrets.filter((s) => !s.set).map((s) => ({ kind: "secret" as const, s })),
+        ...ext.secrets
+          .filter((s) => Object.hasOwn(values, s.name) || !s.set)
+          .map((s) => ({ kind: "secret" as const, s })),
         ...ext.settings
-          .filter((s) => !s.set && s.value === undefined && (s.required || s.sensitive))
+          .filter(
+            (s) => Object.hasOwn(values, s.name) || (!s.set && s.value === undefined && (s.required || s.sensitive)),
+          )
           .map((s) => ({ kind: "setting" as const, s })),
       ]
     : [];
@@ -515,23 +553,16 @@ export function InstallBox({
             </span>
           </div>
         )}
-        {a && phase === "review" && update && (
+        {a && phase === "review" && seen && update && (
           <UpdateNote
             from={update.from}
-            to={seen?.version ?? ""}
-            adds={update.adds.map(power)}
-            drops={update.removes.map(power)}
+            to={seen.version}
+            {...updateText(update, seen)}
             stays={Boolean(update.keeps_on)}
           />
         )}
         {phase === "connect" && ext && !ext.enabled && ext.update && ext.update.adds.length > 0 && (
-          <UpdateNote
-            from={ext.update.from}
-            to={ext.version}
-            adds={ext.update.adds.map(power)}
-            drops={ext.update.removes.map(power)}
-            stays={false}
-          />
+          <UpdateNote from={ext.update.from} to={ext.version} {...updateText(ext.update, ext)} stays={false} />
         )}
         {phase === "connect" &&
           ext &&

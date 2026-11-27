@@ -197,6 +197,7 @@ export const enMarketplace = {
   "box.err.noAnswer": "it didn't answer",
   "box.err.address":
     "{name} didn't answer at that address. It stays in your extensions: check the address and try again.",
+  "box.err.checkFields": "Check the information you entered and try again.",
   "box.err.connect": "{name} couldn't connect. It stays added, not connected: try again now or later from its page.",
   "box.state.connected": "Connected",
   "box.state.paired": "Paired",
@@ -255,6 +256,9 @@ export const enMarketplace = {
   "box.update.stays": "It stays connected; nothing for you to do.",
   "box.update.waits": "Then you connect it again to approve what it adds.",
   "box.update.keeps": "{from} is kept: you can go back to it from ⋯.",
+  "box.update.changed": "Changes how it connects: {list}",
+  "box.update.reconnect": "Reconnect with a new credential.",
+  "box.update.keepsReconnect": "You can go back to {from} from ⋯. If you do, you’ll need to connect again.",
   "box.collapse": "Show less",
   "box.expand": "Show what it brings",
   "box.bringsUnknown":

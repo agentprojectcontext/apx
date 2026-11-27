@@ -2,7 +2,93 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { ExtensionInfo, McpServerStatus } from "@apx/protocol";
 import type { Item } from "../resources/extensionItems.ts";
-import { accessLines, authText, fromText, kindText, nameFor, newest, nextStep, waitReason } from "./itemText.ts";
+import {
+  accessLines,
+  authText,
+  connectionUpdateText,
+  fromText,
+  kindText,
+  nameFor,
+  newest,
+  nextStep,
+  settingCopyIn,
+  waitReason,
+} from "./itemText.ts";
+
+test("connection fields use their Spanish copy and fall back per field to the original wording", () => {
+  const setting = {
+    label: "Application password",
+    description: "Create it in your profile.",
+    locales: { es: { label: "Contraseña de aplicación", description: "Creala en tu perfil." } },
+  };
+  assert.deepEqual(settingCopyIn(setting, "es"), {
+    label: "Contraseña de aplicación",
+    description: "Creala en tu perfil.",
+  });
+  assert.deepEqual(settingCopyIn(setting, "en"), {
+    label: "Application password",
+    description: "Create it in your profile.",
+  });
+  assert.deepEqual(settingCopyIn({ ...setting, locales: { es: { label: "Contraseña de aplicación" } } }, "es"), {
+    label: "Contraseña de aplicación",
+    description: "Create it in your profile.",
+  });
+});
+
+test("a credential replacement asks for reconnection without hiding unrelated access changes", () => {
+  const update = {
+    from: "1.0.0",
+    keeps_on: false,
+    adds: [
+      { kind: "secret", name: "app_password" },
+      { kind: "mcp", name: "store", detail: "https://shop.example.com/new" },
+      { kind: "mcp", name: "inventory", detail: "node new-inventory.js" },
+      { kind: "host", name: "shop.example.com" },
+      { kind: "secret", name: "other_key" },
+    ],
+    removes: [
+      { kind: "secret", name: "old_password" },
+      { kind: "mcp", name: "store", detail: "https://shop.example.com/old" },
+      { kind: "mcp", name: "inventory", detail: "node old-inventory.js" },
+      { kind: "mcp", name: "warehouse" },
+    ],
+  } satisfies NonNullable<ExtensionInfo["update"]>;
+  const settings = [{ name: "app_password", boundTo: ["shop_url"] }];
+  assert.deepEqual(
+    connectionUpdateText(update, settings, (p) => p.name),
+    {
+      adds: ["app_password", "shop.example.com", "other_key"],
+      drops: ["old_password", "warehouse"],
+      changed: ["store", "inventory"],
+      reconnect: true,
+    },
+  );
+  assert.deepEqual(
+    connectionUpdateText(update, settings, (p) => p.name, {
+      addedLabel: (p) => (p.name === "app_password" ? "Contraseña de aplicación" : p.name),
+      singleConnection: {
+        extensionId: "northwind-shop",
+        registeredId: "northwind-shop-store",
+        name: "Northwind Store",
+      },
+    }),
+    {
+      adds: ["Contraseña de aplicación", "shop.example.com", "other_key"],
+      drops: ["old_password", "warehouse"],
+      changed: ["Northwind Store", "inventory"],
+      reconnect: true,
+    },
+  );
+  assert.deepEqual(
+    connectionUpdateText(update, [], (p) => p.name),
+    {
+      adds: ["app_password", "shop.example.com", "other_key"],
+      drops: ["old_password", "warehouse"],
+      changed: ["store", "inventory"],
+      reconnect: false,
+    },
+  );
+});
 
 // The key with its values, so a test reads what the screen would say without the dictionaries.
 const t = (key: string, vars?: Record<string, string | number>) =>
@@ -59,7 +145,10 @@ test("one next step per state: add, connect, pair a device, then done", () => {
   assert.equal(nextStep(item({ state: "on", ext: tv })), "pair");
   assert.equal(nextStep(item({ state: "attention", attention: "keys", ext: ext() })), "keys");
   assert.equal(nextStep(item({ state: "attention", attention: "sign-in", ext: ext() })), "sign-in");
-  assert.equal(nextStep(item({ state: "off", attention: "update-waits", ext: ext({ enabled: false }) })), "review");
+  assert.equal(
+    nextStep(item({ state: "attention", attention: "update-waits", ext: ext({ enabled: false }) })),
+    "review",
+  );
   assert.equal(nextStep(item({ state: "on", ext: ext() })), "done");
 });
 

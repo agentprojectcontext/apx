@@ -180,8 +180,13 @@ export function createMcp(deps: {
       const value = deps.secrets.resolveIn(ref, valuesIn(d.values_of));
       return value ?? (ref.startsWith("secret://") && optional.has(ref.slice(9)) ? "" : undefined);
     });
+    const fill = (value: string) =>
+      value
+        .split(/(\{\{apx-literal-\d+\}\})/g)
+        .map((part) => d.literalSettings?.[part] ?? errors.fill(part))
+        .join("");
     const resolve = (values: Record<string, string>) =>
-      Object.fromEntries(Object.entries(values).map(([k, v]) => [k, errors.fill(v)]));
+      Object.fromEntries(Object.entries(values).map(([k, v]) => [k, fill(v)]));
     // Loaded with the first server: a core with none never loads the MCP client.
     const [{ Client }, { StdioClientTransport }, { StreamableHTTPClientTransport }] = await Promise.all([
       import("@modelcontextprotocol/sdk/client/index.js"),
@@ -206,7 +211,7 @@ export function createMcp(deps: {
     let trackProcess: (() => void) | undefined;
     try {
       if (d.url)
-        transport = new StreamableHTTPClientTransport(new URL(errors.fill(d.url)), {
+        transport = new StreamableHTTPClientTransport(new URL(fill(d.url)), {
           requestInit: { headers: resolve(d.headers) },
         });
       else {
@@ -216,7 +221,7 @@ export function createMcp(deps: {
         if (process.platform === "win32" && !/[\\/]/.test(cmd) && !onPath(cmd)) throw new Error(`spawn ${cmd} ENOENT`);
         const stdio = new StdioClientTransport({
           command: d.command ?? "",
-          args: d.args.map((a) => errors.fill(a)),
+          args: d.args.map(fill),
           // Only what the definition gives it, on top of an environment without credentials.
           env: { ...commandEnv(), ...env },
           cwd: d.cwd ?? ownDir(d.name),
@@ -649,7 +654,10 @@ export function createMcp(deps: {
           ...(d.credential_key ? { credential_key: d.credential_key } : {}),
           only: Boolean(d.only),
           transport: d.url ? "http" : "stdio",
-          target: d.url ?? [d.command, ...d.args].join(" "),
+          target: (d.url ?? [d.command, ...d.args].join(" ")).replace(
+            /\{\{apx-literal-\d+\}\}/g,
+            (token) => d.literalSettings?.[token] ?? token,
+          ),
           enabled: d.enabled,
           trusted,
           status: !d.enabled

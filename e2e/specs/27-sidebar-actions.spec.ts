@@ -75,8 +75,12 @@ test("Canales recientes, tres visibles, acciones integradas y menú idéntico co
   await open(page, "#view=tasks");
   await expect.poll(() => orderedIds(page, "channel")).toEqual(["slack", "telegram", "discord"]);
   const more = page.getByRole("button", { name: "2 canales más · 2 sin leer" });
-  await more.hover();
-  await expect(page.locator(".apx-tooltip")).toContainText("2 canales más · 2 sin leer");
+  // External sessions can move the channels section while the initial lists finish loading.
+  await expect(async () => {
+    await page.mouse.move(1000, 800);
+    await more.hover();
+    await expect(page.locator(".apx-tooltip")).toContainText("2 canales más · 2 sin leer", { timeout: 1000 });
+  }).toPass({ timeout: 7_000 });
   const row = page.locator('.sidebar [data-channel-id="telegram"]');
   const options = row.getByRole("button", { name: "Opciones de Telegram con nombre largo de canal" });
   await page.mouse.move(1000, 800);
