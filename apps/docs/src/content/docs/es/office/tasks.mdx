@@ -74,9 +74,10 @@ tarjeta o un bloqueo manual independiente, la tarea sigue esperando. Las pregunt
 Responder no cierra la tarea, no evita una revisión ni autoriza una acción que rechazaste. Una respuesta parcial
 puede necesitar otra pregunta.
 
-Cuando se resuelven todas las esperas de esa tarea, APX continúa el turno que escucha la respuesta o encola un turno
-de respuesta si el anterior terminó o APX se reinició. Hasta entonces registra la respuesta sin continuar la
-llamada aprobada ni el turno que escucha, incluso tras un reinicio. Varias respuestas registradas en el mismo chat
+Si tu respuesta resuelve todas las esperas de esa tarea, el agente sigue en el mismo turno. Si la tarea todavía espera
+otra cosa, como un bloqueo manual independiente, APX registra tu respuesta y el turno del agente termina sin correr la
+llamada aprobada, así el chat queda libre para tu próximo mensaje. Cuando la tarea deja de esperar, un turno de
+respuesta entrega lo que dijiste, también tras un reinicio. Varias respuestas registradas en el mismo chat
 de tarea llegan juntas, en vez de iniciar un ejecutor por cada una. Repetir la misma respuesta no inicia otro turno. Quitar un bloqueo manual desde el menú de la tarea
 reanuda una vez el trabajo asignado que esté inactivo; no descarta tarjetas sin responder ni inicia otro ejecutor
 si ya hay trabajo en curso.

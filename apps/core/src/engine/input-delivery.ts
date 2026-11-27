@@ -10,8 +10,8 @@ export const folderBinding = (folders: string[], write = false) =>
 export function createInputDelivery(o: {
   store: Store;
   admit: AdmitFn;
-  waiting: Map<string, (r: InputRecord) => void>;
-  pauseWait: Map<string, () => void>;
+  /** The turns listening for an answer; `held` tells one its answer waits on another of the task's waits. */
+  waiting: Map<string, (r: InputRecord, held?: boolean) => void>;
   settleCard: (r: InputRecord) => void;
 }) {
   const { store, waiting, settleCard } = o;
@@ -88,7 +88,9 @@ export function createInputDelivery(o: {
             .join("\n\n");
           for (const r of live) {
             settleCard(r);
-            waiting.get(r.id)?.(extra ? { ...r, answer: `${r.answer ?? ""}\n\nOther owner responses:\n${extra}` } : r);
+            const listener = waiting.get(r.id);
+            waiting.delete(r.id);
+            listener?.(extra ? { ...r, answer: `${r.answer ?? ""}\n\nOther owner responses:\n${extra}` } : r);
           }
         } else {
           wake(records);
@@ -104,8 +106,10 @@ export function createInputDelivery(o: {
     const binding = store.threads.context(r.thread_id).task_inputs?.[r.id];
     if (binding) {
       settleCard(r);
-      o.pauseWait.get(r.id)?.();
       releaseTask(binding.task);
+      // Still listening: another of the task's waits holds the answer. The turn ends now instead of waiting with no
+      // deadline, and the answer, kept here, wakes the agent once that wait is cleared (HISTORY.md#held-task-answer).
+      waiting.get(r.id)?.(r, true);
       return;
     }
     const listener = waiting.get(r.id);
