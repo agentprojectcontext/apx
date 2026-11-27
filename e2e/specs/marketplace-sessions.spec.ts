@@ -153,6 +153,17 @@ for (const [language, width] of [
     await more.click();
     await expect(page.getByRole("menuitem", { name: disconnect, exact: true })).toHaveCount(0);
     await expect(page.getByRole("menuitem", { name: es ? "Quitar" : "Remove", exact: true })).toBeVisible();
+    await page.keyboard.press("Escape");
+    const connect = es ? "Conectar" : "Connect";
+    fs.rmSync(callbackFile);
+    await card.getByRole("button", { name: connect, exact: true }).click();
+    const box = page.getByRole("dialog");
+    await box.getByRole("button", { name: connect, exact: true }).click();
+    await expect.poll(() => fs.existsSync(callbackFile)).toBe(true);
+    await expect(box.locator('a[href^="https://shop.example.com/authorize"]')).toBeVisible();
+    expect((await fetch(fs.readFileSync(callbackFile, "utf8"))).ok).toBe(true);
+    await box.getByRole("button", { name: es ? "Listo" : "Done", exact: true }).click();
+    await expect(action).toBeVisible();
     await info.attach("connection-final", { body: await page.screenshot(), contentType: "image/png" });
   });
 }
