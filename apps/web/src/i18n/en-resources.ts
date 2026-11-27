@@ -159,6 +159,14 @@ export const enResources = {
     "It runs a command from the repository. Check it before approving; a changed file needs approving again.",
   "res.signIn": "Sign in",
   "res.signInWaiting": "Finish signing in in your browser",
+  "res.signInOpenPage": "Open the sign-in page",
+  "res.signInPasteHint":
+    "If the page ends on a localhost address that does not load (it happens when APX runs on another computer), copy that whole address and paste it here.",
+  "res.signInPasteLabel": "Address the page ended on",
+  "res.signInFinish": "Finish",
+  "res.signInStartOver": "Start over",
+  "res.signInPasteFailed":
+    "That address does not finish this sign-in. Copy the whole address from the page that did not load. If you used Start over, open the sign-in page again.",
   "res.command": "Command",
   "res.url": "URL",
   "res.noVars": "Uses no variables.",

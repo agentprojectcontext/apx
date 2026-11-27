@@ -4,7 +4,9 @@ import { runsOnComputer } from "./runs.ts";
 import type { Store } from "./store.ts";
 import type { ThreadContext } from "./threads.ts";
 
-function taskOf(store: Store, input: InputRecord): Task | undefined {
+type WorkRef = Pick<InputRecord, "thread_id" | "agent_id" | "run_id">;
+
+function taskOf(store: Store, input: WorkRef): Task | undefined {
   const thread = store.threads.get(input.thread_id);
   const task = thread?.task_id ? store.tasks.get(thread.task_id) : undefined;
   const context = store.threads.context(input.thread_id);
@@ -34,6 +36,11 @@ function boundary(store: Store, task: Task): string {
   const assignment = events.findLast((event) => typeof event.data.assignment_id === "string");
   const cycle = events.filter((event) => typeof event.data.state === "string").length;
   return `${assignment?.data.assignment_id ?? ""}:${cycle}`;
+}
+
+export function taskInputBoundary(store: Store, work: WorkRef): string | undefined {
+  const task = taskOf(store, work);
+  return task ? `${task.id}:${boundary(store, task)}` : undefined;
 }
 
 export function taskInputIsCurrent(store: Store, input: InputRecord): boolean {

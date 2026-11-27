@@ -116,6 +116,19 @@ export const resourceMethodsPart3 = {
     effect: true,
     access: "human",
   }),
+  /**
+   * Finishes a sign-in done in a browser on another device: `url` is the address its page ended on, which only the
+   * machine running the server can open. Refused unless it is that sign-in's own return address.
+   */
+  "mcp.finishSignIn": deferMethod({
+    params: () => McpTarget.extend({ url: z.string().min(1).max(4096) }).strict(),
+    result: () =>
+      z.object({
+        server: McpServerStatus,
+      }),
+    effect: true,
+    access: "human",
+  }),
   "mcp.test": deferMethod({
     params: () =>
       z

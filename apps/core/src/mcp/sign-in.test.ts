@@ -5,9 +5,10 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { removeDir, waitFor } from "../testkit/platform.ts";
-import { signInUrl } from "./sign-in.ts";
+import { returnAddress, signInUrl } from "./sign-in.ts";
 
 const SERVER = path.join(import.meta.dirname, "fake-sign-in-server.test-support.mjs");
+const LAUNCHER = path.join(import.meta.dirname, "launcher.test-support.mjs");
 
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(`Result: ${String(req.messages.at(-1)?.content).slice(0, 300)}`);
@@ -29,12 +30,12 @@ after(async () => {
 });
 
 /** One of the owner's servers that signs in like mcp-remote; `opened()` counts the browsers it would have opened. */
-async function addServer(name: string, extra: Record<string, string> = {}) {
+async function addServer(name: string, extra: Record<string, string> = {}, launcher?: string) {
   const signed = path.join(dir, `${name}.signed`);
   const log = path.join(dir, `${name}.opened`);
   const server = {
     command: process.execPath,
-    args: [SERVER],
+    args: launcher ? [launcher, SERVER] : [SERVER],
     env: { SIGNED_FILE: signed, OPENED_LOG: log, ...extra },
   };
   await env.client.call("mcp.set", { name, server });
@@ -42,6 +43,7 @@ async function addServer(name: string, extra: Record<string, string> = {}) {
     server,
     signIn: () => fs.writeFileSync(signed, "ok"),
     opened: () => (fs.existsSync(log) ? fs.readFileSync(log, "utf8").split("\n").filter(Boolean).length : 0),
+    pid: () => Number(fs.readFileSync(`${log}.pid`, "utf8")),
     running: () => {
       try {
         process.kill(Number(fs.readFileSync(`${log}.pid`, "utf8")), 0);
@@ -157,4 +159,65 @@ test("a sign-in that ends unfinished keeps waiting on the owner, without a page 
   assert.equal(s?.sign_in_url, undefined);
   await turn("find echo");
   assert.equal(shop.opened(), 1);
+});
+
+test("only the sign-in's own return address on this machine, with its state, is taken back from another device", () => {
+  const page = `https://admin.example.com/authorize?state=abc&redirect_uri=${encodeURIComponent("http://localhost:44776/oauth/callback")}`;
+  const back = returnAddress(page, " http://localhost:44776/oauth/callback?code=c1&state=abc ");
+  assert.equal(back?.href, "http://localhost:44776/oauth/callback?code=c1&state=abc");
+  assert.ok(returnAddress(page, "http://127.0.0.1:44776/oauth/callback?error=access_denied&state=abc"));
+  for (const wrong of [
+    "http://localhost:44776/oauth/callback?code=c1&state=other",
+    "http://localhost:44776/oauth/callback?code=c1",
+    "http://localhost:44777/oauth/callback?code=c1&state=abc",
+    "http://localhost:44776/admin?code=c1&state=abc",
+    "http://192.168.1.9:44776/oauth/callback?code=c1&state=abc",
+    "https://localhost:44776/oauth/callback?code=c1&state=abc",
+    "http://localhost:44776/oauth/callback?state=abc",
+    "not an address",
+  ])
+    assert.equal(returnAddress(page, wrong), undefined, wrong);
+  const elsewhere = `https://admin.example.com/authorize?state=abc&redirect_uri=${encodeURIComponent("https://app.example.com/cb")}`;
+  assert.equal(returnAddress(elsewhere, "https://app.example.com/cb?code=c1&state=abc"), undefined);
+  assert.equal(
+    returnAddress("https://admin.example.com/authorize?state=abc", "http://localhost:1/x?code=1&state=abc"),
+    undefined,
+  );
+});
+
+test("a sign-in whose page ended on another device finishes once that address is pasted back", async () => {
+  await addServer("remote", { CALLBACK: "1" });
+  await env.client.call("mcp.signIn", { scope: "global", server: "remote" });
+  const waiting = await becomes("remote", "needs-sign-in");
+  const page = new URL(waiting.sign_in_url ?? "");
+  const back = new URL(page.searchParams.get("redirect_uri") ?? "");
+  await assert.rejects(
+    env.client.call("mcp.finishSignIn", {
+      scope: "global",
+      server: "remote",
+      url: `${back.href}?code=c1&state=forged`,
+    }),
+    /not the address/,
+  );
+  await env.client.call("mcp.finishSignIn", {
+    scope: "global",
+    server: "remote",
+    url: `${back.href}?code=c1&state=s-42`,
+  });
+  await becomes("remote", "ready");
+  await assert.rejects(
+    env.client.call("mcp.finishSignIn", { scope: "global", server: "remote", url: `${back.href}?code=c1&state=s-42` }),
+    /not waiting/,
+  );
+});
+
+test("a server started through a launcher like npx stops with it, so a new sign-in gets its return port", async (t) => {
+  const shop = await addServer("launched", {}, LAUNCHER);
+  // A leftover would hold this run's output open.
+  t.after(() => shop.running() && process.kill(shop.pid()));
+  await env.client.call("mcp.signIn", { scope: "global", server: "launched" });
+  await becomes("launched", "needs-sign-in");
+  await waitFor(shop.running, "the launched server to start");
+  await env.client.call("mcp.set", { name: "launched", server: { ...shop.server, enabled: false } });
+  await waitFor(() => !shop.running(), "the launched server to stop with its launcher", { ms: 15_000 });
 });

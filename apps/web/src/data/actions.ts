@@ -12,7 +12,7 @@ import { loadJobs } from "./jobs.ts";
 import { loadCatalog, loadModelsConfig } from "./models.ts";
 import { parseNewChat, takeNewChatModel } from "./newChat.ts";
 import { notify } from "./notices.ts";
-import { hasNoticesFor } from "./notifications.ts";
+import { hasNoticesFor, loadNotifications } from "./notifications.ts";
 import { socketCall } from "./socketCall.ts";
 import { data, upsertMessage } from "./state.ts";
 import { openMarkReadDialog } from "./threadAdmin.ts";
@@ -362,6 +362,18 @@ export async function respond(
   try {
     await client.call("runs.respond", { input, ...a });
   } catch (e) {
+    if (
+      e instanceof ApxError &&
+      e.code === "conflict" &&
+      (e.detail as { reason?: unknown })?.reason === "input_unavailable"
+    ) {
+      notify(t("error.inputUnavailable"));
+      const thread = Object.entries(data.get().messages).find(([, messages]) =>
+        messages.some((message) => message.parts.some((part) => part.type === "input" && part.input_id === input)),
+      )?.[0];
+      await Promise.all([thread ? loadThread(thread) : undefined, loadNotifications()]);
+      return;
+    }
     notify(t("error.respond", { error: errText(e) }));
   }
 }

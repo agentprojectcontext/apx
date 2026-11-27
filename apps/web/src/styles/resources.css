@@ -1131,3 +1131,24 @@
   margin: 0 0 6px;
   color: var(--apx-fg-muted);
 }
+
+/* ── A sign-in finished in a browser on another device ─────────────────────── */
+.signin-elsewhere {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: var(--apx-text-sm);
+}
+.signin-elsewhere p {
+  margin: 0;
+  color: var(--apx-fg-muted);
+}
+.signin-elsewhere a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+}
+.signin-elsewhere .signin-elsewhere__failed {
+  color: var(--apx-danger);
+}

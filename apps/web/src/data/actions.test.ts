@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, beforeEach, type TestContext, test } from "node:test";
 import { type Message, Surface, Thread } from "@apx/protocol";
+import { ApxError } from "@apx/protocol/client";
 import { data } from "./state.ts";
 
 const windowDescriptor = Object.getOwnPropertyDescriptor(globalThis, "window");
@@ -382,6 +383,31 @@ test("stop, input responses and compaction target the selected entity and keep a
     ["runs.respond", { input: "input_1", decision: "approve", scope: "session" }],
     ["threads.compact", { thread: "thr_1" }],
   ]);
+});
+
+test("an unavailable input refreshes its saved card and the attention tray even without a live event", async (t) => {
+  const input = {
+    type: "input",
+    input_id: "in_1",
+    kind: "question",
+    prompt: "Which draft?",
+    state: "pending",
+  } as const;
+  const pending: Message = { ...message("msg_1", 1), parts: [input] };
+  const expired: Message = { ...pending, parts: [{ ...input, state: "expired" }] };
+  const calls = rpc(t, {
+    "runs.respond": new ApxError({ code: "conflict", message: "Unavailable", detail: { reason: "input_unavailable" } }),
+    "threads.get": { thread: thread(), messages: [expired], runs: [] },
+    "notifications.list": { notifications: [], unread: 0 },
+  });
+  data.set({ messages: { thr_1: [pending] } });
+  await actions.respond("in_1", { text: "Blue" });
+  assert.deepEqual(calls, [
+    ["runs.respond", { input: "in_1", text: "Blue" }],
+    ["threads.get", { thread: "thr_1" }],
+    ["notifications.list", {}],
+  ]);
+  assert.deepEqual(data.get().messages.thr_1, [expired]);
 });
 
 test("a reload keeps a sent copy until its message is stored, and never shows both", () => {

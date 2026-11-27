@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { ApxClient } from "@apx/protocol/client";
+import { ApxClient, ApxError } from "@apx/protocol/client";
 import { callTool, inputOrEnd, pendingInput, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { createLog } from "../log.ts";
 import { removeDir } from "../testkit/platform.ts";
@@ -360,10 +360,18 @@ test("archiving a chat ends its session approval and expired confirmations stay 
     });
     e.core.store.approvals.grant(rec.approval, "always", "");
     assert.notEqual(e.core.store.inputs.get(expired.id)?.state, "approved");
+    const { approvals } = await e.client.call("tools.approvals", {});
     await assert.rejects(
       e.client.call("runs.respond", { input: expired.id, decision: "approve", scope: "always" }),
-      /expired/,
+      (error: unknown) => {
+        assert.ok(error instanceof ApxError);
+        assert.equal(error.code, "conflict");
+        assert.deepEqual(error.detail, { reason: "input_unavailable" });
+        return true;
+      },
     );
+    assert.equal(e.core.store.inputs.get(expired.id)?.state, "expired");
+    assert.deepEqual((await e.client.call("tools.approvals", {})).approvals, approvals);
   } finally {
     await e.clean();
   }

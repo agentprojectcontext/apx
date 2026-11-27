@@ -7,8 +7,14 @@ import { type ApprovalTarget, writeFolderApproval } from "../domain/approvals.ts
 import { type InputRecord, publicInput } from "../domain/inputs.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
-import { awaitTaskInput, finishTaskInput, settleTaskInput, taskInputIsCurrent } from "../domain/task-input-wait.ts";
-import { badRequest, conflict, errorMessage, notFound, Shutdown, unauthorized } from "../errors.ts";
+import {
+  awaitTaskInput,
+  finishTaskInput,
+  settleTaskInput,
+  taskInputBoundary,
+  taskInputIsCurrent,
+} from "../domain/task-input-wait.ts";
+import { badRequest, Canceled, conflict, errorMessage, notFound, Shutdown, unauthorized } from "../errors.ts";
 import { addReadOnly } from "../tools/folders.ts";
 import type { Display } from "./display.ts";
 import type { AdmitFn } from "./engine.ts";
@@ -80,6 +86,9 @@ export function createInputs(deps: {
   admit: AdmitFn;
   /** Stops the run's deadline while it waits; the returned function starts it again. */
   hold: (runId: string) => () => void;
+  /** Stops the exact turn whose request was invalidated, not other work in the chat. */
+  cancelWaiting?: (runId: string) => void;
+  inputBoundary?: (runId: string) => string | undefined;
   /** How long a turn waits for an answer (tests shorten it). */
   waits?: InputWaits;
 }) {
@@ -134,6 +143,20 @@ export function createInputs(deps: {
     const th = store.threads.get(threadId);
     if (th?.state === "input-required" && !store.inputs.pending(th.id).length && !store.threads.busy([th.id]))
       store.threads.patch(th.id, { state: "idle" });
+  }
+
+  function closeCard(id: string, resume = false): InputRecord | undefined {
+    return store.tx(() => {
+      const settled = expireInput(id, resume);
+      if (!settled) return undefined;
+      settleCard(settled);
+      idleIfDone(settled.thread_id);
+      return settled;
+    });
+  }
+
+  function retireCard(r: InputRecord): void {
+    if (closeCard(r.id) && waiting.has(r.id)) deps.cancelWaiting?.(r.run_id);
   }
 
   store.approvals.subscribe(() => {
@@ -194,6 +217,15 @@ export function createInputs(deps: {
       appOnly?: boolean | undefined;
       signal: AbortSignal;
     }): Promise<InputRecord> {
+      const boundary = deps.inputBoundary?.(o.run.id);
+      if (
+        boundary &&
+        boundary !== taskInputBoundary(store, { thread_id: o.run.thread_id, agent_id: o.agent.id, run_id: o.run.id })
+      ) {
+        const reason = new Canceled("the task assignment ended");
+        deps.cancelWaiting?.(o.run.id);
+        throw reason;
+      }
       const waitMs = o.external ? waits.external : waits.turn;
       const rec = store.tx(() => {
         const input = store.inputs.create({
@@ -272,13 +304,16 @@ export function createInputs(deps: {
       const rec = store.inputs.get(id);
       if (!rec) throw notFound(`input ${id}`);
       if (rec.app_only && onChannel) throw unauthorized(APP_ONLY);
-      if (!taskInputIsCurrent(store, rec))
-        throw conflict("this task question is no longer current; withdraw it and ask again in the current assignment");
       const draft = publicInput(rec).artifact_draft;
       if (draft && a.decision === "approve" && reviewedArtifact !== draft)
         throw unauthorized("public_artifact_review_required");
-      if (rec.state === "pending" && rec.expires_at <= new Date().toISOString()) expireInput(id);
+      if (rec.state === "pending") {
+        if (!taskInputIsCurrent(store, rec)) retireCard(rec);
+        else if (rec.expires_at <= new Date().toISOString()) closeCard(id);
+      }
       const cur = store.inputs.get(id) as InputRecord;
+      if (cur.state === "expired")
+        throw conflict("This request is no longer available.", { reason: "input_unavailable" });
       if (cur.state !== "pending") throw conflict(`input ${id} is already ${cur.state}`);
       // A card with no "only this time" (a permission such as the computer's) is approved for its narrowest scope.
       const scope =
@@ -362,15 +397,13 @@ export function createInputs(deps: {
      * the agent) and close on their own deadline, with their cards saying so.
      */
     restore(): void {
-      const expire = (id: string) => {
-        const settled = expireInput(id, true);
-        if (!settled) return;
-        settleCard(settled);
-        idleIfDone(settled.thread_id);
-      };
       const watch = (r: InputRecord) => {
         const left = Date.parse(r.expires_at) - Date.now();
-        if (left <= 0) return expire(r.id);
+        if (left <= 0) {
+          if (!taskInputIsCurrent(store, r)) retireCard(r);
+          else closeCard(r.id, true);
+          return;
+        }
         setTimeout(
           () => {
             const now = store.inputs.get(r.id);
@@ -379,8 +412,11 @@ export function createInputs(deps: {
           Math.min(left, MAX_TIMER_MS),
         ).unref();
       };
-      for (const r of store.inputs.overdue()) expire(r.id);
-      for (const r of store.inputs.pending()) watch(r);
+      for (const r of store.inputs.overdue()) watch(r);
+      for (const r of store.inputs.pending()) {
+        if (taskInputIsCurrent(store, r)) watch(r);
+        else retireCard(r);
+      }
       delivery.restore();
     },
 
@@ -402,7 +438,29 @@ export function createInputs(deps: {
       return n;
     },
 
-    pending: (thread?: string) => store.inputs.pending(thread).map(publicInput),
+    retireTask(taskId: string): void {
+      if (!store.tasks.get(taskId)) {
+        // Deletion unlinks the surviving chats, so find their open cards by their original binding.
+        for (const r of store.inputs.pending()) {
+          if (store.threads.context(r.thread_id).task_inputs?.[r.id]?.task === taskId) retireCard(r);
+        }
+        return;
+      }
+      for (const thread of store.threads.byTask(taskId)) {
+        for (const [id, binding] of Object.entries(store.threads.context(thread.id).task_inputs ?? {})) {
+          if (binding.task !== taskId) continue;
+          const r = store.inputs.get(id);
+          // An invalidated request cannot deliver an answer or release another wait.
+          if (r?.state === "pending" && !taskInputIsCurrent(store, r)) retireCard(r);
+        }
+      }
+    },
+
+    pending: (thread?: string) =>
+      store.inputs
+        .pending(thread)
+        .filter((r) => taskInputIsCurrent(store, r))
+        .map(publicInput),
   };
 }
 

@@ -26,6 +26,7 @@ import { SettingField } from "./ExtensionConfig.tsx";
 import { connectionUpdateText, nameFor, settingCopyIn } from "./itemText.ts";
 import { PairBody, usePairing } from "./PairStep.tsx";
 import "../styles/install-box.css";
+import { SignInElsewhere } from "../resources/SignInElsewhere.tsx";
 
 // The one box for adding and connecting: from the catalog (directly), from elsewhere (under the source picker) or for
 // one already added. On top, APX joined to the service (a device's app joined to APX); under it, the card of what it
@@ -148,6 +149,7 @@ export function InstallBox({
   const [values, setValues] = useState<Record<string, string | number | boolean>>({});
   const [tools, setTools] = useState<string[]>();
   const [signInUrl, setSignInUrl] = useState<string>();
+  const [signInServer, setSignInServer] = useState<string>();
   const alive = useRef(true);
   const pair = usePairing(ext);
   // Open to read what it is; folded to its head while the owner follows the pairing steps.
@@ -268,7 +270,10 @@ export function InstallBox({
           lastStatus = s.status;
           extensionsChanged();
         }
-        if (s?.sign_in_url) setSignInUrl(s.sign_in_url);
+        if (s?.sign_in_url) {
+          setSignInUrl(s.sign_in_url);
+          setSignInServer(server);
+        }
         await pause(2000);
         s = (await client.call("mcp.list", {})).servers.find((x) => x.scope === "global" && x.name === server);
       }
@@ -604,6 +609,9 @@ export function InstallBox({
                     {t("box.signInOpen")} <Icons.ExternalLink size={12} />
                   </a>
                 </p>
+              )}
+              {signInUrl && signInServer && (
+                <SignInElsewhere server={{ scope: "global", name: signInServer }} onDone={() => undefined} />
               )}
               {link === "connecting" && !signInUrl && !pairs && <p className="mkt-box__wait">{t("box.starting")}</p>}
               {/* What opens before it does: the service's own sign-in page, then back here. */}

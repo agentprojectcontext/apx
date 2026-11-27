@@ -43,14 +43,20 @@ async function fixture(t: TestContext) {
   });
   store.runs.setState(run, "completed");
   let serial = 0;
-  const input = () =>
+  const input = (kind: "question" | "confirm" = "question") =>
     store.inputs.create({
       run_id: run.id,
       thread_id: thread.id,
       agent_id: "superagent",
       call_id: `question-${++serial}`,
-      kind: "question",
-      prompt: "Which draft choice?",
+      kind,
+      ...(kind === "confirm"
+        ? {
+            approval: { key: "shell.delete", group: "shell", server: "apx", tool: "shell", permanent: false },
+            tool: "shell",
+          }
+        : {}),
+      prompt: kind === "confirm" ? "Remove the draft?" : "Which draft choice?",
       waitMs: 60_000,
     });
   const current = () => {
@@ -179,12 +185,22 @@ test("a comment reply removes only comment attention, not a native card or manua
 
 test("reassignment to the same agent invalidates old cards and cannot grant or admit stale work", async (t) => {
   const f = await fixture(t);
-  const first = f.input();
+  const first = f.input("confirm");
   awaitTaskInput(f.store, first);
   f.store.tasks.change(f.task.id, { assignee: "superagent" }, "owner");
   assert.equal(taskInputIsCurrent(f.store, first), false);
-  assert.throws(() => f.core.engine.respond(first.id, { text: "Blue" }), /no longer current/);
-  assert.equal(f.store.inputs.get(first.id)?.state, "pending");
+  assert.throws(() => f.core.engine.respond(first.id, { decision: "approve", scope: "always" }), {
+    shape: {
+      code: "conflict",
+      message: "This request is no longer available.",
+      detail: { reason: "input_unavailable" },
+    },
+  });
+  assert.equal(f.store.inputs.get(first.id)?.state, "expired");
+  assert.equal(
+    f.store.approvals.list(f.thread.id).some((grant) => grant.key === "shell.delete"),
+    false,
+  );
   assert.equal(f.current().awaits_owner, true);
   assert.equal(f.store.runs.list(f.thread.id).length, 1);
   assert.equal(manualTaskWait(f.store, f.current(), false), false, "explicit release can discard a stale wait");
@@ -200,7 +216,7 @@ test("closing and reopening a task starts a fresh wait cycle without reviving an
   awaitTaskInput(f.store, second);
   assert.equal(taskInputIsCurrent(f.store, first), false);
   assert.equal(taskInputIsCurrent(f.store, second), true);
-  assert.throws(() => f.core.engine.respond(first.id, { text: "Red" }), /no longer current/);
+  assert.throws(() => f.core.engine.respond(first.id, { text: "Red" }), /no longer available/);
   assert.equal(f.current().awaits_owner, true);
   f.answer(second.id);
   assert.equal(f.current().awaits_owner, false);
@@ -208,6 +224,28 @@ test("closing and reopening a task starts a fresh wait cycle without reviving an
   assert.equal(f.core.engine.releaseTaskInputs(f.task.id), 1);
   await f.settle(f.thread.id);
   assert.equal(f.store.threads.context(f.thread.id).task_inputs?.[second.id], undefined);
+});
+
+test("deleting a task retires bound inputs in a surviving work chat and clears their attention", async (t) => {
+  const f = await fixture(t);
+  const input = f.input();
+  awaitTaskInput(f.store, input);
+  f.store.notifications.add({
+    kind: "input",
+    level: "warn",
+    title: "Draft choice",
+    body: input.prompt,
+    thread_id: f.thread.id,
+    ref: input.id,
+  });
+  await f.client.call("tasks.delete", { task: f.task.id });
+  assert.ok(f.store.threads.get(f.thread.id));
+  assert.equal(f.store.inputs.get(input.id)?.state, "expired");
+  const { notifications } = await f.client.call("notifications.list", {});
+  assert.equal(
+    notifications.some((notice) => notice.ref === input.id && !notice.read_at),
+    false,
+  );
 });
 
 test("a listener notification stays durable until consumption, so losing the listener cannot lose the owner's answer", async (t) => {

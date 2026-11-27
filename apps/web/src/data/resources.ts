@@ -60,6 +60,21 @@ export const testMcp = (s: McpServerStatus) =>
     client.call("mcp.test", { scope: s.scope, server: s.name, ...(s.project_id ? { project: s.project_id } : {}) }),
   );
 
+/** Finishes a sign-in whose page ended, in a browser on another device, on an address that did not load. */
+export const finishMcpSignIn = (s: Pick<McpServerStatus, "scope" | "name" | "project_id">, url: string) =>
+  attempt(
+    async () =>
+      (
+        await client.call("mcp.finishSignIn", {
+          scope: s.scope,
+          server: s.name,
+          url,
+          ...(s.project_id ? { project: s.project_id } : {}),
+        })
+      ).server,
+    { quiet: true },
+  );
+
 export const signInMcp = (s: McpServerStatus) =>
   attempt(
     async () =>
