@@ -1,4 +1,5 @@
 import type { Agent, Message as Msg, Part, Thread } from "@apx/protocol";
+import { isRestartNotice } from "@apx/protocol/notices";
 import {
   AgentAvatar,
   EngineIcon,
@@ -81,6 +82,7 @@ export function AgentTurn({
   generationImages,
   engine,
   actions,
+  hideRestart = false,
 }: {
   thread: Thread;
   message: Msg;
@@ -97,6 +99,8 @@ export function AgentTurn({
   engine?: { id: string; label: string } | undefined;
   /** Extra controls for the whole answer (ask again), with the last bubble's. */
   actions?: ReactNode;
+  /** A later message says the restart again: its line replaces this one. */
+  hideRestart?: boolean;
 }) {
   const t = useT();
   const mdLabels = useMarkdownLabels();
@@ -119,7 +123,7 @@ export function AgentTurn({
   }[] = imageGenerationBlocks(
     message.parts,
     runState,
-    (p) => p.type === "skills" || chips.later.has(p) || (p.type === "text" && (!p.text.trim() || isSignal(p.text))),
+    (p) => p.type === "skills" || isRestartNotice(p) || chips.later.has(p) || (p.type === "text" && (!p.text.trim() || isSignal(p.text))),
     generationImages,
   ).map((b) =>
     b.kind === "generation"
@@ -195,9 +199,17 @@ export function AgentTurn({
     </MessageMeta>
   );
 
+  // A restart that cut the turn: a line of the system's after it, with no name or controls of the agent's.
+  const restart = hideRestart ? undefined : message.parts.findLast(isRestartNotice);
+  const restartLine = restart?.type === "notice" && (
+    <Suspense fallback={restart.text}>
+      <NoticePart part={restart} />
+    </Suspense>
+  );
   // The chips label an answer: a finished turn that said nothing (a mail it let pass, a signal) shows nothing at all,
   // but for SKIP, which says there was nothing worth telling.
   if (!live && tools.length === 0 && items.length === 0) {
+    if (restartLine) return <div className="turn">{restartLine}</div>;
     if (!message.parts.some((p) => p.type === "text" && isSkipAnswer(p.text))) return null;
     return (
       <div className="turn">
@@ -296,6 +308,7 @@ export function AgentTurn({
           </Message>
         );
       })}
+      {restartLine}
       {received && message.run_id && (
         <Suspense fallback={null}>
           <ReceivedDialog run={message.run_id} onClose={() => setReceived(false)} />

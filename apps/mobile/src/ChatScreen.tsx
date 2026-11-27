@@ -25,7 +25,7 @@ import { continueSession, sessionState } from "./hooks/continueSession";
 import { useThread } from "./hooks/useThread";
 import type { Thread, Workspace } from "./hooks/useWorkspace";
 import { t } from "./i18n";
-import type { Message, RoutineRun } from "./protocol";
+import { type Message, type RoutineRun, supersededRestarts } from "./protocol";
 import { BrowserConsents } from "./ui/BrowserConsents";
 import { ChatComposer } from "./ui/ChatComposer";
 import { ChatMenu } from "./ui/ChatMenu";
@@ -127,6 +127,7 @@ export function ChatScreen({
   const rows = useMemo(() => withDays(outOfLine(live.messages)).reverse(), [live.messages]);
   const queue = useMemo(() => ({ actions: live.waiting }), [live.waiting]);
   const planAt = useMemo(() => latestPlan(live.messages), [live.messages]);
+  const restarted = useMemo(() => supersededRestarts(live.messages), [live.messages]);
   const mailChannels = useMemo(
     () => new Set(data.channels.filter((c) => c.type === "email").map((c) => c.id)),
     [data.channels],
@@ -348,6 +349,7 @@ export function ChatScreen({
                     channels={data.channels}
                     queue={queue}
                     showPlan={item.message.id === planAt}
+                    restartSuperseded={restarted.has(item.message.id)}
                   />
                 </View>
               )

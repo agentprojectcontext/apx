@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Alert, Text, View } from "react-native";
 import type { DelegationState } from "../../hooks/continueSession";
 import { lang, t } from "../../i18n";
-import { type ApxClient, type Message, noticeText } from "../../protocol";
+import { type ApxClient, isRestartNotice, type Message, noticeText } from "../../protocol";
 import { Icon } from "../Icon";
 import { Button } from "../kit";
 import { makeStyles, useTheme } from "../theme";
@@ -59,11 +59,13 @@ export function NoticeCard({
   if (part.level !== "error" && !actionable) {
     const memory = part.code === "memory.saved";
     const research = part.code === "research.updated";
+    // A restart that cut a turn is a quiet line of the system's, not a warning.
+    const restart = isRestartNotice(part);
     const brief = !details?.length && !part.detail?.trim() && text.length <= 160 && !text.includes("\n");
     const title =
       part.code === "thread.compacted"
         ? t("noticeContext")
-        : memory || research || brief
+        : memory || research || restart || brief
           ? text
           : t(part.level === "warn" ? "noticeWarning" : "noticeInfo");
     const hasDetail = part.code !== "thread.compacted" && Boolean(details?.length || part.detail || title !== text);
@@ -78,11 +80,13 @@ export function NoticeCard({
               ? "Search"
               : part.code === "thread.compacted"
                 ? "Archive"
-                : part.level === "warn"
+                : restart
+                  ? "RotateCcw"
+                  : part.level === "warn"
                   ? "TriangleAlert"
                   : "Info"
         }
-        warning={part.level === "warn"}
+        warning={part.level === "warn" && !restart}
       >
         {hasDetail ? body : undefined}
       </CompactRow>
