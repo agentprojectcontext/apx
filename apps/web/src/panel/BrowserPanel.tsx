@@ -8,6 +8,7 @@ import { useSlice } from "../data/createStore.ts";
 import { useT } from "../i18n/index.ts";
 import { nav } from "../shell/nav.ts";
 import { BrowserEdit, leaveEditing } from "./BrowserEdit.tsx";
+import { liveTab } from "./BrowserLive.tsx";
 import { BrowserToolbar, HandoffBar } from "./BrowserToolbar.tsx";
 import { BrowserViewport } from "./BrowserViewport.tsx";
 import { browserEdit } from "./browserEdit.ts";
@@ -23,6 +24,9 @@ import { useActiveTab } from "./useActiveTab.ts";
 export function BrowserPanel() {
   const t = useT();
   const { tabs, active, native } = useActiveTab();
+  // A tab of the server's browser streaming here takes the owner's hand too.
+  const streaming = useSlice(liveTab, (s) => s.tab) === active?.tab && !native;
+  const interactive = native || streaming;
   const [adding, setAdding] = useState(false);
   const editing = useSlice(browserEdit, (s) => s.target);
   // Edit mode belongs to one tab the owner holds: another tab, or an agent taking it back, ends it.
@@ -69,8 +73,13 @@ export function BrowserPanel() {
       />
       {active || adding ? (
         <div className="browser">
-          <BrowserToolbar tab={adding ? undefined : active} onOpened={() => setAdding(false)} interactive={native} />
-          {!adding && native && active?.control.kind === "handoff" && <HandoffBar tab={active} />}
+          <BrowserToolbar
+            tab={adding ? undefined : active}
+            onOpened={() => setAdding(false)}
+            interactive={interactive}
+            remote={streaming}
+          />
+          {!adding && interactive && active?.control.kind === "handoff" && <HandoffBar tab={active} />}
           {adding || !active ? (
             <EmptyState icon={<Icons.Globe />} title={t("browser.newTab")}>
               {t("browser.newTabHint")}
@@ -78,7 +87,7 @@ export function BrowserPanel() {
           ) : inEdit ? (
             <BrowserEdit tab={active} />
           ) : (
-            <BrowserViewport tab={active.tab} native={native} />
+            <BrowserViewport info={active} native={native} />
           )}
         </div>
       ) : (

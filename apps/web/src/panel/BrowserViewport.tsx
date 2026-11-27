@@ -1,19 +1,26 @@
+import type { TabInfo } from "@apx/protocol";
 import { Button, EmptyState, Icons, Skeleton, useApx } from "@apx/ui";
 import { type RefObject, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePageVisible } from "../common/useInView.ts";
 import { useScreenshot } from "../common/useScreenshot.ts";
 import { useSlice } from "../data/createStore.ts";
 import { useT } from "../i18n/index.ts";
+import { LiveView } from "./BrowserLive.tsx";
 import { popOutBrowser, useBrowserPoppedOut } from "./browserWindow.ts";
 import { nativeCover } from "./nativeCover.ts";
 
 const POLL_MS = 1500;
 
-/** The page area: the desktop app's real browser view when embedded, else a polled screenshot. */
-export function BrowserViewport({ tab, native }: { tab: string; native: boolean }) {
+/**
+ * The page area: this desktop app's own browser view for its tabs; any other tab live from where it runs (the server's
+ * browser streams and takes the owner's hand), or a polled picture when that browser cannot stream.
+ */
+export function BrowserViewport({ info, native }: { info: TabInfo; native: boolean }) {
   const desktop = window.apxDesktop;
   const poppedOut = useBrowserPoppedOut();
-  if (!native || !desktop) return <ScreenshotView key={tab} tab={tab} />;
+  const tab = info.tab;
+  if (!native || !desktop)
+    return info.live ? <LiveView key={tab} tab={tab} control={info.control} /> : <ScreenshotView key={tab} tab={tab} />;
   return poppedOut ? <PoppedOut /> : <DesktopSlot key={tab} desktop={desktop} tab={tab} />;
 }
 

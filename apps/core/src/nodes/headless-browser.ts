@@ -1,7 +1,7 @@
 // The core's own browser for when no desktop app lends one (a server, a Mac with the app closed): Chrome without a
 // window, driven over a pipe (no debugging port anyone else on the machine could use), started on the first browser
-// call and stopped when unused. It serves the same browser.* methods as the desktop node; what needs a human there
-// (taking over, the owner's own logins) is refused with a clear reason.
+// call and stopped when unused. It serves the same browser.* methods as the desktop node; the owner watches a tab live
+// from any panel and takes it over there (headless-live.ts). Their own logins from another computer are refused.
 import { type ChildProcess, spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -20,6 +20,7 @@ import { assertNavigable } from "@apx/protocol/browser-urls";
 import type { CdpPage } from "@apx/protocol/cdp";
 import { ApxError } from "@apx/protocol/client";
 import { findProgram } from "../programs.ts";
+import { createLiveTab, type LiveTab } from "./headless-live.ts";
 import { type PageCall, type PageCdp, type PageCheck, runPageCheck } from "./page-check.ts";
 
 const MAX_TABS = 6;
@@ -145,6 +146,8 @@ type Tab = {
   url: string;
   title: string;
   used: number;
+  /** The owner watching or driving it from a panel, once they look at it. */
+  live?: LiveTab;
 };
 
 export function createHeadlessBrowser(deps: {
@@ -180,6 +183,9 @@ export function createHeadlessBrowser(deps: {
   });
   const contexts = new Map<string, string>();
   const loads = new Map<string, () => void>();
+  // An agent waiting for the owner to finish in a tab (sign-in, a code, a captcha).
+  const handoffs = new Map<string, (done: boolean) => void>();
+  const commandModifier = deps.remote?.selectAllModifiers ?? (process.platform === "darwin" ? 4 : 2);
   // A page check listens to its own tab's events.
   const listeners = new Map<string, (m: Message) => void>();
   let lastUse = Date.now();
@@ -191,6 +197,7 @@ export function createHeadlessBrowser(deps: {
     profile: t.profile,
     control: t.control,
     consent_epoch: t.page.consentEpoch,
+    live: true,
   });
   const changed = () => deps.onChange([...tabs.values()].map(info));
   const bySession = (s: string | undefined) => [...tabs.values()].find((t) => t.session === s);
@@ -221,6 +228,7 @@ export function createHeadlessBrowser(deps: {
       return;
     }
     if (!tab) return;
+    if (m.method === "Page.screencastFrame") return tab.live?.onFrame(m.params);
     if (m.method) tab.page.onEvent(m.method, m.params);
     if (m.method === "Page.loadEventFired") loads.get(tab.id)?.();
     if (m.method === "Page.navigatedWithinDocument") {
@@ -275,7 +283,7 @@ export function createHeadlessBrowser(deps: {
         if (proc !== child) return;
         proc = undefined;
         pipe = undefined;
-        tabs.clear();
+        dropTabs();
         contexts.clear();
         child.kill();
         changed();
@@ -287,7 +295,7 @@ export function createHeadlessBrowser(deps: {
       p.failAll("the headless browser stopped");
       proc = undefined;
       pipe = undefined;
-      tabs.clear();
+      dropTabs();
       contexts.clear();
       changed();
     });
@@ -324,11 +332,18 @@ export function createHeadlessBrowser(deps: {
     return starting;
   };
 
+  /** Every tab goes: what watched them stops, and an agent waiting on the owner there is told it did not happen. */
+  function dropTabs() {
+    for (const t of tabs.values()) t.live?.stop();
+    for (const done of [...handoffs.values()]) done(false);
+    tabs.clear();
+  }
+
   function stop() {
     proc?.kill();
     proc = undefined;
     pipe = undefined;
-    tabs.clear();
+    dropTabs();
     contexts.clear();
     changed();
   }
@@ -337,7 +352,7 @@ export function createHeadlessBrowser(deps: {
     if (deps.remote?.keepAlive?.()) return;
     const now = Date.now();
     for (const t of [...tabs.values()])
-      if (now - t.used > TAB_IDLE_MS && !holds.held(t.id)) void close(t.id).catch(() => {});
+      if (now - t.used > TAB_IDLE_MS && !holds.held(t.id) && !human(t)) void close(t.id).catch(() => {});
     if (proc && !tabs.size && now - lastUse > IDLE_MS) stop();
   }, 30_000);
   sweep.unref();
@@ -415,7 +430,7 @@ export function createHeadlessBrowser(deps: {
       session: sessionId,
       profile,
       page: new CdpPage(send, {
-        selectAllModifiers: deps.remote?.selectAllModifiers ?? (process.platform === "darwin" ? 4 : 2),
+        selectAllModifiers: commandModifier,
       }),
       control,
       url: "about:blank",
@@ -431,6 +446,8 @@ export function createHeadlessBrowser(deps: {
   async function close(id: string): Promise<void> {
     const t = get(id);
     tabs.delete(id);
+    t.live?.stop();
+    handoffs.get(id)?.(false);
     await pipe?.send("Target.closeTarget", { targetId: t.target }).catch(() => {});
     changed();
   }
@@ -442,9 +459,20 @@ export function createHeadlessBrowser(deps: {
     return t;
   }
 
-  /** The agent drives the tab; another agent's tab is refused (the core checks too). */
+  /** The owner has the tab: what they type there is theirs, so agents neither act in it nor read it. */
+  const human = (t: Tab) => t.control.kind === "user" || t.control.kind === "handoff" || handoffs.has(t.id);
+  const ownerHas = () =>
+    new ApxError({ code: "paused_by_user", message: "the human has this tab right now; wait or ask them" });
+  function readable(id: string): Tab {
+    const t = get(id);
+    if (human(t)) throw ownerHas();
+    return t;
+  }
+
+  /** The agent drives the tab; another agent's tab, or one the owner holds, is refused (the core checks too). */
   function drive(id: string, by: string): Tab {
     const t = get(id);
+    if (human(t)) throw ownerHas();
     if (t.control.kind === "agent" && t.control.by !== by)
       throw new ApxError({ code: "paused_by_user", message: `tab ${id} is in use by ${t.control.by}` });
     t.control = { kind: "agent", by, since: new Date().toISOString() };
@@ -463,11 +491,29 @@ export function createHeadlessBrowser(deps: {
     };
   }
 
-  const noHuman = () =>
-    new ApxError({
-      code: "unavailable",
-      message: "this is APX's headless browser: nobody can take over here. Ask the owner to open the APX app for that.",
+  /** The tab's live view, made the first time the owner looks at it. */
+  async function liveOf(t: Tab): Promise<LiveTab> {
+    const p = await ready();
+    t.live ??= createLiveTab((method, params) => p.send(method, params ?? {}, t.session), {
+      commandModifier,
+      activate: () => p.send("Target.activateTarget", { targetId: t.target }),
     });
+    return t.live;
+  }
+
+  /** The owner takes the tab, or gives it back; `done` finishes an agent's handoff (it resumes). */
+  function setControl(t: Tab, mode: "user" | "idle" | "done"): void {
+    if (mode === "user") t.control = { kind: "user", since: new Date().toISOString() };
+    else {
+      const waiter = handoffs.get(t.id);
+      if (waiter) {
+        waiter(mode === "done");
+        return;
+      }
+      t.control = { kind: "idle" };
+    }
+    changed();
+  }
 
   return {
     /** Whether a browser could start here (nothing is started to find out). */
@@ -489,7 +535,7 @@ export function createHeadlessBrowser(deps: {
       const out = await serve(method, raw);
       // A page may carry a filled value on into its address or title (a form sent by GET).
       const t = tabs.get(String((raw as { tab?: unknown } | null)?.tab ?? ""));
-      return t && method !== "browser.screenshot"
+      return t && method !== "browser.screenshot" && method !== "browser.frame"
         ? (await import("@apx/protocol/cdp")).scrubDeep(out, (x) => t.page.scrub(x))
         : out;
     },
@@ -538,7 +584,7 @@ export function createHeadlessBrowser(deps: {
       }
       case "browser.snapshot": {
         const p = browserMethods["browser.snapshot"].params.parse(raw);
-        const t = get(p.tab);
+        const t = readable(p.tab);
         const snap = await t.page.snapshot(p.max_chars);
         // Page text is data, never instructions, wherever it ends up (rule 10).
         const tree = `<untrusted_web source="${t.url}">\n${snap.tree}\n</untrusted_web>`;
@@ -580,7 +626,7 @@ export function createHeadlessBrowser(deps: {
       }
       case "browser.approval_context": {
         const p = browserMethods["browser.approval_context"].params.parse(raw);
-        return get(p.tab).page.approvalContext(p.origin, p.document);
+        return readable(p.tab).page.approvalContext(p.origin, p.document);
       }
       case "browser.evaluate": {
         const p = browserMethods["browser.evaluate"].params.parse(raw);
@@ -590,8 +636,24 @@ export function createHeadlessBrowser(deps: {
       }
       case "browser.screenshot": {
         const p = browserMethods["browser.screenshot"].params.parse(raw);
-        const data = await get(p.tab).page.screenshot();
+        const t = get(p.tab);
+        // A tab in the background paints nothing to take a picture of (macOS).
+        await (await ready()).send("Target.activateTarget", { targetId: t.target }).catch(() => {});
+        const data = await t.page.screenshot();
         return { mime: "image/jpeg", data, bytes: Buffer.byteLength(data, "base64") };
+      }
+      case "browser.frame": {
+        const p = browserMethods["browser.frame"].params.parse(raw);
+        const frame = await (await liveOf(get(p.tab))).frame(p.after, p.max_width, p.wait_ms);
+        return { mime: "image/jpeg", ...frame };
+      }
+      case "browser.input": {
+        const p = browserMethods["browser.input"].params.parse(raw);
+        const t = get(p.tab);
+        if (!human(t))
+          throw new ApxError({ code: "conflict", message: "take control of the tab first, then click and type" });
+        await (await liveOf(t)).input(p.events);
+        return { ok: true };
       }
       case "browser.inspect": {
         const p = browserMethods["browser.inspect"].params.parse(raw);
@@ -611,7 +673,7 @@ export function createHeadlessBrowser(deps: {
       }
       case "browser.text": {
         const p = browserMethods["browser.text"].params.parse(raw);
-        const t = get(p.tab);
+        const t = readable(p.tab);
         t.page.assertNoDialog();
         const pp = await ready();
         const tree = await pp.send<{ frameTree: { frame: { id: string } } }>("Page.getFrameTree", {}, t.session);
@@ -638,13 +700,33 @@ export function createHeadlessBrowser(deps: {
       case "browser.control": {
         const p = browserMethods["browser.control"].params.parse(raw);
         const t = get(p.tab);
-        if (p.mode === "user") throw noHuman();
-        t.control = { kind: "idle" };
-        changed();
+        setControl(t, p.mode);
+        // A finished handoff sets the agent's control as it resumes.
+        await new Promise((r) => setImmediate(r));
         return info(t);
       }
-      case "browser.handoff":
-        throw noHuman();
+      case "browser.handoff": {
+        const p = browserMethods["browser.handoff"].params.parse(raw);
+        const t = get(p.tab);
+        if (handoffs.has(t.id) || t.control.kind === "handoff")
+          throw new ApxError({ code: "paused_by_user", message: "this tab is already waiting for the human" });
+        t.control = { kind: "handoff", by: p.by, reason: p.reason, since: new Date().toISOString() };
+        changed();
+        const done = await new Promise<boolean>((resolve) => {
+          const waiter = (ok: boolean) => {
+            clearTimeout(timer);
+            if (handoffs.get(t.id) === waiter) handoffs.delete(t.id);
+            resolve(ok);
+          };
+          const timer = setTimeout(() => waiter(false), p.timeout_s * 1000);
+          handoffs.set(t.id, waiter);
+        });
+        if (tabs.get(t.id) !== t) return { resolved: false, url: "", title: "" };
+        t.control = done ? { kind: "agent", by: p.by, since: new Date().toISOString() } : { kind: "idle" };
+        changed();
+        await refresh(t).catch(() => {});
+        return { resolved: done, url: t.page.scrub(t.url), title: t.page.scrub(t.title) };
+      }
       case "browser.cookie_sources":
         return { sources: [] };
       case "browser.cookie_domains":

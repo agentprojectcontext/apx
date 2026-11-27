@@ -192,10 +192,6 @@ test("with no desktop app the core drives its own headless Chrome: open, read, c
   const text = (await browser.handle("browser.text", { tab: tab.tab })) as { text: string };
   assert.match(text.text, /From 10 a month/);
   await assert.rejects(
-    browser.handle("browser.handoff", { tab: tab.tab, reason: "log in", by: "superagent" }),
-    /nobody can take over/,
-  );
-  await assert.rejects(
     browser.handle("browser.navigate", { tab: tab.tab, url: `http://127.0.0.1:${apxPort}/`, by: "superagent" }),
     /APX itself/,
   );
