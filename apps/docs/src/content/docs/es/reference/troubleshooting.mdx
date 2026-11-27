@@ -305,6 +305,11 @@ compu. Errores que podés ver:
   el core, o una conectada a él por SSH. Una app conectada **por dirección** todavía no presta su navegador.
 - `no Chrome, Chromium or Edge on this machine`: instalá uno para el navegador sin ventana, o apuntá `APX_CHROME` a él.
   `APX_HEADLESS=off` lo apaga.
+- `headless browser output pipe failed`, `Chrome did not start` o `the headless browser stopped` en un servidor Linux:
+  el navegador no pudo arrancar su sandbox. Ubuntu 23.10 en adelante (AppArmor) solo se lo permite a un navegador
+  instalado desde su propio paquete; un Chromium descargado o incluido en otra herramienta se cierra al instante.
+  Instalá Google Chrome desde su paquete `.deb` y reiniciá el core, o apuntá `APX_CHROME` a un navegador instalado así.
+  APX nunca apaga el sandbox.
 
 Para leer páginas y buscar, los agentes también tienen `web_read` y `web_search`, que no necesitan navegador. Más en
 [Navegador](/es/office/browser/).

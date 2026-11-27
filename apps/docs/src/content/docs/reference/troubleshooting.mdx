@@ -295,6 +295,10 @@ see:
   core, or one connected to it over SSH. An app connected **by address** doesn't lend its browser yet.
 - `no Chrome, Chromium or Edge on this machine`: install one for the headless fallback, or point `APX_CHROME` at it.
   `APX_HEADLESS=off` turns the fallback off.
+- `headless browser output pipe failed`, `Chrome did not start` or `the headless browser stopped` on a Linux server:
+  the browser could not start its sandbox. Ubuntu 23.10 and later (AppArmor) let only a browser installed from its own
+  package start it; a downloaded or bundled Chromium exits at once. Install Google Chrome from its `.deb` package and
+  restart the core, or set `APX_CHROME` to a browser installed that way. APX never turns the sandbox off.
 
 For reading pages and searching, agents also have `web_read` and `web_search`, which need no browser at all. More in
 [Browser](/office/browser/).
