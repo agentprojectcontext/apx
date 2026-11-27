@@ -39,6 +39,8 @@ async function setup() {
   );
   const project = (await env.client.call("projects.register", { path: root })).project.id;
   await env.client.call("mcp.trust", { project, server: "notes", trusted: true });
+  // A new server allows every tool (DECISIONS.md#d-279): these tests start from the owner having made it ask.
+  await env.client.call("mcp.toolMode", { scope: "project", project, server: "notes", mode: "ask" });
   return {
     ...env,
     root,
@@ -148,6 +150,7 @@ test("Resources allows any tool for every agent; global trust can be revoked and
   const e = await setup();
   try {
     await e.client.call("mcp.set", { name: "mine", server: { command: process.execPath, args: [SERVER] } });
+    await e.client.call("mcp.toolMode", { scope: "global", server: "mine", mode: "ask" });
     const tools = (await e.client.call("mcp.tools", { scope: "global", server: "mine" })).tools;
     assert.equal(tools.find((t) => t.name === "echo")?.permanent, true);
     assert.equal(tools.find((t) => t.name === "token")?.permanent, false);
@@ -282,6 +285,7 @@ test("a tool that becomes destructive on reconnection cannot use its old reading
       name: "mutable",
       server: { command: process.execPath, args: [SERVER], env: { TOOL_MODE_FILE: mode } },
     });
+    await e.client.call("mcp.toolMode", { scope: "global", server: "mutable", mode: "ask" });
     const thread = await chat(e);
     const tools = await mcp.toolsFor(thread);
     const old = tools.find((t) => t.name === "mcp_mutable_echo");

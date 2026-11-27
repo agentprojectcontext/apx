@@ -42,6 +42,7 @@ import { HOME_CHANNEL_SWITCH_NEWS } from "./home-channel-switch.ts";
 import { LOCAL_MODELS_NEWS } from "./local-models.ts";
 import { MARKETPLACE_NEWS } from "./marketplace.ts";
 import { MCP_CONTEXT_NEWS } from "./mcp-context.ts";
+import { MCP_OPEN_NEWS } from "./mcp-open.ts";
 import { MCP_REACH_NEWS } from "./mcp-reach.ts";
 import { MEMORY_REVIEW_NEWS } from "./memory-review.ts";
 import { MOVE_BACKUP_NEWS } from "./move-backup.ts";
@@ -150,6 +151,7 @@ export type NewsEntry = {
 };
 
 export const NEWS: readonly NewsEntry[] = [
+  MCP_OPEN_NEWS,
   AGENT_FOLDER_NEWS,
   SIGN_IN_CARDS_NEWS,
   CALL_SERVICES_NEWS,

@@ -42,7 +42,11 @@ Opened by the owner afterwards ([D-268](DECISIONS.md#d-268), reversing D-060 for
 | APX's voice and calls | `voice.set` was `POWER` | `apx_settings` `voice.status` / `voice.set`; a call model is checked, call services must exist |
 | Local transcription | `transcription.install` was `MACHINE` | `apx_settings` `transcription.local` / `transcription.install`, APX's whisper.cpp list only |
 | An added MCP server's tools | `mcp.approveTool`, `mcp.toolMode` were `POWER` | `apx_settings`, in Auto; `mcp.trust` (start a project's server) keeps the card when it trusts |
+| Review what each MCP tool may do ([D-279](DECISIONS.md#d-279)) | `mcp.list` showed definitions only; `mcp.toolMode` was all or nothing | `mcp.list` (read) lists each server's tools, allowed or asking first; `mcp.toolMode` `mode: all` with `ask: [tools]` allows all but those, in Auto (`tools/settings-mcp.ts`) |
 | Narrowing a grant | `tools.grant_set` was `POWER` | `grant_tool` `condition` and `expires_at`; a grant held already keeps the owner's narrowing |
+
+What the owner starts with ([D-279](DECISIONS.md#d-279)): a fresh install's super-agent on Total, new agents in their
+project's mode (Auto by default), and a new MCP server with every tool allowed. Existing agents and servers keep theirs.
 
 Still out of reach and not asked for: `voice.install` and `profiles.install` (`settings-reach.ts` `MACHINE`), and
 `engines.set_usage`, the owner's opt-in to query account limits (reading quotas is `engines.usage` for the

@@ -143,7 +143,8 @@ export function createInputs(deps: {
         !taskInputIsCurrent(store, r) ||
         !r.approval ||
         publicInput(r).artifact_draft ||
-        !store.approvals.allows(r.approval, r.thread_id, r.agent_id, r.args)
+        // Only the owner's grant answers a card: APX's open default never stood in for it (DECISIONS.md#d-279).
+        !store.approvals.allows(r.approval, r.thread_id, r.agent_id, r.args, true)
       )
         continue;
       const grant = store.approvals

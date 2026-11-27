@@ -43,6 +43,8 @@ export const ToolApproval = z.object(
     granted_at: () => z.string().optional(),
     /** The chat it was granted from. */
     from_thread: () => Id.optional(),
+    /** Given by APX's open default (a new MCP server), not by the owner: outside content in the turn still asks. */
+    by_default: () => z.literal(true).optional(),
   }),
 );
 export type ToolApproval = z.infer<typeof ToolApproval>;

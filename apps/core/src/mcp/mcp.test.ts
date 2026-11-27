@@ -358,3 +358,32 @@ test("a project's mcps.json saved with a BOM is read, and editing it keeps the f
   assert.deepEqual(doc.mcpServers.notes.env, { MODE: "slow" });
   assert.ok(doc.mcpServers.sneaky, "the rest of the file stays");
 });
+
+test("a server turned off comes back on with its definition, also when another app wrote `disabled`", async () => {
+  const mine = { command: process.execPath, args: [SERVER] };
+  await env.client.call("mcp.set", { name: "switchy", server: { ...mine, enabled: false } });
+  let { servers } = await env.client.call("mcp.list", {});
+  assert.equal(servers.find((x) => x.name === "switchy")?.status, "disabled");
+  ({ servers } = await env.client.call("mcp.set", { name: "switchy", server: { ...mine, enabled: true } }));
+  const on = servers.find((x) => x.name === "switchy");
+  assert.equal(on?.enabled, true);
+  assert.notEqual(on?.status, "disabled");
+  assert.deepEqual(on?.definition?.args, [SERVER]);
+
+  const file = path.join(root, ".apx", "mcps.json");
+  const doc = JSON.parse(fs.readFileSync(file, "utf8"));
+  doc.mcpServers.notes = { ...doc.mcpServers.notes, disabled: true };
+  fs.writeFileSync(file, JSON.stringify(doc));
+  ({ servers } = await env.client.call("mcp.list", { project }));
+  const off = servers.find((x) => x.name === "notes" && x.scope === "project");
+  assert.equal(off?.status, "disabled");
+  ({ servers } = await env.client.call("mcp.set", {
+    name: "notes",
+    project,
+    server: { ...off?.definition, command: process.execPath, enabled: true },
+  }));
+  assert.equal(servers.find((x) => x.name === "notes" && x.scope === "project")?.enabled, true);
+  const saved = JSON.parse(fs.readFileSync(file, "utf8")).mcpServers.notes;
+  assert.equal(saved.disabled, undefined);
+  assert.equal(saved.enabled, true);
+});

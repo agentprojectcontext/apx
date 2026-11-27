@@ -157,7 +157,7 @@ export function ChatComposer({
         </Pressable>
         {usage ? (
           <View style={s.usage}>
-            <Icon name="Zap" size={11} color={theme.fgSubtle} />
+            <Icon name="Zap" size={12} color={theme.fgSubtle} />
             <Text style={s.metaText}>{usage}</Text>
           </View>
         ) : null}
@@ -293,6 +293,6 @@ const useStyles = makeStyles((theme) => ({
     paddingVertical: 2,
     borderRadius: 8,
   },
-  metaText: { color: theme.fgSubtle, fontSize: 12, flexShrink: 1 },
+  metaText: { color: theme.fgMuted, fontSize: 13, flexShrink: 1 },
   usage: { flexDirection: "row", alignItems: "center", gap: 3 },
 }));

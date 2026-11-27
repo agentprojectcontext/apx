@@ -82,10 +82,10 @@ export function extensionHandlers(extensions: Extensions, mcp: Mcp, bus: Bus, st
 
 function extensionMethods(extensions: Extensions, mcp: Mcp, store: Store) {
   const { catalogs } = extensions;
-  /** Its MCP servers stop now rather than at their idle timeout. */
+  /** Its MCP servers stop now rather than at their idle timeout; their grants went when they were suspended. */
   const dropServers = async (id: string) => {
     await Promise.all(
-      (extensions.list().find((e) => e.id === id)?.mcp ?? []).map((name) => mcp.drop({ scope: "global", name })),
+      (extensions.list().find((e) => e.id === id)?.mcp ?? []).map((name) => mcp.drop({ scope: "global", name }, true)),
     );
   };
   const suspendServers = async (id: string) => {
@@ -102,12 +102,33 @@ function extensionMethods(extensions: Extensions, mcp: Mcp, store: Store) {
       throw error;
     }
   };
+  const serversOf = (id: string) =>
+    (extensions.list().find((e) => e.id === id)?.mcp ?? []).flatMap((name) => mcp.find("global", name) ?? []);
+  /** Its servers allow every tool the first time it is on (DECISIONS.md#d-279). */
+  const openServers = (id: string) => {
+    for (const d of serversOf(id)) mcp.openNew(d);
+  };
+  /** Who allowed each of its servers every tool, by name. */
+  const openedBy = (names: string[]) =>
+    new Map(
+      names.flatMap((name) => {
+        const d = mcp.find("global", name);
+        const by = d && mcp.allowsAll(d);
+        return by ? [[name, by] as const] : [];
+      }),
+    );
+  /** A new value changes a server's definition: one that allowed all keeps allowing all, as whoever allowed it. */
   const withServersStopped = async <T>(id: string, fn: () => T | Promise<T>): Promise<T> => {
+    const open = openedBy(serversOf(id).map((d) => d.name));
     const release = await suspendServers(id);
     try {
       return await fn();
     } finally {
       release();
+      for (const d of serversOf(id)) {
+        const by = open.get(d.name);
+        if (by) mcp.openNew(d, true, by);
+      }
     }
   };
   return {
@@ -130,15 +151,16 @@ function extensionMethods(extensions: Extensions, mcp: Mcp, store: Store) {
     "extensions.install": async (params) => {
       const { path, file, url, entry, server, hash } = params;
       const before = extensions.list();
+      const open = openedBy(before.flatMap((e) => e.mcp));
       const from = server ? { path: extensions.connector(server) } : source(path, file, url, entry);
       const info = await extensions.install(from, hash, suspendServers);
       countInstall(store, params, info, entry ? isSuggestedCatalog(entry.catalog) : false);
       // Its servers start again with the new files at their next use; a server this version dropped stops now.
-      await Promise.all(
-        [...new Set([...(before.find((e) => e.id === info.id)?.mcp ?? []), ...info.mcp])].map((name) =>
-          mcp.drop({ scope: "global", name }),
-        ),
-      );
+      const names = [...new Set([...(before.find((e) => e.id === info.id)?.mcp ?? []), ...info.mcp])];
+      await Promise.all(names.map((name) => mcp.drop({ scope: "global", name })));
+      // An update keeps "allow all" for the servers that had it, once the extension is on.
+      for (const [name, by] of open) if (names.includes(name)) mcp.forgetOpened({ scope: "global", name }, by);
+      if (info.enabled) openServers(info.id);
       return info;
     },
     "extensions.rollback": async ({ id }) => {
@@ -147,10 +169,26 @@ function extensionMethods(extensions: Extensions, mcp: Mcp, store: Store) {
       return info;
     },
     "extensions.enable": async ({ id, enabled }) => {
-      if (!enabled) return withServersStopped(id, () => extensions.enable(id, enabled));
-      return extensions.enable(id, enabled);
+      if (!enabled) {
+        // Turned off and on again, a server that allowed all is new once more; one the owner set to ask stays so.
+        const open = openedBy(serversOf(id).map((d) => d.name));
+        const info = await withServersStopped(id, () => extensions.enable(id, enabled));
+        for (const [name, by] of open) mcp.forgetOpened({ scope: "global", name }, by);
+        return info;
+      }
+      const info = extensions.enable(id, enabled);
+      openServers(id);
+      return info;
     },
-    "extensions.remove": async ({ id }) => withServersStopped(id, () => extensions.remove(id)),
+    "extensions.remove": async ({ id }) => {
+      const servers = (extensions.list().find((e) => e.id === id)?.mcp ?? []).map((name) => ({
+        scope: "global" as const,
+        name,
+      }));
+      const out = await withServersStopped(id, () => extensions.remove(id));
+      for (const d of servers) mcp.forgetOpened(d);
+      return out;
+    },
     "extensions.add_agent": ({ id, agent }) => extensions.addAgent(id, agent),
     "extensions.test": ({ id, text }) => extensions.testContext(id, text),
     "extensions.set_secret": async ({ id, name, value }) => {

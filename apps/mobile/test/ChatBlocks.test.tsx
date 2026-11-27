@@ -74,8 +74,11 @@ test("while the agent works its plan shows as a checklist at the end of its mess
     ],
   } as unknown as Message;
   const ui = await render(<ChatMessage message={message} agents={[]} runState="working" respond={async () => {}} />);
-  expect(ui.getByLabelText(t("plan"))).toBeTruthy();
+  const plan = ui.getByRole("button", { name: `${t("plan")} · ${t("planDone", { done: 1, count: 3 })}` });
+  expect(plan.props.accessibilityState.expanded).toBe(false);
   expect(ui.getByText(t("planDone", { done: 1, count: 3 }))).toBeTruthy();
+  expect(ui.queryByText("Compare plans")).toBeNull();
+  await fireEvent.press(plan);
   expect(ui.getByText("Compare plans")).toBeTruthy();
   const tree = JSON.stringify(ui.toJSON());
   expect(tree.indexOf("Looking at prices")).toBeLessThan(tree.indexOf("Write the summary"));

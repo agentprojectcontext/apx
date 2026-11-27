@@ -3,7 +3,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { Message, PendingInput } from "@apx/protocol";
+import type { Autonomy, Message, PendingInput } from "@apx/protocol";
 import { ApxClient } from "@apx/protocol/client";
 import type { TailscaleRun } from "../access.ts";
 import type { ReadProjectFiles } from "../apc/project-reader.ts";
@@ -94,6 +94,8 @@ export const callTool = (id: string, name: string, args: object): { message: Ass
 
 type StartCoreOptions = {
   token?: string;
+  /** The new super-agent's mode, as a fresh install sets it (default: none, the project's). */
+  superAgentAutonomy?: Autonomy;
   computer?: ComputerConfig;
   ffmpeg?: CoreOptions["ffmpeg"];
   llm: Llm;
@@ -173,6 +175,7 @@ export async function startCore(opts: StartCoreOptions) {
       home,
       providers,
       ...(opts.token ? { token: opts.token } : {}),
+      ...(opts.superAgentAutonomy ? { superAgentAutonomy: opts.superAgentAutonomy } : {}),
       ...(opts.port !== undefined ? { port: opts.port } : {}),
       ...(opts.googleApi ? { googleApi: opts.googleApi } : {}),
       ...(opts.googleClient ? { googleClient: opts.googleClient } : {}),

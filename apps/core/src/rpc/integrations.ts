@@ -198,8 +198,13 @@ export function integrationHandlers(deps: {
               deps.fetch,
             )
           : false;
+      const before = mcp.find("global", e.id);
+      const opened = before && mcp.allowsAll(before);
       mcp.config.setGlobal(e.id, serverFor(e, plain, refused));
       await mcp.drop({ scope: "global", name: e.id });
+      // A new connection allows every tool; connecting again keeps "allow all" (DECISIONS.md#d-279).
+      const after = mcp.find("global", e.id);
+      if (after && (!before || opened)) mcp.openNew(after, true, opened || "default");
       return { connected: true as const };
     },
     "integrations.oauth_start": ({ id, values, also }) => {
@@ -261,6 +266,7 @@ export function integrationHandlers(deps: {
       if (!e) throw notFound(`integration ${id}`);
       mcp.config.setGlobal(e.id, null);
       await mcp.drop({ scope: "global", name: e.id });
+      mcp.forgetOpened({ scope: "global", name: e.id });
       for (const f of e.fields.filter((x) => x.secret)) secrets.set(integrationSecret(e.id, f.name), null);
       store.settings.set(`integration_values:${e.id}`, "");
       return { connected: false as const };

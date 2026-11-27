@@ -32,7 +32,7 @@ type McpRaw = {
 };
 const SECRET_REF = /secret:\/\/[a-zA-Z0-9_.-]+/g;
 /** The owner's own MCP servers as they are saved (values hold secret:// references). */
-const ownServers = (store: Parameters<typeof projectName>[0]): Record<string, McpRaw> => {
+export const ownServers = (store: Parameters<typeof projectName>[0]): Record<string, McpRaw> => {
   try {
     return (
       (JSON.parse(store.settings.get("mcp_servers") ?? "{}") as { mcpServers?: Record<string, McpRaw> }).mcpServers ??
@@ -61,7 +61,7 @@ const pastedKey = (server: unknown): string | undefined => {
   const s = (server ?? {}) as McpRaw;
   return Object.entries({ ...s.env, ...s.headers }).find(([, v]) => keyLike(String(v)))?.[0];
 };
-const shownValue = (v: string) => (keyLike(v) ? "(a value)" : v);
+export const shownValue = (v: string) => (keyLike(v) ? "(a value)" : v);
 
 export const WORK: Readonly<Record<string, Setting>> = {
   "projects.list": {
@@ -293,17 +293,6 @@ export const WORK: Readonly<Record<string, Setting>> = {
     named: ["project", "kind", "on"],
     says: (p, { store }) =>
       `${p.on ? "Let" : "Stop"} ${projectName(store, p.project)} ${p.on ? "use" : "using"} the global ${p.kind === "mcp" ? "MCP servers" : "skills"}`,
-  },
-  "mcp.list": {
-    does: "the owner's own MCP servers: command or URL, the variables they name (secret://NAME) and whether each is on",
-    read: (_p, { store }) =>
-      Object.entries(ownServers(store))
-        .map(([name, r]) => {
-          const vars = Object.entries({ ...r.env, ...r.headers }).map(([k, v]) => `${k}=${shownValue(String(v))}`);
-          const target = r.url ?? [r.command, ...(r.args ?? [])].join(" ");
-          return `- ${name}: ${target}${vars.length ? `; ${vars.join(", ")}` : ""}${r.enabled === false ? " (off)" : ""}`;
-        })
-        .join("\n") || "no MCP servers of the owner's own yet.",
   },
   "mcp.set": {
     does: "add, change or (server: null) remove one of the owner's MCP servers (name; server: command, args, env, or url, headers; project: only there). A key goes as secret://NAME, a variable the owner saved, never its value",

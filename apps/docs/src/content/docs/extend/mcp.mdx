@@ -54,6 +54,10 @@ it is on in (**All projects**, or some of them); the same switches show under **
 list says **In 2 of 3** instead of **Global** while it is off somewhere. Save applies both; Cancel leaves them
 unchanged. Repository connections keep belonging to their repository and do not offer these controls.
 
+To stop a server everywhere without removing it, turn off **On** in its detail, or pick **Turn off** in its right-click
+menu. Its definition and approval stay, and the same switch turns it back on, also when an agent turned it off for
+you. A server that is off is not tested and its tools are not offered to agents.
+
 Before making it global, check that its variables exist in the places where you will use it. Project variables are
 not copied into the global store. The editor names any variables that need a value in the selected scope; you can
 still save a connection while preparing those values. This does not move a repository's `.apx/mcps.json` definition.
@@ -150,10 +154,20 @@ credentials at the service and update their values in APX.
 Each server has **Tool permissions**:
 
 - **Ask first**: each agent asks you before using a tool that changes something.
-- **All allowed**: no agent asks for its tools, ones the server adds later included. If the server's definition
-  changes, they ask again.
+- **All allowed**: no agent asks for its tools, ones the server adds later included. If a project's file changes, it
+  waits for your approval again and keeps **All allowed** once you approve it.
 - **Some**: click a tool to allow it (green) or to make it ask again. Tools the server adds later ask first, even when
   you had picked every tool; leaving one tool out of **All allowed** turns it into **Some**.
+
+A connection you add starts on **All allowed**: you choose which tools ask first. Until you pick **All allowed**
+yourself, its tools still ask while a web page, someone's message or another agent's answer is in the chat, so outside
+text cannot make an agent act through it in your name. That holds for one you add here or
+with `apx mcps add`, one an extension brings when you turn it on, a project's `.apx/mcps.json` once you approve it,
+and an account you connect. Approving a project's file is still up to you. Connections you already had keep their
+permissions, and changing a connection that was on **All allowed** (its command, an extension's settings) keeps it so.
+
+You can also ask your super-agent in the chat: "review my MCP tools", "allow all of them", or "allow everything but
+the ones that delete". It lists each connection's tools and changes them when you ask.
 
 The list shows each server's tools and permissions as they were the last time it ran, so you see them without
 opening it. Hover a server's dot for what it means: filled, running now; ring, ready (it starts when an agent uses

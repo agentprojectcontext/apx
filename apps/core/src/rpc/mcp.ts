@@ -53,11 +53,23 @@ export function mcpHandlers(mcp: Mcp, store: Store, switchable: (name: string) =
       store.approvals.grant(target, "always", "");
       return { ok: true };
     },
-    "mcp.toolMode": ({ scope, server, project, mode }) => {
+    "mcp.toolMode": async ({ scope, server, project, mode, ask }) => {
       const d = mcp.find(scope, server, project);
       if (!d) throw notFound(`MCP server ${server}`);
       if (!d.enabled || !mcp.config.trusted(d)) throw badRequest("approve and enable this server first");
-      mcp.setToolMode(d, mode);
+      if (ask?.length) {
+        if (mode !== "all")
+          throw badRequest("ask lists the tools that ask first while the rest are allowed: use mode all");
+        const tools = await mcp.toolPermissions(d);
+        const unknown = ask.filter((n) => !tools.some((t) => t.name === n));
+        if (unknown.length)
+          throw badRequest(
+            `${server} has no tool ${unknown.join(", ")}; its tools: ${tools.map((t) => t.name).join(", ")}`,
+          );
+        // Checked before anything changes; then the owner-wide grants are replaced in one go.
+        mcp.setToolMode(d, "ask");
+        for (const t of tools) if (!ask.includes(t.name)) store.approvals.grant(t, "always", "");
+      } else mcp.setToolMode(d, mode);
       const s = mcp.status(project ?? d.only).find((x) => x.scope === scope && x.name === server);
       if (!s) throw new Error("server vanished");
       return { server: s };
@@ -71,8 +83,12 @@ export function mcpHandlers(mcp: Mcp, store: Store, switchable: (name: string) =
     "mcp.trust": async ({ project, server, trusted }) => {
       const d = mcp.find(project ? "project" : "global", server, project);
       if (!d) throw badRequest(`no server ${server} in that project's .apx/mcps.json`);
+      // Approved for the first time, or again after its file changed while it allowed all: every tool allowed.
+      const was = mcp.allowsAll(d);
+      const open = trusted && (mcp.config.trustUnset(d) || was);
       mcp.config.setTrust(d, trusted);
       if (!trusted) await mcp.drop(d);
+      if (open) mcp.openNew(d, true, was ?? "default");
       const s = mcp.status(project).find((x) => x.scope === (project ? "project" : "global") && x.name === server);
       if (!s) throw new Error("server vanished");
       return { server: s };
@@ -108,6 +124,7 @@ export function mcpHandlers(mcp: Mcp, store: Store, switchable: (name: string) =
         const release = mcp.suspend([target]);
         try {
           const before = mcp.config.global().find((d) => d.name === name);
+          const was = before && mcp.allowsAll(before);
           await mcp.drop(target, true);
           const { off_in: offIn, ...definition } = server ?? {};
           mcp.config.setGlobal(name, server ? definition : null);
@@ -118,6 +135,9 @@ export function mcpHandlers(mcp: Mcp, store: Store, switchable: (name: string) =
           const after = mcp.config.global().find((d) => d.name === name);
           // Availability alone does not change a tool contract; credential-specific grants stay separately bound.
           if (!before || !after || before.hash !== after.hash) await mcp.drop(target);
+          // New: every tool allowed (DECISIONS.md#d-279); the owner's edit keeps "allow all" if it had it.
+          if (after && (!before || (was && before.hash !== after.hash))) mcp.openNew(after, true, was || "default");
+          if (!after) mcp.forgetOpened(target);
           return { servers: mcp.status() };
         } finally {
           release();
@@ -128,11 +148,14 @@ export function mcpHandlers(mcp: Mcp, store: Store, switchable: (name: string) =
       if (server && JSON.stringify(server).includes("secret://"))
         throw badRequest("a project's .apx/mcps.json cannot use your variables (secret://); use a server of your own");
       const old = mcp.find("project", name, project);
+      const was = old && mcp.allowsAll(old);
       if (old) await mcp.drop(old);
       mcp.config.setProject(project, name, server);
-      // The owner wrote this definition: it is approved as written.
+      // The owner wrote this definition: it is approved as written, and a new one allows every tool.
       const next = mcp.find("project", name, project);
       if (next) mcp.config.setTrust(next, true);
+      if (next && (!old || was)) mcp.openNew(next, true, was || "default");
+      if (!next) mcp.forgetOpened({ scope: "project", project_id: project, name });
       return { servers: mcp.status(project) };
     },
   } satisfies Partial<Handlers>;

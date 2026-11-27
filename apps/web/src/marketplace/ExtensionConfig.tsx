@@ -3,8 +3,9 @@ import { Button, Dialog, Field, Icons, Input, Select, Switch } from "@apx/ui";
 import { useEffect, useRef, useState } from "react";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
-import { useT } from "../i18n/index.ts";
+import { useLanguage, useT } from "../i18n/index.ts";
 import { attempt } from "../resources/InstalledExtension.tsx";
+import { settingCopyIn } from "./itemText.ts";
 
 // An extension's own settings page (manifest 2): a form built from its settings, and its pages, each opened in a
 // sandboxed frame that may read and set only its own settings through a small bridge.
@@ -17,24 +18,30 @@ export function SettingField({
   s,
   value,
   onChange,
+  hint,
+  replaceSecret = false,
 }: {
   s: Setting;
   value: Value | undefined;
   onChange(v: Value): void;
+  hint?: string | undefined;
+  replaceSecret?: boolean | undefined;
 }) {
   const t = useT();
+  const { label, description } = settingCopyIn(s, useLanguage());
+  const help = hint ?? description;
   if (s.type === "boolean")
     return (
-      <Field label={s.label} hint={s.description}>
-        {() => <Switch aria-label={s.label} checked={value === true} onCheckedChange={(v) => onChange(v)} />}
+      <Field label={label} hint={help}>
+        {() => <Switch aria-label={label} checked={value === true} onCheckedChange={(v) => onChange(v)} />}
       </Field>
     );
   if (s.options)
     return (
-      <Field label={s.label} hint={s.description}>
+      <Field label={label} hint={help}>
         {() => (
           <Select
-            label={s.label}
+            label={label}
             value={String(value ?? "")}
             onValueChange={(v) => onChange(String(v))}
             options={s.options?.map((o) => ({ value: o, label: o })) ?? []}
@@ -43,13 +50,15 @@ export function SettingField({
       </Field>
     );
   return (
-    <Field label={s.label} hint={s.description}>
+    <Field label={label} hint={help}>
       {(id) => (
         <Input
           id={id}
           type={s.sensitive ? "password" : s.type === "number" ? "number" : "text"}
-          autoComplete="off"
-          placeholder={s.sensitive && s.set ? t("int.keepSecret") : s.type === "directory" ? "~/…" : ""}
+          autoComplete={replaceSecret ? "new-password" : "off"}
+          placeholder={
+            s.sensitive && s.set && !replaceSecret ? t("int.keepSecret") : s.type === "directory" ? "~/…" : ""
+          }
           value={value === undefined ? "" : String(value)}
           onChange={({ currentTarget: { value: v } }) => onChange(v)}
         />
@@ -120,7 +129,15 @@ export function ExtensionConfig({ e, onChanged }: { e: ExtensionInfo; onChanged(
   const [busy, setBusy] = useState(false);
   const [page, setPage] = useState<{ id: string; title: string }>();
   if (!e.settings.length && !e.pages.length) return null;
+  const changed = new Set(
+    e.settings.filter((s) => values[s.name] !== undefined && values[s.name] !== s.value).map((s) => s.name),
+  );
+  const replacements = e.settings.filter((s) => s.sensitive && s.set && s.boundTo?.some((name) => changed.has(name)));
+  const replaceNames = new Set(replacements.map((s) => s.name));
+  const connectionChanges = new Set(replacements.flatMap((s) => (s.boundTo ?? []).filter((name) => changed.has(name))));
+  const needsReplacement = replacements.some((s) => !String(values[s.name] ?? "").trim());
   const save = async () => {
+    if (needsReplacement || busy) return;
     setBusy(true);
     const ok = await attempt(() => client.call("extensions.settings", { id: e.id, values }), t);
     setBusy(false);
@@ -137,12 +154,25 @@ export function ExtensionConfig({ e, onChanged }: { e: ExtensionInfo; onChanged(
           key={s.name}
           s={s}
           value={values[s.name] ?? (s.sensitive ? undefined : s.value)}
+          hint={
+            replaceNames.has(s.name)
+              ? t("mkt.enterReplacementSecret")
+              : connectionChanges.has(s.name)
+                ? t("mkt.revokeBeforeChanging")
+                : undefined
+          }
+          replaceSecret={replaceNames.has(s.name)}
           onChange={(v) => setValues((x) => ({ ...x, [s.name]: v }))}
         />
       ))}
       {e.settings.length > 0 && (
         <div>
-          <Button size="sm" disabled={!Object.keys(values).length} loading={busy} onClick={() => void save()}>
+          <Button
+            size="sm"
+            disabled={!Object.keys(values).length || needsReplacement}
+            loading={busy}
+            onClick={() => void save()}
+          >
             {t("common.save")}
           </Button>
         </div>
