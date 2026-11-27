@@ -119,6 +119,33 @@ test("a turn preparing a confirmation cannot open it after the task closes", asy
   assert.equal(env.core.store.runs.list(thread.id).at(-1)?.state, "canceled");
 });
 
+test("removing a task record retires the input even if the chat is kept", async (t) => {
+  const env = await startCore({ llm: model });
+  t.after(async () => {
+    await env.core.close();
+    await env.cleanup();
+  });
+  const task = await env.client.call("tasks.create", {
+    title: "Draft choice before removal",
+    description: "Collect a decision.",
+    assignee: "superagent",
+    status: "doing",
+  });
+  const readPending = async () => (await env.client.call("runs.pending", {})).inputs[0];
+  await waitFor(async () => Boolean(await readPending()), "pending before task removal");
+  const old = await readPending();
+  assert.ok(old);
+  env.core.store.tasks.remove(task.id);
+  await env.settle(old.thread_id);
+  const { thread, messages } = await env.client.call("threads.get", { thread: old.thread_id });
+  assert.notEqual(thread.state, "input-required");
+  assert.ok(
+    messages.some((m) => m.parts.some((p) => p.type === "input" && p.input_id === old.id && p.state === "expired")),
+  );
+  assert.deepEqual((await env.client.call("runs.pending", {})).inputs, []);
+  assert.equal(env.core.store.runs.get(old.run_id)?.state, "canceled");
+});
+
 test("boot repairs cards that were still pending when an earlier core closed their task", async () => {
   const first = await startCore({ llm: model });
   let firstClosed = false;
