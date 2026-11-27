@@ -91,7 +91,12 @@ for (const [language, width] of [
     await rpc("extensions.enable", { id, enabled: true });
     await expect(card).toContainText(es ? "Sin conectar" : "Not connected");
     await shot("disconnected");
-    await rpc("mcp.signIn", { scope: "global", server: `${id}-service` });
+    const listed = await rpc<{ extensions: { id: string; connection_generation?: string }[] }>("extensions.list");
+    await rpc("mcp.signIn", {
+      scope: "global",
+      server: `${id}-service`,
+      connection_generation: listed.extensions.find((extension) => extension.id === id)?.connection_generation,
+    });
     await expect.poll(() => fs.existsSync(callbackFile)).toBe(true);
     expect((await fetch(fs.readFileSync(callbackFile, "utf8"))).ok).toBe(true);
     await expect
@@ -106,6 +111,27 @@ for (const [language, width] of [
     await expect(card).toContainText(es ? "Conectada" : "Connected");
     await expect(action).toBeVisible();
     await shot("connected");
+
+    // A saved session must not hide setup that another part of the connector requires.
+    const mixedRoute = async (route: import("@playwright/test").Route) => {
+      const response = await route.fetch();
+      const body = await response.json();
+      const extension = body.result.extensions.find((entry: { id: string }) => entry.id === id);
+      extension.settings.push({ name: "region", label: "Region", required: true, type: "string", set: false });
+      await route.fulfill({ response, json: body });
+    };
+    await page.route("**/rpc/extensions.list", mixedRoute);
+    await page.reload();
+    await expect(card).toContainText(es ? "Falta configurar" : "Setup required");
+    await expect(
+      card.getByRole("button", { name: es ? "Terminar de configurar" : "Finish setting up", exact: true }),
+    ).toBeVisible();
+    await more.click();
+    await expect(page.getByRole("menuitem", { name: disconnect, exact: true })).toBeVisible();
+    await shot("setup");
+    await page.unroute("**/rpc/extensions.list", mixedRoute);
+    await page.reload();
+    await expect(action).toBeVisible();
 
     await more.click();
     await page.getByRole("menuitem", { name: es ? "Configuración" : "Settings", exact: true }).click();
@@ -161,7 +187,25 @@ for (const [language, width] of [
     await box.getByRole("button", { name: connect, exact: true }).click();
     await expect.poll(() => fs.existsSync(callbackFile)).toBe(true);
     await expect(box.locator('a[href^="https://shop.example.com/authorize"]')).toBeVisible();
-    expect((await fetch(fs.readFileSync(callbackFile, "utf8"))).ok).toBe(true);
+    const context = page.context();
+    const auth = "https://shop.example.com/authorize?*";
+    await context.route(auth, (route) =>
+      route.fulfill({ status: 302, headers: { location: fs.readFileSync(callbackFile, "utf8") } }),
+    );
+    const other = await context.newPage();
+    await other.route("**/rpc/setup.status", (route) =>
+      route.fulfill({ json: { ok: true, result: { ...setup, done: true } } }),
+    );
+    await open(other, `#view=marketplace&item=ext%3A${id}`);
+    const continuing = other.getByRole("button", {
+      name: es ? "Seguir con el inicio de sesión" : "Continue signing in",
+      exact: true,
+    });
+    const [provider] = await Promise.all([context.waitForEvent("page"), continuing.click()]);
+    await expect(provider.getByText("Signed in", { exact: true })).toBeVisible();
+    await provider.close();
+    await other.close();
+    await context.unroute(auth);
     await box.getByRole("button", { name: es ? "Listo" : "Done", exact: true }).click();
     await expect(action).toBeVisible();
     await info.attach("connection-final", { body: await page.screenshot(), contentType: "image/png" });

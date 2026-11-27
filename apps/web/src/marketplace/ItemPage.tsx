@@ -116,6 +116,8 @@ export function ItemPage({
   }, [connectionState, onChanged]);
   const hasSession = connection?.saved;
   const canDisconnect = connection?.canDisconnect;
+  const missingDetails = step === "keys" || step === "settings";
+  const needsSetup = missingDetails || step === "review";
   const disconnectLabel = t("int.disconnect");
   const askDisconnect = () => {
     if (!e) return;
@@ -189,7 +191,7 @@ export function ItemPage({
 
   const menu: MenuEntry[] = [];
   if (e) {
-    if (hasExtensionSettings(e))
+    if (step !== "settings" && hasExtensionSettings(e))
       menu.push({ label: t("mkt.settings"), icon: <Icons.Settings size={14} />, onSelect: () => setOpen("settings") });
     if (item.update && item.url) {
       const url = item.url;
@@ -205,7 +207,7 @@ export function ItemPage({
         icon: <Icons.RotateCcw size={14} />,
         onSelect: () => void run(() => client.call("extensions.rollback", { id: e.id })),
       });
-    if (canDisconnect && connectionState !== "connected" && connectionState !== "saved")
+    if (canDisconnect && (needsSetup || (connectionState !== "connected" && connectionState !== "saved")))
       menu.push({ label: disconnectLabel, icon: <Icons.LogOut size={14} />, onSelect: askDisconnect });
     if (e.enabled)
       menu.push({
@@ -302,49 +304,48 @@ export function ItemPage({
       trigger={<IconButton label={t("mkt.more")} variant="outline" icon={<Icons.Ellipsis size={16} />} />}
     />
   );
-  const connectionAction =
-    connectionState === "off" && e && step !== "review" ? (
-      <Button
-        loading={busy}
-        onClick={
-          hasSession ? () => void run(() => client.call("extensions.enable", { id: e.id, enabled: true })) : connectBox
-        }
-      >
-        {t(hasSession ? "mkt.connection.turnOn" : "mkt.step.connect")}
+  const connectionAction = needsSetup ? (
+    primary
+  ) : connectionState === "off" && e ? (
+    <Button
+      loading={busy}
+      onClick={
+        hasSession ? () => void run(() => client.call("extensions.enable", { id: e.id, enabled: true })) : connectBox
+      }
+    >
+      {t(hasSession ? "mkt.connection.turnOn" : "mkt.step.connect")}
+    </Button>
+  ) : connectionState === "connected" || connectionState === "saved" ? (
+    canDisconnect && (
+      <Button variant="secondary" onClick={askDisconnect}>
+        {disconnectLabel}
       </Button>
-    ) : connectionState === "connected" || connectionState === "saved" ? (
-      canDisconnect && (
-        <Button variant="secondary" onClick={askDisconnect}>
-          {disconnectLabel}
-        </Button>
-      )
-    ) : step === "keys" || step === "settings" || step === "review" ? (
-      primary
-    ) : connectionState === "error" || connectionState === "reconnect" || connectionState === "disconnected" ? (
-      <Button loading={busy} onClick={connectBox}>
-        {t(
-          connectionState === "error"
-            ? "box.retry"
-            : connectionState === "reconnect"
-              ? "mkt.connection.reconnectAction"
-              : "mkt.step.connect",
-        )}
+    )
+  ) : connectionState === "error" || connectionState === "reconnect" || connectionState === "disconnected" ? (
+    <Button loading={busy} onClick={connectBox}>
+      {t(
+        connectionState === "error"
+          ? "box.retry"
+          : connectionState === "reconnect"
+            ? "mkt.connection.reconnectAction"
+            : "mkt.step.connect",
+      )}
+    </Button>
+  ) : connectionState === "connecting" ? (
+    connection?.signIn?.sign_in_url && (
+      <Button onClick={() => window.open(connection.signIn?.sign_in_url, "_blank", "noopener,noreferrer")}>
+        {t("mkt.connection.continueSignIn")}
       </Button>
-    ) : connectionState === "connecting" ? (
-      connection?.signIn?.sign_in_url && (
-        <Button onClick={() => window.open(connection.signIn?.sign_in_url, "_blank", "noopener,noreferrer")}>
-          {t("mkt.connection.continueSignIn")}
-        </Button>
-      )
-    ) : (
-      primary
-    );
+    )
+  ) : (
+    primary
+  );
 
   // What waits on the owner, in one quiet panel: why it is not working yet, and a newer version.
   const waiting =
     item.attention &&
     item.state === "attention" &&
-    (!connectionState || item.attention !== "sign-in") &&
+    (!connectionState || (!missingDetails && item.attention !== "sign-in")) &&
     connectionState !== "error"
       ? t(`extx.fix.${item.attention}`)
       : item.state === "off" && e && (!connectionState || item.attention === "update-waits")
@@ -394,8 +395,8 @@ export function ItemPage({
       </header>
       {connectionState && (
         <ConnectionCard
-          state={connectionState}
-          hint={connectionHint}
+          state={missingDetails ? "setup" : connectionState}
+          hint={missingDetails ? (hasSession ? t("mkt.connection.paused") : undefined) : connectionHint}
           error={disconnectFailed ? t("mkt.connection.disconnectError") : undefined}
           onRetry={askDisconnect}
         >

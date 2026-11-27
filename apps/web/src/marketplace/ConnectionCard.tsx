@@ -8,6 +8,7 @@ const TONES = {
   connecting: "info",
   connected: "brand",
   saved: "neutral",
+  setup: "warning",
   reconnect: "warning",
   error: "danger",
 } as const;

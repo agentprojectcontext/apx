@@ -73,6 +73,7 @@ export const enMarketplace = {
   "mkt.connection.connecting": "Connecting…",
   "mkt.connection.connected": "Connected",
   "mkt.connection.saved": "Sign-in saved",
+  "mkt.connection.setup": "Setup required",
   "mkt.connection.reconnect": "Reconnect required",
   "mkt.connection.error": "Couldn’t connect",
   "mkt.connection.turnOn": "Turn on",

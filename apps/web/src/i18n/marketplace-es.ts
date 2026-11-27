@@ -75,6 +75,7 @@ export const esMarketplace = {
   "mkt.connection.connecting": "Conectando…",
   "mkt.connection.connected": "Conectada",
   "mkt.connection.saved": "Sesión guardada",
+  "mkt.connection.setup": "Falta configurar",
   "mkt.connection.reconnect": "Volvé a conectarla",
   "mkt.connection.error": "No se pudo conectar",
   "mkt.connection.turnOn": "Encender",
