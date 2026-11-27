@@ -8,6 +8,7 @@ import { removeDir, waitFor } from "../testkit/platform.ts";
 import { signInUrl } from "./sign-in.ts";
 
 const SERVER = path.join(import.meta.dirname, "fake-sign-in-server.test-support.mjs");
+const LAUNCHER = path.join(import.meta.dirname, "launcher.test-support.mjs");
 
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(`Result: ${String(req.messages.at(-1)?.content).slice(0, 300)}`);
@@ -29,12 +30,12 @@ after(async () => {
 });
 
 /** One of the owner's servers that signs in like mcp-remote; `opened()` counts the browsers it would have opened. */
-async function addServer(name: string, extra: Record<string, string> = {}) {
+async function addServer(name: string, extra: Record<string, string> = {}, launcher?: string) {
   const signed = path.join(dir, `${name}.signed`);
   const log = path.join(dir, `${name}.opened`);
   const server = {
     command: process.execPath,
-    args: [SERVER],
+    args: launcher ? [launcher, SERVER] : [SERVER],
     env: { SIGNED_FILE: signed, OPENED_LOG: log, ...extra },
   };
   await env.client.call("mcp.set", { name, server });
@@ -42,6 +43,7 @@ async function addServer(name: string, extra: Record<string, string> = {}) {
     server,
     signIn: () => fs.writeFileSync(signed, "ok"),
     opened: () => (fs.existsSync(log) ? fs.readFileSync(log, "utf8").split("\n").filter(Boolean).length : 0),
+    pid: () => Number(fs.readFileSync(`${log}.pid`, "utf8")),
     running: () => {
       try {
         process.kill(Number(fs.readFileSync(`${log}.pid`, "utf8")), 0);
@@ -157,4 +159,15 @@ test("a sign-in that ends unfinished keeps waiting on the owner, without a page 
   assert.equal(s?.sign_in_url, undefined);
   await turn("find echo");
   assert.equal(shop.opened(), 1);
+});
+
+test("a server started through a launcher like npx stops with it, so a new sign-in gets its return port", async (t) => {
+  const shop = await addServer("launched", {}, LAUNCHER);
+  // A leftover would hold this run's output open.
+  t.after(() => shop.running() && process.kill(shop.pid()));
+  await env.client.call("mcp.signIn", { scope: "global", server: "launched" });
+  await becomes("launched", "needs-sign-in");
+  await waitFor(shop.running, "the launched server to start");
+  await env.client.call("mcp.set", { name: "launched", server: { ...shop.server, enabled: false } });
+  await waitFor(() => !shop.running(), "the launched server to stop with its launcher", { ms: 15_000 });
 });
