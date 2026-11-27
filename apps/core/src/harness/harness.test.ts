@@ -385,6 +385,10 @@ test("an outside agent in a delegated session that asks before changes asks for 
 
 test("an automatic outside session allows local commands but still asks before forced deletion", async () => {
   const thread = await session("claude");
+  // The owner's recording, there before the session: deleting it asks (DECISIONS.md#d-281).
+  const folder = env.core.store.projects.get(thread.project_id ?? "")?.path ?? "";
+  fs.mkdirSync(path.join(folder, "audio"));
+  fs.writeFileSync(path.join(folder, "audio", "clip.raw.wav"), "RIFF");
   await env.client.call("agents.update", { agent: "superagent", autonomy: "auto" });
   try {
     const asks = [
@@ -396,7 +400,7 @@ test("an automatic outside session allows local commands but still asks before f
       async () => (await env.client.call("runs.pending", { thread: thread.id })).inputs[0],
       "forced deletion confirmation",
     );
-    assert.match(card.prompt, /Auto/);
+    assert.match(card.prompt, /delete|borrar/);
     assert.match(card.detail ?? "", /rm -f/);
     await env.client.call("runs.respond", { input: card.id, decision: "deny" });
     const done = await env.settle(thread.id);
@@ -441,7 +445,11 @@ test("an automatic outside session in a project worktree runs its own scripts wi
     });
     const done = await env.settle(thread.id);
     assert.deepEqual(texts(done.messages.slice(-1)), [JSON.stringify(own.map(() => true))]);
-    // A forced deletion, even of a folder it just made, is the owner's to ask for: the card says what goes and why.
+    // A forced deletion of what the owner had there asks: the card says what goes and why.
+    const subtitles = path.join(tree, "work", "en", "subtitles");
+    fs.mkdirSync(path.join(subtitles, "words", "es"), { recursive: true });
+    fs.mkdirSync(path.join(subtitles, "captions"), { recursive: true });
+    fs.writeFileSync(path.join(subtitles, "captions", "es.srt"), "1\n");
     const deletion = {
       kind: "execute",
       command: `cd ${w}/work; D=en/subtitles\nrm -rf $D/words/es $D/captions/es.srt`,
@@ -457,7 +465,8 @@ test("an automatic outside session in a project worktree runs its own scripts wi
     assert.deepEqual(card.deletion, {
       items: [".worktrees/reels/work/en/subtitles/words/es", ".worktrees/reels/work/en/subtitles/captions/es.srt"],
       reason: "Drop the Spanish words copied from the original",
-      command: deletion.command,
+      // Only the part that deletes; the `cd` and the variable before it are the channels' text.
+      command: "rm -rf $D/words/es $D/captions/es.srt",
     });
     assert.match(card.detail ?? "", /Drop the Spanish words/);
     assert.deepEqual(card.approval_scopes, ["once", "session"]);

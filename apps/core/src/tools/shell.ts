@@ -29,6 +29,7 @@ import {
   type Root,
   refusal,
   rootsOf,
+  scratchDir,
   scratchRoot,
 } from "./folders.ts";
 import { untrusted } from "./result.ts";
@@ -368,9 +369,16 @@ export function shellTools(
         if (!deletes(a.command)) return undefined;
         const at = runsAt(a, ctx.thread);
         if (at !== undefined && !losesWork(a.command, at)) return undefined;
-        const own = vm?.hasThread(ctx.thread.id) ? undefined : rootsOf(store, home, ctx.thread)[0]?.dir;
+        const roots = vm?.hasThread(ctx.thread.id) ? [] : rootsOf(store, home, ctx.thread);
+        const own = roots[0]?.dir;
         const root = own && deletionRoot(store, ctx.thread, own);
-        return { ...deletionTargets(a.command, at ?? a.cwd ?? "."), ...(root ? { root } : {}) };
+        // Where it may change files, never the whole disk a reach of "everywhere" lends.
+        const mine = roots.filter((r) => r.write && !r.scratch && !r.off && !r.anywhere).map((r) => r.dir);
+        return {
+          ...deletionTargets(a.command, at ?? a.cwd ?? "."),
+          ...(root ? { root } : {}),
+          ...(own ? { place: { roots: mine, scratch: scratchDir(store, home, ctx.thread) } } : {}),
+        };
       },
       keepsCard: (a) => publishCard(a.command, store.settings.read("owner_profile").publish ?? "auto"),
       // A command that could only be refused is not put to the owner.

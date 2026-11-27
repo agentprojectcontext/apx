@@ -37,6 +37,7 @@ const AUX_LABEL: Record<AuxPurpose, MessageKey> = {
   aside: "usage.aux.aside",
   call: "usage.aux.call",
   mail: "usage.aux.mail",
+  deletion: "usage.aux.deletion",
 };
 
 function secs(run: Run): number | undefined {

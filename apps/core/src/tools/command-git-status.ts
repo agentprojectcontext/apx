@@ -39,3 +39,30 @@ export const overwritten: Overwritten = (dir, targets, staged) => {
     return undefined;
   }
 };
+
+/** What a deletion card's classifier asks git: whether a branch or a worktree only holds work already merged. */
+export type GitFacts = {
+  /** The branch's commits are all in the checked-out branch of `dir`. */
+  merged(dir: string, branch: string): boolean;
+  /** The worktree has no change git does not keep (untracked files included), and its commit is merged. */
+  cleanMerged(worktree: string): boolean;
+};
+
+const quiet = (dir: string, args: string[]) => {
+  try {
+    return git(dir, args);
+  } catch {
+    return undefined;
+  }
+};
+
+export const gitFacts: GitFacts = {
+  merged: (dir, branch) => quiet(dir, ["merge-base", "--is-ancestor", `refs/heads/${branch}`, "HEAD"]) !== undefined,
+  cleanMerged(worktree) {
+    if (quiet(worktree, ["status", "--porcelain", "--untracked-files=all"]) !== "") return false;
+    const head = quiet(worktree, ["rev-parse", "HEAD"])?.trim();
+    // The first worktree listed is the main checkout: its branch is where merged work is.
+    const main = /^worktree (.+)$/m.exec(quiet(worktree, ["worktree", "list", "--porcelain"]) ?? "")?.[1];
+    return !!head && !!main && quiet(main, ["merge-base", "--is-ancestor", head, "HEAD"]) !== undefined;
+  },
+};

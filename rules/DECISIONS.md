@@ -6022,6 +6022,7 @@ PROMPT_SIZE.md (browser tools), and news.
 
 <a id="d-266"></a>
 ## D-266 — 2026-11-23 — Agents delete only when asked; heredoc data is not shell words; start_session runs in Auto
+*Amended by [D-281](#d-281) (2026-11-27): in Auto a deletion that is plainly the agent's own, or that a small model finds the work asked for, runs without a card.*
 In Auto an external Claude Code session producing a video in a git worktree of the owner's project stopped four times
 on "a high-impact action that needs your OK even in Auto" for ordinary work, and one card expired unanswered. Three
 of those commands were high-impact only because `commandRisk`'s static reading (D-097) scanned a heredoc's body as
@@ -6546,3 +6547,38 @@ remains distinct from the owner's explicit grant (D-279). Browser scripts still 
 document, with temporary consent bounded by its selected tab or turn.
 
 Docs impact: updated office/tasks, extend/mcp and reference/cli in English and Spanish.
+
+<a id="d-281"></a>
+## D-281 — 2026-11-27 — Auto weighs a deletion as Claude Code's auto mode does, instead of asking for every one
+
+D-266 made every forced deletion ask in Auto, since APX cannot read intent. It stopped ordinary work: an agent
+removing a canceled CI run's coverage folder and container on the owner's Linux box, and another restoring three lost
+files in a worktree before removing it once merged. The owner: APX should manage these decisions itself, as Claude
+Code in auto mode does, "sin preguntarme a cada rato". Manual and Total are unchanged.
+
+- Each thing a command deletes is weighed on its own (`tools/deletion-kinds.ts`). It runs without a card when it is
+  plainly the agent's own or regenerated: in the chat's temp folder, gone already, inside a build, test or cache
+  output folder (`coverage`, `dist`, `build`, `node_modules`…), made since the task (or the run) began (the file and
+  everything in it, by creation time; a file system without one counts as the owner's), a container an earlier
+  command of the run started, a merged branch (`git branch -D`), or a merged worktree with nothing unsaved
+  (`git worktree remove --force`). A restore of files deleted in the working tree was already no deletion.
+- It asks when it would lose the owner's work: uncommitted edits, a stash, history, files git does not track
+  (`git clean`), an unmerged branch, a worktree with unsaved or unmerged work, a file of the owner's the agent did not
+  make, or anything outside the folders of the owner's projects it may change. `sudo`, a release and acting in the
+  owner's name never reach this: they keep their own card (D-208).
+- What only the task can tell (a command on another machine, `xargs rm`, `find -exec rm`, a container it did not
+  start) goes to the auxiliary model (`engine/deletion-judge.ts`, purpose `deletion` in the auxiliary calls, 20 s
+  deadline). It reads the deleting parts, what is known of each, the agent's reason, the task, the owner's recent words
+  and the lines of the project's AGENTS.md about deleting or cleaning up, and answers run or ask. No model, a failure,
+  the deadline or an unclear answer is a card. With outside content in the turn it still judges, told to answer run
+  only on the owner's words, the task or a project rule: command output in the chat's history marks nearly every later
+  turn, and skipping the judge there would leave every such deletion on a card.
+- Agents are told to delete in a command of their own, in the git line, one character shorter than before
+  (PROMPT_SIZE.md). A deletion chained after other work is still weighed on its own, and its card shows only the
+  simple commands that delete; the channels' text keeps the whole command.
+
+Known limits: "made since" reads creation time, which a copy renews and a move keeps; containers count as the agent's
+only when this run started them by `--name`.
+
+Docs impact: updated concepts/autonomy in English and Spanish and rules/PROMPT_SIZE.md. No news: the owner gets fewer
+cards, nothing new to act on.

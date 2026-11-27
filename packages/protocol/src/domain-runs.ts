@@ -22,6 +22,8 @@ export const AuxPurpose = z.enum([
   "mail",
   /** What a voice call says (the model it talks with). */
   "call",
+  /** Whether a deletion in Auto runs or asks the owner (DECISIONS.md#d-281). */
+  "deletion",
 ]);
 export type AuxPurpose = z.infer<typeof AuxPurpose>;
 

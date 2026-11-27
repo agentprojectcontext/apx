@@ -62,7 +62,7 @@ Every tool call has a level, and some depend on their arguments: a read-only `gi
 | `never` | Reading files, searching the web, recalling notes, listing tasks, saving a note, looking at your screen, shell commands that only read on this machine (`ls`, `find . | grep`, `git log`, `git branch -a`, `apx status`, `apx tasks`, `apx mcps list`, `apx usage 7`, any `apx … --help`): they run even with outside content in the turn. Reading `AGENTS.md` or `.apx/` is reading too. |
 | `untrusted` | Writing files in the project, messaging a contact, posting to a channel, typing in the browser, forgetting a note, giving another agent a tool, the phone's location, opening a URL with a query string, assigning a task to an agent. |
 | `ask` | Any shell command that is not plainly read-only, including a plain `git push` of a branch, opening apps on your screen. |
-| `always` | Destructive shell commands (`rm -rf`, `sudo`, `git reset --hard`, `git branch -D`…), a push that cuts a release or rewrites history (a tag, `--force`, `gh release`, `npm publish`), changing `AGENTS.md` or anything in `.apx/` (with a file tool or a command), commands that reach APX's own API, or its CLI for anything but reading (`apx chat`, `apx runs respond`, `apx routines add`, or any `apx` run with a variable set before it), not a folder or a word named apx, sending an iMessage, answering a contact, using your browser login, clicking, typing or pressing keys on your screen. |
+| `always` | Destructive shell commands (`rm -rf`, which Auto weighs first, see [Deleting](#deleting), `sudo`, `git reset --hard`, `git branch -D`…), a push that cuts a release or rewrites history (a tag, `--force`, `gh release`, `npm publish`), changing `AGENTS.md` or anything in `.apx/` (with a file tool or a command), commands that reach APX's own API, or its CLI for anything but reading (`apx chat`, `apx runs respond`, `apx routines add`, or any `apx` run with a variable set before it), not a folder or a word named apx, sending an iMessage, answering a contact, using your browser login, clicking, typing or pressing keys on your screen. |
 
 An agent that can change files commits, pulls, merges or pushes only when you or its task asked for it, or a rule or
 note of the project says how (the website straight to `main`, say); otherwise it asks you once. Publishing a task's
@@ -127,16 +127,30 @@ calls never covers its destructive ones. What you set up in APX is approved one 
 
 ### Deleting
 
-An agent deletes only when you asked for it, in the chat or as a rule of yours in the project (removing a worktree
-once it is merged, say). It is told so, and when you did not ask it asks you and says why. In every mode but Total, a
-command that deletes with `rm -r` or `rm -f` waits for you, also inside its own folder. Its card lists what would be
-deleted in plain words, with paths relative to the project, and the command under **See command**. Why the agent
-wants to is its own message just above the card (for Claude Code or Codex, the reason it gave, on the card). You can accept it once, or for
-this chat: then that agent's next deletions in this chat run without asking. It is never allowed for good, and it
-never covers anything else that always asks, like `sudo` or a release.
+In Manual every deletion waits for you; in Total none does. In Auto, APX weighs what a command would delete, the way
+Claude Code's auto mode does, instead of asking each time:
 
-Git commands that throw away work git would otherwise keep ask the same way, and their card names the branch,
-worktree, files or stash they lose: `git worktree remove --force`, `git branch -D`, `git clean -f` (or `-fd`, `-fdx`),
+- **It runs** what is plainly the agent's own or comes back by itself: the chat's temp folder, build, test and cache
+  output (`coverage`, `dist`, `build`, `node_modules`…), files and folders it made during this task, a container it
+  started, a branch already merged, a merged worktree with nothing unsaved, and something already gone.
+- **It asks you** before losing your work: changes not yet committed, a stash, files git does not track, a branch
+  with work not merged, a worktree with unsaved work, a file of yours the agent did not make, or anything outside the
+  folders of your projects it may change. `sudo`, a release and anything sent in your name keep their own card.
+- **Anything else** (a command on another machine, `xargs rm`, `find -exec rm`) goes to the auxiliary model, which
+  reads the task, your recent words and your project's rules about cleaning up (in AGENTS.md) and decides. If there
+  is no auxiliary model, it fails or it is not sure, you get the card.
+
+Agents are told to delete in a command of its own. When a deletion comes chained after other work, it is weighed on
+its own and the card shows only that part.
+
+When a deletion asks, its card lists what would be deleted in plain words, with paths relative to the project, and
+the command under **See command**. Why the agent wants to is its own message just above the card (for Claude Code or
+Codex, the reason it gave, on the card). You can accept it once, or for this chat: then that agent's next deletions
+in this chat run without asking. It is never allowed for good, and it never covers anything else that always asks,
+like `sudo` or a release.
+
+Git commands that throw away work git would otherwise keep are deletions too, weighed the same way, and their card
+names the branch, worktree, files or stash they lose: `git worktree remove --force`, `git branch -D`, `git clean -f` (or `-fd`, `-fdx`),
 `git reset --hard`, `git checkout -- .` or `git checkout -f`, `git restore .`, `git switch --discard-changes`,
 `git stash drop` or `clear`, `git rm -f`, `git reflog expire` and `git gc --prune=now`. Their plain forms
 (`git worktree remove`, `git branch -d`, `git stash`, `git rm`) are ordinary commands: git itself refuses them when

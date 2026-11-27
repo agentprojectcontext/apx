@@ -62,14 +62,13 @@ test("whoever can change files is told to look at a visible change running, unde
   assert.ok(!sectionLines({ mode: "auto" }).includes(`- ${VISUAL_CHECK}`));
 });
 
-test("whoever can change files commits, publishes and deletes only when asked or a project rule says so", () => {
+test("whoever can change files commits and publishes only when asked, and deletes in a command of its own", () => {
   assert.ok(sectionLines({ write: "auto", edits: true }).includes(`- ${GIT_ASKED}`));
   assert.ok(sectionLines({ mode: "auto", edits: true }).includes(`- ${GIT_ASKED}`));
   assert.ok(!sectionLines({ mode: "auto" }).includes(`- ${GIT_ASKED}`));
-  assert.match(
-    GIT_ASKED,
-    /push or delete only if the owner or task asked or a project rule or note says so; else ask, saying why/,
-  );
+  assert.match(GIT_ASKED, /push only if the owner, task, rule or note says so; else ask, saying why/);
+  // Auto weighs a deletion on its own (DECISIONS.md#d-281): chained after other work, its card shows only that part.
+  assert.match(GIT_ASKED, /Delete in its own command\./);
 });
 
 test("a turn opens with one context header: the facts line, then the folder and the computer", () => {

@@ -65,7 +65,7 @@ no es un `git push`.
 | `never` | Leer archivos, buscar en la web, buscar en las notas, listar tareas, guardar una nota, mirar tu pantalla, comandos de shell que sólo leen en esta máquina (`ls`, `find . | grep`, `git log`, `git branch -a`, `apx status`, `apx tasks`, `apx mcps list`, `apx usage 7`, cualquier `apx … --help`): corren aunque haya contenido de afuera en el turno. Leer `AGENTS.md` o `.apx/` también es leer. |
 | `untrusted` | Escribir archivos del proyecto, escribirle a un contacto, publicar en un canal, tipear en el navegador, olvidar una nota, darle una herramienta a otro agente, la ubicación del teléfono, abrir una URL con query string, asignarle una tarea a un agente. |
 | `ask` | Cualquier comando de shell que no sea claramente de sólo lectura, incluido un `git push` común de una rama, abrir apps en tu pantalla. |
-| `always` | Comandos de shell destructivos (`rm -rf`, `sudo`, `git reset --hard`, `git branch -D`…), un push que saca una versión o reescribe la historia (un tag, `--force`, `gh release`, `npm publish`), cambiar `AGENTS.md` o algo dentro de `.apx/` (con una herramienta de archivos o un comando), comandos que llegan a la API de APX, o a su CLI para algo que no sea leer (`apx chat`, `apx runs respond`, `apx routines add`, o cualquier `apx` con una variable puesta antes), no una carpeta o una palabra que se llame apx, mandar un iMessage, responderle a un contacto, usar tu sesión del navegador, hacer clic, tipear o apretar teclas en tu pantalla. |
+| `always` | Comandos de shell destructivos (`rm -rf`, que Auto mira antes, ver [Borrar](#borrar), `sudo`, `git reset --hard`, `git branch -D`…), un push que saca una versión o reescribe la historia (un tag, `--force`, `gh release`, `npm publish`), cambiar `AGENTS.md` o algo dentro de `.apx/` (con una herramienta de archivos o un comando), comandos que llegan a la API de APX, o a su CLI para algo que no sea leer (`apx chat`, `apx runs respond`, `apx routines add`, o cualquier `apx` con una variable puesta antes), no una carpeta o una palabra que se llame apx, mandar un iMessage, responderle a un contacto, usar tu sesión del navegador, hacer clic, tipear o apretar teclas en tu pantalla. |
 
 Un agente que puede cambiar archivos hace commit, pull, merge o push solo cuando vos o su tarea lo pidieron, o una regla
 o nota del proyecto dice cómo (la web directo a `main`, por ejemplo); si no, te pregunta una vez. Publicar el trabajo
@@ -131,17 +131,32 @@ sus llamadas comunes nunca cubre las destructivas. Lo que configuraste en APX se
 
 ### Borrar
 
-Un agente borra solo cuando vos se lo pediste, en el chat o como una regla tuya en el proyecto (quitar un worktree
-cuando ya está mergeado, por ejemplo). Se le dice así, y cuando no se lo pediste te pregunta y dice por qué. En todos
-los modos salvo Total, un comando que borra con `rm -r` o `rm -f` te espera, también dentro de su propia carpeta. Su
-tarjeta lista lo que se borraría en palabras simples, con las rutas relativas al proyecto, y el comando en
-**Ver comando**. Por qué quiere hacerlo es su propio mensaje, justo arriba de la tarjeta (para Claude Code o Codex, el
-motivo que dio, en la tarjeta).
-Podés aceptarlo una vez, o durante este chat: entonces los próximos borrados de ese agente en este chat corren sin
-preguntar. Nunca se permite para siempre, y nunca cubre otra cosa que siempre pregunta, como `sudo` o una versión.
+En Manual cada borrado te espera; en Total ninguno. En Auto, APX mira qué borraría un comando, como hace el modo auto
+de Claude Code, en vez de preguntarte cada vez:
 
-Los comandos de git que tiran trabajo que git guardaría preguntan igual, y su tarjeta nombra la rama, el worktree, los
-archivos o el stash que se pierden: `git worktree remove --force`, `git branch -D`, `git clean -f` (o `-fd`, `-fdx`),
+- **Lo hace** cuando es claramente del agente o vuelve solo: la carpeta temporal del chat, lo que generan el build,
+  los tests y las cachés (`coverage`, `dist`, `build`, `node_modules`…), archivos y carpetas que hizo durante esta
+  tarea, un contenedor que arrancó, una rama ya mergeada, un worktree mergeado sin nada sin guardar, y lo que ya no
+  existe.
+- **Te pregunta** antes de perder trabajo tuyo: cambios sin commitear, un stash, archivos que git no sigue, una rama
+  con trabajo sin mergear, un worktree con cambios sin guardar, un archivo tuyo que el agente no hizo, o cualquier cosa
+  fuera de las carpetas de tus proyectos que puede cambiar. `sudo`, una versión y lo que se manda en tu nombre siguen
+  con su propia tarjeta.
+- **El resto** (un comando en otra máquina, `xargs rm`, `find -exec rm`) lo decide el modelo auxiliar, que lee la
+  tarea, lo que dijiste hace poco y las reglas de tu proyecto sobre limpiar (en AGENTS.md). Si no hay modelo auxiliar,
+  falla o no está seguro, te llega la tarjeta.
+
+A los agentes se les dice que borren en un comando aparte. Si un borrado viene encadenado después de otro trabajo, se
+mira solo, y la tarjeta muestra solo esa parte.
+
+Cuando un borrado pregunta, su tarjeta lista lo que se borraría en palabras simples, con las rutas relativas al
+proyecto, y el comando en **Ver comando**. Por qué quiere hacerlo es su propio mensaje, justo arriba de la tarjeta
+(para Claude Code o Codex, el motivo que dio, en la tarjeta). Podés aceptarlo una vez, o durante este chat: entonces
+los próximos borrados de ese agente en este chat corren sin preguntar. Nunca se permite para siempre, y nunca cubre
+otra cosa que siempre pregunta, como `sudo` o una versión.
+
+Los comandos de git que tiran trabajo que git guardaría también son borrados, se miran igual, y su tarjeta nombra la
+rama, el worktree, los archivos o el stash que se pierden: `git worktree remove --force`, `git branch -D`, `git clean -f` (o `-fd`, `-fdx`),
 `git reset --hard`, `git checkout -- .` o `git checkout -f`, `git restore .`, `git switch --discard-changes`,
 `git stash drop` o `clear`, `git rm -f`, `git reflog expire` y `git gc --prune=now`. Sus formas comunes
 (`git worktree remove`, `git branch -d`, `git stash`, `git rm`) son comandos comunes: git mismo los rechaza cuando se
