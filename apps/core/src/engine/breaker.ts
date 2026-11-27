@@ -225,7 +225,22 @@ export function keepWhilePaused(
   if (!paused) return false;
   tellStuck(store, o.thread_id);
   store.modelLog.append(o.thread_id, o.run_id, [systemNote(o.note)]);
-  store.messages.add({ thread_id: o.thread_id, author: { kind: "system" }, parts: [paused] });
+  const open = openPause(store, o.thread_id);
+  if (open) {
+    store.messages.update({ ...open, parts: open.parts.map((p) => (isPaused(p) ? paused : p)) });
+    store.messages.toEnd(open.id);
+  } else store.messages.add({ thread_id: o.thread_id, author: { kind: "system" }, parts: [paused] });
   store.threads.mergeContext(o.thread_id, { kept: o.agent_id });
   return true;
+}
+
+const isPaused = (p: { type: string; code?: string }) => p.type === "notice" && p.code === "breaker.paused";
+
+/** This stretch's pause notice in the chat: not yet let go and after the owner's last word, so one pause shows once. */
+function openPause(store: Store, threadId: string) {
+  const owner = store.messages.latestBy([threadId], "user")?.seq ?? -1;
+  return store.messages
+    .notices(threadId, "breaker.paused")
+    .filter((m) => m.seq > owner && m.parts.some((p) => isPaused(p) && p.type === "notice" && !p.vars?.resolved))
+    .at(-1);
 }
