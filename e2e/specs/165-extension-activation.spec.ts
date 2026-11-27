@@ -98,3 +98,39 @@ test("a real server startup failure rolls back only its first activation and pub
   expect(startupError).toBeTruthy();
   expect(published).toEqual([false]);
 });
+
+test("a failure after replacement invalidates the previous activation receipt", async () => {
+  const { dir, home } = await world.info();
+  const id = "acme-partial-replace";
+  const root = path.join(dir, id);
+  fs.mkdirSync(root, { recursive: true });
+  fs.writeFileSync(
+    path.join(root, "apx-extension.json"),
+    JSON.stringify({
+      id,
+      name: "Acme partial replacement",
+      version: "1.0.0",
+      settings: [{ name: "key", label: "Connection key", type: "string", sensitive: true, generate: "random" }],
+    }),
+  );
+  await rpc("extensions.install", { path: root });
+  const first = await rpc<Enabled>("extensions.enable", { id, enabled: true, only_if_disabled: true });
+  expect(first.activation_token).toBeTruthy();
+  const file = path.join(home, "secrets.json");
+  const before = fs.readFileSync(file);
+  const temporary = `${file}.tmp`;
+  // Force generated-secret persistence to fail after the installed record has been replaced.
+  fs.writeFileSync(file, "{}");
+  fs.mkdirSync(temporary);
+  try {
+    await expect(rpc("extensions.install", { path: root })).rejects.toThrow();
+    const listed = await rpc<{ extensions: Enabled[] }>("extensions.list");
+    expect(listed.extensions.find((extension) => extension.id === id)?.enabled).toBe(true);
+    expect(
+      (await rpc<Enabled>("extensions.enable", { id, enabled: false, rollback_token: first.activation_token })).enabled,
+    ).toBe(true);
+  } finally {
+    fs.rmdirSync(temporary);
+    fs.writeFileSync(file, before);
+  }
+});

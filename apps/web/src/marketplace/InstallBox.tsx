@@ -291,6 +291,26 @@ export function InstallBox({
       },
     });
 
+  const recoverConnection = async (error: unknown, extension: ExtensionInfo, hasFields: boolean) => {
+    setLink("broken");
+    let confirmed = false;
+    try {
+      const actual = (await client.call("extensions.list", {})).extensions.find((entry) => entry.id === extension.id);
+      if (actual) {
+        setExt(actual);
+        confirmed = true;
+      }
+    } catch {}
+    extensionsChanged();
+    const key = confirmed ? connectionFailureKey(error, hasFields) : "box.err.rollback";
+    setProblem({
+      key,
+      vars: { name: extension.name },
+      ...(key === "box.err.checkFields" ? {} : { detail: errText(error) }),
+      retry: true,
+    });
+  };
+
   const add = async () => {
     if (!start) return;
     setBusy(true);
@@ -303,7 +323,12 @@ export function InstallBox({
         setPhase("connect");
         setLink("connecting");
         setExt(added);
-        setTools((await startExtension(added)).tools);
+        try {
+          setTools((await startExtension(added)).tools);
+        } catch (error) {
+          await recoverConnection(error, added, false);
+          return;
+        }
         setLink("connected");
         setPhase("done");
         return;
@@ -366,23 +391,7 @@ export function InstallBox({
       setLink("connected");
       setPhase("done");
     } catch (e) {
-      setLink("broken");
-      let confirmed = false;
-      try {
-        const actual = (await client.call("extensions.list", {})).extensions.find((entry) => entry.id === ext.id);
-        if (actual) {
-          setExt(actual);
-          confirmed = true;
-        }
-      } catch {}
-      extensionsChanged();
-      const key = confirmed ? connectionFailureKey(e, fields.length > 0) : "box.err.rollback";
-      setProblem({
-        key,
-        vars: { name: ext.name },
-        ...(key === "box.err.checkFields" ? {} : { detail: errText(e) }),
-        retry: true,
-      });
+      await recoverConnection(e, ext, fields.length > 0);
     } finally {
       setBusy(false);
     }
