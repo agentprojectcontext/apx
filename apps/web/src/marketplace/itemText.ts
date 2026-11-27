@@ -13,17 +13,20 @@ export function connectionUpdateText(
   );
   const oldSecrets = update.removes.filter((power) => power.kind === "secret");
   const reconnect = bound.length === 1 && oldSecrets.length === 1 && !update.keeps_on;
-  if (!reconnect) return { adds: update.adds.map(label), drops: update.removes.map(label) };
-  const replaced = update.adds.filter(
-    (power) => power.kind === "mcp" && update.removes.some((old) => old.kind === "mcp" && old.name === power.name),
+  const changedNames = new Set(
+    update.adds
+      .filter(
+        (power) => power.kind === "mcp" && update.removes.some((old) => old.kind === "mcp" && old.name === power.name),
+      )
+      .map((power) => power.name),
   );
-  const adds = update.adds.filter((power) => !bound.includes(power) && !replaced.includes(power)).map(label);
-  const drops = update.removes
-    .filter(
-      (power) => !oldSecrets.includes(power) && !replaced.some((p) => p.kind === power.kind && p.name === power.name),
-    )
-    .map(label);
-  return { adds, drops, reconnect, connectorChanged: replaced.length > 0 };
+  const changed = (power: ExtensionPower) => power.kind === "mcp" && changedNames.has(power.name);
+  return {
+    adds: update.adds.filter((power) => !changed(power)).map(label),
+    drops: update.removes.filter((power) => !changed(power)).map(label),
+    changed: [...changedNames],
+    reconnect,
+  };
 }
 
 // What the Marketplace says about an item, in the owner's words, from what APX knows of it (its manifest, its listing,

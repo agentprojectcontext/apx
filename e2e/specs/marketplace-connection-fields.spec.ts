@@ -22,6 +22,10 @@ for (const language of ["en", "es"] as const) {
     );
     const { dir } = await world.info();
     const root = path.join(dir, id);
+    const connections = (version: string) => ({
+      store: { url: `https://store.example.invalid/${version}` },
+      inventory: { url: `https://inventory.example.invalid/${version}` },
+    });
     fs.mkdirSync(root, { recursive: true });
     fs.writeFileSync(
       path.join(root, "apx-extension.json"),
@@ -30,6 +34,7 @@ for (const language of ["en", "es"] as const) {
         id,
         name: "Northwind Store",
         version: "1.0.0",
+        mcp: connections("v1"),
         settings: [
           { name: "host", label: "Store host", type: "string", required: true },
           { name: "legacy_auth", label: "Legacy credential", type: "string", required: true, sensitive: true },
@@ -48,6 +53,7 @@ for (const language of ["en", "es"] as const) {
         id,
         name: "Northwind Store",
         version: "1.1.0",
+        mcp: connections("v2"),
         settings: [
           {
             name: "site",
@@ -93,7 +99,10 @@ for (const language of ["en", "es"] as const) {
     await expect(dialog).toContainText(
       spanish ? "Volvé a conectarla con una credencial nueva." : "Reconnect with a new credential.",
     );
-    await expect(dialog).not.toContainText("Legacy credential");
+    await expect(dialog).toContainText(
+      spanish ? "Cambia cómo se conecta: store · inventory" : "Changes how it connects: store · inventory",
+    );
+    await expect(dialog).toContainText("Legacy credential");
     const submit = dialog.getByRole("button", { name: connect, exact: true });
     const address = dialog.getByLabel(spanish ? "Dirección de la tienda" : "Store address", { exact: true });
     const username = dialog.getByLabel(spanish ? "Usuario" : "Username", { exact: true });

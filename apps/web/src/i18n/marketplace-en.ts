@@ -256,7 +256,7 @@ export const enMarketplace = {
   "box.update.stays": "It stays connected; nothing for you to do.",
   "box.update.waits": "Then you connect it again to approve what it adds.",
   "box.update.keeps": "{from} is kept: you can go back to it from ⋯.",
-  "box.update.connectorChanged": "This update changes how the extension connects.",
+  "box.update.changed": "Changes how it connects: {list}",
   "box.update.reconnect": "Reconnect with a new credential.",
   "box.update.keepsReconnect": "You can go back to {from} from ⋯. If you do, you’ll need to connect again.",
   "box.collapse": "Show less",

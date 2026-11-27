@@ -41,31 +41,35 @@ test("a credential replacement asks for reconnection without hiding unrelated ac
     keeps_on: false,
     adds: [
       { kind: "secret", name: "app_password" },
-      { kind: "mcp", name: "store", detail: "new connector" },
+      { kind: "mcp", name: "store", detail: "https://shop.example.com/new" },
+      { kind: "mcp", name: "inventory", detail: "node new-inventory.js" },
       { kind: "host", name: "shop.example.com" },
       { kind: "secret", name: "other_key" },
     ],
     removes: [
       { kind: "secret", name: "old_password" },
-      { kind: "mcp", name: "store", detail: "old connector" },
-      { kind: "mcp", name: "inventory" },
+      { kind: "mcp", name: "store", detail: "https://shop.example.com/old" },
+      { kind: "mcp", name: "inventory", detail: "node old-inventory.js" },
+      { kind: "mcp", name: "warehouse" },
     ],
   } satisfies NonNullable<ExtensionInfo["update"]>;
   const settings = [{ name: "app_password", boundTo: ["shop_url"] }];
   assert.deepEqual(
     connectionUpdateText(update, settings, (p) => p.name),
     {
-      adds: ["shop.example.com", "other_key"],
-      drops: ["inventory"],
+      adds: ["app_password", "shop.example.com", "other_key"],
+      drops: ["old_password", "warehouse"],
+      changed: ["store", "inventory"],
       reconnect: true,
-      connectorChanged: true,
     },
   );
   assert.deepEqual(
     connectionUpdateText(update, [], (p) => p.name),
     {
-      adds: ["app_password", "store", "shop.example.com", "other_key"],
-      drops: ["old_password", "store", "inventory"],
+      adds: ["app_password", "shop.example.com", "other_key"],
+      drops: ["old_password", "warehouse"],
+      changed: ["store", "inventory"],
+      reconnect: false,
     },
   );
 });

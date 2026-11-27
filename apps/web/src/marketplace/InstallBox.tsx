@@ -68,17 +68,17 @@ function UpdateNote({
   to,
   adds,
   drops,
+  changed,
   stays,
   reconnect,
-  connectorChanged,
 }: {
   from: string;
   to: string;
   adds: string[];
   drops: string[];
+  changed: string[];
   stays: boolean;
-  reconnect?: boolean;
-  connectorChanged?: boolean;
+  reconnect: boolean;
 }) {
   const t = useT();
   return (
@@ -88,12 +88,16 @@ function UpdateNote({
         {drops.length > 0 && (
           <span className="mkt-box__line">{t("box.update.drops", { list: drops.join(" · ") })}</span>
         )}
-        {connectorChanged && <span className="mkt-box__line">{t("box.update.connectorChanged")}</span>}
+        {changed.length > 0 && (
+          <span className="mkt-box__line">{t("box.update.changed", { list: changed.join(" · ") })}</span>
+        )}
         {reconnect ? (
           <span className="mkt-box__line">{t("box.update.reconnect")}</span>
         ) : (
           <>
-            {!adds.length && !drops.length && <span className="mkt-box__line">{t("box.update.nothingNew")}</span>}
+            {!adds.length && !drops.length && !changed.length && (
+              <span className="mkt-box__line">{t("box.update.nothingNew")}</span>
+            )}
             <span className="mkt-box__line">{t(stays ? "box.update.stays" : "box.update.waits")}</span>
           </>
         )}
