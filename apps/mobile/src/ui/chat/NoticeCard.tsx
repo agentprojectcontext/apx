@@ -83,8 +83,8 @@ export function NoticeCard({
                 : restart
                   ? "RotateCcw"
                   : part.level === "warn"
-                  ? "TriangleAlert"
-                  : "Info"
+                    ? "TriangleAlert"
+                    : "Info"
         }
         warning={part.level === "warn" && !restart}
       >

@@ -28,9 +28,7 @@ test("a restart notice is a quiet system line: no agent name, no message actions
 });
 
 test("a restart line that a later one repeats is not shown twice", async () => {
-  const ui = await render(
-    <ChatMessage message={resumed} agents={agents} respond={async () => {}} restartSuperseded />,
-  );
+  const ui = await render(<ChatMessage message={resumed} agents={agents} respond={async () => {}} restartSuperseded />);
   expect(ui.queryByTestId("chat-message")).toBeNull();
   const later = await render(<ChatMessage message={interrupted} agents={agents} respond={async () => {}} />);
   expect(later.getByTestId("chat-message")).toBeTruthy();

@@ -123,7 +123,11 @@ export function AgentTurn({
   }[] = imageGenerationBlocks(
     message.parts,
     runState,
-    (p) => p.type === "skills" || isRestartNotice(p) || chips.later.has(p) || (p.type === "text" && (!p.text.trim() || isSignal(p.text))),
+    (p) =>
+      p.type === "skills" ||
+      isRestartNotice(p) ||
+      chips.later.has(p) ||
+      (p.type === "text" && (!p.text.trim() || isSignal(p.text))),
     generationImages,
   ).map((b) =>
     b.kind === "generation"
