@@ -1,7 +1,7 @@
 // Tools that talk to the owner or page through what the turn already produced.
 import { z } from "zod";
 import { canReadChat } from "../domain/chat-access.ts";
-import type { InputRecord } from "../domain/inputs.ts";
+import { type Asked, HELD_ANSWER } from "../domain/inputs.ts";
 import { ownerQuestionProblem } from "../domain/owner-question.ts";
 import { placeName, worksForOwner } from "../domain/owner-work.ts";
 import type { Store } from "../domain/store.ts";
@@ -20,7 +20,8 @@ const NOTIFY_STATE = {
 } as const;
 
 /** What the agent learns from an action card: accepted means do it now, its calls still pass their own checks. */
-function actionResult(r: InputRecord): string {
+function actionResult(r: Asked): string {
+  if (r.held) return HELD_ANSWER;
   const note = r.answer ? ` Their note: ${r.answer}` : "";
   if (r.state === "approved")
     return `The owner accepted this action: do it now, as proposed.${note} If a call in it still waits for their OK, APX asks them for it.`;
@@ -83,11 +84,16 @@ export function ownerTools(store: Store): Tool[] {
             : `Asked you: ${String(a.question ?? "").slice(0, 60)}`,
       async run(a, ctx) {
         if (a.withdraw) {
+          // Withdrawn already when the chat moved on (DECISIONS.md#d-282): nothing more to take back.
+          const was = store.inputs.get(a.withdraw);
+          if (was?.state === "withdrawn" && was.agent_id === ctx.agent.id)
+            return `Question ${was.id} was already withdrawn; the owner is not asked again.`;
           const r = ctx.withdrawQuestion(a.withdraw);
           return `Question ${r.id} withdrawn; the owner is not asked again.`;
         }
         if (a.action) return actionResult(await ctx.proposeAction(a.action, a.can_continue));
         const r = await ctx.askOwner(a.question ?? "", a.options, a.can_continue, a.multi);
+        if (r.held) return HELD_ANSWER;
         if (r.state === "answered") return `The owner answered: ${r.answer ?? ""}`;
         if (r.state === "pending")
           return `The owner has not answered yet. The question stays open in the chat (id ${r.id}) and their answer will reach you in a new turn; if it is no longer needed, take it back with ask_owner withdraw=${r.id}. End this turn now: say briefly what you are waiting for and do not go on with work that depends on it.`;

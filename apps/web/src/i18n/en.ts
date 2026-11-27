@@ -2,6 +2,7 @@ import type { noticeEn } from "@apx/protocol/notices-en";
 import type { enAccount } from "./account-en.ts";
 import type { enActivityReview } from "./activity-review-en.ts";
 import type { ApprovalKey } from "./approvals-en.ts";
+import type { enAutoDeletions } from "./auto-deletions-en.ts";
 import type { BrowserEditKey } from "./browser-edit-en.ts";
 import type { enCall } from "./call-en.ts";
 import { enCallSlim } from "./call-slim-en.ts";
@@ -1018,7 +1019,8 @@ export const en = {
   "browser.handedYou": "handed you the tab",
   "browser.liveView": "Live view of the tab",
   "browser.noImage": "No image",
-  "browser.noImageBody": "We couldn't capture the tab. Is the desktop app open?",
+  "browser.noImageBody": "We couldn't get a picture of this tab. Try again in a moment.",
+  "browser.previewOnly": "You can watch this tab, but you can't click or type here.",
   "browser.import.needsDesktop": "Open the desktop app to import sessions ({error})",
   "browser.import.done": "Imported {n} cookies",
   "browser.import.expired": " ({n} expired)",
@@ -1814,6 +1816,8 @@ export const en = {
     "Decides which emails are worth telling you about and which group messages are worth an answer.",
   "helperModel.job.images": "Describes the images and stickers people send you, when it can read images.",
   "helperModel.job.groups": "Picks which agent answers in a group chat.",
+  "helperModel.job.deletions":
+    "Decides whether an unclear deletion can go ahead without asking you, when the agent is in Auto.",
   "helperModel.job.drafts": "Suggests reply drafts when the agent has no other model for it.",
   "helperModel.job.review": "Reviews activity to suggest improvements.",
   "helperModel.job.backup": "Stands in for an agent's model in short notices and when reading chats you import.",
@@ -2042,6 +2046,7 @@ export type MessageKey =
   | keyof typeof enAccount
   | keyof typeof enGroup
   | keyof typeof enActivityReview
+  | keyof typeof enAutoDeletions
   | keyof typeof enDiscovery
   | keyof typeof noticeEn
   | keyof typeof enCall

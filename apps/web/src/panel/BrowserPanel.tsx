@@ -3,10 +3,8 @@ import type { TabInfo } from "@apx/protocol";
 import { EmptyState, IconButton, Icons, Menu, type MenuEntry } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { hostPath } from "../common/format.ts";
-import { browserClose, browserControl, loadTabs } from "../data/actions.ts";
+import { browserClose, loadTabs } from "../data/actions.ts";
 import { useSlice } from "../data/createStore.ts";
-import { blobOf } from "../data/identity.ts";
-import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { nav } from "../shell/nav.ts";
 import { BrowserEdit, leaveEditing } from "./BrowserEdit.tsx";
@@ -14,7 +12,6 @@ import { BrowserToolbar, HandoffBar } from "./BrowserToolbar.tsx";
 import { BrowserViewport } from "./BrowserViewport.tsx";
 import { browserEdit } from "./browserEdit.ts";
 import { canPopOut, IS_BROWSER_WINDOW, openOutside, popOutBrowser, useInstalledBrowsers } from "./browserWindow.ts";
-import { ControlLock } from "./ControlLock.tsx";
 import { PanelTabs } from "./PanelTabs.tsx";
 import { PanelHeader } from "./SidePanel.tsx";
 import { useActiveTab } from "./useActiveTab.ts";
@@ -25,7 +22,7 @@ import { useActiveTab } from "./useActiveTab.ts";
  */
 export function BrowserPanel() {
   const t = useT();
-  const { tabs, active } = useActiveTab();
+  const { tabs, active, native } = useActiveTab();
   const [adding, setAdding] = useState(false);
   const editing = useSlice(browserEdit, (s) => s.target);
   // Edit mode belongs to one tab the owner holds: another tab, or an agent taking it back, ends it.
@@ -39,8 +36,6 @@ export function BrowserPanel() {
     if (editing && !editing.startsWith("widget:") && !inEdit) void leaveEditing(editing);
   }, [editing, inEdit]);
 
-  // Over the live page of the desktop app nothing can float: there the bar keeps the button.
-  const locked = !adding && active?.control.kind === "agent" && !window.apxDesktop;
   return (
     <>
       <PanelHeader
@@ -49,7 +44,7 @@ export function BrowserPanel() {
         widen={!IS_BROWSER_WINDOW}
         actions={
           <>
-            {active && <OpenMenu tab={active} />}
+            {active && <OpenMenu tab={active} native={native} />}
             {IS_BROWSER_WINDOW && (
               <IconButton
                 label={t("browser.backToPanel")}
@@ -74,8 +69,8 @@ export function BrowserPanel() {
       />
       {active || adding ? (
         <div className="browser">
-          <BrowserToolbar tab={adding ? undefined : active} onOpened={() => setAdding(false)} locked={locked} />
-          {!adding && active?.control.kind === "handoff" && <HandoffBar tab={active} />}
+          <BrowserToolbar tab={adding ? undefined : active} onOpened={() => setAdding(false)} interactive={native} />
+          {!adding && native && active?.control.kind === "handoff" && <HandoffBar tab={active} />}
           {adding || !active ? (
             <EmptyState icon={<Icons.Globe />} title={t("browser.newTab")}>
               {t("browser.newTabHint")}
@@ -83,10 +78,7 @@ export function BrowserPanel() {
           ) : inEdit ? (
             <BrowserEdit tab={active} />
           ) : (
-            <div className="browser__stage">
-              <BrowserViewport tab={active.tab} />
-              {locked && active.control.kind === "agent" && <BrowserLock tab={active} by={active.control.by} />}
-            </div>
+            <BrowserViewport tab={active.tab} native={native} />
           )}
         </div>
       ) : (
@@ -100,37 +92,18 @@ export function BrowserPanel() {
   );
 }
 
-/** The agent drives the tab: its page dimmed behind who it is and "Take control". */
-function BrowserLock({ tab, by }: { tab: TabInfo; by: string }) {
-  const t = useT();
-  const agent = useData((s) => s.agents[by]);
-  const [busy, setBusy] = useState(false);
-  const name = agent?.name ?? by;
-  return (
-    <ControlLock
-      agent={name}
-      blob={blobOf(agent)}
-      text={t("browser.agentUsing", { name })}
-      hint={t("panelTabs.browserHint")}
-      action={t("browser.takeControl")}
-      busy={busy}
-      onTake={async () => {
-        setBusy(true);
-        await browserControl(tab.tab, "user");
-        setBusy(false);
-      }}
-    />
-  );
-}
-
 /** Where else to see the page: APX's own window, the system's default browser or an installed one. */
-function OpenMenu({ tab }: { tab: TabInfo }) {
+function OpenMenu({ tab, native }: { tab: TabInfo; native: boolean }) {
   const t = useT();
   const browsers = useInstalledBrowsers();
   const items: MenuEntry[] = [
-    ...(canPopOut()
+    ...(native && canPopOut()
       ? [
-          { label: t("browser.openWindow"), icon: <Icons.AppWindow size={14} />, onSelect: () => popOutBrowser(true) },
+          {
+            label: t("browser.openWindow"),
+            icon: <Icons.AppWindow size={14} />,
+            onSelect: () => popOutBrowser(true, tab.tab),
+          },
           { type: "separator" as const },
         ]
       : []),

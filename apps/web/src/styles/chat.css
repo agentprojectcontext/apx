@@ -236,6 +236,24 @@
 .turn__tools {
   align-self: stretch;
 }
+/* What Auto decided about a step's deletion: what it deletes and who decided, under the line. */
+.turn__autodel {
+  align-self: stretch;
+}
+.autodel {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--apx-text-sm);
+}
+.autodel__item {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--apx-fg);
+}
+.autodel__by {
+  color: var(--apx-fg-muted);
+}
 .chat__composer {
   flex: none;
   width: 100%;

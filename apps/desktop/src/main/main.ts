@@ -226,8 +226,10 @@ app.whenReady().then(() => {
   // The installed app, and the development bundle `pnpm app` runs (it declares apx:// too: scripts/app.ts).
   if (app.isPackaged || isDevBundle(process.execPath)) app.setAsDefaultProtocolClient("apx");
   externalLinks(panel.webContents);
+  let link: ReturnType<typeof startNodeLink> | undefined;
   let shown: WebContentsView | undefined;
   let slot: Bounds | null = null;
+  const panelTabs = new WeakMap<WebContents, string>();
   // The quick chat loads from wherever the panel did (the dev server or the core); so does the browser window.
   let base = CORE_URL;
   // The panel's language (it says so on load and on every change), for the About window.
@@ -239,8 +241,14 @@ app.whenReady().then(() => {
     partition: "persist:apx-ui",
     changed: (open) => {
       const pw = popout.panel();
-      if (open && pw) externalLinks(pw);
-      panel.webContents.send("browser:popout", open);
+      if (open && pw) {
+        externalLinks(pw);
+        pw.on("did-start-navigation", (details) => {
+          if (details.isMainFrame && !details.isSameDocument) panelTabs.delete(pw);
+        });
+      }
+      const contents = panel.webContents;
+      if (contents && !contents.isDestroyed()) contents.send("browser:popout", open);
       layout();
     },
     layout: () => layout(),
@@ -254,42 +262,48 @@ app.whenReady().then(() => {
     const pw = popout.window();
     return pw ? { w: pw, slot: popout.slot() } : { w: win, slot };
   };
-  const onScreen = () => {
-    const s = stage().slot;
-    return Boolean(s && !s.behind && s.width > 0 && s.height > 0);
+  const stagePanel = () => popout.panel() ?? panel.webContents;
+  // Older panels report their selected tab separately from its bounds.
+  const slotTab = () => {
+    const at = stage().slot;
+    return at ? (at.tab ?? panelTabs.get(stagePanel())) : undefined;
   };
-
+  const selectedView = () => {
+    const tab = link ? slotTab() : undefined;
+    return tab ? host.viewFor(tab) : undefined;
+  };
+  let mounted = new Set<WebContentsView>();
   const layout = () => {
+    if (win.isDestroyed()) return;
     const { width, height } = win.getContentBounds();
     panel.setBounds({ x: 0, y: 0, width, height });
-    if (!shown) return;
     const { w, slot: at } = stage();
-    // Hidden tabs sit behind the panel at a real size instead of setVisible(false): an invisible view stops
-    // painting, and the agent still needs screenshots and layout of the page it is driving.
-    unparent(shown);
-    if (at && onScreen()) {
-      w.contentView.addChildView(shown);
-      shown.setBounds(at);
-    } else {
+    const selected = selectedView();
+    const active = shown?.webContents?.isDestroyed() === false ? shown : undefined;
+    const next = new Set([selected, active].filter((view) => view !== undefined));
+    for (const view of mounted) unparent(view);
+    mounted = next;
+    // Keep the agent's active page painting behind the panel, without replacing the owner's selected page.
+    if (active && active !== selected) {
       const area = w.getContentBounds();
-      w.contentView.addChildView(shown, 0);
-      // Covered for a moment, it keeps its size: a page laid out again at another one loses its scroll and its look.
-      const keep = at?.behind && at.width > 0 && at.height > 0;
-      shown.setBounds(
-        keep
-          ? { x: at.x, y: at.y, width: at.width, height: at.height }
-          : { x: 0, y: 0, width: Math.min(area.width, 1280), height: area.height },
-      );
+      w.contentView.addChildView(active, 0);
+      active.setBounds({ x: 0, y: 0, width: Math.min(area.width, 1280), height: area.height });
+    }
+    if (selected && at) {
+      if (at.behind) w.contentView.addChildView(selected, 0);
+      else w.contentView.addChildView(selected);
+      selected.setBounds({ x: at.x, y: at.y, width: at.width, height: at.height });
     }
   };
   host.onShow = (view) => {
-    if (shown && shown !== view) unparent(shown);
     shown = view;
     layout();
   };
   host.on("changed", () => {
-    const active = host.active ? host.list().find((t) => t.tab === host.active) : undefined;
-    popout.setTitle(active?.title || "APX");
+    const tab = slotTab();
+    const selected = tab ? host.list().find((t) => t.tab === tab) : undefined;
+    popout.setTitle(selected?.title || "APX");
+    if ([...mounted].some((view) => view.webContents?.isDestroyed() !== false)) setImmediate(layout);
   });
   host.onAttention = (message) => {
     openMain();
@@ -313,17 +327,22 @@ app.whenReady().then(() => {
   // A reloaded panel has no slot until its page reports one: the tab must not stay over whatever it now shows.
   panel.webContents.on("did-start-navigation", (details) => {
     if (!details.isMainFrame || details.isSameDocument) return;
+    panelTabs.delete(panel.webContents);
     slot = null;
     layout();
   });
 
-  // A still of the tab the panel shows in its place while the live page steps behind (a popup, a column drag).
-  ipcMain.handle("panel:browser-frame", async (e) => {
-    const view = shown;
-    if (!view || e.sender !== panel.webContents || view.webContents.isDestroyed()) return null;
+  // A still of the selected page stands in while the native view steps behind a popup or a column drag.
+  ipcMain.handle("panel:browser-frame", async (e, tab: unknown) => {
+    const id = tab ?? panelTabs.get(e.sender);
+    const current = () => typeof id === "string" && e.sender === stagePanel() && slotTab() === id && selectedView();
+    const view = current();
+    if (!view) return null;
     try {
       const image = await view.webContents.capturePage();
-      return image.isEmpty() ? null : `data:image/jpeg;base64,${image.toJPEG(85).toString("base64")}`;
+      return current() !== view || image.isEmpty()
+        ? null
+        : `data:image/jpeg;base64,${image.toJPEG(85).toString("base64")}`;
     } catch {
       return null;
     }
@@ -331,8 +350,13 @@ app.whenReady().then(() => {
 
   ipcMain.on("panel:browser-bounds", (e, b: Bounds | null) => {
     const next =
-      b && Number.isFinite(b.x)
+      b &&
+      (b.tab === undefined || typeof b.tab === "string") &&
+      [b.x, b.y, b.width, b.height].every(Number.isFinite) &&
+      b.width > 0 &&
+      b.height > 0
         ? {
+            ...(b.tab === undefined ? {} : { tab: b.tab }),
             x: Math.round(b.x),
             y: Math.round(b.y),
             width: Math.round(b.width),
@@ -347,21 +371,25 @@ app.whenReady().then(() => {
   });
 
   const ownBrowserPanel = (sender: WebContents) => sender === panel.webContents || popout.isPanel(sender);
+  ipcMain.handle(
+    "panel:has-browser-view",
+    (e, tab: unknown) => ownBrowserPanel(e.sender) && Boolean(link) && typeof tab === "string" && !!host.viewFor(tab),
+  );
   ipcMain.on("panel:browser-tab", (e, tab: unknown) => {
     if (!ownBrowserPanel(e.sender) || typeof tab !== "string") return;
-    try {
-      host.select(tab);
-    } catch {
-      // unknown tab: the panel's list is stale; the next tabs event corrects it
-    }
+    panelTabs.set(e.sender, tab);
+    if (host.viewFor(tab)) host.select(tab);
+    else layout();
   });
 
   // The browser in its own window (with its toolbar), or a page in one of the owner's own browsers.
-  ipcMain.on("browser:popout", (e, open: unknown) => {
+  ipcMain.on("browser:popout", (e, open: unknown, tab: unknown) => {
     if (!ownBrowserPanel(e.sender)) return;
     if (open === false) return popout.close();
-    const active = host.active ? host.list().find((t) => t.tab === host.active) : undefined;
-    popout.open(active?.title || "APX", active?.tab);
+    const id = tab ?? panelTabs.get(e.sender);
+    if (!link || typeof id !== "string" || !host.viewFor(id)) return;
+    const selected = host.list().find((t) => t.tab === id);
+    popout.open(selected?.title || "APX", id);
   });
   ipcMain.on("browser:popout-state", (e) => {
     e.returnValue = ownBrowserPanel(e.sender) && popout.window() != null;
@@ -455,7 +483,6 @@ app.whenReady().then(() => {
     if (computerOn && !armed) globalShortcut.register(STOP_KEYS, () => computer.stop());
     if (!computerOn && armed) globalShortcut.unregister(STOP_KEYS);
   };
-  let link: ReturnType<typeof startNodeLink> | undefined;
   const connector = createConnector({
     panel: panel.webContents,
     coreUrl: CORE_URL,
@@ -468,6 +495,9 @@ app.whenReady().then(() => {
       updater.connect(undefined);
       link?.stop();
       link = undefined;
+      slot = null;
+      popout.close();
+      layout();
       if (computerOn) computer.stop();
       computerOn = false;
       armStop();
@@ -628,8 +658,9 @@ app.whenReady().then(() => {
       const fs = await import("node:fs");
       fs.mkdirSync(captureDir, { recursive: true });
       fs.writeFileSync(path.join(captureDir, "panel.png"), (await panel.webContents.capturePage()).toPNG());
-      if (shown && onScreen())
-        fs.writeFileSync(path.join(captureDir, "tab.png"), (await shown.webContents.capturePage()).toPNG());
+      const view = selectedView();
+      if (view && !stage().slot?.behind)
+        fs.writeFileSync(path.join(captureDir, "tab.png"), (await view.webContents.capturePage()).toPNG());
       fs.writeFileSync(path.join(captureDir, "slot.json"), JSON.stringify({ slot, at: Date.now() }));
     });
   }
@@ -667,7 +698,7 @@ app.whenReady().then(() => {
     },
   });
   const tick = setInterval(() => {
-    void host.closeIdle((view) => view === shown && onScreen());
+    void host.closeIdle((view) => view === selectedView());
     watch.check();
   }, 60_000);
   tick.unref();

@@ -138,7 +138,11 @@ test("an agent withdraws its own open question: it ends withdrawn, nothing new r
   assert.ok(noticesBefore, "both completed chats reached the attention tray before withdrawal");
   await env.client.call("threads.send", { thread: t.id, text: `${WITHDRAW}${input.id}` });
   const { messages, runs } = await env.settle(t.id);
-  assert.match(lastToolResult(), new RegExp(`Question ${input.id} withdrawn`));
+  // The withdrawing turn itself moved the chat on, so the card was withdrawn as it started (DECISIONS.md#d-282).
+  assert.match(
+    lastToolResult(),
+    new RegExp(`Question ${input.id} was already withdrawn; the owner is not asked again`),
+  );
   // The asking turn, the withdrawing one: no turn woken by the withdrawal.
   assert.equal(runs.length, 2);
   assert.deepEqual((await env.client.call("runs.pending", { thread: t.id })).inputs, []);

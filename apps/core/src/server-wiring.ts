@@ -44,6 +44,7 @@ import { agentMigrationHandlers } from "./rpc/agent-migration.ts";
 import { agentHandlers } from "./rpc/agents.ts";
 import { appHandlers } from "./rpc/app.ts";
 import { asanaHandlers } from "./rpc/asana.ts";
+import { autoDeletionHandlers } from "./rpc/auto-deletions.ts";
 import { bookingHandlers } from "./rpc/bookings.ts";
 import { browserHandlers, type OwnersChrome } from "./rpc/browser.ts";
 import { callHandlers } from "./rpc/calls.ts";
@@ -399,6 +400,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...usageHandlers(d.usage),
     ...storageHandlers(d.storage),
     ...activityReviewHandlers(d.activityReview),
+    ...autoDeletionHandlers(d.store),
     ...discoveryHandlers(d.discovery),
     ...systemHandlers(d.identity, d.app.home, d.panel, () => ({
       protocol: { status: "ok" },

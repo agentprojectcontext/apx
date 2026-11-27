@@ -1,5 +1,11 @@
 {
   "extends": "../packages/config/tsconfig.node.json",
   "compilerOptions": { "lib": ["ES2024", "DOM"] },
-  "include": ["**/*.ts", "../scripts/*.ts", "../packages/ui/test/*.ts", "../playwright.config.ts"]
+  "include": [
+    "**/*.ts",
+    "../scripts/*.ts",
+    "../packages/ui/test/*.ts",
+    "../apps/web/src/apx-desktop.d.ts",
+    "../playwright.config.ts"
+  ]
 }

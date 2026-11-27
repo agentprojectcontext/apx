@@ -3,7 +3,7 @@ import { EventEmitter } from "node:events";
 import { registerHooks } from "node:module";
 import { test } from "node:test";
 
-class Contents {
+class Contents extends EventEmitter {
   loaded: string[] = [];
   closed = false;
   loadURL(url: string) {
@@ -132,6 +132,11 @@ test("popout returns borrowed native views before closing its own panel and clea
   popout.setSlot(slot);
   assert.deepEqual(popout.slot(), slot);
   assert.equal(layouts, 1);
+  panel.webContents.emit("did-start-navigation", { isMainFrame: true, isSameDocument: true });
+  assert.deepEqual(popout.slot(), slot);
+  panel.webContents.emit("did-start-navigation", { isMainFrame: true, isSameDocument: false });
+  assert.equal(popout.slot(), null);
+  assert.equal(layouts, 2);
   popout.close();
   assert.deepEqual(changed, [true, false]);
   assert.equal(win.contentView.children.includes(borrowed), false);

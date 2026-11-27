@@ -21,8 +21,8 @@ export function useBrowserPoppedOut(): boolean {
 
 export const canPopOut = (): boolean => Boolean(desktop?.popOutBrowser) && !IS_BROWSER_WINDOW;
 
-export function popOutBrowser(open: boolean): void {
-  desktop?.popOutBrowser?.(open);
+export function popOutBrowser(open: boolean, tab?: string): void {
+  desktop?.popOutBrowser?.(open, tab);
 }
 
 /** The browsers installed on this computer, asked once per page. */

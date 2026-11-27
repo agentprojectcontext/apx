@@ -24,6 +24,16 @@ export type InputRecord = PendingInput & {
   app_only?: true;
 };
 
+/**
+ * What a turn gets back from asking. `held`: the owner answered, but another of the task's waits keeps the answer, so
+ * to this turn it reads as unanswered (`pending`) and the answer reaches the agent in a new turn.
+ */
+export type Asked = InputRecord & { held?: true };
+
+/** What the agent learns when its answer is held: it ends the turn, and may clear its own wait if that is settled. */
+export const HELD_ANSWER =
+  "not run yet: the owner answered, but this task still waits on them for something else (another open card, or a wait set with task_update awaits_owner), so their answer reaches you in a new turn once nothing else holds it. If you set that wait yourself and it is settled, clear it with task_update awaits_owner:false; otherwise tell the owner briefly what still waits on them. End this turn now.";
+
 const toInput = (r: Selectable<PendingInputsTable>): InputRecord => ({
   id: r.id,
   run_id: r.run_id,

@@ -32,6 +32,8 @@ export type Word = {
   brace: boolean;
   /** Starts with an unquoted `~`. */
   tilde: boolean;
+  /** Holds an unquoted `*`, `?` or `[`: the shell puts the files it matches in its place. */
+  glob?: true;
   redirect?: "read" | "write";
   /** Not a path at all (a here-string). */
   data?: boolean;
@@ -205,6 +207,7 @@ export function segments(c: string): Word[][] {
       if (ch === "$") it.unknown = true;
       if (ch === "{" && !it.text.endsWith("$")) it.brace = true;
       if (ch === "~" && !it.text) it.tilde = true;
+      if (ch === "*" || ch === "?" || ch === "[") it.glob = true;
       it.text += ch;
     }
   }

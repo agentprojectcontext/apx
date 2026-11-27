@@ -11,6 +11,5 @@ export const esPanelTabs: Partial<Record<MessageKey, string>> = {
   "panelTabs.widgets": "Widgets ({n})",
   "panelTabs.apps": "Apps ({n})",
   "panelTabs.commands": "Comandos ({n})",
-  "panelTabs.browserHint": "El agente espera hasta que le devuelvas la pestaña.",
   "panelTabs.computerUsing": "{name} está usando la computadora",
 };

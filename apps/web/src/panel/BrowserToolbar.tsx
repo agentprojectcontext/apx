@@ -25,17 +25,16 @@ function normalizeUrl(raw: string): string | undefined {
 }
 
 /**
- * Back · reload · address pill · who drives the tab. `tab` undefined = typing the URL of a new tab. `locked`: the page
- * shows who drives it and the button to take control, so the bar leaves them out.
+ * Back · reload · address pill · who drives the tab. An undefined tab is a new address.
  */
 export function BrowserToolbar({
   tab,
   onOpened,
-  locked = false,
+  interactive,
 }: {
   tab: TabInfo | undefined;
   onOpened: () => void;
-  locked?: boolean;
+  interactive: boolean;
 }) {
   const t = useT();
   const [editing, setEditing] = useState<string>();
@@ -120,7 +119,7 @@ export function BrowserToolbar({
           </button>
         </Tooltip>
       )}
-      {c?.kind === "agent" && draft == null && !locked && (
+      {c?.kind === "agent" && draft == null && (
         <>
           <span className="btoolbar__status is-agent">
             <span className="btoolbar__dot" />
@@ -128,9 +127,11 @@ export function BrowserToolbar({
               <AgentUsing id={c.by} />
             </span>
           </span>
-          <Button size="sm" className="btoolbar__btn" onClick={control("user")} loading={busy}>
-            {t("browser.takeControl")}
-          </Button>
+          {interactive && (
+            <Button size="sm" className="btoolbar__btn" onClick={control("user")} loading={busy}>
+              {t("browser.takeControl")}
+            </Button>
+          )}
         </>
       )}
       {c?.kind === "idle" && draft == null && (
@@ -139,7 +140,7 @@ export function BrowserToolbar({
         </span>
       )}
       {editButton}
-      {c?.kind === "user" && draft == null && (
+      {interactive && c?.kind === "user" && draft == null && (
         <>
           <span className="btoolbar__status">
             <span className="btoolbar__statustext">{t("browser.youControl")}</span>

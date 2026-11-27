@@ -57,7 +57,9 @@ Un turno pasa por pocos estados. La lista de chats y el menú **Procesos** los m
 | `canceled` | Lo frenaste vos (con /stop, el botón de frenar o `apx threads cancel`). |
 
 Una pregunta que te hace un agente no vence con el turno. El turno termina, el chat muestra que te está esperando, y
-la pregunta queda para responder durante 30 días. Tu respuesta arranca un turno nuevo. Mirá
+la pregunta queda para responder durante 30 días. Tu respuesta arranca un turno nuevo. Si el chat sigue antes (escribís
+otra cosa, o le escribe otro agente), la pregunta se retira: queda plegada en una línea que lo dice, sin botones, acá y
+en tus canales, y el agente vuelve a preguntar abajo si todavía necesita la respuesta. Mirá
 [Autonomía y seguridad](/es/concepts/autonomy/).
 
 ## Los turnos sobreviven a los reinicios

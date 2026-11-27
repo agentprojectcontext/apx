@@ -51,6 +51,23 @@ export interface ApiClientsTable {
   revoked_at: string | null;
 }
 
+export interface AutoDeletionsTable {
+  id: string;
+  at: string;
+  thread_id: string;
+  run_id: string | null;
+  call_id: string | null;
+  agent_id: string;
+  project_id: string | null;
+  command: string;
+  items: Generated<string>;
+  verdict: string;
+  decided_by: string;
+  reasons: Generated<string>;
+  why: string | null;
+  model: string | null;
+}
+
 export interface AuxCallsTable {
   n: Generated<number>;
   at: string;
@@ -834,6 +851,7 @@ export interface Database {
   addresses: AddressesTable;
   agents: AgentsTable;
   api_clients: ApiClientsTable;
+  auto_deletions: AutoDeletionsTable;
   aux_calls: AuxCallsTable;
   channel_held: ChannelHeldTable;
   channel_inbox: ChannelInboxTable;

@@ -16,6 +16,7 @@ const JOBS: { key: MessageKey; icon: ReactNode }[] = [
   { key: "helperModel.job.judge", icon: <Icons.Mail size={14} /> },
   { key: "helperModel.job.images", icon: <Icons.Image size={14} /> },
   { key: "helperModel.job.groups", icon: <Icons.Users size={14} /> },
+  { key: "helperModel.job.deletions", icon: <Icons.Trash2 size={14} /> },
   { key: "helperModel.job.drafts", icon: <Icons.Pencil size={14} /> },
   { key: "helperModel.job.review", icon: <Icons.Sparkles size={14} /> },
   { key: "helperModel.job.backup", icon: <Icons.Megaphone size={14} /> },

@@ -96,6 +96,11 @@
   flex: 1;
   min-width: 0;
 }
+.browser__preview-note {
+  margin: 0 10px 8px;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
 .browser__page {
   flex: 1;
   min-height: 0;

@@ -402,6 +402,16 @@ test("an automatic outside session allows local commands but still asks before f
     );
     assert.match(card.prompt, /delete|borrar/);
     assert.match(card.detail ?? "", /rm -f/);
+    // Auto's decision is kept for the owner's review, as for APX's own agents.
+    const [kept] = (await env.client.call("auto_deletions.list", { limit: 1 })).decisions;
+    assert.deepEqual(kept && [kept.thread_id, kept.command, kept.verdict, kept.by, kept.reasons, kept.items], [
+      thread.id,
+      "rm -f audio/clip.raw.wav",
+      "ask",
+      "rule",
+      ["owner"],
+      ["audio/clip.raw.wav"],
+    ]);
     await env.client.call("runs.respond", { input: card.id, decision: "deny" });
     const done = await env.settle(thread.id);
     assert.deepEqual(texts(done.messages.slice(-1)), ["[true,false]"]);

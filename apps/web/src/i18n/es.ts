@@ -1004,7 +1004,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "browser.handedYou": "te pasó la pestaña",
   "browser.liveView": "Vista en vivo de la pestaña",
   "browser.noImage": "Sin imagen",
-  "browser.noImageBody": "No pudimos capturar la pestaña. ¿Está abierta la app de escritorio?",
+  "browser.noImageBody": "No pudimos obtener una imagen de esta pestaña. Volvé a intentar en un momento.",
+  "browser.previewOnly": "Podés ver esta pestaña, pero no hacer clic ni escribir acá.",
   "browser.import.needsDesktop": "Abrí la app de escritorio para importar sesiones ({error})",
   "browser.import.done": "Importé {n} cookies",
   "browser.import.expired": " ({n} vencidas)",
@@ -1799,6 +1800,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "helperModel.job.judge": "Decide qué mails merecen un aviso y qué mensajes de grupos merecen respuesta.",
   "helperModel.job.images": "Describe las imágenes y stickers que te mandan, si sabe leer imágenes.",
   "helperModel.job.groups": "Elige qué agente responde en un chat de grupo.",
+  "helperModel.job.deletions":
+    "Decide si un borrado dudoso puede seguir sin preguntarte, cuando el agente está en Auto.",
   "helperModel.job.drafts": "Sugiere borradores de respuesta cuando el agente no tiene otro modelo para eso.",
   "helperModel.job.review": "Repasa la actividad para proponerte mejoras.",
   "helperModel.job.backup": "Cubre al modelo de un agente en avisos cortos y al leer chats que importás.",

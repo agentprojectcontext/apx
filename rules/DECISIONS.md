@@ -532,6 +532,7 @@ checked against its SHASUMS256.txt.
 
 <a id="d-045"></a>
 ## D-045 — 2026-10-07 — A question the owner has not answered stays open; the turn ends and the answer wakes it
+*Amended by [D-282](#d-282) (2026-11-27): once the chat moves on, the agent's next turn there withdraws it and asks again.*
 D-012 counted a timeout as a no: after 15 minutes (5 for Claude Code and Codex) a question or a confirmation closed and
 the agent went on without the owner. Now the turn still waits that long, then ends (the model is told to say what it
 waits for and stop) while the input stays answerable for 30 days and the chat shows it waits for the owner
@@ -6566,9 +6567,11 @@ Code in auto mode does, "sin preguntarme a cada rato". Manual and Total are unch
   (`git clean`), an unmerged branch, a worktree with unsaved or unmerged work, a file of the owner's the agent did not
   make, or anything outside the folders of the owner's projects it may change. `sudo`, a release and acting in the
   owner's name never reach this: they keep their own card (D-208).
-- What only the task can tell (a command on another machine, `xargs rm`, `find -exec rm`, a container it did not
-  start) goes to the auxiliary model (`engine/deletion-judge.ts`, purpose `deletion` in the auxiliary calls, 20 s
-  deadline). It reads the deleting parts, what is known of each, the agent's reason, the task, the owner's recent words
+- What only the task can tell (a command on another machine, a forced `xargs rm -f` or `find -exec rm -f`, a container
+  it did not start, a glob that matches nothing yet, `~user`, braces or a variable the line does not set) goes to the
+  auxiliary model (`engine/deletion-judge.ts`, purpose `deletion` in the auxiliary calls, 20 s
+  deadline). Only the first model of the helper list judges, never a fallback: the list may end in a small local
+  model, the weakest judge exactly when a wrong "run" deletes with no card, so the first one failing is a card. It reads the deleting parts, what is known of each, the agent's reason, the task, the owner's recent words
   and the lines of the project's AGENTS.md about deleting or cleaning up, and answers run or ask. No model, a failure,
   the deadline or an unclear answer is a card. With outside content in the turn it still judges, told to answer run
   only on the owner's words, the task or a project rule: command output in the chat's history marks nearly every later
@@ -6577,8 +6580,39 @@ Code in auto mode does, "sin preguntarme a cada rato". Manual and Total are unch
   (PROMPT_SIZE.md). A deletion chained after other work is still weighed on its own, and its card shows only the
   simple commands that delete; the channels' text keeps the whole command.
 
+- A glob (`logs/*`, `*.log`, `[ab]`) is weighed by each file it matches on disk, never as a path that does not exist:
+  read literally it would run, and the command would empty the folder. The match is wider than the shell's (hidden
+  files, anything from a `[` on, the pattern's own name), so it never weighs less than what goes; past 1000 matches it
+  asks. Only forced or recursive deletions are weighed at all (D-266): a plain `rm`, `find -delete` or
+  `find -exec rm` without `-f`/`-r` runs as any change.
+
+- Each decision is kept (`auto_deletions`, 90 days) with the command's deleting parts, what goes, run or ask, a fixed
+  rule's reasons or the judge's model and words (asked in the owner's language): the step shows it as one line that
+  opens, and `auto_deletions.list` feeds Settings › Agents › What Auto deleted. The owner asked to see what Auto
+  decided before trusting it; the auxiliary calls kept only tokens.
+
 Known limits: "made since" reads creation time, which a copy renews and a move keeps; containers count as the agent's
 only when this run started them by `--name`.
 
 Docs impact: updated concepts/autonomy in English and Spanish and rules/PROMPT_SIZE.md. No news: the owner gets fewer
 cards, nothing new to act on.
+
+<a id="d-282"></a>
+## D-282 — 2026-11-27 — A card left open stops asking once the chat moves on; the agent asks again below
+
+D-045 kept an unanswered card answerable for 30 days after its turn ended. When the chat went on without it (the owner
+wrote something else, another agent wrote in), the card stayed above the newer messages with live buttons, and the
+agent did not know it was still there. The owner: "que la borre siempre que se escribe después y que la vuelva a
+mandar".
+
+- When a new turn of an agent starts in a chat, that agent's cards still open from turns that already ended are
+  withdrawn: they fold into one line ("Withdrawn"), lose their buttons on channels, and release a task's wait.
+- The new turn is told what they asked (a `[withdrawn cards]` block, only when there are some) and to ask again if it
+  still needs it, so the new card shows below and the agent does not point to the old one.
+- A card does not retire at the end of its own turn: the agent's closing words come right after it, and a late answer
+  still wakes it (D-045). A turn waiting on a card, another agent's cards and a resumed turn are left alone.
+- Every pending card already has its way out: Deny on a confirmation, Skip on a question, No on a sign-in.
+
+*Amends [D-045](#d-045).*
+
+Docs impact: updated concepts/conversations and concepts/autonomy in English and Spanish.

@@ -9,6 +9,5 @@ export const enPanelTabs = {
   "panelTabs.widgets": "Widgets ({n})",
   "panelTabs.apps": "Apps ({n})",
   "panelTabs.commands": "Commands ({n})",
-  "panelTabs.browserHint": "The agent waits until you give the tab back.",
   "panelTabs.computerUsing": "{name} is using the computer",
 };
