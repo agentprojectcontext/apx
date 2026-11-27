@@ -326,6 +326,7 @@ export function createEngine(deps: {
     store,
     home: deps.home,
     admit: (a) => admit(a),
+    cancelWaiting: (runId) => active.get(runId)?.ac.abort(new Canceled()),
     hold: (runId) => {
       const clock = active.get(runId)?.clock;
       clock?.pause();
@@ -708,6 +709,7 @@ export function createEngine(deps: {
     respond: inputs.respond,
     pending: inputs.pending,
     releaseTaskInputs: inputs.releaseTask,
+    retireTaskInputs: inputs.retireTask,
     jobs,
     workflows,
     /** Stops only the turn in progress for the owner's new message; queued inputs and what it delegated still run. */

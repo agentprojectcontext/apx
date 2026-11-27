@@ -43,14 +43,15 @@ async function fixture(t: TestContext) {
   });
   store.runs.setState(run, "completed");
   let serial = 0;
-  const input = () =>
+  const input = (kind: "question" | "confirm" = "question") =>
     store.inputs.create({
       run_id: run.id,
       thread_id: thread.id,
       agent_id: "superagent",
       call_id: `question-${++serial}`,
-      kind: "question",
-      prompt: "Which draft choice?",
+      kind,
+      ...(kind === "confirm" ? { approval: { key: "shell.delete", group: "shell" }, tool: "shell" } : {}),
+      prompt: kind === "confirm" ? "Remove the draft?" : "Which draft choice?",
       waitMs: 60_000,
     });
   const current = () => {
@@ -179,12 +180,22 @@ test("a comment reply removes only comment attention, not a native card or manua
 
 test("reassignment to the same agent invalidates old cards and cannot grant or admit stale work", async (t) => {
   const f = await fixture(t);
-  const first = f.input();
+  const first = f.input("confirm");
   awaitTaskInput(f.store, first);
   f.store.tasks.change(f.task.id, { assignee: "superagent" }, "owner");
   assert.equal(taskInputIsCurrent(f.store, first), false);
-  assert.throws(() => f.core.engine.respond(first.id, { text: "Blue" }), /no longer current/);
-  assert.equal(f.store.inputs.get(first.id)?.state, "pending");
+  assert.throws(() => f.core.engine.respond(first.id, { decision: "approve", scope: "always" }), {
+    shape: {
+      code: "conflict",
+      message: "This request is no longer available.",
+      detail: { reason: "input_unavailable" },
+    },
+  });
+  assert.equal(f.store.inputs.get(first.id)?.state, "expired");
+  assert.equal(
+    f.store.approvals.list(f.thread.id).some((grant) => grant.key === "shell.delete"),
+    false,
+  );
   assert.equal(f.current().awaits_owner, true);
   assert.equal(f.store.runs.list(f.thread.id).length, 1);
   assert.equal(manualTaskWait(f.store, f.current(), false), false, "explicit release can discard a stale wait");
@@ -200,7 +211,7 @@ test("closing and reopening a task starts a fresh wait cycle without reviving an
   awaitTaskInput(f.store, second);
   assert.equal(taskInputIsCurrent(f.store, first), false);
   assert.equal(taskInputIsCurrent(f.store, second), true);
-  assert.throws(() => f.core.engine.respond(first.id, { text: "Red" }), /no longer current/);
+  assert.throws(() => f.core.engine.respond(first.id, { text: "Red" }), /no longer available/);
   assert.equal(f.current().awaits_owner, true);
   f.answer(second.id);
   assert.equal(f.current().awaits_owner, false);

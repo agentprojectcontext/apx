@@ -84,8 +84,9 @@ card. For several independent decisions, use separate cards rather than one unst
 
 Existing manual waits are kept: APX cannot safely infer which old question, permission or privacy requirement a
 free-text reply resolves. Clear that manual wait explicitly when it is resolved. Cards in unrelated chats are not
-silently linked to a task. Cards from an earlier assignment or from before the task was closed and reopened cannot
-approve actions or release the current wait; dismiss them and ask a fresh question in the current task chat.
+silently linked to a task. When the task closes or gets a new assignment, its unanswered task cards stay in chat
+history as expired. You can't answer them, approve an action through them, or use them to release the current wait.
+If a decision is still needed, the assigned agent can ask again in the current task chat.
 
 For agents: use `ask_owner` in the assigned task chat for a blocking question or action; do not also set
 `task_update awaits_owner=true` for that same card. Reserve that flag and its `why` for a separate manual blocker.

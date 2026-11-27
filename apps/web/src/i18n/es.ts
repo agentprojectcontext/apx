@@ -465,6 +465,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "account.waiting": "Terminá de iniciar sesión en tu navegador y volvé a APX.",
   "account.saved": "Nombre de usuario guardado.",
   "error.respond": "No se pudo enviar tu respuesta: {error}",
+  "error.inputUnavailable": "Este pedido ya no está disponible.",
   "running.label": "Procesos",
   "running.aria": "{working} en curso, {waiting} esperando, {background} en segundo plano",
   "running.tab.agents": "Agentes",

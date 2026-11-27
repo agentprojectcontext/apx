@@ -483,6 +483,7 @@ export const en = {
   "account.waiting": "Finish signing in in your browser, then return to APX.",
   "account.saved": "Username saved.",
   "error.respond": "Could not send your answer: {error}",
+  "error.inputUnavailable": "This request is no longer available.",
   "running.label": "Processes",
   "running.aria": "{working} running, {waiting} waiting, {background} in the background",
   "running.tab.agents": "Agents",
