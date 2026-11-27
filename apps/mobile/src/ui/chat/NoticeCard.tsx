@@ -70,7 +70,7 @@ export function NoticeCard({
     return (
       <CompactRow
         title={title}
-        compact={memory || brief || part.code === "thread.compacted"}
+        compact
         icon={
           memory
             ? "Brain"

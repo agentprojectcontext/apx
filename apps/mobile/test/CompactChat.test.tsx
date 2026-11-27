@@ -3,8 +3,12 @@ import { AccessibilityInfo, Dimensions, StyleSheet } from "react-native";
 import { t } from "../src/i18n";
 import type { Message } from "../src/protocol";
 import { ActionGroup } from "../src/ui/ActionGroup";
+import { ChatMessage } from "../src/ui/ChatMessage";
 import { NoticeCard } from "../src/ui/chat/NoticeCard";
 import { PlanCard } from "../src/ui/chat/PlanCard";
+
+jest.mock("../src/chat/mediaFiles", () => ({}));
+jest.mock("../src/ui/media/VideoCarousel", () => ({ VideoCarousel: () => null }));
 
 jest.mock("../src/ui/Icon", () => {
   const { View } = jest.requireActual("react-native");
@@ -67,7 +71,7 @@ test("memory remains compact and discloses the complete saved content", async ()
     <NoticeCard part={{ type: "notice", code: "memory.saved", level: "info", text: "Saved to memory", detail }} />,
   );
   const row = ui.getByRole("button");
-  expect(StyleSheet.flatten(row.props.style).minHeight).toBe(48);
+  expect(StyleSheet.flatten(row.props.style).minHeight).toBe(34);
   expect(row.props.accessibilityState.expanded).toBe(false);
   expect(ui.getByTestId("icon-ChevronRight")).toBeTruthy();
   await fireEvent.press(row);
@@ -108,7 +112,7 @@ test("action groups and each step show matching chevrons without tall row gaps",
   const controls = ui.getAllByRole("button");
   expect(controls).toHaveLength(3);
   expect(controls.map((row) => row.props.accessibilityState.expanded)).toEqual([true, false, false]);
-  expect(controls.map((row) => StyleSheet.flatten(row.props.style).minHeight)).toEqual([48, 32, 32]);
+  expect(controls.map((row) => StyleSheet.flatten(row.props.style).minHeight)).toEqual([34, 32, 32]);
   expect(ui.getAllByTestId("icon-ChevronRight")).toHaveLength(2);
   const firstStep = controls[1];
   if (!firstStep) throw new Error("Missing first step");
@@ -184,6 +188,52 @@ test.each(["screen reader", "large text"])("compact controls retain full touch t
   expect(ui.getByText("Full detail")).toBeTruthy();
   expect(ui.getByRole("button").props.accessibilityState.expanded).toBe(true);
 });
+
+test.each([false, true])(
+  "consecutive note, memory and follow-up rows share density (screen reader: %s)",
+  async (screenReader) => {
+    jest.spyOn(AccessibilityInfo, "isScreenReaderEnabled").mockResolvedValue(screenReader);
+    const ui = await render(
+      <ChatMessage
+        agents={[]}
+        respond={async () => {}}
+        message={{
+          id: "msg_notices",
+          thread_id: "th_notices",
+          seq: 1,
+          author: { kind: "agent", id: "helper" },
+          created_at: "2026-10-21T15:00:00Z",
+          parts: [
+            { type: "notice", code: "custom.note", text: "Note contents", detail: "Complete note", level: "info" },
+            { type: "notice", code: "memory.saved", text: "Saved to memory", detail: "Complete memory", level: "info" },
+            {
+              type: "notice",
+              code: "continuation.receipt",
+              text: "Follow-up",
+              level: "info",
+              vars: { state: "pending", condition: "time", purpose: "Check the report", when: "2026-12-01T12:00:00Z" },
+            },
+          ],
+        }}
+      />,
+    );
+    const rows = ui.getAllByRole("button");
+    expect(rows).toHaveLength(3);
+    expect(rows.map((row) => StyleSheet.flatten(row.props.style).minHeight)).toEqual(
+      screenReader ? [48, 48, 48] : [34, 34, 34],
+    );
+    expect(StyleSheet.flatten(ui.getByTestId("chat-message").props.style).marginVertical).toBe(1);
+    for (const [index, detail] of ["Complete note", "Complete memory", "Check the report"].entries()) {
+      const row = rows[index];
+      if (!row) throw new Error("Missing disclosure row");
+      expect(row.props.accessibilityState.expanded).toBe(false);
+      await fireEvent.press(row);
+      expect(ui.getByText(detail)).toBeTruthy();
+      await fireEvent.press(row);
+      expect(ui.queryByText(detail)).toBeNull();
+    }
+  },
+);
 
 test("the task page's plan remains expanded", async () => {
   const ui = await render(

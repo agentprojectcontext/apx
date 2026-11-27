@@ -3,6 +3,7 @@ import { Pressable, Text, View } from "react-native";
 import { Icon, type IconName } from "../Icon";
 import { makeStyles, useTheme } from "../theme";
 import { DetailBranch } from "./DetailBranch";
+import { useActionDensity } from "./useActionDensity";
 
 /** A quiet chat line; only supporting detail folds. */
 export function CompactRow({
@@ -46,6 +47,7 @@ export function CompactRow({
   const open = expanded ?? localOpen;
   const s = useStyles();
   const theme = useTheme();
+  const dense = useActionDensity();
   const color = warning ? theme.warning : theme.fgMuted;
   const heading = (
     <>
@@ -75,7 +77,12 @@ export function CompactRow({
               setOpen(!open);
               onExpandedChange?.(!open);
             }}
-            style={[s.heading, compact && s.compactHeading, nested && s.nestedHeading]}
+            style={[
+              s.heading,
+              compact && s.compactHeading,
+              compact && dense && s.denseHeading,
+              nested && dense && s.nestedHeading,
+            ]}
           >
             {heading}
           </Pressable>
@@ -109,6 +116,7 @@ const useStyles = makeStyles((theme) => ({
   line: { flexDirection: "row", alignItems: "center" },
   heading: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 2, flexShrink: 1 },
   compactHeading: { flex: 1 },
+  denseHeading: { minHeight: 34 },
   staticHeading: { minHeight: 28 },
   nestedHeading: { minHeight: 32 },
   title: { fontSize: 13, color: theme.fgMuted, flexShrink: 1 },
