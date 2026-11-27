@@ -6,14 +6,10 @@ import { expect, open, rpc, test, world } from "./kit.ts";
 test.use({
   expectedConsoleErrors: async ({ baseURL: _baseURL }, use, info) => {
     await use([
-      {
-        path: "/rpc/extensions.enable",
-        text: "Failed to load resource: the server responded with a status of 409 (Conflict)",
-      },
-      ...(info.title.includes("unreadable=true")
+      ...(info.title.includes("rollbackFails=true")
         ? [
             {
-              path: "/rpc/extensions.list",
+              path: "/rpc/extensions.enable",
               text: "Failed to load resource: the server responded with a status of 409 (Conflict)",
             },
           ]
@@ -23,11 +19,17 @@ test.use({
 });
 
 for (const language of ["en", "es"] as const) {
-  for (const unreadable of [false, true]) {
-    test(`a failed rollback preserves entered fields, ${language}, unreadable=${unreadable}`, async ({ page }) => {
+  for (const { unreadable, rollbackFails } of [
+    { unreadable: false, rollbackFails: true },
+    { unreadable: true, rollbackFails: true },
+    { unreadable: true, rollbackFails: false },
+  ]) {
+    test(`uncertain recovery preserves entered fields, ${language}, unreadable=${unreadable}, rollbackFails=${rollbackFails}`, async ({
+      page,
+    }) => {
       const { dir } = await world.info();
-      const id = `acme-${language}-${unreadable}`;
-      const name = `Acme recovery ${language} ${unreadable}`;
+      const id = `acme-${language}-${unreadable}-${rollbackFails}`;
+      const name = `Acme recovery ${language} ${unreadable} ${rollbackFails}`;
       const root = path.join(dir, id);
       fs.mkdirSync(root, { recursive: true });
       fs.writeFileSync(
@@ -43,25 +45,34 @@ for (const language of ["en", "es"] as const) {
       fs.writeFileSync(path.join(root, "server.mjs"), 'throw new Error("Cannot start");');
       const seen = await rpc<{ hash: string }>("extensions.inspect", { path: root });
       await rpc("extensions.install", { path: root, hash: seen.hash });
-      let rollbackFailed = false;
+      let rollbackAttempted = false;
       let readBacks = 0;
-      // Only the compensating disable fails; all reads and the real server startup use the sandbox core.
+      let recoveryComplete = false;
+      // A successful real rollback isolates the fallback for an unreadable recovery state.
       await page.route("**/rpc/**", async (route) => {
         const method = new URL(route.request().url()).pathname.split("/").at(-1);
         const params = route.request().postDataJSON() as { rollback_token?: string };
         if (method === "extensions.enable" && params.rollback_token) {
-          rollbackFailed = true;
+          rollbackAttempted = true;
+          if (!rollbackFails) {
+            const response = await route.fetch();
+            expect(response.ok()).toBe(true);
+            expect((await response.json()).result.enabled).toBe(false);
+            await route.fulfill({ response });
+            return;
+          }
           await route.fulfill({
             status: 409,
             json: { ok: false, error: { code: ErrorCode.Conflict, message: "Unable to turn off" } },
           });
           return;
         }
-        if (rollbackFailed && method === "extensions.list") {
+        if (rollbackAttempted && method === "extensions.list") {
           readBacks++;
-          if (unreadable && readBacks === 1) {
+          // Fail recovery and concurrent refreshes with an RPC error, then allow status navigation.
+          if (unreadable && !recoveryComplete) {
             await route.fulfill({
-              status: 409,
+              status: 200,
               json: { ok: false, error: { code: ErrorCode.Conflict, message: "Status changed; read again" } },
             });
             return;
@@ -84,6 +95,7 @@ for (const language of ["en", "es"] as const) {
           ? "The connection failed. We could not confirm it is off. Check its current status before trying again."
           : "La conexión falló. No pudimos confirmar que esté apagada. Revisá su estado actual antes de volver a intentar.",
       );
+      recoveryComplete = true;
       await expect(input).toHaveValue("example-token");
       await expect(
         box.getByRole("button", { name: language === "en" ? "View status" : "Ver estado", exact: true }),
@@ -92,9 +104,9 @@ for (const language of ["en", "es"] as const) {
         box.getByRole("button", { name: language === "en" ? "Try again" : "Probar de nuevo", exact: true }),
       ).toHaveCount(0);
       await expect.poll(() => readBacks).toBeGreaterThan(0);
-      expect(rollbackFailed).toBe(true);
+      expect(rollbackAttempted).toBe(true);
       const listed = await rpc<{ extensions: Array<{ id: string; enabled: boolean }> }>("extensions.list");
-      expect(listed.extensions.find((extension) => extension.id === id)?.enabled).toBe(true);
+      expect(listed.extensions.find((extension) => extension.id === id)?.enabled).toBe(rollbackFails);
       for (const width of [1280, 390]) {
         await page.setViewportSize({ width, height: 900 });
         await expect(input).toHaveValue("example-token");
