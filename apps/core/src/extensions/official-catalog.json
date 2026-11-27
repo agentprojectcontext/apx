@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "registry": "apx-official",
-  "generated_at": "2026-11-25T01:36:23.907Z",
+  "generated_at": "2026-11-26T23:36:15.105Z",
   "publishers": [
     {
       "id": "apx",
@@ -15322,6 +15322,116 @@
     },
     {
       "kind": "extension",
+      "id": "shopify-dev",
+      "publisher": "apx",
+      "name": "Shopify Dev",
+      "description": "Search Shopify developer docs and validate code against Shopify schemas.",
+      "categories": [
+        "dev"
+      ],
+      "tags": [
+        "optional"
+      ],
+      "icon": "https://marketplace.apxagent.app/listings/shopify-dev/1.0.0/fc677dcc0b3d5be8c5f5ece385b1c29e720d328bffac8ec93a0ddfa66c850287/assets/icon.svg",
+      "license": "MIT",
+      "tagline": "Find Shopify docs and check code without managing your store",
+      "category": "development",
+      "listing": "https://marketplace.apxagent.app/listings/shopify-dev/1.0.0/fc677dcc0b3d5be8c5f5ece385b1c29e720d328bffac8ec93a0ddfa66c850287/apx-listing.json",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "source": {
+            "type": "archive",
+            "url": "https://marketplace.apxagent.app/packages/shopify-dev/1.0.0/fc677dcc0b3d5be8c5f5ece385b1c29e720d328bffac8ec93a0ddfa66c850287.apxext"
+          },
+          "integrity": "sha256-fc677dcc0b3d5be8c5f5ece385b1c29e720d328bffac8ec93a0ddfa66c850287",
+          "archive": {
+            "url": "https://marketplace.apxagent.app/packages/shopify-dev/1.0.0/fc677dcc0b3d5be8c5f5ece385b1c29e720d328bffac8ec93a0ddfa66c850287.apxext",
+            "sha256": "fc677dcc0b3d5be8c5f5ece385b1c29e720d328bffac8ec93a0ddfa66c850287"
+          },
+          "content_hash": "4a0752334599a003",
+          "apx": "2.16.0",
+          "published_at": "2026-11-26T23:01:20.000Z",
+          "card": {
+            "summary": "Search Shopify developer docs and validate code against Shopify schemas.",
+            "features": [
+              "Search Shopify developer documentation",
+              "Inspect GraphQL schemas and supported API versions",
+              "Validate GraphQL operations and Liquid snippets"
+            ],
+            "requirements": [
+              "Node.js 22.12 or newer and npm on the computer running APX",
+              "Internet access to download the server and read Shopify developer resources"
+            ],
+            "limits": [
+              "Does not sign in to a store or read orders, customers or inventory",
+              "Does not run Admin API queries or mutations against a store",
+              "Validates Liquid snippets, not whole local theme directories"
+            ],
+            "pricing": "No Shopify account or API key is required. A Shopify plan is not included.",
+            "privacy": "APX disables Shopify Dev MCP telemetry. Searches and documentation requests can be sent to Shopify; do not include credentials or customer data.",
+            "id": "shopify-dev",
+            "authentication": "none",
+            "billing": "free",
+            "docs": "README.md",
+            "schema": 2,
+            "tagline": "Find Shopify docs and check code without managing your store",
+            "description": "Look up Shopify developer documentation and API schemas, and check GraphQL queries against the relevant schema. No store sign-in needed. Use this to build for Shopify, not to manage products or orders in a live store. APX packages Shopify’s developer server.",
+            "prompts": [
+              "Find the Shopify docs for app webhooks and cite the relevant pages.",
+              "Check whether this field exists in my selected Admin API version.",
+              "Validate this Liquid snippet without connecting to a store."
+            ],
+            "category": "development",
+            "icon": "assets/icon.svg",
+            "screenshots": [],
+            "connection": "none",
+            "links": {
+              "website": "https://shopify.dev/",
+              "privacy": "https://www.shopify.com/legal/privacy",
+              "terms": "https://www.shopify.com/legal/terms",
+              "docs": "https://shopify.dev/docs/api/ai-toolkit"
+            },
+            "publisher": {
+              "name": "APX",
+              "verified": true
+            },
+            "locales": {
+              "es": {
+                "summary": "Buscá documentación de Shopify y validá código con sus esquemas.",
+                "features": [
+                  "Buscá documentación para desarrolladores de Shopify",
+                  "Consultá esquemas GraphQL y versiones de API compatibles",
+                  "Validá operaciones GraphQL y fragmentos de Liquid"
+                ],
+                "requirements": [
+                  "Node.js 22.12 o posterior y npm en el equipo donde corre APX",
+                  "Conexión a Internet para descargar el servidor y consultar recursos de Shopify"
+                ],
+                "limits": [
+                  "No inicia sesión en tu tienda ni consulta pedidos, clientes o inventario",
+                  "No ejecuta consultas ni cambios contra la API de administración de tu tienda",
+                  "Valida fragmentos de Liquid, no carpetas completas de temas locales"
+                ],
+                "pricing": "No necesitás cuenta ni clave de Shopify. No incluye un plan de Shopify.",
+                "privacy": "APX desactiva la telemetría de Shopify Dev MCP. Las búsquedas y consultas de documentación pueden enviarse a Shopify; no incluyas credenciales ni datos de clientes.",
+                "tagline": "Consultá docs y validá código sin administrar tu tienda",
+                "description": "Consultá la documentación para desarrolladores y los esquemas de las API de Shopify. Revisá tus consultas GraphQL contra el esquema correspondiente. No hace falta iniciar sesión en una tienda. Sirve para desarrollar con Shopify, no para administrar productos ni pedidos. APX empaqueta el servidor de desarrollo de Shopify.",
+                "prompts": [
+                  "Buscá la documentación de Shopify sobre webhooks de apps y citá las páginas relevantes.",
+                  "Revisá si este campo existe en la versión de la API de administración que elija.",
+                  "Validá este fragmento Liquid sin conectarte a una tienda."
+                ],
+                "screenshots": []
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
       "id": "siyuan",
       "publisher": "apx",
       "name": "SiYuan",
@@ -17383,6 +17493,118 @@
     },
     {
       "kind": "extension",
+      "id": "tiendanube",
+      "publisher": "apx",
+      "name": "Tiendanube",
+      "description": "Connect your store through Tiendanube's remote MCP server.",
+      "categories": [
+        "productivity"
+      ],
+      "tags": [
+        "optional"
+      ],
+      "icon": "https://marketplace.apxagent.app/listings/tiendanube/1.0.1/33874daeecf71ff8a825babe55fda889b5f1063c1333a913ac64964a35292fd9/assets/icon.svg",
+      "license": "MIT",
+      "tagline": "Connect your Tiendanube store with your own account",
+      "category": "business-systems",
+      "listing": "https://marketplace.apxagent.app/listings/tiendanube/1.0.1/33874daeecf71ff8a825babe55fda889b5f1063c1333a913ac64964a35292fd9/apx-listing.json",
+      "versions": [
+        {
+          "version": "1.0.1",
+          "source": {
+            "type": "archive",
+            "url": "https://marketplace.apxagent.app/packages/tiendanube/1.0.1/33874daeecf71ff8a825babe55fda889b5f1063c1333a913ac64964a35292fd9.apxext"
+          },
+          "integrity": "sha256-33874daeecf71ff8a825babe55fda889b5f1063c1333a913ac64964a35292fd9",
+          "archive": {
+            "url": "https://marketplace.apxagent.app/packages/tiendanube/1.0.1/33874daeecf71ff8a825babe55fda889b5f1063c1333a913ac64964a35292fd9.apxext",
+            "sha256": "33874daeecf71ff8a825babe55fda889b5f1063c1333a913ac64964a35292fd9"
+          },
+          "content_hash": "ae7c939456977a25",
+          "apx": "2.16.1",
+          "published_at": "2026-11-26T22:53:32.000Z",
+          "card": {
+            "summary": "Connect your store through Tiendanube's remote MCP server.",
+            "features": [
+              "Connection to Tiendanube's remote MCP endpoint",
+              "OAuth sign-in using your own account"
+            ],
+            "requirements": [
+              "APX 2.16.1 or newer for isolated OAuth credentials",
+              "A Tiendanube account permitted to authorize store access",
+              "Node.js 20.18.1 or newer and npm",
+              "A browser on the computer running the MCP bridge for account authorization"
+            ],
+            "limits": [
+              "Available tools have not been verified with an authorized test store",
+              "Not read-only: review store permissions and confirm writes",
+              "A headless or remote APX host may require access to its browser and local OAuth callback"
+            ],
+            "pricing": "Tiendanube's account plans, availability requirements and quotas apply; no subscription is included.",
+            "privacy": "Authorized requests and store data are exchanged with Tiendanube's server. The local mcp-remote bridge stores OAuth credentials on the computer running it; do not share that cache. Server responses may enter agent context as untrusted content. No account credentials are included in this package.",
+            "id": "tiendanube",
+            "authentication": "oauth",
+            "billing": "account-plan",
+            "docs": "README.md",
+            "schema": 2,
+            "tagline": "Connect your Tiendanube store with your own account",
+            "description": "Connect APX to the remote MCP server operated by Tiendanube. Sign in with your own store account and review the permissions requested before authorizing access. APX publishes this Marketplace connector; this does not imply a commercial endorsement by Tiendanube.\n\nThe tools available after login depend on the upstream server and your store permissions. This is not a read-only connection: review each proposed change and confirm writes before proceeding. End-to-end account authorization and real store operations have not been tested for this package.",
+            "prompts": [
+              "Help me connect my Tiendanube account and review the requested permissions.",
+              "After login, explain which Tiendanube tools are available without changing my store.",
+              "Before making any store change, show me the proposed action and ask for confirmation."
+            ],
+            "category": "business-systems",
+            "icon": "assets/icon.svg",
+            "screenshots": [],
+            "connection": "oauth",
+            "links": {
+              "website": "https://www.tiendanube.com/",
+              "privacy": "https://www.tiendanube.com/politicas-de-privacidad",
+              "terms": "https://www.tiendanube.com/terminos-de-uso",
+              "docs": "https://dev.tiendanube.com/"
+            },
+            "publisher": {
+              "name": "APX",
+              "verified": true
+            },
+            "locales": {
+              "es": {
+                "summary": "Conectá tu tienda al servidor MCP remoto de Tiendanube.",
+                "features": [
+                  "Conexión al servidor MCP remoto de Tiendanube",
+                  "Inicio de sesión OAuth con tu propia cuenta"
+                ],
+                "requirements": [
+                  "APX 2.16.1 o posterior para separar las credenciales OAuth",
+                  "Una cuenta de Tiendanube con permiso para autorizar el acceso a la tienda",
+                  "Node.js 20.18.1 o posterior y npm",
+                  "Un navegador en la computadora que ejecuta el puente MCP para autorizar la cuenta"
+                ],
+                "limits": [
+                  "No se verificaron las herramientas con una tienda de prueba autorizada",
+                  "No es solo lectura: revisá los permisos de la tienda y confirmá las escrituras",
+                  "Un equipo remoto o sin interfaz puede requerir acceso a su navegador y al retorno OAuth local"
+                ],
+                "pricing": "Se aplican los planes, requisitos de disponibilidad y cuotas de Tiendanube; no se incluye una suscripción.",
+                "privacy": "Los datos autorizados se intercambian con Tiendanube. mcp-remote guarda credenciales OAuth localmente: no compartas su caché. Las respuestas pueden entrar al contexto como contenido no confiable. El paquete no incluye credenciales.",
+                "tagline": "Conectá tu tienda Tiendanube con tu propia cuenta",
+                "description": "Conectá APX al servidor MCP remoto operado por Tiendanube. Iniciá sesión con tu propia cuenta de tienda y revisá los permisos solicitados antes de autorizar el acceso. APX publica este conector del Marketplace; esto no implica un aval comercial de Tiendanube.\n\nLas herramientas disponibles después del inicio de sesión dependen del servidor y de los permisos de tu tienda. No es una conexión de solo lectura: revisá cada cambio propuesto y confirmá las escrituras antes de continuar. No se probaron la autorización completa de una cuenta ni operaciones reales sobre una tienda con este paquete.",
+                "prompts": [
+                  "Ayudame a conectar mi cuenta de Tiendanube y revisar los permisos solicitados.",
+                  "Después de iniciar sesión, explicame qué herramientas de Tiendanube están disponibles sin modificar mi tienda.",
+                  "Antes de cambiar algo en la tienda, mostrame la acción propuesta y pedime confirmación."
+                ],
+                "screenshots": []
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
       "id": "todoist",
       "publisher": "apx",
       "name": "Todoist",
@@ -18679,38 +18901,40 @@
       "tags": [
         "optional"
       ],
-      "icon": "https://marketplace.apxagent.app/listings/wordpress/1.0.1/6e5c59a10e2249d7cef9aae1a05e911baa136c0d491e5926c541c41bb4002111/assets/icon.svg",
+      "icon": "https://marketplace.apxagent.app/listings/wordpress/1.0.2/3eb97547f935a3880cb887e3157988e5c6012e97a18877a908ae7c5e3f492436/assets/icon.svg",
       "license": "MIT",
-      "tagline": "Review WordPress.com posts, pages and site stats",
+      "tagline": "Connect WordPress.com or a site linked with Jetpack",
       "category": "marketing",
-      "listing": "https://marketplace.apxagent.app/listings/wordpress/1.0.1/6e5c59a10e2249d7cef9aae1a05e911baa136c0d491e5926c541c41bb4002111/apx-listing.json",
+      "listing": "https://marketplace.apxagent.app/listings/wordpress/1.0.2/3eb97547f935a3880cb887e3157988e5c6012e97a18877a908ae7c5e3f492436/apx-listing.json",
       "versions": [
         {
-          "version": "1.0.1",
+          "version": "1.0.2",
           "source": {
             "type": "archive",
-            "url": "https://marketplace.apxagent.app/packages/wordpress/1.0.1/6e5c59a10e2249d7cef9aae1a05e911baa136c0d491e5926c541c41bb4002111.apxext"
+            "url": "https://marketplace.apxagent.app/packages/wordpress/1.0.2/3eb97547f935a3880cb887e3157988e5c6012e97a18877a908ae7c5e3f492436.apxext"
           },
-          "integrity": "sha256-6e5c59a10e2249d7cef9aae1a05e911baa136c0d491e5926c541c41bb4002111",
+          "integrity": "sha256-3eb97547f935a3880cb887e3157988e5c6012e97a18877a908ae7c5e3f492436",
           "archive": {
-            "url": "https://marketplace.apxagent.app/packages/wordpress/1.0.1/6e5c59a10e2249d7cef9aae1a05e911baa136c0d491e5926c541c41bb4002111.apxext",
-            "sha256": "6e5c59a10e2249d7cef9aae1a05e911baa136c0d491e5926c541c41bb4002111"
+            "url": "https://marketplace.apxagent.app/packages/wordpress/1.0.2/3eb97547f935a3880cb887e3157988e5c6012e97a18877a908ae7c5e3f492436.apxext",
+            "sha256": "3eb97547f935a3880cb887e3157988e5c6012e97a18877a908ae7c5e3f492436"
           },
-          "content_hash": "8283e97ebf2870bd",
-          "apx": "2.16.0",
-          "published_at": "2026-11-18T13:07:02.700Z",
+          "content_hash": "26ad7389f63ea4f9",
+          "apx": "2.16.1",
+          "published_at": "2026-11-26T23:01:21.000Z",
           "card": {
             "summary": "Posts, pages and stats of your sites.",
             "features": [
               "Posts, pages and stats of your sites."
             ],
             "requirements": [
-              "A WordPress.com account with permission to use its MCP server",
-              "Node.js and npm to run the server"
+              "A WordPress.com account with a site eligible for MCP",
+              "Self-hosted sites: connect the site to the same account with Jetpack and check current Jetpack plan requirements",
+              "Node.js and npm to run this connector"
             ],
             "limits": [
               "Available tools and access depend on the upstream server and account permissions",
-              "Live account access has not been verified for this extension package"
+              "Live account access has not been verified for this extension package",
+              "Jetpack uses the same connection; standalone WordPress MCP Adapter sites are not covered"
             ],
             "pricing": "Your service plan, API access requirements and usage quotas apply; no subscription is included.",
             "privacy": "Requests and authorized account data are exchanged with the configured service. Server output may enter agent context as untrusted content.",
@@ -18719,8 +18943,8 @@
             "billing": "account-plan",
             "docs": "README.md",
             "schema": 2,
-            "tagline": "Review WordPress.com posts, pages and site stats",
-            "description": "Connect WordPress.com to bring accessible posts, pages and site statistics into APX. Select the site and content you want to discuss, then use the returned material to review an article, understand a page or explain the available statistics.\n\nPosts, pages and statistics answer different questions about a site. Keep content review separate from conclusions about audience behavior, and retain the reporting period when statistics provide one. Access and possible changes depend on WordPress.com's tools and your account permissions. This connection does not promise support for every self-hosted WordPress installation or include a site plan.",
+            "tagline": "Connect WordPress.com or a site linked with Jetpack",
+            "description": "Connect with your WordPress.com account to review posts, pages and site statistics. You can also reach a self-hosted site linked to that account through Jetpack when the site meets Jetpack’s plan requirements. Access and possible changes depend on your WordPress.com permissions.",
             "prompts": [
               "Read the available content of the WordPress.com post I select without editing it.",
               "Review the page I choose and suggest a clearer structure in chat.",
@@ -18734,7 +18958,7 @@
               "website": "https://wordpress.com",
               "privacy": "https://automattic.com/privacy/",
               "terms": "https://automattic.com/tos/",
-              "docs": "https://developer.wordpress.com/docs/"
+              "docs": "https://developer.wordpress.com/docs/mcp/"
             },
             "publisher": {
               "name": "APX",
@@ -18747,100 +18971,19 @@
                   "Publicaciones, páginas y estadísticas de tus sitios."
                 ],
                 "requirements": [
-                  "Una cuenta de WordPress.com con permiso para usar su servidor MCP",
-                  "Node.js y npm para ejecutar el servidor"
+                  "Una cuenta de WordPress.com con un sitio compatible con MCP",
+                  "Para un sitio autohospedado: vinculalo a la misma cuenta con Jetpack y revisá los requisitos vigentes del plan",
+                  "Node.js y npm para ejecutar este conector"
                 ],
                 "limits": [
                   "Las herramientas disponibles y el acceso dependen del servidor del servicio y de los permisos de la cuenta",
-                  "No se verificó el acceso a una cuenta real con este paquete de extensión"
+                  "No se verificó el acceso a una cuenta real con este paquete de extensión",
+                  "Jetpack usa la misma conexión; no incluye sitios que solo usan WordPress MCP Adapter"
                 ],
                 "pricing": "Se aplican el plan del servicio, los requisitos de acceso a la API y las cuotas de uso; no se incluye una suscripción.",
                 "privacy": "Las consultas y los datos autorizados de la cuenta se intercambian con el servicio configurado. Sus respuestas pueden entrar al contexto del agente como contenido no confiable.",
-                "tagline": "Revisá entradas, páginas y estadísticas de tu sitio",
-                "description": "Conectá WordPress.com para traer a APX entradas, páginas y estadísticas de sitio disponibles. Elegí el sitio y el contenido que querés conversar y usá el material devuelto para revisar un artículo, entender una página o explicar las estadísticas disponibles.\n\nEntradas, páginas y estadísticas responden preguntas distintas sobre un sitio. Separá la revisión de contenido de las conclusiones sobre audiencia y conservá el período cuando las estadísticas lo indiquen. El acceso y los cambios posibles dependen de las herramientas de WordPress.com y tus permisos. La conexión no promete compatibilidad con toda instalación autohospedada ni incluye un plan de sitio.",
-                "prompts": [
-                  "Leé el contenido disponible de la entrada de WordPress.com que elija sin editarla.",
-                  "Revisá la página que seleccione y sugerí una estructura más clara en el chat.",
-                  "Explicame las estadísticas devueltas del sitio e indicá el período informado, si lo hay."
-                ],
-                "screenshots": []
-              }
-            }
-          }
-        },
-        {
-          "version": "1.0.0",
-          "source": {
-            "type": "archive",
-            "url": "https://marketplace.apxagent.app/packages/wordpress/1.0.0/d27b55c6188b4551b2d6f0cecf3cbf1b6ae9d8f4f28b8ebc253d0a78ce697d94.apxext"
-          },
-          "integrity": "sha256-d27b55c6188b4551b2d6f0cecf3cbf1b6ae9d8f4f28b8ebc253d0a78ce697d94",
-          "archive": {
-            "url": "https://marketplace.apxagent.app/packages/wordpress/1.0.0/d27b55c6188b4551b2d6f0cecf3cbf1b6ae9d8f4f28b8ebc253d0a78ce697d94.apxext",
-            "sha256": "d27b55c6188b4551b2d6f0cecf3cbf1b6ae9d8f4f28b8ebc253d0a78ce697d94"
-          },
-          "content_hash": "33442c1e00d34d6c",
-          "apx": "2.16.0",
-          "published_at": "2026-11-18T00:42:35.000Z",
-          "card": {
-            "summary": "Posts, pages and stats of your sites.",
-            "features": [
-              "Posts, pages and stats of your sites."
-            ],
-            "requirements": [
-              "A WordPress.com account with permission to use its MCP server",
-              "Node.js and npm to run the server"
-            ],
-            "limits": [
-              "Available tools and access depend on the upstream server and account permissions",
-              "Live account access has not been verified for this extension package"
-            ],
-            "pricing": "Your service plan, API access requirements and usage quotas apply; no subscription is included.",
-            "privacy": "Requests and authorized account data are exchanged with the configured service. Server output may enter agent context as untrusted content.",
-            "id": "wordpress",
-            "authentication": "oauth",
-            "billing": "account-plan",
-            "docs": "README.md",
-            "schema": 2,
-            "tagline": "Review WordPress.com posts, pages and site stats",
-            "description": "Connect WordPress.com to bring accessible posts, pages and site statistics into APX. Select the site and content you want to discuss, then use the returned material to review an article, understand a page or explain the available statistics.\n\nPosts, pages and statistics answer different questions about a site. Keep content review separate from conclusions about audience behavior, and retain the reporting period when statistics provide one. Access and possible changes depend on WordPress.com's tools and your account permissions. This connection does not promise support for every self-hosted WordPress installation or include a site plan.",
-            "prompts": [
-              "Read the available content of the WordPress.com post I select without editing it.",
-              "Review the page I choose and suggest a clearer structure in chat.",
-              "Explain the returned site statistics and state any reporting period provided."
-            ],
-            "category": "marketing",
-            "icon": "assets/icon.svg",
-            "screenshots": [],
-            "connection": "oauth",
-            "links": {
-              "website": "https://wordpress.com",
-              "privacy": "https://automattic.com/privacy/",
-              "terms": "https://automattic.com/tos/",
-              "docs": "https://developer.wordpress.com/docs/"
-            },
-            "publisher": {
-              "name": "APX",
-              "verified": true
-            },
-            "locales": {
-              "es": {
-                "summary": "Publicaciones, páginas y estadísticas de tus sitios.",
-                "features": [
-                  "Publicaciones, páginas y estadísticas de tus sitios."
-                ],
-                "requirements": [
-                  "Una cuenta de WordPress.com con permiso para usar su servidor MCP",
-                  "Node.js y npm para ejecutar el servidor"
-                ],
-                "limits": [
-                  "Las herramientas disponibles y el acceso dependen del servidor del servicio y de los permisos de la cuenta",
-                  "No se verificó el acceso a una cuenta real con este paquete de extensión"
-                ],
-                "pricing": "Se aplican el plan del servicio, los requisitos de acceso a la API y las cuotas de uso; no se incluye una suscripción.",
-                "privacy": "Las consultas y los datos autorizados de la cuenta se intercambian con el servicio configurado. Sus respuestas pueden entrar al contexto del agente como contenido no confiable.",
-                "tagline": "Revisá entradas, páginas y estadísticas de tu sitio",
-                "description": "Conectá WordPress.com para traer a APX entradas, páginas y estadísticas de sitio disponibles. Elegí el sitio y el contenido que querés conversar y usá el material devuelto para revisar un artículo, entender una página o explicar las estadísticas disponibles.\n\nEntradas, páginas y estadísticas responden preguntas distintas sobre un sitio. Separá la revisión de contenido de las conclusiones sobre audiencia y conservá el período cuando las estadísticas lo indiquen. El acceso y los cambios posibles dependen de las herramientas de WordPress.com y tus permisos. La conexión no promete compatibilidad con toda instalación autohospedada ni incluye un plan de sitio.",
+                "tagline": "Conectá WordPress.com o un sitio vinculado con Jetpack",
+                "description": "Conectá tu cuenta de WordPress.com para revisar entradas, páginas y estadísticas. También podés acceder a un sitio autohospedado vinculado a esa cuenta con Jetpack si cumple los requisitos de su plan. El acceso y los cambios posibles dependen de tus permisos en WordPress.com.",
                 "prompts": [
                   "Leé el contenido disponible de la entrada de WordPress.com que elija sin editarla.",
                   "Revisá la página que seleccione y sugerí una estructura más clara en el chat.",
