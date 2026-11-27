@@ -21,14 +21,23 @@ const ALL_TOOLS = "*";
  * contract, so tools the server adds later are covered too. DECISIONS.md#d-219
  */
 export function mcpServerApproval(
-  d: Pick<McpDef, "scope" | "project_id" | "name" | "hash" | "values_of" | "only">,
+  d: Pick<McpDef, "scope" | "project_id" | "name" | "hash" | "values_of" | "only" | "credential_key">,
 ): ApprovalTarget {
   const key = createHash("sha256")
-    .update(JSON.stringify([serverApprovalId(d), d.hash, d.values_of ?? "", ALL_TOOLS]))
+    .update(
+      JSON.stringify([
+        serverApprovalId(d),
+        d.hash,
+        d.values_of ?? "",
+        ...(d.credential_key ? [d.credential_key] : []),
+        ALL_TOOLS,
+      ]),
+    )
     .digest("hex");
   return {
     key,
     server: serverApprovalId(d),
+    credential_scope: d.values_of ?? null,
     tool: ALL_TOOLS,
     ...((d.project_id ?? d.values_of ?? d.only) ? { project_id: d.project_id ?? d.values_of ?? d.only } : {}),
     permanent: false,
@@ -38,11 +47,22 @@ export function mcpServerApproval(
 /** Definition, credential scope and tool contract bind approval; names alone are not authority. */
 export function mcpApproval(d: McpDef, t: McpTool): ApprovalTarget {
   const key = createHash("sha256")
-    .update(JSON.stringify([serverApprovalId(d), d.hash, d.values_of ?? "", t.name, t.inputSchema, t.annotations]))
+    .update(
+      JSON.stringify([
+        serverApprovalId(d),
+        d.hash,
+        d.values_of ?? "",
+        ...(d.credential_key ? [d.credential_key] : []),
+        t.name,
+        t.inputSchema,
+        t.annotations,
+      ]),
+    )
     .digest("hex");
   return {
     key,
     server: serverApprovalId(d),
+    credential_scope: d.values_of ?? null,
     tool: t.name,
     ...((d.project_id ?? d.values_of ?? d.only) ? { project_id: d.project_id ?? d.values_of ?? d.only } : {}),
     permanent: t.annotations?.readOnlyHint === true && t.annotations?.destructiveHint !== true,

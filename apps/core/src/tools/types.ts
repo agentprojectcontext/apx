@@ -24,7 +24,7 @@ export type Effect = "none" | "local" | "external" | "message";
  */
 export type Confirm = "never" | "untrusted" | "ask" | "always";
 /** `url_data`: the URL carries values (a query) that outside content could have put there to send away. */
-export type UntrustedWhy = "url_data";
+export type UntrustedWhy = "url_data" | "browser_steps" | "mcp_outside";
 /** How a call keeps its card where the mode would skip it (Tool.keepsCard). */
 export type KeepsCard = "card" | "grant";
 

@@ -37,7 +37,8 @@ export const esApprovals: Record<ApprovalKey, string> = {
   "input.browserFile": "Archivo",
   "input.browserHash": "SHA-256",
   "input.browserTabHelp": "Pestaña: hasta 30 minutos; termina antes al navegar, recargar, cerrar o reconectar.",
-  "input.browserTurnHelp": "Turno: cubre las pestañas de este origen hasta que termine esta ejecución.",
+  "input.browserTurnHelp":
+    "Turno: cubre las pestañas de este origen hasta que termine este turno. Si la tarea sigue automáticamente, empieza otro turno.",
   "input.browserMore": "Límites y seguridad",
   "input.browserSafety":
     "Todos los permisos temporales terminan al reiniciar. El código puede leer datos privados o enviar como vos. Nunca lo uses para contraseñas, 2FA ni tarjetas. Revocar bloquea llamadas futuras, no el código ya enviado o en ejecución.",

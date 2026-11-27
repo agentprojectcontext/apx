@@ -34,7 +34,8 @@ export const enApprovals = {
   "input.browserFile": "File",
   "input.browserHash": "SHA-256",
   "input.browserTabHelp": "Tab: up to 30 minutes; ends sooner on navigation, reload, close or reconnect.",
-  "input.browserTurnHelp": "Turn: covers tabs on this origin until this execution ends.",
+  "input.browserTurnHelp":
+    "Turn: covers tabs on this origin only until this turn ends. An automatic continuation is a new turn.",
   "input.browserMore": "Limits and safety",
   "input.browserSafety":
     "All temporary permissions end on restart. Code can read private data or send as you. Never use for passwords, 2FA or cards. Revoking blocks future calls, not code already sent or running.",

@@ -2,9 +2,13 @@ import { z } from "zod";
 import { deferMethod } from "./defer-method.ts";
 import { Id, McpServerStatus } from "./domain.ts";
 import { McpTarget } from "./resource-methods-schemas.ts";
+
+// Fail closed if credentials changed since the operator picked a server. Null explicitly selects shared credentials.
+const PermissionTarget = () =>
+  McpTarget.extend({ values_of: Id.nullable().optional(), credential_key: z.string().optional() });
 export const resourceMethodsPart2 = {
   "mcp.tools": deferMethod({
-    params: () => McpTarget,
+    params: PermissionTarget,
     result: () =>
       z.object({
         tools: z.array(
@@ -17,6 +21,7 @@ export const resourceMethodsPart2 = {
         ),
         /** all: every tool, those it adds later too; some: the tools approved one by one; ask: none. */
         mode: z.enum(["ask", "all", "some"]).optional(),
+        by_default: z.boolean().optional(),
         /** Why the server did not start, so it has no tools to show. */
         error: z.string().optional(),
       }),
@@ -61,10 +66,12 @@ export const resourceMethodsPart2 = {
    */
   "mcp.toolMode": deferMethod({
     params: () =>
-      McpTarget.extend({
-        mode: z.enum(["ask", "all"]),
-        ask: z.array(z.string().min(1).max(128)).max(200).optional(),
-      }).strict(),
+      PermissionTarget()
+        .extend({
+          mode: z.enum(["ask", "all"]),
+          ask: z.array(z.string().min(1).max(128)).max(200).optional(),
+        })
+        .strict(),
     result: () =>
       z.object({
         server: McpServerStatus,
@@ -74,7 +81,7 @@ export const resourceMethodsPart2 = {
   }),
   "mcp.approveTool": deferMethod({
     params: () =>
-      McpTarget.extend({
+      PermissionTarget().extend({
         tool: z.string(),
       }),
     result: () =>

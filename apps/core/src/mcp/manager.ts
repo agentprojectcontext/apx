@@ -66,6 +66,8 @@ export type McpStatus = {
   name: string;
   scope: "global" | "project";
   project_id?: string;
+  values_of?: string;
+  credential_key?: string;
   only: boolean;
   transport: "stdio" | "http";
   target: string;
@@ -130,16 +132,27 @@ export function createMcp(deps: {
   const tests = new Map<string, Set<{ abort: () => void; done: Promise<void> }>>();
   const processes = createProcessExits();
   const stderr = createStderrLogs();
-  const keyOf = (d: McpDef) => `${d.scope}:${d.project_id ?? ""}:${d.values_of ?? ""}:${d.name}`;
+  const keyOf = (d: McpDef) =>
+    `${d.scope}:${d.project_id ?? ""}:${d.values_of ?? ""}${d.credential_key ? `:${d.credential_key}` : ""}:${d.name}`;
 
   /** A project's own values first, then its parent's for a subproject (domain/projects.ts lineage). */
   const valuesIn = (projectId: string | undefined) => lineage(deps.store.projects, projectId);
   /** An owner's server in a project with its own value for one of its variables runs as a copy of its own there. */
-  const inProject = (d: McpDef, projectId: string | undefined): McpDef =>
-    projectId &&
-    valuesIn(projectId).some((p) => secretNames(d).some((n) => deps.secrets.has(`secret://${projectSecretName(p, n)}`)))
-      ? { ...d, values_of: projectId }
-      : d;
+  const inProject = (d: McpDef, projectId: string | undefined): McpDef => {
+    if (!projectId) return d;
+    const names = secretNames(d);
+    if (!names.length) return d;
+    const projects = valuesIn(projectId);
+    const sources = names.sort().map((n) => {
+      const p = projects.find((id) => deps.secrets.has(`secret://${projectSecretName(id, n)}`));
+      return [n, p] as const;
+    });
+    if (!sources.some(([, p]) => p)) return d;
+    const revisions = new Map(deps.secrets.list().map((s) => [s.name, s.updated_at]));
+    const identity = sources.map(([n, p]) => [n, p ?? null, revisions.get(p ? projectSecretName(p, n) : n) ?? null]);
+    const credential_key = createHash("sha256").update(JSON.stringify(identity)).digest("hex");
+    return { ...d, values_of: projectId, credential_key };
+  };
 
   /** Never the core's own folder, which is wherever it was started from (a checkout, the owner's home). */
   const ownDir = (name: string) => {
@@ -441,6 +454,7 @@ export function createMcp(deps: {
       effect,
       // Sending the owner's files out waits for them while outside content is in the turn, even for a read-only tool.
       confirm: (args) => (confirm === "never" && hasFileRefs(args) ? "untrusted" : confirm),
+      untrustedWhy: "mcp_outside",
       deadlineMs: CALL_MS + 5_000,
       parse(raw) {
         if (!check) return { ok: true, args: raw };
@@ -546,7 +560,13 @@ export function createMcp(deps: {
       await c.ready;
       if (!c.client) throw unavailable(c.error ?? "MCP server is not connected");
       const current = this.find(d.scope, d.name, d.values_of ?? d.project_id ?? d.only);
-      if (!current || current.hash !== d.hash || !current.enabled || !config.trusted(current))
+      if (
+        !current ||
+        keyOf(current) !== keyOf(d) ||
+        current.hash !== d.hash ||
+        !current.enabled ||
+        !config.trusted(current)
+      )
         throw conflict("MCP server definition changed");
       return c.tools
         .filter((t) => t.name !== d.monitorTool)
@@ -567,7 +587,7 @@ export function createMcp(deps: {
      */
     setToolMode: (d: McpDef, mode: "ask" | "all") => setMcpToolMode(deps.store, d, mode),
     /** Who let every agent use all its tools, under this definition or the one before an edit; none: undefined. */
-    allowsAll: (d: Pick<McpDef, "scope" | "project_id" | "name">) => allowsAll(deps.store, d),
+    allowsAll: (d: McpDef) => allowsAll(deps.store, d),
     /**
      * A server new to the owner lets agents use every tool; the owner blocks what they want (DECISIONS.md#d-279).
      * `again`: open it even if it was opened before (added anew after its removal).
@@ -630,6 +650,8 @@ export function createMcp(deps: {
           name: d.name,
           scope: d.scope,
           ...(d.project_id || d.only ? { project_id: d.project_id ?? d.only } : {}),
+          ...(d.values_of ? { values_of: d.values_of } : {}),
+          ...(d.credential_key ? { credential_key: d.credential_key } : {}),
           only: Boolean(d.only),
           transport: d.url ? "http" : "stdio",
           target: (d.url ?? [d.command, ...d.args].join(" ")).replace(
@@ -793,7 +815,7 @@ export function createMcp(deps: {
     find(scope: "global" | "project", name: string, projectId?: string): McpDef | undefined {
       if (scope === "project") return projectId ? config.project(projectId).find((d) => d.name === name) : undefined;
       const d = config.global().find((x) => x.name === name);
-      return d && inProject(d, projectId ?? d.only);
+      return d && (!d.only || !projectId || d.only === projectId) ? inProject(d, projectId ?? d.only) : undefined;
     },
     async close(): Promise<void> {
       clearInterval(idle);

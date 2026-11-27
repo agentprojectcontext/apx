@@ -6511,3 +6511,24 @@ mode explicitly to Auto (a project the owner made stricter would no longer reach
 
 Docs impact: updated concepts/autonomy, extend/mcp and reference/whats-new in English and Spanish,
 rules/SUPER_AGENT_POWERS.md, the apx-agents and apx-mcps skills, and news (`mcp-open`, 2.17.2).
+
+<a id="d-280"></a>
+## D-280 — 2026-11-26 — A turn boundary is not a budget pause; permission changes target an account
+
+A native task turn that reaches its step cap can admit another part in the same task chat when its plan or its
+recorded tool results show progress. Novel tool effects alone can bridge one cap per milestone, not an endless
+series of edits. It keeps its original end reason for usage and diagnostics, but once the next part actually starts,
+the previous part records that start instead of asking the owner to continue. No automatic restart replays tool calls. Waiting,
+cancellation, provider limits, project scope and turn-specific browser consent are unchanged. Non-cap follow-ups still
+have a fixed bound (D-162).
+
+The stalled-task guard (D-188) has its own owner thresholds, disabled when both are zero. A completed successful test
+or check is one additional progress checkpoint per plan milestone; starting a job and repeating checks do not count.
+The budget is separate and retains its own settings.
+
+MCP permission writes select the shared account or the project credential variant; an explicitly selected variant that
+is no longer present cannot fall back to the base server. Only the selected account is changed. “Allowed by default”
+remains distinct from the owner's explicit grant (D-279). Browser scripts still require their exact origin and current
+document, with temporary consent bounded by its selected tab or turn.
+
+Docs impact: updated office/tasks, extend/mcp and reference/cli in English and Spanish.

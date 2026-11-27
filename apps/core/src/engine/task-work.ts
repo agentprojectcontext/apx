@@ -768,7 +768,13 @@ export function addComment(
  * a close reports to the creator), answers the owner, or asks the owner (@owner). Anything else stays in the chat:
  * agents comment on the task on purpose, with task_comment.
  */
-export function afterWorkTurn(store: Store, admit: AdmitFn, run: RunRecord, share?: ShareOnTask): void {
+export function afterWorkTurn(
+  store: Store,
+  admit: AdmitFn,
+  run: RunRecord,
+  share?: ShareOnTask,
+  signal?: AbortSignal,
+): void {
   const thread = store.threads.get(run.thread_id);
   const consulted = thread?.kind === "a2a" ? store.threads.context(thread.id).consult : undefined;
   if (consulted) {
@@ -791,7 +797,7 @@ export function afterWorkTurn(store: Store, admit: AdmitFn, run: RunRecord, shar
     );
   // Closed in this turn: whoever created the task hears now, with the answer just posted as its report.
   if (closed) reportClose(store, admit, task.id);
-  else continueTask(store, admit, run);
+  else if (!signal?.aborted) continueTask(store, admit, run);
 }
 
 /**

@@ -34,12 +34,19 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "res.mcpLoadError": "No se pudo abrir esta conexión.",
   "res.mcpDenied": "No tenés acceso a esta conexión.",
   "res.mcpAmbiguous": "Elegí la conexión que querés abrir.",
+  "res.permissionsProject": "Estos permisos se aplican solo a la cuenta de este proyecto.",
+  "res.permissionsShared": "Estos permisos se comparten entre los proyectos que usan esta cuenta.",
+  "res.permissionsProjectMenu": "Permisos de la cuenta del proyecto",
+  "res.permissionsSharedMenu": "Permisos de la cuenta compartida",
   "res.toolsMode": "Permisos de tools",
   "res.toolsMode.ask": "Preguntar",
   "res.toolsMode.all": "Todas permitidas",
   "res.toolsMode.some": "Algunas",
   "res.toolsMode.unknown": "Sin verificar: abrí el servidor para cargar sus tools",
   "res.toolsAskHelp": "Cada agente te pide permiso antes de usar una tool que cambia algo.",
+  "res.toolsDefaultHelp":
+    "Permitidas por defecto. APX igual te pregunta antes de enviar datos si el turno incluye contenido de afuera.",
+  "res.toolsConfirmAll": "Permitir todas explícitamente",
   "res.toolsAllHelp":
     "Ningún agente pide permiso para sus tools, tampoco para las que agregue después. Si el servidor cambia, se vuelve a preguntar.",
   "res.toolsPick":

@@ -156,7 +156,7 @@ export function authorize(
     };
   // The tool names what outside content could do through this call, so the card says it (DECISIONS.md#d-121).
   return d.kind === "confirm" && d.why === "untrusted" && level === "untrusted" && tool.untrustedWhy
-    ? { ...d, why: tool.untrustedWhy, reason: URL_DATA }
+    ? { ...d, why: tool.untrustedWhy, reason: OUTSIDE_REASONS[tool.untrustedWhy] }
     : d;
 }
 
@@ -166,7 +166,11 @@ const KEPT_CARD = "it waits for you whatever the agent's mode, unless you said a
 export const keepsCard = (tool: Tool, args: Record<string, unknown>, agent: AgentRecord): KeepsCard | undefined =>
   tool.keepsCard?.(args, agent);
 
-const URL_DATA = "the URL carries data, and content from outside (web, another agent or a message) is in this turn";
+const OUTSIDE_REASONS: Record<UntrustedWhy, string> = {
+  url_data: "the URL carries data, and content from outside is in this turn",
+  browser_steps: "the browser steps can send data, and content from outside is in this turn",
+  mcp_outside: "the connected service can receive data, and content from outside is in this turn",
+};
 
 const PLAN_KEEPS = new Set([...ALWAYS, "delegate", "workflow", "list_agents", "list_sessions"]);
 

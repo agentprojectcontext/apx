@@ -6,7 +6,7 @@
 import type { Task } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
 import { systemNote } from "../harness/native.ts";
-import { agentLimits, STUCK_LIMITS, unattendedLimits } from "./limits.ts";
+import { agentLimits, stuckLimits, unattendedLimits } from "./limits.ts";
 
 /** The chat above this one: its parent, or the chat whose agent gave the task this chat works on. */
 const above = (store: Store, id: string) => store.threads.get(id)?.parent_id ?? store.threads.context(id).asked_from;
@@ -82,10 +82,14 @@ export function stuckTrip(store: Store, threadId: string): Extract<Trip, { limit
   const task = taskOf(store, threadId);
   if (!task?.assignee) return undefined;
   const top = store.threads.context(tree(store, threadId)[0] ?? threadId);
-  const progress = store.threads.context(task.thread_id).progress_at ?? task.created_at;
-  const after = [progress, top.budget_from ?? "", top.released_at ?? ""].sort().at(-1) ?? progress;
+  const max = stuckLimits(store);
+  if (!max.runs && !max.tokens) return undefined;
+  const ctx = store.threads.context(task.thread_id);
+  const progress = ctx.progress_at ?? task.created_at;
+  const verified = ctx.verified_progress?.milestone === progress ? ctx.verified_progress.at : undefined;
+  const after = [progress, verified ?? "", top.budget_from ?? "", top.released_at ?? ""].sort().at(-1) ?? progress;
   const u = store.runs.unattended(taskChats(store, task), after);
-  const t = over(STUCK_LIMITS, u);
+  const t = over(max, u);
   return t && { limit: "progress", by: t.limit, spent: t.spent, task, since: [after, u.since].sort().at(-1) ?? after };
 }
 
@@ -172,7 +176,9 @@ const variantOf = (t: Trip) =>
   t.limit === "progress" ? (t.by === "runs" ? "progressRuns" : "progressTokens") : t.limit;
 /** What a pause notice says besides its variant: the task that got nowhere, or where the owner changes the limit. */
 const pauseVars = (t: Trip): Record<string, string> =>
-  t.limit === "progress" ? { stuck: t.task.title.slice(0, 120) } : { link: "apx:settings/agents" };
+  t.limit === "progress"
+    ? { stuck: t.task.title.slice(0, 120), link: "apx:settings/agents" }
+    : { link: "apx:settings/agents" };
 
 /**
  * The notice the owner sees when an agent gave a task while the chain is paused, or while `agentId` (who gets it) is
@@ -219,7 +225,22 @@ export function keepWhilePaused(
   if (!paused) return false;
   tellStuck(store, o.thread_id);
   store.modelLog.append(o.thread_id, o.run_id, [systemNote(o.note)]);
-  store.messages.add({ thread_id: o.thread_id, author: { kind: "system" }, parts: [paused] });
+  const open = openPause(store, o.thread_id);
+  if (open) {
+    store.messages.update({ ...open, parts: open.parts.map((p) => (isPaused(p) ? paused : p)) });
+    store.messages.toEnd(open.id);
+  } else store.messages.add({ thread_id: o.thread_id, author: { kind: "system" }, parts: [paused] });
   store.threads.mergeContext(o.thread_id, { kept: o.agent_id });
   return true;
+}
+
+const isPaused = (p: { type: string; code?: string }) => p.type === "notice" && p.code === "breaker.paused";
+
+/** This stretch's pause notice in the chat: not yet let go and after the owner's last word, so one pause shows once. */
+function openPause(store: Store, threadId: string) {
+  const owner = store.messages.latestBy([threadId], "user")?.seq ?? -1;
+  return store.messages
+    .notices(threadId, "breaker.paused")
+    .filter((m) => m.seq > owner && m.parts.some((p) => isPaused(p) && p.type === "notice" && !p.vars?.resolved))
+    .at(-1);
 }

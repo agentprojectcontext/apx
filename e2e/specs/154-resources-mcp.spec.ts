@@ -20,7 +20,7 @@ async function fixture(page: Page) {
   const env = await startCore({ port, llm: scriptedLlm(() => say("ok")) });
   const dir = tempDir("apx-e2e-mcp-");
   await env.client.call("setup.finish", {});
-  const northwind = (await env.client.call("projects.create", { name: "Northwind" })).project.id;
+  const northwind = (await env.client.call("projects.create", { name: "Northwind", path: dir.path })).project.id;
   const acme = (await env.client.call("projects.create", { name: "Acme" })).project.id;
   await env.client.call("secrets.set", { name: "DESIGN_KEY", value: "fixture-design-value" });
   const notes = { command: process.execPath, args: [SERVER], env: { EXTRA_TOOL_FILE: path.join(dir.path, "extra") } };
@@ -82,6 +82,22 @@ test("MCP rows tell tools, permissions and reach before a click; a server moves 
     const globalHeights = await rowsApart(page.locator(".apx-mdetail__list .apx-pickrow"));
     await page.screenshot({ path: info.outputPath("mcp-global.png") });
 
+    await expect(notes).toBeVisible();
+    await notes.click();
+    const shared = page.getByText("Estos permisos se comparten entre los proyectos que usan esta cuenta.");
+    await expect(shared).toBeVisible();
+    await page.getByPlaceholder("Buscar MCP o tools…").fill("design-kit");
+    await expect(notes).toHaveCount(0);
+    await expect(shared).toHaveCount(0);
+    await page.getByPlaceholder("Buscar MCP o tools…").clear();
+    await notes.click();
+    await page.getByRole("combobox", { name: "Ámbito" }).click();
+    await page.getByRole("option", { name: "Northwind", exact: true }).click();
+    await expect(notes).toHaveCount(0);
+    await expect(shared).toHaveCount(0);
+    await page.getByRole("combobox", { name: "Ámbito" }).click();
+    await page.getByRole("option", { name: "Todos los proyectos", exact: true }).click();
+
     await row(page, "design-kit").click();
     await page.getByRole("button", { name: "Editar", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "Editar design-kit" });
@@ -121,6 +137,10 @@ test("MCP rows tell tools, permissions and reach before a click; a server moves 
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(row(page, "notes")).toBeVisible();
     await page.screenshot({ path: info.outputPath("mcp-project-phone.png") });
+    await row(page, "notes").click();
+    await expect(shared).toBeVisible();
+    await shared.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: info.outputPath("mcp-permissions-phone.png") });
   } finally {
     await clean();
   }
