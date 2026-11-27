@@ -2,7 +2,7 @@ import type { FileChange, MethodName, Params, Part, Result, Thread, WritePolicy 
 import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
 import type { ApprovalTarget } from "../domain/approvals.ts";
-import type { InputRecord } from "../domain/inputs.ts";
+import type { Asked, InputRecord } from "../domain/inputs.ts";
 import type { JobRecord } from "../domain/jobs.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Worker } from "../domain/threads.ts";
@@ -101,7 +101,7 @@ export type ToolContext = {
     canContinue?: boolean,
     multi?: boolean,
     appOnly?: boolean,
-  ): Promise<InputRecord>;
+  ): Promise<Asked>;
   /**
    * Asks the owner for a grant on a card, whatever the agent's mode (a power, not a call: total does not skip it), and
    * waits; undefined once the owner said yes, else the text to answer with. A grant already given answers at once.
@@ -116,9 +116,9 @@ export type ToolContext = {
     prompt: string,
     login: { origin: string; kind: "username" | "password" } | undefined,
     options?: string[],
-  ): Promise<InputRecord>;
+  ): Promise<Asked>;
   /** Puts one concrete action to the owner as a card to accept or decline, and waits as askOwner does. */
-  proposeAction(action: string, canContinue?: boolean): Promise<InputRecord>;
+  proposeAction(action: string, canContinue?: boolean): Promise<Asked>;
   /** Takes back this agent's own open question: it ends `withdrawn` and the owner is not told anything new. */
   withdrawQuestion(inputId: string): InputRecord;
   /** Runs a shell command as a terminal job of this run: waits for it (up to timeoutMs) unless `background`. */

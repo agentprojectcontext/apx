@@ -259,7 +259,6 @@ test("a listener notification stays durable until consumption, so losing the lis
   const delivery = createInputDelivery({
     store: f.store,
     admit: f.core.engine.admit,
-    pauseWait: new Map(),
     settleCard: () => undefined,
     waiting: new Map([
       [

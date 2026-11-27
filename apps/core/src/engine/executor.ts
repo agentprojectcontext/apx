@@ -6,7 +6,7 @@ import path from "node:path";
 import type { MethodName, Params, Result, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import { type ApprovalTarget, DELETE_GRANT, deleteApproval, strictApproval } from "../domain/approvals.ts";
-import type { InputRecord } from "../domain/inputs.ts";
+import { type Asked, HELD_ANSWER } from "../domain/inputs.ts";
 import type { JobRecord } from "../domain/jobs.ts";
 import { ownerAsked, type RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
@@ -126,7 +126,8 @@ function describe(args: Record<string, unknown>): string {
 const CUT_SHORT =
   "stopped part way: the owner sent you a message to read now. It may have done part of its work; check before repeating it.";
 
-export function unanswered(answer: InputRecord): { card: string; text: string } | undefined {
+export function unanswered(answer: Asked): { card: string; text: string } | undefined {
+  if (answer.held) return { card: "waiting for the task", text: HELD_ANSWER };
   if (answer.state === "pending")
     return {
       card: "waiting for the owner",

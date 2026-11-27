@@ -585,3 +585,21 @@ Signing in now reads the session back before it reports done (`session_not_saved
 cannot be read shows as `unreadable`, so the panel offers to sign in again. Where: `apps/core/src/secrets-stores.ts`,
 `account/session.ts`; tests in `secrets.test.ts` (a fake `security` that prints the way the real one does) and
 `account/session.test.ts`.
+
+<a id="held-task-answer"></a>
+### An answered card stayed waiting for hours behind its task's own wait
+
+The owner approved an agent's card in a task chat and the turn never went on: no step, no deadline, and every later
+message in that chat queued behind it until the turn was cancelled by hand. The agent had marked its own task
+`awaits_owner` earlier (a separate manual wait). An answer bound to a task is only delivered once all of that task's
+waits are cleared, so it was kept; but delivery had also stopped the turn's own wait timer, and the run's deadline is
+held while a card waits. The only ones who could clear the wait were the owner, who did not know about it, and the
+agent, whose turns were queued behind the held one.
+
+**Rule:** a turn never waits on an answer that another of its task's waits holds. When the owner answers and the task
+still waits on something else, the listening turn ends at once (to it the card reads as unanswered, with a text saying
+why and that it may clear a wait it set itself); the answer stays recorded with the task and wakes the agent in exactly
+one new turn when the task stops waiting, as after a restart. Nothing the answer approved runs through the hold.
+
+**Where:** `engine/input-delivery.ts` (`deliver`), `engine/inputs.ts` (`ask`), `domain/inputs.ts` (`Asked`,
+`HELD_ANSWER`); tests in `engine/task-owner-input.test.ts`.

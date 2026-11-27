@@ -4,7 +4,7 @@
 import type { ApprovalScope, DeletionCard, FileChange, InputKind, Part } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import { type ApprovalTarget, writeFolderApproval } from "../domain/approvals.ts";
-import { type InputRecord, publicInput } from "../domain/inputs.ts";
+import { type Asked, type InputRecord, publicInput } from "../domain/inputs.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import {
@@ -95,8 +95,7 @@ export function createInputs(deps: {
 }) {
   const { store } = deps;
   const waits = deps.waits ?? { turn: INPUT_WAIT_MS, external: EXTERNAL_INPUT_WAIT_MS };
-  const waiting = new Map<string, (r: InputRecord) => void>();
-  const pauseWait = new Map<string, () => void>();
+  const waiting = new Map<string, (r: InputRecord, held?: boolean) => void>();
 
   function expireInput(id: string, resume = false): InputRecord | undefined {
     return store.tx(() => {
@@ -124,7 +123,7 @@ export function createInputs(deps: {
     });
   }
 
-  const delivery = createInputDelivery({ store, admit: deps.admit, waiting, pauseWait, settleCard });
+  const delivery = createInputDelivery({ store, admit: deps.admit, waiting, settleCard });
 
   /** Why a folder card's folders cannot join its chat's project as read-only folders, or undefined when they can. */
   function cannotKeep(threadId: string, folders: string[]): string | undefined {
@@ -219,7 +218,7 @@ export function createInputs(deps: {
       /** Only the app answers it, never a channel (DECISIONS.md#d-144). */
       appOnly?: boolean | undefined;
       signal: AbortSignal;
-    }): Promise<InputRecord> {
+    }): Promise<Asked> {
       const boundary = deps.inputBoundary?.(o.run.id);
       if (
         boundary &&
@@ -270,25 +269,21 @@ export function createInputs(deps: {
       const expire = () => expireInput(rec.id) ?? (store.inputs.get(rec.id) as InputRecord);
       const current = () => store.inputs.get(rec.id) as InputRecord;
       try {
-        const settled = await new Promise<InputRecord>((resolve) => {
-          waiting.set(rec.id, resolve);
+        const settled = await new Promise<Asked>((resolve) => {
+          waiting.set(rec.id, (r, held) => resolve(held ? { ...r, state: "pending", held: true } : r));
           timer = setTimeout(() => resolve(o.stays ? current() : expire()), waitMs);
-          pauseWait.set(rec.id, () => {
-            if (timer) clearTimeout(timer);
-          });
           // A shutdown keeps the input open (the answer wakes the agent after the restart); anything else closes it.
           stop = () => resolve(o.signal.reason instanceof Shutdown && !o.approval?.browser ? current() : expire());
           if (o.signal.aborted) stop();
           o.signal.addEventListener("abort", stop, { once: true });
         });
-        show(settled);
+        show(settled.held ? current() : settled);
         return settled;
       } finally {
         clearTimeout(timer);
         if (stop) o.signal.removeEventListener("abort", stop);
         release();
         waiting.delete(rec.id);
-        pauseWait.delete(rec.id);
         if (!o.signal.aborted)
           store.tx(() => {
             store.runs.setState(o.run, "working");
