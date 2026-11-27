@@ -148,7 +148,8 @@ export function BrowserToolbar({
         </Button>
       )}
       {editButton}
-      {interactive && c?.kind === "user" && draft == null && (
+      {/* Giving a tab back needs no hand on it: from any panel, the agent waiting on it goes on. */}
+      {c?.kind === "user" && draft == null && (
         <>
           <span className="btoolbar__status">
             <span className="btoolbar__statustext">{t("browser.youControl")}</span>
