@@ -11,7 +11,8 @@ import { type AuxJudge, type DeletionCall, deletionRuns, JUDGE_MS } from "./dele
 
 async function setup() {
   const dir = tempDir("apx-judge-");
-  const store = createStore(openDb(dir.path), createBus());
+  const db = openDb(dir.path);
+  const store = createStore(db, createBus());
   const call = (judge: AuxJudge | undefined, command: string, untrusted = false): DeletionCall => ({
     store,
     run: { id: "run_x", started_at: new Date().toISOString() } as RunRecord,
@@ -23,14 +24,15 @@ async function setup() {
     judge,
     untrusted,
   });
-  return { dir, call };
+  return { dir, db, call };
 }
 
 const REMOTE = "ssh box 'rm -r ~/ci/slots/x/coverage'";
 
 test("the judge decides only what the rules leave open, within its deadline; any doubt is a card", async () => {
-  const { dir, call } = await setup();
+  const { dir, db, call } = await setup();
   await using _ = dir;
+  using _db = db;
   const asked: Array<{ user: string; timeoutMs: number | undefined; purpose: string }> = [];
   const answering =
     (text: string | Error): AuxJudge =>

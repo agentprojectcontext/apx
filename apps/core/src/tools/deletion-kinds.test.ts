@@ -65,10 +65,10 @@ test("build and test output, what the task made, the temp folder and what is gon
   // One older file inside a folder made since keeps it the owner's.
   fs.renameSync(path.join(repo, "notes.md"), path.join(repo, "renders", "take-2", "notes.md"));
   assert.equal(verdict("rm -rf renders/take-2", repo, { ...before, since: Date.now() - 1 }), "ask");
-  assert.equal(verdict(`rm -rf ${before.scratch}/x`, repo, before), "run");
+  assert.equal(verdict(`rm -rf '${before.scratch}/x'`, repo, before), "run");
   await using away = tempDir("apx-away-");
   fs.writeFileSync(path.join(away.path, "a.txt"), "x\n");
-  assert.equal(verdict(`rm -f ${away.path}/a.txt`, repo, place(0)), "ask", "outside the owner's projects");
+  assert.equal(verdict(`rm -f '${away.path}/a.txt'`, repo, place(0)), "ask", "outside the owner's projects");
 });
 
 test("uncommitted work asks; a container this run started goes; what only the remote knows goes to the judge", async () => {

@@ -638,6 +638,7 @@ test("auto: restoring files deleted in a repository runs without a card; over re
       stdio: "ignore",
     });
   git("init", "-q");
+  git("config", "core.autocrlf", "false");
   await writeFile(path.join(repo, "a.txt"), "a\n");
   await writeFile(path.join(repo, "b.txt"), "b\n");
   git("add", ".");
