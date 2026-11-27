@@ -647,7 +647,10 @@ export function InstallBox({
                     value={values[s.name]}
                     error={fileError?.setting === s.name ? t(fileError.key) : undefined}
                     onChange={(v) => {
-                      setFileError(undefined);
+                      if (fileError?.setting === s.name) {
+                        setFileError(undefined);
+                        setLink("idle");
+                      }
                       setValues((x) => ({ ...x, [s.name]: v }));
                     }}
                   />

@@ -118,6 +118,7 @@ test("a host file setting handles cancel, invalid SQLite and replacement without
         })
         .click();
       await expect(page.getByText(message, { exact: true })).toHaveCount(0);
+      await expect(page.getByText(language === "en" ? "Not connected" : "Sin conectar", { exact: true })).toBeVisible();
       await expect(page.getByText("backup.sqlite", { exact: true })).toBeVisible();
       await app.evaluate(({ dialog }) => {
         dialog.showOpenDialog = async () => ({ canceled: true, filePaths: [] });
