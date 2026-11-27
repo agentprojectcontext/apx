@@ -57,11 +57,20 @@ test("a cancellation failure stays visible even when folded and allows retry", a
       client={new ApxClient({ ...credentials, client: { name: "test", version: "1" } })}
     />,
   );
-  await fireEvent.press(ui.getByRole("button"));
+  expect(
+    ui.getByRole("button", {
+      name: noticeText(
+        { code: "continuation.cancelLabel", text: "cancelLabel", vars: { purpose: "Check the report" } },
+        lang,
+      ),
+    }),
+  ).toBeTruthy();
+  await fireEvent.press(ui.getByRole("button", { name: `${t("followup")} · ${label("scheduled")}` }));
   await fireEvent.press(ui.getByText(label("cancel")));
   await waitFor(() => expect(ui.getByRole("alert")).toBeTruthy());
   await fireEvent.press(ui.getByRole("button", { name: `${t("followup")} · ${label("scheduled")}` }));
-  expect(ui.queryByText(label("cancel"))).toBeNull();
+  expect(ui.getByText(label("cancel"))).toBeTruthy();
+  expect(ui.queryByText("Check the report")).toBeNull();
   expect(ui.getByText(label("cancelError"))).toBeTruthy();
   await fireEvent.press(ui.getByRole("button", { name: `${t("followup")} · ${label("scheduled")}` }));
   delete net.faults["continuations.cancel"];

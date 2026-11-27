@@ -120,9 +120,9 @@ export function ChatMessage({
         : author.kind === "surface"
           ? author.title
           : "APX";
-  const hasText = message.parts.some((part) => part.type === "text" && part.text.trim());
   const live = runState === "working" || runState === "submitted" || runState === "queued";
   const rows = useMemo(() => mediaRows(message.parts, { shown: showPlan, live }), [message.parts, showPlan, live]);
+  const hasText = rows.some((row) => row.kind === "part" && row.part.type === "text" && row.part.text.trim());
   const generating = formsImage(message.parts, runState);
   const event = thread ? isAgentEvent(thread, message) : false;
   const skills = event ? undefined : message.parts.find((part) => part.type === "skills");

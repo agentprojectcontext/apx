@@ -1,17 +1,16 @@
-import { Pressable, Text, View } from "react-native";
+import { Pressable, Text } from "react-native";
 import { parseMarkdown, plainText } from "../../chat/markdown";
 import { engineName } from "../../hooks/chatSelectors";
 import type { Agent } from "../../hooks/useWorkspace";
 import { t } from "../../i18n";
 import type { Message } from "../../protocol";
-import { Icon } from "../Icon";
-import { Spinner } from "../kit";
-import { makeStyles, useTheme } from "../theme";
+import { makeStyles } from "../theme";
 import { responseStatus, responseTitle, took } from "./blocks";
+import { CompactRow } from "./CompactRow";
 
 type SubthreadPart = Extract<Message["parts"][number], { type: "subthread" }>;
 
-/** Another agent's (or a worker's) part in this answer: who asked whom, its state and the report it gave back. */
+/** Another agent's work stays a quiet disclosure, with the full report and its conversation in reach. */
 export function SubthreadCard({
   part,
   agents,
@@ -20,13 +19,10 @@ export function SubthreadCard({
 }: {
   part: SubthreadPart;
   agents: Agent[];
-  /** The message's author, who asked unless the part names someone else. */
   from: string;
   openThread?: ((id: string) => void) | undefined;
 }) {
-  const theme = useTheme();
   const s = useStyles();
-  // A session the caller opened on an outside engine is the engine's; the caller is only who asked.
   const name = part.engine
     ? engineName(part.engine)
     : (part.worker ?? agents.find((agent) => agent.id === part.agent_id)?.name ?? t("agent"));
@@ -37,69 +33,54 @@ export function SubthreadCard({
         ? (agents.find((agent) => agent.id === part.asked_by)?.name ?? from)
         : from;
   const status = responseStatus(part);
-  const subtitle = [`${askedBy} → ${name}`, part.worker ? t("subthreadWorker") : "", part.summary ? part.title : ""]
-    .filter(Boolean)
-    .join(" · ");
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={t("openSubthread", { name })}
-      disabled={!openThread}
-      onPress={() => openThread?.(part.thread_id)}
-      style={({ pressed }) => [s.card, pressed && { backgroundColor: theme.fill }]}
+    <CompactRow
+      title={part.summary ? t(responseTitle(part), { name }) : part.title}
+      summary={t(status.label)}
+      icon="Bot"
+      compact
+      warning={status.status === "failed"}
     >
-      <View style={s.head}>
-        {status.status === "running" ? (
-          <Spinner size={14} />
-        ) : (
-          <Icon
-            name={status.status === "waiting" ? "Clock" : status.status === "failed" ? "X" : "Check"}
-            size={14}
-            color={status.status === "failed" ? theme.danger : status.status === "done" ? theme.brand : theme.warning}
-          />
-        )}
-        <Text numberOfLines={1} style={s.title}>
-          {part.summary ? t(responseTitle(part), { name }) : part.title}
-        </Text>
-        <Text style={s.state}>{t(status.label)}</Text>
-      </View>
-      <Text numberOfLines={1} style={s.subtitle}>
-        {subtitle}
+      <Text style={s.subtitle}>
+        {askedBy} → {name}
+        {part.worker ? ` · ${t("subthreadWorker")}` : ""}
       </Text>
       {part.summary ? (
-        <Text numberOfLines={8} style={s.summary}>
-          {plainText(parseMarkdown(part.summary))}
-        </Text>
+        <>
+          <Text style={s.subtitle}>{part.title}</Text>
+          <Text selectable style={s.summary}>
+            {plainText(parseMarkdown(part.summary))}
+          </Text>
+        </>
       ) : null}
       {part.ms !== undefined || part.held ? (
         <Text style={s.meta}>
           {[
             part.ms !== undefined ? t("subthreadTook", { time: took(part.ms) }) : undefined,
-            // Its answer waits for the others asked in the same turn: the caller reads them all together.
             part.held ? t("subthreadHeld", { got: part.held.got, of: part.held.of }) : undefined,
           ]
             .filter(Boolean)
             .join(" · ")}
         </Text>
       ) : null}
-    </Pressable>
+      {openThread ? (
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel={t("openSubthread", { name })}
+          onPress={() => openThread(part.thread_id)}
+          style={s.source}
+        >
+          <Text style={s.link}>{t("openSubthread", { name })}</Text>
+        </Pressable>
+      ) : null}
+    </CompactRow>
   );
 }
 
 const useStyles = makeStyles((theme) => ({
-  card: {
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: theme.border,
-    borderRadius: 12,
-    alignSelf: "stretch",
-  },
-  head: { flexDirection: "row", alignItems: "center", gap: 8 },
-  title: { color: theme.fg, fontSize: 14, fontWeight: "500", flexShrink: 1 },
-  state: { color: theme.fgSubtle, fontSize: 12, marginLeft: "auto" },
   subtitle: { color: theme.fgMuted, fontSize: 12 },
-  summary: { color: theme.fg, fontSize: 14, lineHeight: 20, marginTop: 2 },
+  summary: { color: theme.fg, fontSize: 13, lineHeight: 18 },
   meta: { color: theme.fgSubtle, fontSize: 11, fontFamily: theme.mono },
+  source: { minHeight: 48, justifyContent: "center", alignSelf: "flex-start" },
+  link: { color: theme.info, fontSize: 13 },
 }));

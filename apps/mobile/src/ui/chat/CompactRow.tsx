@@ -14,6 +14,8 @@ export function CompactRow({
   feedback,
   headingRef,
   compact = false,
+  branch = true,
+  trailing,
 }: {
   title: string;
   summary?: string;
@@ -23,6 +25,8 @@ export function CompactRow({
   feedback?: ReactNode;
   headingRef?: Ref<View>;
   compact?: boolean;
+  branch?: boolean;
+  trailing?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const s = useStyles();
@@ -60,15 +64,17 @@ export function CompactRow({
         ) : (
           <View style={[s.heading, compact && s.staticHeading]}>{heading}</View>
         )}
+        {trailing}
       </View>
       {feedback}
-      {open ? <DetailBranch>{children}</DetailBranch> : null}
+      {open ? branch ? <DetailBranch>{children}</DetailBranch> : <View style={s.branches}>{children}</View> : null}
     </View>
   );
 }
 
 const useStyles = makeStyles((theme) => ({
   wrap: { alignSelf: "stretch" },
+  branches: { marginLeft: 8 },
   line: { flexDirection: "row", alignItems: "center" },
   heading: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 2, flexShrink: 1 },
   compactHeading: { flex: 1 },

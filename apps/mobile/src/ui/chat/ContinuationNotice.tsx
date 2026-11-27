@@ -70,6 +70,21 @@ export function ContinuationNotice({ part, client }: { part: Notice; client?: Ap
       title={`${t("followup")} · ${title}`}
       icon={warning ? "TriangleAlert" : state === "completed" ? "CircleCheck" : "Clock"}
       warning={warning}
+      compact
+      trailing={
+        state === "pending" && client && v.id && v.thread ? (
+          <Button
+            size="sm"
+            style={{ minHeight: 48 }}
+            variant="secondary"
+            label={words("cancel")}
+            accessibilityLabel={words("cancelLabel", { purpose })}
+            busy={busy}
+            disabled={busy}
+            onPress={() => void cancel()}
+          />
+        ) : null
+      }
       feedback={
         error ? (
           <Text accessibilityRole="alert" style={s.error}>
@@ -112,18 +127,6 @@ export function ContinuationNotice({ part, client }: { part: Notice; client?: Ap
         </Text>
       ) : null}
       {state === "failed" ? <Text style={s.text}>{words("failedDetail")}</Text> : null}
-      {state === "pending" && client && v.id && v.thread ? (
-        <Button
-          size="sm"
-          style={{ minHeight: 48, alignSelf: "flex-start" }}
-          variant="secondary"
-          label={words("cancel")}
-          accessibilityLabel={words("cancelLabel", { purpose })}
-          busy={busy}
-          disabled={busy}
-          onPress={() => void cancel()}
-        />
-      ) : null}
       {part.detail ? (
         <Text selectable style={s.text}>
           {part.detail}

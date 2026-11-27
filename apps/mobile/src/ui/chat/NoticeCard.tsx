@@ -59,17 +59,18 @@ export function NoticeCard({
   if (part.level !== "error" && !actionable) {
     const memory = part.code === "memory.saved";
     const research = part.code === "research.updated";
+    const brief = !details?.length && !part.detail?.trim() && text.length <= 160 && !text.includes("\n");
     const title =
       part.code === "thread.compacted"
         ? t("noticeContext")
-        : memory || research
+        : memory || research || brief
           ? text
           : t(part.level === "warn" ? "noticeWarning" : "noticeInfo");
     const hasDetail = part.code !== "thread.compacted" && Boolean(details?.length || part.detail || title !== text);
     return (
       <CompactRow
         title={title}
-        compact={memory || part.code === "thread.compacted"}
+        compact={memory || brief || part.code === "thread.compacted"}
         icon={
           memory
             ? "Brain"

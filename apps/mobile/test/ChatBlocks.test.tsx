@@ -217,6 +217,8 @@ test("a teammate's answer held for the others asked in the same turn says how ma
     ],
   } as unknown as Message;
   const ui = await render(<ChatMessage message={message} agents={[]} respond={async () => {}} />);
+  expect(ui.queryByText(t("subthreadHeld", { got: 1, of: 3 }))).toBeNull();
+  await fireEvent.press(ui.getByRole("button"));
   expect(ui.getByText(t("subthreadHeld", { got: 1, of: 3 }))).toBeTruthy();
 });
 
@@ -274,5 +276,7 @@ test("an engine session an agent opened reads as the engine: in its chat and in 
   const inCaller = await render(
     <ChatMessage message={card} agents={[{ id: "superagent", name: "Roby" }]} respond={async () => {}} />,
   );
+  expect(inCaller.queryByText("Roby → Claude Code")).toBeNull();
+  await fireEvent.press(inCaller.getByRole("button"));
   expect(inCaller.getByText("Roby → Claude Code")).toBeTruthy();
 });
