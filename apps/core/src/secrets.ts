@@ -44,6 +44,14 @@ export function parseLogin(stored: string | undefined): Login | undefined {
   }
 }
 
+function isBoundCredential(value: string): boolean {
+  try {
+    return JSON.parse(value)?.format === "apx-bound-secret@1";
+  } catch {
+    return false;
+  }
+}
+
 /** Values at least this long keep their last four characters as a hint; shorter ones would give too much away. */
 const HINT_MIN = 12;
 
@@ -154,14 +162,30 @@ export function createSecrets(
       sites: SecretSite[];
       last_used?: SecretUse;
     }> {
-      return Object.entries(read()).map(([name, e]) => ({
-        name,
-        updated_at: e.updated_at,
-        ...(e.hint ? { hint: e.hint } : {}),
-        ...(e.field ? { field: e.field } : {}),
-        sites: e.sites ?? [],
-        ...(e.used ? { last_used: e.used } : {}),
-      }));
+      const all = read();
+      let cleaned = false;
+      const listed = Object.entries(all).map(([name, e]) => {
+        let hint = e.hint;
+        // JSON-tail hints may belong to a bound envelope; avoid unlocking unrelated keyring entries.
+        if (hint?.endsWith('"}')) {
+          const value = e.value ?? api.resolve(`secret://${name}`);
+          if (value === undefined || isBoundCredential(value)) hint = undefined;
+          if (value !== undefined && hint === undefined) {
+            delete e.hint;
+            cleaned = true;
+          }
+        }
+        return {
+          name,
+          updated_at: e.updated_at,
+          ...(hint ? { hint } : {}),
+          ...(e.field ? { field: e.field } : {}),
+          sites: e.sites ?? [],
+          ...(e.used ? { last_used: e.used } : {}),
+        };
+      });
+      if (cleaned) write(all);
+      return listed;
     },
     /** What the owner said it is for, if they did. */
     field(name: string): SecretField | undefined {
@@ -248,8 +272,10 @@ export function createSecrets(
         all[name] = {
           ...(store ? {} : { value }),
           updated_at: new Date().toISOString(),
-          // A sign-in's value is its two parts together: no part of it is shown.
-          ...(value.length >= HINT_MIN && kind !== "login" ? { hint: value.slice(-4) } : {}),
+          // Sign-ins and bound envelopes contain passwords: no part of them is shown.
+          ...(value.length >= HINT_MIN && kind !== "login" && !isBoundCredential(value)
+            ? { hint: value.slice(-4) }
+            : {}),
           ...(kind ? { field: kind } : {}),
           ...(sites ? { sites } : {}),
           ...(used ? { used } : {}),

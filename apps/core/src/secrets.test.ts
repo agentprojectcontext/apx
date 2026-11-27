@@ -86,6 +86,50 @@ function fakeSystem(o: { keyring?: boolean; powershell?: boolean } = {}) {
   return { run, keyring, calls };
 }
 
+test("bound credential hints stay private across stores, reopen, moves and old keyring indexes", () => {
+  const home = tempDir("apx-bound-hints-");
+  try {
+    const value = JSON.stringify({
+      format: "apx-bound-secret@1",
+      binding: { site: "https://example.com" },
+      value: "synthetic-password-Z9",
+    });
+    const sys = fakeSystem({ keyring: true });
+    const s = createSecrets(home.path, "secret-service", {}, sys.run);
+    s.set("bound", value);
+    const index = path.join(home.path, "secrets.index.json");
+    assert.ok(!fs.readFileSync(index, "utf8").includes("synthetic-password"));
+    assert.equal(s.list().find((e) => e.name === "bound")?.hint, undefined);
+    assert.equal(s.move("bound", "moved"), "moved");
+    assert.equal(s.resolve("secret://moved"), value);
+    const entries = JSON.parse(fs.readFileSync(index, "utf8"));
+    assert.equal(entries.moved.hint, undefined, "new writes never persist a hint");
+    entries.moved.hint = value.slice(-4);
+    fs.writeFileSync(index, JSON.stringify(entries));
+    const locked = createSecrets(home.path, "secret-service", {}, fakeSystem().run);
+    assert.equal(locked.list().find((e) => e.name === "moved")?.hint, undefined, "an unavailable keyring fails closed");
+    assert.equal(
+      JSON.parse(fs.readFileSync(index, "utf8")).moved.hint,
+      value.slice(-4),
+      "a locked value is not rewritten",
+    );
+    const reopened = createSecrets(home.path, "secret-service", {}, sys.run);
+    assert.equal(reopened.list().find((e) => e.name === "moved")?.hint, undefined);
+    assert.equal(
+      JSON.parse(fs.readFileSync(index, "utf8")).moved.hint,
+      undefined,
+      "confirmed unsafe metadata is removed",
+    );
+    assert.equal(reopened.resolve("secret://moved"), value, "cleanup preserves the bound value");
+    s.set("ordinary", "ordinary-token-abcd");
+    const before = sys.calls.length;
+    assert.equal(s.list().find((e) => e.name === "ordinary")?.hint, "abcd");
+    assert.equal(sys.calls.length, before, "ordinary hints do not touch the keyring");
+  } finally {
+    home.remove();
+  }
+});
+
 const tempHome = () => fs.mkdtempSync(path.join(os.tmpdir(), "apx-secrets-"));
 
 test("each system has its store: Keychain on macOS, DPAPI on Windows, the Secret Service on Linux", () => {

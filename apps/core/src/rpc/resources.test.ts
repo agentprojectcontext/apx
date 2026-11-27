@@ -109,6 +109,38 @@ test("variables: a hint only for long values, and where each one is used", async
   assert.ok(!JSON.stringify(secrets).includes("ghp_0123"), "values never leave the core");
 });
 
+test("bound credential envelopes never expose a hint through secrets.list, including old entries", async () => {
+  const value = JSON.stringify({
+    format: "apx-bound-secret@1",
+    binding: { store: "https://shop.example.com", username: "acme" },
+    value: "synthetic-application-password-Z9",
+  });
+  const current = "ext-acme_shop-password";
+  const historical = "ext-acme_old-password";
+  await env.client.call("secrets.set", { name: current, value });
+  // An index from the previous writer can outlive the extension's installed manifest.
+  const file = path.join(home, "secrets.json");
+  const entries = JSON.parse(fs.readFileSync(file, "utf8"));
+  entries[historical] = { value, hint: value.slice(-4), updated_at: "2026-01-01T00:00:00.000Z" };
+  fs.writeFileSync(file, JSON.stringify(entries));
+  await env.client.call("secrets.set", { name: "ordinary-json", value: '{"note":"ordinary-value"}' });
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const { secrets } = await env.client.call("secrets.list", {});
+    for (const name of [current, historical]) {
+      const entry = secrets.find((s) => s.name === name);
+      assert.ok(entry, "the credential is still listed");
+      assert.equal(entry.hint, undefined, "no part of the envelope is public metadata");
+    }
+    assert.equal(secrets.find((s) => s.name === "ordinary-json")?.hint, 'ue"}');
+    assert.ok(!JSON.stringify(secrets).includes("synthetic-application-password"));
+  }
+  const cleaned = JSON.parse(fs.readFileSync(file, "utf8"));
+  for (const name of [current, historical]) {
+    assert.equal(cleaned[name].hint, undefined, "unsafe hints cannot reappear from the file");
+    assert.equal(cleaned[name].value, value, "metadata cleanup does not change the credential");
+  }
+});
+
 test("variables APX keeps for itself are told apart from the owner's, with where each one belongs", async () => {
   const provider = (await env.client.call("providers.list", {})).providers[0]?.id;
   assert.ok(provider, "the test core has a provider");
