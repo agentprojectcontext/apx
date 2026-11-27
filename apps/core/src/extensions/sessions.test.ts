@@ -46,7 +46,7 @@ test("disconnect drains OAuth callbacks, isolates connectors and permits explici
         }),
       );
       const installed = await env.client.call("extensions.install", { path: source.path });
-      assert.deepEqual(installed.session, { can_disconnect: true });
+      assert.deepEqual(installed.session, { can_disconnect: true, saved: false });
       await env.client.call("extensions.enable", { id, enabled: true });
     }
     const defs = mcpConfig(env.core.store).global();
@@ -56,17 +56,25 @@ test("disconnect drains OAuth callbacks, isolates connectors and permits explici
     assert.notEqual(first, second);
     const archive = defs.find((d) => d.name === "first_shop-archive")?.env.MCP_REMOTE_CONFIG_DIR;
     assert.ok(archive);
-    fs.mkdirSync(archive, { recursive: true });
-    fs.writeFileSync(path.join(archive, "fixture-session.json"), "synthetic-archive-session");
+    fs.mkdirSync(path.join(archive, "mcp-remote-v1"), { recursive: true });
+    fs.writeFileSync(
+      path.join(archive, "mcp-remote-v1", "00000000000000000000000000000000_tokens.json"),
+      "synthetic-archive-session",
+    );
     const oldCallback = await signIn("first_shop");
     await signIn("second_shop");
-    const secondToken = path.join(second, "fixture-session.json");
+    const secondToken = path.join(second, "mcp-remote-v1", "00000000000000000000000000000000_tokens.json");
     const expected = fs.readFileSync(secondToken, "utf8");
-    await env.client.call("extensions.enable", { id: "first_shop", enabled: false });
-    assert.ok(fs.existsSync(path.join(first, "fixture-session.json")), "turning off retains the session");
+    const paused = await env.client.call("extensions.enable", { id: "first_shop", enabled: false });
+    assert.equal(paused.session?.saved, true);
+    assert.ok(
+      fs.existsSync(path.join(first, "mcp-remote-v1", "00000000000000000000000000000000_tokens.json")),
+      "turning off retains the session",
+    );
     await env.client.call("extensions.enable", { id: "first_shop", enabled: true });
     const disconnected = await env.client.call("extensions.disconnect", { id: "first_shop" });
     assert.equal(disconnected.enabled, true);
+    assert.equal(disconnected.session?.saved, false);
     assert.equal(fs.existsSync(archive), false, "every managed session of this connector is cleared");
     assert.equal(fs.existsSync(first), false);
     assert.equal(fs.readFileSync(secondToken, "utf8"), expected);
@@ -82,7 +90,7 @@ test("disconnect drains OAuth callbacks, isolates connectors and permits explici
     await env.client.call("extensions.enable", { id: "first_shop", enabled: true });
     assert.equal((await status("first_shop-shop"))?.status, "needs-sign-in");
     await signIn("first_shop");
-    assert.ok(fs.existsSync(path.join(first, "fixture-session.json")));
+    assert.ok(fs.existsSync(path.join(first, "mcp-remote-v1", "00000000000000000000000000000000_tokens.json")));
     // A callback still waiting for approval is stopped too, not just an established transport.
     await env.client.call("extensions.disconnect", { id: "first_shop" });
     await env.client.call("mcp.signIn", { scope: "global", server: "first_shop-shop" });

@@ -16,7 +16,7 @@ The core chooses the cache location: `extension-data/<extension>/mcp-remote/<ser
 
 After the processes have exited, disconnect persists a sign-in requirement before clearing the cache. Automatic tool discovery, tests, definition changes, turning off/on and core restarts cannot resume that session. An explicit `mcp.signIn` clears the requirement and starts a new sign-in. A receipt prevents an earlier sign-in operation that was waiting on process closure from adopting a later disconnect.
 
-Live state remains in `mcp.list`: `starting`, `ready`, `needs-sign-in`, errors and disabled state. An idle server is not proof of a connected account. No account label or expired-token claim is inferred from opaque bridge files or token contents. Multiple managed MCP servers in one extension are disconnected together; distinct extensions have isolated sessions even when their provider URL is identical.
+Live state remains in `mcp.list`: `starting`, `ready`, `needs-sign-in`, errors and disabled state. `ExtensionInfo.session.saved` reports the presence of a managed bridge credential file, not its validity. An idle server with a saved sign-in is not shown as connected. APX does not read token contents or infer an account label or token expiry from the file. Multiple managed MCP servers in one extension are disconnected together; distinct extensions have isolated sessions even when their provider URL is identical.
 
 ## Verification fixture
 

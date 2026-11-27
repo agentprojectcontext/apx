@@ -7,8 +7,9 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 
 const dir = process.env.MCP_REMOTE_CONFIG_DIR;
 if (!dir) throw new Error("Missing isolated session folder");
-const token = path.join(dir, "fixture-session.json");
-fs.mkdirSync(dir, { recursive: true });
+const tokenDir = path.join(dir, "mcp-remote-v1");
+const token = path.join(tokenDir, "00000000000000000000000000000000_tokens.json");
+fs.mkdirSync(tokenDir, { recursive: true });
 let complete;
 const signed = new Promise((resolve) => {
   complete = resolve;
@@ -19,7 +20,7 @@ const callbacks = http.createServer((req, res) => {
     res.writeHead(400).end();
     return;
   }
-  fs.mkdirSync(dir, { recursive: true });
+  fs.mkdirSync(tokenDir, { recursive: true });
   fs.writeFileSync(token, JSON.stringify({ access_token: "synthetic-session" }));
   res.end("Signed in");
   complete();

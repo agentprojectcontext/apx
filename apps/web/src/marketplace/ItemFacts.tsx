@@ -1,4 +1,4 @@
-import { Icons, Tooltip } from "@apx/ui";
+import { Disclosure, Icons, Tooltip } from "@apx/ui";
 import type { ReactNode } from "react";
 import { type MessageKey, useLanguage, useT } from "../i18n/index.ts";
 import type { Item } from "../resources/extensionItems.ts";
@@ -66,19 +66,15 @@ export function ItemFacts({ item }: { item: Item }) {
   const lang = useLanguage();
   const copy = listingIn(item.listing, lang);
   const access = accessLines(item, t);
-  const auth = authText(item, t);
+  const managed = item.ext?.session?.can_disconnect;
+  const auth = managed ? undefined : authText(item, t);
   const day = dayText(item.published, lang);
   const links = linksOf(item);
   // Files nobody verified (another catalog, a file, an address): said before adding, beside what it may reach.
   const third = item.label === "third";
   const hash = item.ext?.hash ?? item.entry?.contents?.hash;
-  return (
-    <section className="mkt-facts" aria-label={t("mkt.info")}>
-      {day && (
-        <Fact title="mkt.published">
-          <span>{day}</span>
-        </Fact>
-      )}
+  const technical = (
+    <>
       {(access.length > 0 || third) && (
         <Fact title="mkt.kv.access">
           <Lines items={third ? [...access, t("box.filesThird")] : access} />
@@ -99,6 +95,16 @@ export function ItemFacts({ item }: { item: Item }) {
           <Lines items={copy.limits} />
         </Fact>
       )}
+    </>
+  );
+  return (
+    <section className="mkt-facts" aria-label={t("mkt.info")}>
+      {day && (
+        <Fact title="mkt.published">
+          <span>{day}</span>
+        </Fact>
+      )}
+      {!managed && technical}
       {copy?.pricing && (
         <Fact title="extx.sec.cost">
           <p>{copy.pricing}</p>
@@ -114,15 +120,14 @@ export function ItemFacts({ item }: { item: Item }) {
           <LinkList links={links} />
         </Fact>
       )}
-      {hash && (
-        <details className="mkt-details">
-          <summary>
-            <Icons.ChevronRight size={12} aria-hidden="true" />
-            {t("box.details")}
-          </summary>
-          <code>{t("box.fingerprint", { id: item.id, hash })}</code>
-        </details>
-      )}
+      {hash || (managed && (access.length || copy?.requirements.length || copy?.limits.length)) ? (
+        <Disclosure title={t(managed ? "mkt.optionsAdvanced" : "box.details")} className="mkt-facts__advanced">
+          <div className="mkt-facts__technical">
+            {managed && technical}
+            {hash && <code>{t("box.fingerprint", { id: item.id, hash })}</code>}
+          </div>
+        </Disclosure>
+      ) : null}
     </section>
   );
 }

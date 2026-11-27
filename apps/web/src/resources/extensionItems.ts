@@ -9,6 +9,7 @@ import type {
   McpServerStatus,
   Result,
 } from "@apx/protocol";
+import { connectionOf } from "../marketplace/connectionState.ts";
 
 // The Marketplace as one list: what is included with APX (code of its own: Google, the channels, the browser), APX's
 // catalog (its packages, and the account integrations APX ships as data until the catalog lists them) and the owner's
@@ -144,10 +145,16 @@ function fromChannel(c: ChannelOffer): Item {
 }
 
 function installed(e: ExtensionInfo, entry: CatalogEntry | undefined, servers: McpServerStatus[]): Item {
+  const signIn = connectionOf(e, servers)?.state;
   const signingIn =
-    e.enabled && servers.some((s) => s.scope === "global" && e.mcp.includes(s.name) && s.status === "needs-sign-in");
+    e.enabled &&
+    (signIn
+      ? signIn === "disconnected" || signIn === "reconnect"
+      : servers.some((s) => s.scope === "global" && e.mcp.includes(s.name) && s.status === "needs-sign-in"));
   const starting =
-    e.enabled && servers.some((s) => s.scope === "global" && e.mcp.includes(s.name) && s.status === "starting");
+    e.enabled &&
+    (signIn === "connecting" ||
+      servers.some((s) => s.scope === "global" && e.mcp.includes(s.name) && s.status === "starting"));
   const failed =
     e.enabled && servers.some((s) => s.scope === "global" && e.mcp.includes(s.name) && s.status === "error");
   const missing = e.enabled && e.secrets.some((s) => !s.set);

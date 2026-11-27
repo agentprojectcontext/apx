@@ -44,7 +44,7 @@ import {
   writePackage,
 } from "./package.ts";
 import type { Plugins } from "./plugins.ts";
-import { clearExtensionSession, hasManagedSession } from "./sessions.ts";
+import { clearExtensionSession, hasManagedSession, savedExtensionSession } from "./sessions.ts";
 import { bringsOf, categoryOf, type ListingFile, listingCopy, needsOf, readListing } from "./summary.ts";
 
 export { extSecret, SECRET_REF, SETTING_REF };
@@ -196,7 +196,9 @@ export function createExtensions(deps: {
     version: e.manifest.version,
     description: e.manifest.description,
     enabled: e.enabled,
-    ...(hasManagedSession(e.manifest) ? { session: { can_disconnect: true as const } } : {}),
+    ...(hasManagedSession(e.manifest)
+      ? { session: { can_disconnect: true as const, saved: savedExtensionSession(deps.home, e.id, e.manifest) } }
+      : {}),
     hash: e.hash,
     // Shown with "~" for the home; install reads it back.
     source: tildeHome(e.source),

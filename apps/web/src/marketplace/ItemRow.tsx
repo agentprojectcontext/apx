@@ -58,7 +58,7 @@ export function ItemRow({ item: i, line, onOpen }: { item: Item; line?: string |
   });
   const meta = [kindText(i, t), fromText(i, t)].filter(Boolean).join(" · ");
   const mine = i.state !== "available" && i.state !== "coming";
-  const connects = Boolean(i.origin === "included" || i.integration || i.channel);
+  const connects = Boolean(i.origin === "included" || i.integration || i.channel || i.ext?.session?.can_disconnect);
   return (
     <CatalogRow
       leading={<ItemIcon item={i} size={36} />}

@@ -47,9 +47,13 @@ you write there by hand stays a server of yours there and is not listed in the M
 - **Your extensions** lists what you added, in two groups: **Needs attention** (not connected yet, a new version, an
   error) and **Active**. The same groups show in the left column. Channels are found and connected from Explore, but
   live in **Channels**, so they are not repeated here.
-- An extension's page has one button that follows its state: **Add** → **Connect** (or **Pair** for a device's app)
-  → **Connected ✓**. Turn off, update, go back a version, settings and remove are in **⋯**.
-  If **Settings** asks for a new credential when you change a connection, revoke the old one at the service and enter the replacement before saving.
+- On the extension's page, choose **Add**, then **Connect** (or **Pair** for a device's app). For sign-in connectors,
+  **Connection** shows whether access is ready or needs your attention. In **⋯** you can turn it off, update it,
+  go back a version, open **Settings**, or remove it. **Advanced options** in Settings holds testing and recovery.
+  If Settings asks for a new credential when you change a connection, revoke the old one at the service and enter the replacement before saving.
+- **Turn off** pauses the extension without clearing its saved sign-in. **Disconnect**, when APX manages the connector's
+  sign-in, clears that sign-in without uninstalling the extension. It doesn't revoke access at the service; to do that,
+  use the service's own settings. **Remove** uninstalls the extension.
 - **Add** and **Connect** are two steps you take on the page. **Add** checks its files (from APX's catalog they must
   be the ones APX publishes) and copies them; nothing runs. The page stays, now marked added, with **Connect** as its
   button. **Connect** (or **Pair**) opens a box with APX joined to the service, the keys to type, a sign-in or the

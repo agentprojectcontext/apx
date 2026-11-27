@@ -172,6 +172,7 @@ export function MarketplaceScreen() {
       <div className="mkt__main">
         {current ? (
           <ItemPage
+            key={current.key}
             item={current}
             twin={current.twin ? items.find((i) => i.key === current.twin) : undefined}
             versions={items.filter((i) => i.twin === current.key)}
