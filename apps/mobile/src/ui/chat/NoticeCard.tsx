@@ -43,9 +43,11 @@ export function NoticeCard({
   const text = noticeText(part, lang);
   const body = (
     <>
-      <Text selectable style={s.body}>
-        {text}
-      </Text>
+      {part.code !== "memory.saved" || !(details?.length || part.detail) ? (
+        <Text selectable style={s.body}>
+          {text}
+        </Text>
+      ) : null}
       {(details ?? (part.detail ? [part.detail] : [])).map((detail, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: repeated notes retain their order
         <Text key={i} selectable style={s.code}>
@@ -63,10 +65,11 @@ export function NoticeCard({
         : memory || research
           ? text
           : t(part.level === "warn" ? "noticeWarning" : "noticeInfo");
-    const hasDetail = Boolean(details?.length || part.detail || part.code === "thread.compacted" || title !== text);
+    const hasDetail = part.code !== "thread.compacted" && Boolean(details?.length || part.detail || title !== text);
     return (
       <CompactRow
         title={title}
+        compact={memory || part.code === "thread.compacted"}
         icon={
           memory
             ? "Brain"

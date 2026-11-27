@@ -2,9 +2,11 @@ import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { t as translate } from "../i18n";
 import type { Message } from "../protocol";
+import { ActionBranch } from "./chat/ActionBranch";
 import { isComputerGroup } from "./chat/blocks";
 import { ComputerIcon } from "./chat/ComputerIcon";
 import { stepLabel, type ToolKind, toolKind } from "./chat/toolKind";
+import { useActionDensity } from "./chat/useActionDensity";
 import { Icon, type IconName } from "./Icon";
 import { Spinner } from "./kit";
 import { makeStyles, useTheme } from "./theme";
@@ -46,6 +48,7 @@ export function ActionGroup({
 }) {
   const t = useTheme();
   const s = useStyles();
+  const compact = useActionDensity();
   const [open, setOpen] = useState(false);
   const [detail, setDetail] = useState<string>();
   const running = !ended && parts.some((part) => part.status === "running");
@@ -95,19 +98,31 @@ export function ActionGroup({
       </Pressable>
       {open ? (
         <View style={s.rows}>
-          {parts.map((part) => (
-            <View key={part.call_id}>
+          {parts.map((part, index) => (
+            <ActionBranch
+              key={part.call_id}
+              last={index === parts.length - 1}
+              compact={compact || !part.detail?.trim()}
+            >
               <Pressable
-                accessibilityRole="button"
+                accessible
+                accessibilityRole={part.detail?.trim() ? "button" : "text"}
                 accessibilityLabel={`${stepLabel(part.tool, part.title)}, ${translate(part.status === "error" ? "runFailed" : part.status === "ok" ? "runDone" : ended ? "actionStopped" : waiting ? "runWaiting" : "runWorking")}`}
-                accessibilityState={{ expanded: detail === part.call_id }}
-                onPress={() => setDetail((current) => (current === part.call_id ? undefined : part.call_id))}
-                style={s.row}
+                accessibilityState={part.detail?.trim() ? { expanded: detail === part.call_id } : undefined}
+                onPress={
+                  part.detail?.trim()
+                    ? () => setDetail((current) => (current === part.call_id ? undefined : part.call_id))
+                    : undefined
+                }
+                style={[s.row, compact && s.compactRow, !part.detail?.trim() && s.staticRow]}
               >
+                {part.detail?.trim() ? (
+                  <Icon name={detail === part.call_id ? "ChevronDown" : "ChevronRight"} size={14} color={t.fgMuted} />
+                ) : null}
                 <Icon name={ICON[toolKind(part.tool)]} size={14} color={t.fgMuted} />
                 <Text
                   style={[s.summary, part.status === "error" && s.failed]}
-                  numberOfLines={detail === part.call_id ? undefined : 1}
+                  numberOfLines={!part.detail?.trim() || detail === part.call_id ? undefined : 1}
                 >
                   {stepLabel(part.tool, part.title)}
                 </Text>
@@ -122,14 +137,13 @@ export function ActionGroup({
                     <Spinner size={12} />
                   )
                 ) : null}
-                <Icon name={detail === part.call_id ? "ChevronDown" : "ChevronRight"} size={12} color={t.fgMuted} />
               </Pressable>
               {detail === part.call_id && part.detail ? (
                 <Text selectable style={s.detail}>
                   {part.detail}
                 </Text>
               ) : null}
-            </View>
+            </ActionBranch>
           ))}
         </View>
       ) : null}
@@ -137,7 +151,7 @@ export function ActionGroup({
   );
 }
 const useStyles = makeStyles((t) => ({
-  group: { alignSelf: "stretch", gap: 6 },
+  group: { alignSelf: "stretch", gap: 0 },
   heading: {
     minHeight: 48,
     flexDirection: "row",
@@ -150,8 +164,10 @@ const useStyles = makeStyles((t) => ({
   },
   title: { color: t.fgMuted, fontSize: 13, flexShrink: 1 },
   failed: { color: t.danger, fontSize: 12 },
-  rows: { gap: 6, paddingLeft: 12, paddingRight: 4, paddingBottom: 4 },
-  row: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 48 },
+  rows: { gap: 0, marginLeft: 8, paddingRight: 4 },
+  row: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 48 },
+  compactRow: { minHeight: 32, paddingVertical: 4 },
+  staticRow: { minHeight: 32, paddingVertical: 4 },
   summary: { color: t.fgMuted, fontSize: 12, flex: 1 },
   detail: { color: t.fgMuted, fontSize: 11, lineHeight: 17, marginLeft: 20, paddingVertical: 6, fontFamily: t.mono },
 }));

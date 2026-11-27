@@ -2,8 +2,9 @@ import { type ReactNode, type Ref, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Icon, type IconName } from "../Icon";
 import { makeStyles, useTheme } from "../theme";
+import { DetailBranch } from "./DetailBranch";
 
-/** A quiet chat line with a full-size touch target; only its detail folds. */
+/** A quiet chat line; only supporting detail folds. */
 export function CompactRow({
   title,
   icon,
@@ -12,6 +13,7 @@ export function CompactRow({
   summary,
   feedback,
   headingRef,
+  compact = false,
 }: {
   title: string;
   summary?: string;
@@ -20,6 +22,7 @@ export function CompactRow({
   warning?: boolean;
   feedback?: ReactNode;
   headingRef?: Ref<View>;
+  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const s = useStyles();
@@ -27,6 +30,7 @@ export function CompactRow({
   const color = warning ? theme.warning : theme.fgMuted;
   const heading = (
     <>
+      {children ? <Icon name={open ? "ChevronDown" : "ChevronRight"} size={14} color={color} /> : null}
       <Icon name={icon} size={14} color={color} />
       <Text style={s.title}>
         {title}
@@ -37,7 +41,6 @@ export function CompactRow({
           </>
         ) : null}
       </Text>
-      {children ? <Icon name={open ? "ChevronDown" : "ChevronRight"} size={14} color={color} /> : null}
     </>
   );
   return (
@@ -50,16 +53,16 @@ export function CompactRow({
             accessibilityLabel={summary ? `${title} · ${summary}` : title}
             accessibilityState={{ expanded: open }}
             onPress={() => setOpen((value) => !value)}
-            style={s.heading}
+            style={[s.heading, compact && s.compactHeading]}
           >
             {heading}
           </Pressable>
         ) : (
-          <View style={s.heading}>{heading}</View>
+          <View style={[s.heading, compact && s.staticHeading]}>{heading}</View>
         )}
       </View>
       {feedback}
-      {open ? <View style={s.detail}>{children}</View> : null}
+      {open ? <DetailBranch>{children}</DetailBranch> : null}
     </View>
   );
 }
@@ -68,6 +71,7 @@ const useStyles = makeStyles((theme) => ({
   wrap: { alignSelf: "stretch" },
   line: { flexDirection: "row", alignItems: "center" },
   heading: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 2, flexShrink: 1 },
+  compactHeading: { flex: 1 },
+  staticHeading: { minHeight: 28 },
   title: { fontSize: 13, color: theme.fgMuted, flexShrink: 1 },
-  detail: { marginLeft: 8, paddingLeft: 12, paddingVertical: 4, borderLeftWidth: 1, borderColor: theme.border, gap: 8 },
 }));

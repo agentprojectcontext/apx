@@ -25,7 +25,7 @@ export function PlanCard({
   const s = useStyles();
   const done = steps?.filter((step) => step.state === "done").length ?? 0;
   const list = (
-    <View style={s.list}>
+    <View style={[s.list, collapsible && s.compactList]}>
       {steps
         ? steps.map((step, i) => (
             <View
@@ -35,8 +35,15 @@ export function PlanCard({
               accessible
               accessibilityLabel={`${step.step}, ${t(step.state === "done" ? "runDone" : step.state === "doing" ? "runWorking" : "planPending")}`}
             >
-              <Mark state={step.state} />
-              <Text style={[s.text, step.state === "done" && s.done, step.state === "doing" && s.doing]}>
+              <Mark state={step.state} compact={collapsible} />
+              <Text
+                style={[
+                  s.text,
+                  collapsible && s.compactText,
+                  step.state === "done" && s.done,
+                  step.state === "doing" && s.doing,
+                ]}
+              >
                 {step.step}
               </Text>
             </View>
@@ -46,7 +53,7 @@ export function PlanCard({
   );
   if (collapsible)
     return (
-      <CompactRow title={label} summary={t("planDone", { done, count: steps?.length ?? 0 })} icon="ListChecks">
+      <CompactRow title={label} summary={t("planDone", { done, count: steps?.length ?? 0 })} icon="ListChecks" compact>
         {list}
       </CompactRow>
     );
@@ -62,12 +69,14 @@ export function PlanCard({
   );
 }
 
-function Mark({ state }: { state: PlanStep["state"] }) {
+function Mark({ state, compact }: { state: PlanStep["state"]; compact: boolean }) {
   const theme = useTheme();
   const s = useStyles();
-  if (state === "done") return <Icon name="CircleCheck" size={16} color={theme.brand} />;
+  if (state === "done") return <Icon name="CircleCheck" size={compact ? 12 : 16} color={theme.brand} />;
   return (
-    <View style={[s.ring, state === "doing" && s.ringDoing]}>{state === "doing" ? <View style={s.dot} /> : null}</View>
+    <View style={[s.ring, compact && s.compactRing, state === "doing" && s.ringDoing]}>
+      {state === "doing" ? <View style={[s.dot, compact && s.compactDot]} /> : null}
+    </View>
   );
 }
 
@@ -92,8 +101,10 @@ const useStyles = makeStyles((theme) => ({
   title: { flex: 1, color: theme.fg, fontSize: 13, fontWeight: "500" },
   count: { color: theme.fgSubtle, fontSize: 12 },
   list: { paddingHorizontal: 12, paddingVertical: 8, gap: 6 },
+  compactList: { paddingHorizontal: 0, paddingVertical: 2, gap: 4 },
   step: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
   text: { flex: 1, color: theme.fg, fontSize: 14, lineHeight: 19 },
+  compactText: { fontSize: 13, lineHeight: 18 },
   done: { color: theme.fgMuted, textDecorationLine: "line-through" },
   doing: { fontWeight: "600" },
   ring: {
@@ -106,6 +117,8 @@ const useStyles = makeStyles((theme) => ({
     alignItems: "center",
     justifyContent: "center",
   },
+  compactRing: { width: 12, height: 12, marginTop: 3, borderRadius: 6, borderWidth: 1 },
+  compactDot: { width: 4, height: 4, borderRadius: 2 },
   ringDoing: { borderColor: theme.brand },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: theme.brand },
 }));
