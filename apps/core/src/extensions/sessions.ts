@@ -13,13 +13,16 @@ export function savedExtensionSession(home: string, id: string, manifest: Extens
     // Only the credential file's presence, never its contents or OAuth metadata, counts as a saved sign-in.
     try {
       let dir = home;
-      for (const part of ["extension-data", id, "mcp-remote", name, "mcp-remote-v1"]) {
+      for (const part of ["extension-data", id, "mcp-remote", name]) {
         dir = path.join(dir, part);
         if (!fs.lstatSync(dir, { throwIfNoEntry: false })?.isDirectory()) return false;
       }
-      return fs
-        .readdirSync(dir, { withFileTypes: true })
-        .some((file) => file.isFile() && /^(?:[a-f0-9]{32}|[a-f0-9]{64})_tokens\.json$/.test(file.name));
+      return fs.readdirSync(dir, { withFileTypes: true }).some((layout) => {
+        if (!layout.isDirectory() || !/^mcp-remote-(?:v1|\d+\.\d+\.\d+)$/.test(layout.name)) return false;
+        return fs
+          .readdirSync(path.join(dir, layout.name), { withFileTypes: true })
+          .some((file) => file.isFile() && /^(?:[a-f0-9]{32}|[a-f0-9]{64})_tokens\.json$/.test(file.name));
+      });
     } catch {
       return false;
     }
