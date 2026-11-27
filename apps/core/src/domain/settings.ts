@@ -20,6 +20,11 @@ export function settingsRepo({ one, run }: Sql) {
     /** A plain-text setting, or one whose key is built per item (see `read` for the JSON ones). */
     get,
     set,
+    /** Literal prefix matching: names may contain SQL wildcard characters. */
+    deletePrefix(k: string): void {
+      const prefix = key(k);
+      run(qb.deleteFrom("meta").where(raw<boolean>`substr(key, 1, length(${prefix})) = ${prefix}`));
+    },
     /** A JSON setting through its schema: unset, unreadable or invalid gives its fallback (a fresh copy). */
     read<K extends SettingKey>(k: K): SettingValue<K> {
       const { schema, fallback } = SETTINGS[k] as Entry<SettingValue<K>>;

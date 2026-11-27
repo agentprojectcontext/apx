@@ -125,7 +125,7 @@ function extensionMethods(extensions: Extensions, mcp: Mcp, store: Store, invali
       scope: "global" as const,
       name,
     }));
-    const release = mcp.suspend(servers);
+    const release = mcp.suspend(servers, id);
     try {
       await Promise.all(servers.map((server) => mcp.drop(server)));
       return release;
@@ -243,7 +243,11 @@ function extensionMethods(extensions: Extensions, mcp: Mcp, store: Store, invali
         scope: "global" as const,
         name,
       }));
-      const out = await withServersStopped(id, () => extensions.remove(id));
+      const out = await withServersStopped(id, async () => {
+        const removed = await extensions.remove(id);
+        mcp.forgetExtensionSignIn(id);
+        return removed;
+      });
       for (const d of servers) mcp.forgetOpened(d);
       return out;
     },

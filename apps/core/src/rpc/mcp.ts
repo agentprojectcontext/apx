@@ -184,7 +184,7 @@ export function mcpHandlers(mcp: Mcp, store: Store, switchable: (name: string) =
           if (offIn && server && !server.project) mcp.config.setOffIn(name, offIn);
           // A server that goes, or moves into one project, leaves no switches behind.
           if (!server || server.project) mcp.config.setOffIn(name, []);
-          const after = mcp.config.global().find((d) => d.name === name);
+          const after = mcp.config.global().find((d) => d.name === name && d.own);
           // Availability alone does not change a tool contract; credential-specific grants stay separately bound.
           if (!before || !after || before.hash !== after.hash) await mcp.drop(target);
           // New: every tool allowed (DECISIONS.md#d-279); the owner's edit keeps "allow all" if it had it.
