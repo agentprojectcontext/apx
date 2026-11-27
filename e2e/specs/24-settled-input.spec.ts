@@ -97,7 +97,9 @@ taskInput(
       const input = (await env.client.call("runs.pending", {})).inputs[0];
       if (!input) throw new Error("The assigned task did not ask a question");
       await page.goto(`${env.core.url}/#thread=${input.thread_id}`);
+      const waiting = page.getByText(/ te espera$/);
       const card = page.locator(".inputcard.is-pending");
+      await expect(waiting).toBeVisible();
       await card.getByRole("button", { name: "Monday" }).click();
       await page.route("**/rpc/runs.respond", async (route) => {
         await env.client.call("tasks.close", { task: task.id, state: "done" });
@@ -108,17 +110,27 @@ taskInput(
       const line = page.locator(".inputline");
       await expect(line).toContainText("Venció");
       await expect(card).toHaveCount(0);
-      await expect(page.getByText(/Roby te espera/)).toHaveCount(0);
-      await page.reload();
-      await expect(line).toBeVisible();
-      await line.getByRole("button").click();
-      await expect(line).toContainText("Which days work for the Northwind review?");
-      await info.attach("expired-card-desktop", { body: await page.screenshot(), contentType: "image/png" });
-      await page.setViewportSize({ width: 390, height: 844 });
-      await expect(line).toBeVisible();
-      await expect(card).toHaveCount(0);
-      await expect(page.getByText(/Roby te espera/)).toHaveCount(0);
-      await info.attach("expired-card-narrow", { body: await page.screenshot(), contentType: "image/png" });
+      await expect(waiting).toHaveCount(0);
+      const trigger = line.getByRole("button");
+      const prompt = line.getByText("Which days work for the Northwind review?", { exact: true });
+      for (const [width, layout] of [
+        [1280, "desktop"],
+        [390, "narrow"],
+      ] as const) {
+        await page.setViewportSize({ width, height: 844 });
+        await page.reload();
+        await expect(line).toContainText("Venció");
+        await expect(trigger).toHaveAttribute("aria-expanded", "false");
+        await trigger.click();
+        await expect(trigger).toHaveAttribute("aria-expanded", "true");
+        await expect(prompt).toBeVisible();
+        await expect(card).toHaveCount(0);
+        await expect(waiting).toHaveCount(0);
+        await info.attach(`expired-card-${layout}`, {
+          body: await page.screenshot({ animations: "disabled" }),
+          contentType: "image/png",
+        });
+      }
     } finally {
       if (!page.isClosed()) await page.goto("about:blank");
     }
