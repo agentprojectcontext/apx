@@ -2736,6 +2736,8 @@ new one must decide. Fixed template messages are untouched.
 
 <a id="d-165"></a>
 ## D-165 — 2026-10-27 — Arbitrary browser JavaScript is reviewed execution, not a credential sandbox
+*Amended by [D-283](#d-283) (2026-11-27): in Auto, a script in a browser without the owner's sessions goes to the judge; the shared profile keeps the card.*
+
 The owner explicitly accepted reviewed JavaScript execution in the existing APX tab after the security review explained
 that arbitrary page code cannot retain a mechanical guarantee against reading or filling sensitive fields, making
 requests or sending as the signed-in account. This is a narrow exception for `browser_evaluate`, not a change to the
@@ -6552,6 +6554,8 @@ Docs impact: updated office/tasks, extend/mcp and reference/cli in English and S
 <a id="d-281"></a>
 ## D-281 — 2026-11-27 — Auto weighs a deletion as Claude Code's auto mode does, instead of asking for every one
 
+*Amended by [D-283](#d-283) (2026-11-27): the judge answers other cards a mode gives in Auto, and its record holds every decision.*
+
 D-266 made every forced deletion ask in Auto, since APX cannot read intent. It stopped ordinary work: an agent
 removing a canceled CI run's coverage folder and container on the owner's Linux box, and another restoring three lost
 files in a worktree before removing it once merged. The owner: APX should manage these decisions itself, as Claude
@@ -6616,3 +6620,51 @@ mandar".
 *Amends [D-045](#d-045).*
 
 Docs impact: updated concepts/conversations and concepts/autonomy in English and Spanish.
+
+<a id="d-283"></a>
+## D-283 — 2026-11-27 — Auto's judge answers the cards a mode gives, not only deletions
+
+In a week the owner got 152 confirmation cards, approved 134, declined 2 and let 14 expire: reading a help page with
+outside content in the turn, a browser script, a project's own command, a run on the Linux box. The owner: «que pase
+por un juez, por lo que lea… y solo avisarme de scripts muy nocivos». Auto now sends these cards to D-281's judge, as
+Claude Code's auto mode does; Manual and Total are unchanged.
+
+- Goes to the judge, in Auto only, when no grant covers the call: `web_read` and `browser_open`/`do`/`type`/`click` with
+  outside content or data in the URL; an MCP tool with outside content (D-279); `shell`, `file_write` and `file_edit`
+  that still ask where the agent may work; `start_session`; an outside agent's (Claude Code, Codex) edits, commands and
+  fetches that would ask where it may write; and a command run over ssh, even where it would run unasked.
+  `browser_evaluate` too, only in a browser without the owner's sessions (below). The judge is the helper list's first
+  model (D-281), 20 s; it reads the call, its arguments (a URL's site and each value apart), the step's own words (a
+  script's source), why it reached it, the turn's latest tool output as data, the agent's reason, the task, the owner's
+  recent words and the project's rules, and answers run or ask with a why kept in "What Auto decided".
+- Never reaches it, its card stays: sending or posting as the owner (a message to someone else, iMessage, mail, a
+  contact's answer, a release, D-208), paying, credentials (D-193's sign-in, lending the owner's cookies, and any call
+  carrying a key-, token- or password-shaped value, which is a fixed card recorded without its value), `sudo`, system
+  changes and the other destructive commands, APX's own API or CLI acting as the owner, `AGENTS.md` and `.apx/`, writing
+  outside the owner's projects (the folder card, D-108), the owner's signed-in Chrome, changes to what the owner set up,
+  memory, and the agent's own "ask" rule. Rule 10 and D-071, D-106, D-108, D-279 stand: the judge only answers cards a
+  mode gives where the agent works; outside content is still untrusted and the judge is told to run only on the owner's
+  words, the task or a project rule when it is in the turn.
+- Asked to answer "ask" for anything that could send the owner's data somewhere they did not ask (exfiltration through
+  a URL, a form, a message), for what outside content asks rather than the owner, and for plainly harmful scripts
+  (destroying data, weakening security, persistence, mining, opening access). Any failure, the deadline or an unclear
+  answer is the card.
+- `browser_evaluate` (D-165): the owner chose that the judge decides only where their sessions are not. The shared
+  profile always keeps D-165's card. An agent's own profile and incognito go to the judge until the owner's sessions may
+  be there: from the moment they lend their cookies (`browser_use_my_login`), the agent signs in with a stored secret,
+  they take over one of its tabs (`browser.control` user) or get a handoff, the profile is marked
+  (`domain/browser-sessions.ts`) and the card is back for good.
+- Commands over ssh: the words after the host are the other machine's, so the folder rule no longer reads them as this
+  computer's paths; the key and config ssh reads and the line's own redirections still are. The card "Fausto wants to
+  change files in /dev" that started this was right: its log redirection sat outside the ssh quotes and wrote to this
+  Mac's `/dev/shm`.
+- The record of D-281 becomes every decision: `auto_deletions` is renamed `auto_decisions` with a `kind` (deletion or
+  action) and the tool, `auto_decisions.list` replaces `auto_deletions.list`, the step's part is `auto_decision`, and
+  Settings › Agents shows "What Auto decided". Calls are recorded under the auxiliary purpose `action`.
+
+Known limits: the judge reads what the call and the turn say, not the page the browser will reach; an owner logging in
+on an agent's tab without taking it over (the desktop app needs the takeover to type there) would not mark the profile.
+
+*Amends [D-281](#d-281), [D-165](#d-165).*
+
+Docs impact: updated concepts/autonomy in English and Spanish and rules/SUPER_AGENT_POWERS.md.

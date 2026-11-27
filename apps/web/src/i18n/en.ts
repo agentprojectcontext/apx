@@ -2,7 +2,7 @@ import type { noticeEn } from "@apx/protocol/notices-en";
 import type { enAccount } from "./account-en.ts";
 import type { enActivityReview } from "./activity-review-en.ts";
 import type { ApprovalKey } from "./approvals-en.ts";
-import type { enAutoDeletions } from "./auto-deletions-en.ts";
+import type { enAutoDecisions } from "./auto-decisions-en.ts";
 import type { BrowserEditKey } from "./browser-edit-en.ts";
 import type { enCall } from "./call-en.ts";
 import { enCallSlim } from "./call-slim-en.ts";
@@ -2046,7 +2046,7 @@ export type MessageKey =
   | keyof typeof enAccount
   | keyof typeof enGroup
   | keyof typeof enActivityReview
-  | keyof typeof enAutoDeletions
+  | keyof typeof enAutoDecisions
   | keyof typeof enDiscovery
   | keyof typeof noticeEn
   | keyof typeof enCall

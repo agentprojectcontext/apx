@@ -39,7 +39,7 @@ import { go } from "../shell/nav.ts";
 import { copyableQuote } from "./CopyableQuote.tsx";
 import { replyBlock, runnableCode } from "./codeRunner.tsx";
 import { MessageActions } from "./MessageActions.tsx";
-import { AutoDeletionLine } from "./parts/AutoDeletionLine.tsx";
+import { AutoDecisionLine } from "./parts/AutoDecisionLine.tsx";
 import { chipFold, isChip } from "./parts/chips.ts";
 import { FilePart } from "./parts/FilePart.tsx";
 import { imageGenerationBlocks } from "./parts/imageGeneration.ts";
@@ -224,7 +224,7 @@ export function AgentTurn({
         </Suspense>
       )}
       {tools.length > 0 && <ToolGroup parts={tools} waiting={waiting} ended={ended} />}
-      {tools.map((p) => p.auto_deletion && <AutoDeletionLine key={`auto:${p.call_id}`} note={p.auto_deletion} />)}
+      {tools.map((p) => p.auto_decision && <AutoDecisionLine key={`auto:${p.call_id}`} note={p.auto_decision} />)}
       {items.map(({ key, part, media, segment, whole, generation }, i) => {
         if (generation)
           return (

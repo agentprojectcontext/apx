@@ -325,6 +325,7 @@ const AWK = words("-v -F -f");
 const JQ = words("-f --from-file --indent -L");
 const COPY = words("-t -S --target-directory");
 /** Options whose value is the next word, per program (the value is not a path unless handled). */
+const SSH = words("-b -c -D -E -e -F -I -i -J -L -l -m -O -o -p -Q -R -S -W -w");
 const VALUED: Record<string, Set<string>> = {
   grep: GREP,
   egrep: GREP,
@@ -344,6 +345,7 @@ const VALUED: Record<string, Set<string>> = {
   install: words("-m -o -g -t -S --target-directory"),
   rsync: words("-e -f -M -B --exclude --include --filter --rsh"),
   scp: words("-P -i -o -F -c -l -S -J"),
+  ssh: SSH,
   touch: words("-r -d -t -A"),
   mkdir: words("-m"),
   truncate: words("-s -r"),
@@ -638,6 +640,15 @@ function runner(c: Call): boolean {
         out.push({ kind: "unknown", text: "xargs", write: true });
       return true;
     }
+    // The command after the host runs on that machine: its words are its paths, not this computer's. Only the key and
+    // the config ssh reads are here (DECISIONS.md#d-283).
+    case "ssh": {
+      for (const key of ["-i", "-F"]) {
+        const file = c.value(key);
+        if (file) c.name(file, false);
+      }
+      return true;
+    }
     case "sh":
     case "bash":
     case "zsh":
@@ -770,4 +781,24 @@ export function namedPaths(command: string, home = os.homedir(), depth = 0): Nam
     out.push(...classify(words, home, depth));
   }
   return out;
+}
+
+/** The machines a command line runs something on over ssh (`ssh host '…'`), as written: host or user@host. */
+export function sshHosts(command: string): string[] {
+  const hosts: string[] = [];
+  for (const words of segments(command)) {
+    const at = words.findIndex((w) => path.basename(w.text) === "ssh" && !w.prose);
+    // Run by the line itself, or through a wrapper (`timeout 30 ssh …`), not named as another program's argument.
+    const before = words.slice(0, at);
+    const led = before.every(
+      (w) => /^[A-Za-z_]\w*=/.test(w.text) || WRAPPERS.has(path.basename(w.text)) || /^(-|\d+[smhd]?$)/.test(w.text),
+    );
+    if (at < 0 || !led) continue;
+    const { positional } = split(
+      words.slice(at + 1).filter((w) => !w.redirect),
+      SSH,
+    );
+    if (positional[0]) hosts.push(positional[0].text);
+  }
+  return hosts;
 }
