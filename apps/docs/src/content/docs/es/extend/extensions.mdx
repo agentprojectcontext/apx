@@ -51,6 +51,7 @@ aparece en el Marketplace.
 - La ficha de una extensión tiene un solo botón que cambia con su estado: **Agregar** → **Conectar** (o
   **Emparejar** si trae una app para un dispositivo) → **Conectada ✓**. Apagar, actualizar, volver a una versión,
   ajustes y quitar están en **⋯**.
+  Si **Configuración** te pide una credencial nueva al cambiar la conexión, revocá la anterior en el servicio e ingresá la nueva antes de guardar.
 - **Agregar** y **Conectar** son dos pasos que das en la ficha. **Agregar** revisa sus archivos (del catálogo de APX
   tienen que ser los que publica APX) y los copia; no corre nada. La ficha queda abierta, ahora marcada como agregada,
   con **Conectar** como botón. **Conectar** (o **Emparejar**) abre un cuadro con APX unido al servicio, las claves para
@@ -168,7 +169,7 @@ puede nombrar tus otras variables ni el entorno, así que un paquete no puede ll
 
 | Campo | Qué tiene |
 |---|---|
-| `settings` | Valores que pone el dueño, con un `type` (`string`, `number`, `boolean`, `directory`, `file`), un `label`, y opcionales `description`, `default`, `options` (una elección), `required`. Uno `sensitive` va al almacén de secretos y se usa como `secret://name`; uno común se usa como `setting://name` en los argumentos, el entorno, la dirección o los encabezados de sus servidores (en una dirección, `setting://address/api` saca una `/` final que haya escrito el dueño). `"generate": "random"` (sólo strings sensibles) hace que APX ponga una clave al azar al instalar. |
+| `settings` | Valores que pone el dueño, con un `type` (`string`, `number`, `boolean`, `directory`, `file`), un `label`, y opcionales `description`, `default`, `options` (una elección), `required`. Usá `locales.es.label` o `locales.es.description` para mostrar textos en español en el panel; si falta alguna traducción, se usa el texto original. Uno `sensitive` va al almacén de secretos y se usa como `secret://name`; uno común se usa como `setting://name` en los argumentos, el entorno, la dirección o los encabezados de sus servidores (en una dirección, `setting://address/api` saca una `/` final que haya escrito el dueño). `"generate": "random"` (sólo strings sensibles) hace que APX ponga una clave al azar al instalar. |
 | `agents` | Agentes listos (`id`, `name`, `description`, `prompt`) que el dueño agrega desde su ficha. |
 | `pages` | Sus propias páginas HTML (`id`, `title`, `entry`), que se abren desde su configuración en un marco aislado y sin red. Una página lee y cambia sólo sus propios ajustes con `window.apx` (`settings.get`, `settings.set`, `secrets.has`, `secrets.set`, `close`). |
 | `apps` | Widgets o apps (archivos `.apxart`) que el dueño agrega a Apps desde su ficha. |

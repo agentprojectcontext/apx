@@ -104,23 +104,37 @@
   cursor: grabbing;
 }
 .queue__text {
+  display: flex;
   flex: 1;
+  align-items: center;
+  gap: 6px;
   min-width: 0;
-  overflow: hidden;
-  padding-left: 2px;
+  padding-inline-start: 2px;
   font-size: var(--apx-text-sm);
   color: var(--apx-fg);
+}
+.queue__snippet {
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .queue__files {
-  display: inline-flex;
+  display: flex;
+  flex: none;
   align-items: center;
   gap: 2px;
-  margin-right: 6px;
   color: var(--apx-fg-muted);
   font-size: var(--apx-text-xs);
-  vertical-align: 1px;
+}
+.queue__preview {
+  display: -webkit-box;
+  max-width: min(320px, calc(100vw - 36px));
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
 .queue__acts {
   display: inline-flex;

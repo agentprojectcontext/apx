@@ -35,6 +35,28 @@ function checked(s: ExtensionSetting, v: Value): Value {
     if (typeof v !== "boolean") throw badRequest(`${s.label}: yes or no`);
     return v;
   }
+  if (s.format === "https-url") {
+    const invalid = () => badRequest("Enter an HTTPS address without credentials, a query or a fragment");
+    if (typeof v !== "string" || !/^https:\/\//i.test(v) || /[\s\\?#]/.test(v)) throw invalid();
+    if ([...v].some((c) => c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127)) throw invalid();
+    // URL drops an empty userinfo marker, so inspect the authority before parsing too.
+    if (
+      v
+        .slice(v.indexOf("//") + 2)
+        .split("/")[0]
+        ?.includes("@")
+    )
+      throw invalid();
+    let url: URL;
+    try {
+      url = new URL(v);
+    } catch {
+      throw invalid();
+    }
+    if (url.protocol !== "https:" || !url.hostname || url.username || url.password || url.search || url.hash)
+      throw invalid();
+    return url.href;
+  }
   const text = String(v).trim();
   if (s.options && !s.options.includes(text)) throw badRequest(`${s.label}: one of ${s.options.join(", ")}`);
   if (s.type === "directory" || s.type === "file") {
@@ -60,13 +82,49 @@ export function createManifestV2(deps: { store: Store; secrets: Secrets }) {
     /** Sets some values (null clears one); a sensitive one goes to the secret store, never on the record. */
     set(e: ExtensionRecord, values: Record<string, Value | null>): void {
       const plain = { ...e.settings };
+      const writes = new Map<string, string | null>();
       for (const [name, v] of Object.entries(values)) {
         const s = e.manifest.settings.find((x) => x.name === name);
         if (!s) throw notFound(`setting ${name} of ${e.manifest.name}`);
-        if (s.sensitive) secrets.set(extSecret(e.id, name), v === null || v === "" ? null : String(checked(s, v)));
+        if (s.sensitive) writes.set(name, v === null || v === "" ? null : String(checked(s, v)));
         else if (v === null) delete plain[name];
         else plain[name] = checked(s, v);
       }
+      for (const s of e.manifest.settings.filter((s) => s.format)) {
+        const value = plain[s.name];
+        if (value !== undefined) plain[s.name] = checked(s, value);
+      }
+      for (const s of e.manifest.settings.filter((s) => s.boundTo)) {
+        if (!s.sensitive || s.type !== "string" || s.generate)
+          throw badRequest("Only manually entered sensitive strings can be bound");
+        const binding: Record<string, Value> = {};
+        for (const name of s.boundTo ?? []) {
+          const target = e.manifest.settings.find((x) => x.name === name && !x.sensitive);
+          if (!target) throw badRequest("A bound credential must name plain settings");
+          const value = plain[name] ?? target.default;
+          if (value !== undefined) binding[name] = value;
+        }
+        const previous = secrets.resolve(`secret://${extSecret(e.id, s.name)}`);
+        let old: { format?: string; binding?: Record<string, Value>; value?: string } = {};
+        try {
+          const parsed = previous ? JSON.parse(previous) : undefined;
+          if (parsed && typeof parsed === "object" && typeof parsed.value === "string") old = parsed;
+        } catch {
+          /* Legacy credentials must be replaced. */
+        }
+        const changed = (s.boundTo ?? []).some((name) => old.binding?.[name] !== binding[name]);
+        const next = writes.get(s.name);
+        if (previous && (old.format !== "apx-bound-secret@1" || changed)) {
+          if (!next || next.replace(/\s/g, "") === (old.value ?? previous).replace(/\s/g, ""))
+            throw badRequest(`${s.label}: enter a different application password when changing the connection`);
+        }
+        if (next) {
+          if ((s.boundTo ?? []).some((name) => binding[name] === undefined || binding[name] === ""))
+            throw badRequest(`${s.label}: complete the connection settings first`);
+          writes.set(s.name, JSON.stringify({ format: "apx-bound-secret@1", binding, value: next }));
+        }
+      }
+      for (const [name, value] of writes) secrets.set(extSecret(e.id, name), value);
       store.extensions.setSettings(e.id, plain);
     },
     /** On install: a random value for each sensitive setting it asks APX to generate, unless one is set already. */
