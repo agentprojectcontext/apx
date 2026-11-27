@@ -1815,6 +1815,8 @@ export const en = {
     "Decides which emails are worth telling you about and which group messages are worth an answer.",
   "helperModel.job.images": "Describes the images and stickers people send you, when it can read images.",
   "helperModel.job.groups": "Picks which agent answers in a group chat.",
+  "helperModel.job.deletions":
+    "Decides whether an unclear deletion can go ahead without asking you, when the agent is in Auto.",
   "helperModel.job.drafts": "Suggests reply drafts when the agent has no other model for it.",
   "helperModel.job.review": "Reviews activity to suggest improvements.",
   "helperModel.job.backup": "Stands in for an agent's model in short notices and when reading chats you import.",
