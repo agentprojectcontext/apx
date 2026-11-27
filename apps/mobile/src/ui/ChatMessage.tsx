@@ -16,6 +16,7 @@ import { formsImage, isAgentEvent } from "./chat/blocks";
 import { ChangesCard } from "./chat/ChangesCard";
 import { ChoicesCard, type ChoicesFor } from "./chat/ChoicesCard";
 import { ConnectCard } from "./chat/ConnectCard";
+import { chipDetails, chipFold } from "./chat/chips";
 import { EmailCard, MailContext } from "./chat/EmailCard";
 import { ImageGenerating } from "./chat/ImageGenerating";
 import { InputCard, type Respond } from "./chat/InputCard";
@@ -105,7 +106,8 @@ export function ChatMessage({
   const mailContext = useMemo(() => ({ client, messageId: message.id }), [client, message.id]);
   const author = message.author;
   const mine = author.kind === "user";
-  const tools = message.parts.filter((part) => part.type === "tool");
+  const folded = chipFold(message.parts);
+  const tools = message.parts.filter((part) => part.type === "tool").filter((part) => !folded.calls.has(part.call_id));
   const agent = author.kind === "agent" ? agents.find((one) => one.id === author.id) : undefined;
   const name =
     author.kind === "agent"
@@ -185,8 +187,17 @@ export function ChatMessage({
       case "input":
         return <InputCard key={key} part={part} respond={respond} />;
       case "notice":
+        if (folded.later.has(part)) return null;
         return (
-          <NoticeCard key={key} part={part} goOn={goOn} continueSession={continueSession} sessionState={sessionState} />
+          <NoticeCard
+            key={key}
+            part={part}
+            client={client}
+            details={chipDetails(message.parts, part.code)}
+            goOn={goOn}
+            continueSession={continueSession}
+            sessionState={sessionState}
+          />
         );
       case "subthread":
         return <SubthreadCard key={key} part={part} agents={agents} from={name} openThread={openThread} />;
@@ -201,7 +212,7 @@ export function ChatMessage({
       case "connect":
         return <ConnectCard key={key} part={part} client={client} />;
       case "plan":
-        return <PlanCard key={key} label={t("plan")} steps={part.steps} />;
+        return <PlanCard key={key} label={t("plan")} steps={part.steps} collapsible />;
       case "file":
         // Only a document snapshot gets here; other files are media rows.
         return (
@@ -221,7 +232,13 @@ export function ChatMessage({
   const content = (
     <>
       {skills?.type === "skills" ? <SkillsRow part={skills} client={client} projectId={thread?.project_id} /> : null}
-      {tools.length > 0 ? <ActionGroup parts={tools} waiting={waiting} /> : null}
+      {tools.length > 0 ? (
+        <ActionGroup
+          parts={tools}
+          waiting={waiting}
+          ended={runState === "completed" || runState === "failed" || runState === "canceled"}
+        />
+      ) : null}
       {body}
       {generating ? <ImageGenerating /> : null}
     </>
