@@ -333,6 +333,7 @@ export function ChatScreen({
                     agents={data.agents}
                     waiting={live.state === "input-required"}
                     runState={live.state}
+                    runStates={live.runStates}
                     thread={thread}
                     projects={data.projects}
                     last={item.message.id === live.messages.at(-1)?.id}

@@ -2,7 +2,7 @@ import { act, renderHook } from "@testing-library/react-native";
 import { newChatId } from "../src/chat/newChat";
 import { useThread } from "../src/hooks/useThread";
 import { t } from "../src/i18n";
-import type { Message, Thread } from "../src/protocol";
+import type { Message, Run, Thread } from "../src/protocol";
 import { credentials, deferred, transport } from "./transport.test-support";
 
 let net: ReturnType<typeof transport>;
@@ -17,6 +17,16 @@ const message = (id: string, seq: number, text: string, author: "user" | "agent"
   created_at: "2026-10-18T10:00:00Z",
 });
 const snapshot = (messages: Message[] = []) => ({ thread, messages, runs: [] });
+const run: Run = {
+  id: "run_old",
+  thread_id: thread.id,
+  agent_id: "april",
+  state: "working",
+  trigger: "user",
+  depth: 0,
+  tool_calls: 1,
+  started_at: "2026-10-18T10:00:00Z",
+};
 const mount = (id = thread.id, refreshInputs?: () => Promise<void>) =>
   renderHook(() => useThread(credentials, id, unpair, refreshInputs));
 
@@ -530,6 +540,47 @@ test.each([
     await expect(hook.result.current.respond("inp_old", { text: "Yes" })).rejects.toThrow(fault.message);
   });
   expect(net.calls.map((call) => call.method)).toEqual(["runs.respond"]);
+  await hook.unmount();
+});
+
+test("per-turn action states keep historical turns settled when a newer turn waits", async () => {
+  net.responses["threads.get"] = {
+    ...snapshot(),
+    runs: [
+      { ...run, state: "canceled", ended_at: "2026-10-18T10:02:00Z" },
+      { ...run, id: "run_new", state: "input-required" },
+    ],
+  };
+  const hook = await mount();
+  expect(hook.result.current.runStates).toEqual({ [run.id]: "canceled", run_new: "input-required" });
+  await act(async () =>
+    net.sockets[0]?.event({
+      type: "run.updated",
+      run: { ...run, id: "run_new", state: "completed", ended_at: "2026-10-18T10:03:00Z" },
+    }),
+  );
+  expect(hook.result.current.runStates).toEqual({ [run.id]: "canceled", run_new: "completed" });
+  await hook.unmount();
+});
+
+test("an authoritative terminal run wins over a streamed wait after a lost settlement event", async () => {
+  const hook = await mount();
+  await act(async () => net.sockets[0]?.event({ type: "run.updated", run: { ...run, state: "input-required" } }));
+  expect(hook.result.current.runStates[run.id]).toBe("input-required");
+  net.responses["threads.get"] = {
+    ...snapshot(),
+    runs: [{ ...run, state: "canceled", ended_at: "2026-10-18T10:02:00Z" }],
+  };
+  net.faults["runs.respond"] = {
+    code: "conflict",
+    message: "Unavailable",
+    status: 409,
+    detail: { reason: "input_unavailable" },
+  };
+  await act(async () => {
+    await expect(hook.result.current.respond("inp_old", { text: "Yes" })).rejects.toThrow(t("inputUnavailable"));
+  });
+  expect(hook.result.current.runStates[run.id]).toBe("canceled");
   await hook.unmount();
 });
 

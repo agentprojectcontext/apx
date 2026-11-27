@@ -71,6 +71,7 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
   const [error, setError] = useState("");
   const [thread, setThread] = useState<Thread>();
   const [usage, setUsage] = useState<Usage>();
+  const [runStates, setRunStates] = useState<Record<string, string>>({});
   const [computer, setComputer] = useState<ComputerStage>();
   const reload = useRef<(unavailableInput?: string) => Promise<void>>(async () => {});
   useEffect(() => {
@@ -81,6 +82,7 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
     let readyShown: ReturnType<typeof setTimeout> | undefined;
     let attempt = 0;
     const changes = new Map<string, Message>();
+    const changedRunStates = new Map<string, string>();
     const incomplete = new Map<string, number>();
     const lastSeq = new Map<string, number>();
     const deleted = new Set<string>();
@@ -102,6 +104,9 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
           setThread(result.thread);
         }
         setUsage(usageOf(result.runs));
+        const states = Object.fromEntries(changedRunStates);
+        for (const run of result.runs) if (run.ended_at || !changedRunStates.has(run.id)) states[run.id] = run.state;
+        setRunStates(states);
         setMessages((current) => {
           for (const message of result.messages) {
             const requiredVersion = incomplete.get(message.id);
@@ -161,8 +166,10 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
             stateVersion++;
             setState(event.thread.state);
             setThread(event.thread);
-          } else if (event.type === "run.updated" && event.run.thread_id === threadId && event.run.usage?.context) {
-            setUsage(event.run.usage);
+          } else if (event.type === "run.updated" && event.run.thread_id === threadId) {
+            changedRunStates.set(event.run.id, event.run.state);
+            setRunStates((current) => ({ ...current, [event.run.id]: event.run.state }));
+            if (event.run.usage?.context) setUsage(event.run.usage);
           } else if (
             (event.type === "message.created" || event.type === "message.updated") &&
             event.message.thread_id === threadId
@@ -225,6 +232,7 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
     setThread(cached?.thread);
     if (cached?.thread) setState(cached.thread.state);
     setUsage(undefined);
+    setRunStates({});
     setComputer(undefined);
     if (!cached?.thread) setState("idle");
     setError("");
@@ -253,6 +261,7 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
     thread,
     setThread,
     usage,
+    runStates,
     computer,
   };
 }
@@ -275,6 +284,7 @@ export function useThread(creds: Creds, threadId: string, onUnpair: () => void, 
     thread,
     setThread,
     usage,
+    runStates,
     computer,
   } = useThreadFeed(client, threadId, onUnpair);
   const send = useCallback(
@@ -417,6 +427,7 @@ export function useThread(creds: Creds, threadId: string, onUnpair: () => void, 
     stopping,
     thread,
     usage,
+    runStates,
     setModel,
     client,
     computer,

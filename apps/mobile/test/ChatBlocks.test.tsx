@@ -3,6 +3,45 @@ import { t } from "../src/i18n";
 import type { Message } from "../src/protocol";
 import { ChatMessage } from "../src/ui/ChatMessage";
 
+test.each(["canceled", "completed", "failed"])(
+  "a %s historical action does not inherit a later turn's wait",
+  async (state) => {
+    const message: Message = {
+      id: "msg_old",
+      thread_id: "th_1",
+      seq: 1,
+      run_id: "run_old",
+      author: { kind: "agent", id: "superagent" },
+      created_at: "2026-10-21T15:00:00Z",
+      parts: [{ type: "tool", call_id: "choice", tool: "ask_owner", title: "Choose a draft", status: "running" }],
+    };
+    const runStates = { run_old: state, run_new: "input-required" };
+    const ui = await render(
+      <ChatMessage
+        message={message}
+        agents={[]}
+        respond={async () => {}}
+        waiting
+        runState="input-required"
+        runStates={runStates}
+      />,
+    );
+    expect(ui.getByRole("button", { name: t("actionsOne", { n: 1 }) })).toBeTruthy();
+    expect(ui.queryByText(t("actionsWaitingOne"))).toBeNull();
+    await ui.rerender(
+      <ChatMessage
+        message={{ ...message, run_id: "run_new" }}
+        agents={[]}
+        respond={async () => {}}
+        waiting
+        runState="input-required"
+        runStates={runStates}
+      />,
+    );
+    expect(ui.getByRole("button", { name: t("actionsWaitingOne") })).toBeTruthy();
+  },
+);
+
 jest.mock("../src/chat/mediaFiles", () => ({}));
 jest.mock("../src/ui/media/VideoCarousel", () => ({ VideoCarousel: () => null }));
 jest.mock(
