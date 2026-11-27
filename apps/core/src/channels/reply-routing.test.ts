@@ -206,8 +206,7 @@ test("a Telegram approval resumed after restart retains its destination and chan
   const home = f.env.home;
   await f.env.core.close();
   f.env = await startCore({ ...f.options, home });
-  await f.env.client.call("threads.send", { thread: "home", text: "from app" });
-  await f.env.settle("home");
+  // No turn in between: a later one would withdraw the card (DECISIONS.md#d-282).
   await f.env.client.call("runs.respond", { input: input?.id ?? "", decision: "approve" });
   await f.env.settle("home");
   await waitFor(

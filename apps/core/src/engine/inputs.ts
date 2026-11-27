@@ -80,6 +80,18 @@ export const inputPartOf = (r: InputRecord): Extract<Part, { type: "input" }> =>
   };
 };
 
+/** What a turn learns of its cards withdrawn as it started: what they asked, and to ask again if still needed. */
+export function retiredBlock(retired: InputRecord[]): string {
+  const what = (r: InputRecord) =>
+    `- ${r.kind === "question" ? "question" : `OK for ${r.tool ?? "an action"}`}: "${r.prompt.replace(/\s+/g, " ").slice(0, 160)}"`;
+  return `The chat moved on before the owner answered, so these cards you left earlier were withdrawn and no longer ask:\n${retired
+    .slice(0, 5)
+    .map(what)
+    .join(
+      "\n",
+    )}\nIf you still need one, ask again now: it shows as a new card below. Do not point the owner to the earlier one.`;
+}
+
 export function createInputs(deps: {
   store: Store;
   /** APX's home: a folder card's folder is checked against it before it joins a project. */
@@ -384,6 +396,35 @@ export function createInputs(deps: {
         idleIfDone(settled.thread_id);
       }
       return settled;
+    },
+
+    /**
+     * A new turn of an agent in a chat: its cards still open from turns that already ended stop asking, so a card
+     * never sits answerable above newer messages; the turn is told, to ask again if it still needs one
+     * (DECISIONS.md#d-282).
+     */
+    retireEarlier(threadId: string, agentId: string, runId: string): InputRecord[] {
+      const retired: InputRecord[] = [];
+      const tasks = new Set<string>();
+      for (const r of store.inputs.pending(threadId)) {
+        if (r.agent_id !== agentId || r.run_id === runId || waiting.has(r.id)) continue;
+        if (!store.runs.get(r.run_id)?.ended_at) continue;
+        const settled = store.tx(() => {
+          const input = store.inputs.settle(r.id, "withdrawn");
+          if (input) {
+            settleTaskInput(store, input);
+            finishTaskInput(store, input);
+          }
+          return input;
+        });
+        if (!settled) continue;
+        settleCard(settled);
+        retired.push(settled);
+        const task = store.threads.get(settled.thread_id)?.task_id;
+        if (task) tasks.add(task);
+      }
+      for (const task of tasks) delivery.releaseTask(task);
+      return retired;
     },
 
     /** True once for a call the owner approved after its turn had ended. */

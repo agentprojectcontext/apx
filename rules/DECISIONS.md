@@ -532,6 +532,7 @@ checked against its SHASUMS256.txt.
 
 <a id="d-045"></a>
 ## D-045 — 2026-10-07 — A question the owner has not answered stays open; the turn ends and the answer wakes it
+*Amended by [D-282](#d-282) (2026-11-27): once the chat moves on, the agent's next turn there withdraws it and asks again.*
 D-012 counted a timeout as a no: after 15 minutes (5 for Claude Code and Codex) a question or a confirmation closed and
 the agent went on without the owner. Now the turn still waits that long, then ends (the model is told to say what it
 waits for and stop) while the input stays answerable for 30 days and the chat shows it waits for the owner
@@ -6582,3 +6583,23 @@ only when this run started them by `--name`.
 
 Docs impact: updated concepts/autonomy in English and Spanish and rules/PROMPT_SIZE.md. No news: the owner gets fewer
 cards, nothing new to act on.
+
+<a id="d-282"></a>
+## D-282 — 2026-11-27 — A card left open stops asking once the chat moves on; the agent asks again below
+
+D-045 kept an unanswered card answerable for 30 days after its turn ended. When the chat went on without it (the owner
+wrote something else, another agent wrote in), the card stayed above the newer messages with live buttons, and the
+agent did not know it was still there. The owner: "que la borre siempre que se escribe después y que la vuelva a
+mandar".
+
+- When a new turn of an agent starts in a chat, that agent's cards still open from turns that already ended are
+  withdrawn: they fold into one line ("Withdrawn"), lose their buttons on channels, and release a task's wait.
+- The new turn is told what they asked (a `[withdrawn cards]` block, only when there are some) and to ask again if it
+  still needs it, so the new card shows below and the agent does not point to the old one.
+- A card does not retire at the end of its own turn: the agent's closing words come right after it, and a late answer
+  still wakes it (D-045). A turn waiting on a card, another agent's cards and a resumed turn are left alone.
+- Every pending card already has its way out: Deny on a confirmation, Skip on a question, No on a sign-in.
+
+*Amends [D-045](#d-045).*
+
+Docs impact: updated concepts/conversations and concepts/autonomy in English and Spanish.

@@ -16,6 +16,7 @@ import {
 import { readOrganization } from "../apc/org.ts";
 import type { AgentRecord } from "../domain/agents.ts";
 import { isConsult } from "../domain/contact-consult.ts";
+import type { InputRecord } from "../domain/inputs.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
 import { ownerIdentity, ownerTimeZone } from "../domain/owner.ts";
 import { panelMode } from "../domain/panel-mode.ts";
@@ -90,7 +91,7 @@ import { type Display, openDisplay } from "./display.ts";
 import { createExecutor, type Executor } from "./executor.ts";
 import { flowEditorBlock } from "./flow-editor.ts";
 import type { Hooks } from "./hooks.ts";
-import type { Inputs } from "./inputs.ts";
+import { type Inputs, retiredBlock } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
 import { lastTalk, unasked } from "./last-talk.ts";
 import type { MemoryIndex } from "./memory-index.ts";
@@ -175,6 +176,8 @@ export type Turn = {
   web: boolean;
   /** In a worker's session: the instructions its caller wrote (the agent is the caller itself). */
   worker?: Worker | undefined;
+  /** This agent's cards in the chat that were still open from earlier turns, withdrawn as this one starts. */
+  retired?: InputRecord[] | undefined;
 };
 /** What runs a turn: our loop with its chain of model APIs, or a CLI in its own session with one model. */
 type Engine = { harness: HarnessId; refs: string[] };
@@ -250,6 +253,8 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
       return preflightFailure(error instanceof Error ? error.message : String(error));
     }
   }
+  // The chat moved on: what this agent still asked from earlier turns stops asking, and this turn is told.
+  const retired = start.input.resume_of ? [] : deps.inputs.retireEarlier(thread.id, agent.id, start.id);
   const turn: Turn = {
     agent,
     thread,
@@ -257,6 +262,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     audience,
     web: sealedWeb(store, audience, start.input.origin),
     worker: store.threads.context(thread.id).worker,
+    ...(retired.length ? { retired } : {}),
   };
 
   // The folder as the turn finds it, so its card shows what this turn changed, not what was already uncommitted.
@@ -635,6 +641,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
             flowEditor: ownerTurn ? flowEditorBlock(store, thread.id) : undefined,
             extension: extra ? untrusted("extension_context", { from: extra.from }, extra.text) : undefined,
             waiting: !sealed && ownerTurn && o.kind !== "routine" ? waitingBlock(store, agent.id) : undefined,
+            retired: turn.retired && retiredBlock(turn.retired),
             timeZone: ownerTimeZone(store),
             channel: channelKindOf(store, o, turn.input.reply_to === null ? null : turn.input.reply_to?.channel),
             noReactions: reactionsOff(store, o, turn.input.reply_to === null ? null : turn.input.reply_to?.channel),

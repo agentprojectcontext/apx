@@ -57,7 +57,9 @@ A run moves through a small set of states. The chat list and the Processes menu 
 | `canceled` | You stopped it (with /stop, the stop button or `apx threads cancel`). |
 
 A question an agent asks you doesn't expire with the turn. The turn ends, the chat shows it is waiting for you, and
-the question stays answerable for 30 days. Your answer starts a new turn. See
+the question stays answerable for 30 days. Your answer starts a new turn. If the chat moves on first (you write
+something else, or another agent writes to it), the question is withdrawn: it folds into a line that says so, with
+no buttons, here and on your channels, and the agent asks again below if it still needs the answer. See
 [Autonomy and safety](/concepts/autonomy/).
 
 ## Turns survive restarts
