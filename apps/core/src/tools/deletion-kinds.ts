@@ -1,0 +1,112 @@
+// Which deletions Auto runs without a card (DECISIONS.md#d-281): what is plainly the agent's own or regenerated runs,
+// what loses the owner's work asks, and the rest goes to a small model that reads the task (engine/deletion-judge.ts).
+import fs from "node:fs";
+import path from "node:path";
+import { insideReal } from "../paths.ts";
+import type { Deletion, GitLoss } from "./command-deletions.ts";
+import { type GitFacts, gitFacts } from "./command-git-status.ts";
+
+/** `run`: no card; `ask`: the owner's card; `judge`: the small model decides, and a card when it cannot. */
+export type Verdict = "run" | "ask" | "judge";
+
+/** One thing a command deletes and what Auto does with it, with why in a few words (for the judge and the tests). */
+export type Weighed = { what: string; verdict: Verdict; why: string };
+
+export type DeletionPlace = {
+  /** Folders of the owner's projects the agent may change: a deletion outside them asks. */
+  roots: string[];
+  /** The chat's temp folder: the agent's own scratch work. */
+  scratch: string;
+  /** When this task (or else this run) began: what was made since is the agent's own. */
+  since: number;
+  /** Earlier commands of this run: containers they started are the agent's own. */
+  earlier: string[];
+};
+
+/** Folders tools regenerate: builds, test coverage and reports, caches, installed packages. */
+const OUTPUT = new Set([
+  "coverage",
+  ".nyc_output",
+  "dist",
+  "build",
+  "out",
+  ".next",
+  ".nuxt",
+  ".svelte-kit",
+  ".turbo",
+  ".cache",
+  ".parcel-cache",
+  "target",
+  "node_modules",
+  "test-results",
+  "playwright-report",
+  "__pycache__",
+  ".pytest_cache",
+]);
+
+/** How many entries of a folder are looked at to tell it is all new; a bigger one is not plainly the agent's. */
+const WALK_LIMIT = 500;
+
+/** Each thing a deletion removes, weighed; `git` answers what only the repository knows. */
+export function weighDeletion(d: Deletion, at: DeletionPlace, git: GitFacts = gitFacts): Weighed[] {
+  return [
+    ...d.paths.map((p) => weighPath(p, at)),
+    ...d.git.flatMap((l) => (l.soft ? [] : [weighGit(l, git)])),
+    ...d.later.map((w) => weighLater(w, at)),
+  ];
+}
+
+/** What Auto does with the whole command: any `ask` asks, all `run` runs, else the judge. */
+export const verdictOf = (weighed: Weighed[]): Verdict =>
+  weighed.some((w) => w.verdict === "ask") ? "ask" : weighed.every((w) => w.verdict === "run") ? "run" : "judge";
+
+function weighPath(p: string, at: DeletionPlace): Weighed {
+  const what = p;
+  if (insideReal(at.scratch, p)) return { what, verdict: "run", why: "the chat's temp folder" };
+  const root = at.roots.find((r) => insideReal(r, p));
+  if (!root) return { what, verdict: "ask", why: "outside the owner's projects" };
+  if (!fs.existsSync(p)) return { what, verdict: "run", why: "does not exist" };
+  const inside = path.relative(root, p).split(path.sep);
+  if (inside.some((part) => OUTPUT.has(part))) return { what, verdict: "run", why: "build or test output" };
+  if (madeSince(p, at.since)) return { what, verdict: "run", why: "made during this task" };
+  return { what, verdict: "ask", why: "the owner's, not made during this task" };
+}
+
+function weighGit(l: GitLoss, git: GitFacts): Weighed {
+  const what = `${l.what} ${l.target}`;
+  if (l.what === "branch")
+    return l.in && git.merged(l.in, l.target)
+      ? { what, verdict: "run", why: "a merged branch" }
+      : { what, verdict: "ask", why: "a branch with work not merged" };
+  if (l.what === "worktree")
+    return git.cleanMerged(l.target)
+      ? { what, verdict: "run", why: "a merged worktree with nothing unsaved" }
+      : { what, verdict: "ask", why: "a worktree with unsaved or unmerged work" };
+  return { what, verdict: "ask", why: "work git does not keep elsewhere" };
+}
+
+function weighLater(w: string, at: DeletionPlace): Weighed {
+  const removed = /^docker\s+(?:container\s+)?rm\s+((?:-\S+\s+)*)([\w.-]+(?:\s+[\w.-]+)*)\s*$/.exec(w.trim());
+  const started = removed?.[2]?.split(/\s+/).every((name) => at.earlier.some((c) => startsContainer(c, name)));
+  if (started) return { what: w, verdict: "run", why: "containers this run started" };
+  return { what: w, verdict: "judge", why: "known only when it runs" };
+}
+
+const startsContainer = (command: string, name: string) =>
+  new RegExp(`\\bdocker\\s+(?:container\\s+)?(?:run|create)\\b[^;&|]*--name[= ]${name.replace(/[.]/g, "\\.")}\\b`).test(
+    command,
+  );
+
+/** Whether `p` and, for a folder, everything in it were made since `since` (by the clock of their creation). */
+function madeSince(p: string, since: number): boolean {
+  let seen = 0;
+  const born = (f: string): boolean => {
+    const s = fs.lstatSync(f, { throwIfNoEntry: false });
+    // Some file systems keep no creation time (0): nothing then is plainly new.
+    if (!s?.birthtimeMs || s.birthtimeMs < since) return false;
+    if (++seen > WALK_LIMIT) return false;
+    if (!s.isDirectory()) return true;
+    return fs.readdirSync(f).every((name) => born(path.join(f, name)));
+  };
+  return born(p);
+}

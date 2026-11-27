@@ -109,6 +109,7 @@ export const enChat = {
   "usage.aux.summary": "Summaries",
   "usage.aux.room": "Room filter",
   "usage.aux.mail": "Mail filter",
+  "usage.aux.deletion": "Deletions in Auto",
   "usage.aux.commit": "Commit messages",
   "usage.aux.suggestion": "Suggested replies",
   "usage.aux.news": "Release news",

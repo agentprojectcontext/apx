@@ -20,6 +20,8 @@ export type GitLoss = {
   what: "branch" | "worktree" | "untracked" | "changes" | "stash" | "stashes" | "commits";
   target: string;
   soft?: true;
+  /** A branch's repository: the folder git runs in, when known. */
+  in?: string;
 };
 
 /**
@@ -27,7 +29,16 @@ export type GitLoss = {
  * variable it did not set, `$(…)`, `xargs rm`, `find -exec rm`, a script fed to a shell), as written; `git` what its
  * git commands throw away. `root`, set by the caller, is the folder the card shows paths relative to.
  */
-export type Deletion = { paths: string[]; later: string[]; git: GitLoss[]; root?: string };
+export type Deletion = {
+  paths: string[];
+  later: string[];
+  git: GitLoss[];
+  root?: string;
+  /** The simple commands of the line that delete, as written: what the card shows of a longer command. */
+  parts?: string[];
+  /** Set by the tool: the folders the agent may change and the chat's temp folder, for Auto's judge (D-281). */
+  place?: { roots: string[]; scratch: string };
+};
 
 /** A git loss as one command states it: a restore's paths wait for git to say which hold edits. */
 type Found = GitLoss & { restore?: "worktree" | "both" };
@@ -59,6 +70,7 @@ export function deletionTargets(command: string, cwd: string, look: Overwritten 
   const paths: string[] = [];
   const later: string[] = [];
   const git: GitLoss[] = [];
+  const parts: string[] = [];
   const vars = new Map<string, string>();
   let at: string | undefined = cwd;
   let seen = false;
@@ -84,15 +96,18 @@ export function deletionTargets(command: string, cwd: string, look: Overwritten 
     }
     const known = words.map((w) => expand(w, vars));
     const lost = gitLoss(known.map((k, i) => k ?? words[i]?.text ?? ""));
+    const line = words.map((w) => w.text).join(" ");
+    const said = written(words);
     if (lost.length) {
       seen = true;
+      parts.push(said);
       git.push(...gitTargets(lost, gitFolder(known, at), look));
     }
-    const line = words.map((w) => w.text).join(" ");
     if (!FORCED_RM.test(line)) continue;
     seen = true;
+    if (!lost.length) parts.push(said);
     if (program !== "rm") {
-      later.push(line);
+      later.push(said);
       continue;
     }
     let options = true;
@@ -109,9 +124,11 @@ export function deletionTargets(command: string, cwd: string, look: Overwritten 
   // A deletion no simple command here holds: inside a script a shell is fed.
   if (!seen) {
     const lines = unwrapped(code).split("\n");
-    later.push(lines.find(detectsDeletion)?.trim() ?? shellCode(command.trim()));
+    const line = lines.find(detectsDeletion)?.trim() ?? shellCode(command.trim());
+    later.push(line);
+    parts.push(line);
   }
-  return { paths, later, git };
+  return { paths, later, git, parts };
 }
 
 /**
@@ -132,8 +149,9 @@ function gitTargets(lost: Found[], gitAt: string | undefined, look: Overwritten)
   for (const { restore, ...l } of lost) {
     if (restore && edited) continue;
     // Paths and folders show in full; branch and stash names as they are.
-    const name = l.what === "branch" || l.what === "stash" || l.what === "stashes" || l.what === "commits";
-    out.push(name || gitAt === undefined ? l : { ...l, target: path.resolve(gitAt, l.target) });
+    if (l.what === "branch") out.push(gitAt === undefined ? l : { ...l, in: gitAt });
+    else if (l.what === "stash" || l.what === "stashes" || l.what === "commits" || gitAt === undefined) out.push(l);
+    else out.push({ ...l, target: path.resolve(gitAt, l.target) });
   }
   return out;
 }
@@ -229,6 +247,18 @@ function gitLoss(words: string[]): Found[] {
     default:
       return [];
   }
+}
+
+/** A simple command as the owner reads it: a word with spaces or quotes quoted again, a redirection with its sign. */
+function written(words: Word[]): string {
+  return words
+    .map((w) => {
+      // A word the shell would read differently bare (a glob, a `$` the quotes kept) was quoted: quote it again.
+      const quoted = /[\s'"]/.test(w.text) || (!w.unknown && !w.brace && /[*?[\]{}()$`;&|<>\\]/.test(w.text));
+      const text = quoted ? `'${w.text.replace(/'/g, "'\\''")}'` : w.text;
+      return w.redirect === "write" ? `> ${text}` : w.redirect === "read" ? `< ${text}` : text;
+    })
+    .join(" ");
 }
 
 /** A word with the line's own variables put in, or undefined when only the shell knows it. */

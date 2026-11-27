@@ -38,7 +38,7 @@ test("a restore that brings back files deleted in the working tree loses nothing
   // Only what git itself refuses when work would be lost is left, and that never asks by itself.
   assert.deepEqual(deletionTargets(CLEANUP, dir.path).git, [
     { what: "worktree", target: repo, soft: true },
-    { what: "branch", target: "fix/local-auth", soft: true },
+    { what: "branch", target: "fix/local-auth", soft: true, in: dir.path },
   ]);
   assert.equal(losesWork("git -C .worktrees/local-auth checkout -- LICENSE", dir.path), false);
   assert.equal(losesWork("git -C .worktrees/local-auth restore .", dir.path), false, "a clean tree loses nothing");
@@ -53,7 +53,7 @@ test("a restore over real edits still counts, and names only the edited files, w
   assert.deepEqual(deletionTargets(CLEANUP, dir.path).git, [
     { what: "changes", target: path.join(repo, "Dockerfile") },
     { what: "worktree", target: repo, soft: true },
-    { what: "branch", target: "fix/local-auth", soft: true },
+    { what: "branch", target: "fix/local-auth", soft: true, in: dir.path },
   ]);
   // A staged new file goes when the index is restored too.
   fs.writeFileSync(path.join(repo, "new.txt"), "new\n");
@@ -68,7 +68,7 @@ test("paths of a git command are read from its -C folder, also when git cannot s
   assert.deepEqual(deletionTargets(CLEANUP, cwd, unknown).git, [
     ...FILES.map((f) => ({ what: "changes", target: path.join(cwd, ".worktrees", "local-auth", f) })),
     { what: "worktree", target: path.join(cwd, ".worktrees", "local-auth"), soft: true },
-    { what: "branch", target: "fix/local-auth", soft: true },
+    { what: "branch", target: "fix/local-auth", soft: true, in: cwd },
   ]);
   assert.deepEqual(deletionTargets("cd sub && git -C a -C b clean -f x", cwd, unknown).git, [
     { what: "untracked", target: path.join(cwd, "sub", "a", "b", "x") },
@@ -87,9 +87,17 @@ test("the deletion card lists what goes in plain words, relative to the project,
       "La carpeta de trabajo .worktrees/local-auth (git no la borra si tiene cambios sin guardar)",
       "La rama fix/local-auth (git no la borra si tiene trabajo sin mergear)",
     ],
-    command: CLEANUP,
+    // The parts that delete, one per line; the channels' text keeps the whole command.
+    command: CLEANUP.split(" && ").join("\n"),
   });
   assert.doesNotMatch(card.detail, /no lo dijo|Por qué/);
+  assert.match(card.detail, /^Comando: git -C .*git branch -d fix\/local-auth$/m);
+  // A deletion chained after other work: the card shows only the part that deletes.
+  const chained = "pnpm test && rm -rf 'old drafts' && echo done";
+  assert.equal(
+    deletionCard(store, { ...deletionTargets(chained, root), root }, undefined, chained).deletion.command,
+    "rm -rf 'old drafts'",
+  );
   store.settings.set("owner_language", "en");
   const forced = deletionCard(
     store,

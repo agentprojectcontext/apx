@@ -62,7 +62,8 @@ deletion("a deletion card lists what goes and folds the command", async ({ page,
     await expect(card.locator(".inputcard__reason")).toHaveCount(0);
     await expect(card).not.toContainText("/Volumes");
     const toggle = card.getByRole("button", { name: "Ver comando" });
-    const command = card.getByText(CLEANUP, { exact: true });
+    // The parts of the command that delete, one per line.
+    const command = card.locator("code.inputcard__detail");
     for (const [width, layout] of [
       [1280, "desktop"],
       [390, "phone"],
@@ -76,6 +77,7 @@ deletion("a deletion card lists what goes and folds the command", async ({ page,
         if (shot === "command") {
           await toggle.click();
           await expect(command).toBeVisible();
+          await expect(command).toHaveText(CLEANUP.split(" && ").join("\n"));
         }
         const file = info.outputPath(`deletion-card-${layout}-${shot}.png`);
         await page.screenshot({ path: file, animations: "disabled" });

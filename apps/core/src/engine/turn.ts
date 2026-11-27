@@ -84,6 +84,7 @@ import {
   workspaceBlock,
 } from "./context.ts";
 import { type Caller, type DelegateTo, resultCard } from "./delegation.ts";
+import type { AuxJudge } from "./deletion-judge.ts";
 import { discoveryReplyContext } from "./discovery-reply.ts";
 import { type Display, openDisplay } from "./display.ts";
 import { createExecutor, type Executor } from "./executor.ts";
@@ -149,6 +150,8 @@ export type TurnDeps = {
   busy?: (() => () => void) | undefined;
   /** A protocol method through the router, as the agent of `as.run`. */
   call: ToolCall;
+  /** The auxiliary model's one-shot answer: whether a deletion in Auto runs without a card (DECISIONS.md#d-281). */
+  judge?: AuxJudge | undefined;
   /** How the agent acts and how far its files reach: every permission question goes here. */
   permissions: Permissions;
   delegate(caller: Caller, to: DelegateTo, task: string, waitMs: number, signal?: AbortSignal): Promise<string>;
@@ -351,6 +354,8 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     busy: deps.busy,
     apxPort: deps.apxPort,
     workDir: harnessDir(store, deps.home, thread),
+    scratchDir: scratchDir(store, deps.home, thread),
+    judge: deps.judge,
     permissions: deps.permissions,
     // Harnesses and delegations see the agent as it acts here (its project's and callers' mode), never its bare record.
     delegate: (to, task, waitMs, signal) =>

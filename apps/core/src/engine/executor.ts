@@ -20,6 +20,7 @@ import { cap, UNTRUSTED_MARK } from "../tools/result.ts";
 import { commandRisk, deletionRoot, onlyDeletes } from "../tools/shell.ts";
 import type { CheckContext, Confirm, ScopedThread, Tool, ToolContext } from "../tools/types.ts";
 import { prepareBrowserConsent } from "./browser-consent.ts";
+import { type AuxJudge, deletionRuns } from "./deletion-judge.ts";
 import type { Display } from "./display.ts";
 import { folderBinding, type Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
@@ -187,6 +188,10 @@ export function createExecutor(o: {
   apxPort: () => number;
   /** Where an outside agent works (harnessDir): its tools are checked against this folder. */
   workDir: string;
+  /** The chat's temp folder: a deletion there is the agent's own scratch work. */
+  scratchDir?: string | undefined;
+  /** The auxiliary model's one-shot answer: whether a deletion in Auto runs without a card (DECISIONS.md#d-281). */
+  judge?: AuxJudge | undefined;
   /** How the agent acts and how far its files reach: asked for each call, never worked out here. */
   permissions: Permissions;
 }): Executor {
@@ -416,15 +421,35 @@ export function createExecutor(o: {
     const granted = !!target && store.approvals.allows(target, thread.id, agent.id, args, outside);
     let checkConsentAtDispatch = !!target?.browser && granted;
     let pendingBrowserScope: "tab" | "turn" | undefined;
+    // A deletion shows what goes and why, in the agent's words just before the call (DECISIONS.md#d-266); in Auto what
+    // is plainly the agent's own, or what the judge finds the work asked for, runs without it (DECISIONS.md#d-281).
+    const deleted =
+      gate.kind === "confirm" && target?.key === DELETE_GRANT
+        ? tool.deletes?.(args, { agent, thread: callThread })
+        : undefined;
+    const judged =
+      !!deleted?.place &&
+      !granted &&
+      modeOf(agent) === "auto" &&
+      (await deletionRuns({
+        store,
+        run,
+        agentId: agent.id,
+        thread,
+        deletion: deleted,
+        place: deleted.place,
+        reason: lastWords(display),
+        judge: o.judge,
+        untrusted,
+      }));
     if (
+      !judged &&
       gate.kind === "confirm" &&
       // The owner just said yes to this very call on its folder card: manual's ask for every change is answered.
       !(lent.asked && gate.why === "asks_every" && !keeps) &&
       !granted &&
       (target?.browser || !o.inputs.takeGrant(thread.id, agent.id, name, raw, target?.key))
     ) {
-      // A deletion shows what goes and why, in the agent's words just before the call (DECISIONS.md#d-266).
-      const deleted = target?.key === DELETE_GRANT ? tool.deletes?.(args, { agent, thread: callThread }) : undefined;
       const gone = deleted && deletionCard(store, deleted, lastWords(display), String(args.command ?? ""));
       const answer = await o.inputs.ask({
         run,
@@ -697,6 +722,27 @@ export function createExecutor(o: {
     const deletion = decision.why === "always" && ran && onlyDeletes(command, o.apxPort(), () => base);
     const grantable = deletion && inside;
     if (grantable && store.approvals.allows(deleteApproval, thread.id, agent.id)) return allow();
+    const gone = deletion ? { ...deletionTargets(command, base), root: deletionRoot(store, thread, base) } : undefined;
+    // In Auto, what is plainly the agent's own, or what the judge finds the work asked for, runs (DECISIONS.md#d-281).
+    if (
+      gone &&
+      modeOf(agent) === "auto" &&
+      (await deletionRuns({
+        store,
+        run: o.run(),
+        agentId: agent.id,
+        thread,
+        deletion: gone,
+        place: { roots: [...new Set([gone.root, base])], scratch: o.scratchDir ?? base },
+        reason:
+          typeof req.input === "object" && req.input && "description" in req.input
+            ? String(req.input.description)
+            : undefined,
+        judge: o.judge,
+        untrusted,
+      }))
+    )
+      return allow();
     // A change outside its folders is the same folder card as ours: once, or always for this agent (DECISIONS.md#d-108).
     const offered = [...new Set(judged.flatMap((r) => ("refused" in r && r.offer ? [r.offer] : [])))];
     // A command that only reads keeps the plain card, and so does one asking to read first (its offer may be a read).
@@ -720,7 +766,7 @@ export function createExecutor(o: {
       ...(deletion
         ? deletionCard(
             store,
-            { ...deletionTargets(command, base), root: deletionRoot(store, thread, base) },
+            gone ?? { ...deletionTargets(command, base), root: deletionRoot(store, thread, base) },
             typeof reason === "string" ? reason : undefined,
             command,
           )
