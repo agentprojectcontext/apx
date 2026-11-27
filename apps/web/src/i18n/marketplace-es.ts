@@ -84,7 +84,7 @@ export const esMarketplace = {
   "mkt.auth.signIn": "Iniciás sesión en el servicio",
   "mkt.auth.key": "Una clave tuya",
   "mkt.auth.pairing": "Un código que muestra el dispositivo",
-  "mkt.auth.local": "Credenciales o permisos configurados en el equipo",
+  "mkt.auth.local": "Requiere credenciales o permisos en el equipo donde corre APX",
   "mkt.auth.none": "No hace falta",
   "mkt.place.here": "En tu compu",
   "mkt.conn.address": "Dirección",

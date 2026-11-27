@@ -1,8 +1,21 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { ExtensionInfo, McpServerStatus } from "@apx/protocol";
+import { enMarketplace } from "../i18n/marketplace-en.ts";
+import { esMarketplace } from "../i18n/marketplace-es.ts";
 import type { Item } from "../resources/extensionItems.ts";
-import { accessLines, authText, fromText, kindText, nameFor, newest, nextStep, waitReason } from "./itemText.ts";
+import { bringsOf } from "./brings.ts";
+import {
+  AUTH_TEXT,
+  accessLines,
+  authText,
+  fromText,
+  kindText,
+  nameFor,
+  newest,
+  nextStep,
+  waitReason,
+} from "./itemText.ts";
 
 // The key with its values, so a test reads what the screen would say without the dictionaries.
 const t = (key: string, vars?: Record<string, string | number>) =>
@@ -109,6 +122,20 @@ test("local access is not no authorization, before and after installation", () =
     authText(item({ connection: "local", server: { status: "needs-sign-in" } as McpServerStatus }), t),
     "mkt.auth.signIn",
   );
+});
+
+test("local authorization is the same requirement in the page and connector in both languages", () => {
+  const local = item({ connection: "local", ext: ext({ mcp: ["service"] }), state: "on" });
+  for (const [lang, messages, expected] of [
+    ["en", enMarketplace, "Requires credentials or permissions on the computer running APX."],
+    ["es", esMarketplace, "Requiere credenciales o permisos en el equipo donde corre APX"],
+  ] as const) {
+    const translate = (key: string) => messages[key as keyof typeof messages] ?? key;
+    assert.equal(authText(local, translate), expected);
+    const connector = bringsOf(local, [], lang).connectors[0];
+    assert.ok(connector?.auth);
+    assert.equal(translate(AUTH_TEXT[connector.auth]), expected);
+  }
 });
 
 test("new ones stand out only while most of the catalog is not new", () => {
