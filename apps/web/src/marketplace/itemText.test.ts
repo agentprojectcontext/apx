@@ -89,7 +89,10 @@ test("one next step per state: add, connect, pair a device, then done", () => {
   assert.equal(nextStep(item({ state: "on", ext: tv })), "pair");
   assert.equal(nextStep(item({ state: "attention", attention: "keys", ext: ext() })), "keys");
   assert.equal(nextStep(item({ state: "attention", attention: "sign-in", ext: ext() })), "sign-in");
-  assert.equal(nextStep(item({ state: "off", attention: "update-waits", ext: ext({ enabled: false }) })), "review");
+  assert.equal(
+    nextStep(item({ state: "attention", attention: "update-waits", ext: ext({ enabled: false }) })),
+    "review",
+  );
   assert.equal(nextStep(item({ state: "on", ext: ext() })), "done");
 });
 

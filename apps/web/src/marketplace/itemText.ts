@@ -46,7 +46,8 @@ export function nextStep(i: Item): Step {
   }
   const e = i.ext;
   if (!e) return "done";
-  if (i.state === "off") return i.attention === "update-waits" ? "review" : e.companion ? "pair" : "connect";
+  if (i.attention === "update-waits") return "review";
+  if (i.state === "off") return e.companion ? "pair" : "connect";
   if (i.attention === "keys") return "keys";
   if (i.attention === "settings") return "settings";
   if (i.attention === "sign-in") return "sign-in";

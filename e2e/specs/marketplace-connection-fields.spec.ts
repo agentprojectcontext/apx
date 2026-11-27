@@ -2,9 +2,24 @@ import fs from "node:fs";
 import path from "node:path";
 import { expect, open, rpc, test, world } from "./kit.ts";
 
+test.use({
+  expectedConsoleErrors: [
+    {
+      path: "/rpc/extensions.settings",
+      text: "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    },
+  ],
+});
+
 for (const language of ["en", "es"] as const) {
-  test(`the extension's connection fields and help follow the panel language (${language})`, async ({ page }) => {
+  test(`an updated extension asks for fresh connection fields in the panel language (${language})`, async ({
+    page,
+  }) => {
     const id = `northwind-${language}`;
+    const setup = await rpc<Record<string, unknown>>("setup.status");
+    await page.route("**/rpc/setup.status", (route) =>
+      route.fulfill({ json: { ok: true, result: { ...setup, done: true } } }),
+    );
     const { dir } = await world.info();
     const root = path.join(dir, id);
     fs.mkdirSync(root, { recursive: true });
@@ -16,9 +31,28 @@ for (const language of ["en", "es"] as const) {
         name: "Northwind Store",
         version: "1.0.0",
         settings: [
+          { name: "host", label: "Store host", type: "string", required: true },
+          { name: "legacy_auth", label: "Legacy credential", type: "string", required: true, sensitive: true },
+        ],
+      }),
+    );
+    await rpc("extensions.install", { path: root });
+    await rpc("extensions.settings", {
+      id,
+      values: { host: "legacy.example.com/store", legacy_auth: "fixture-only" },
+    });
+    fs.writeFileSync(
+      path.join(root, "apx-extension.json"),
+      JSON.stringify({
+        manifest: 2,
+        id,
+        name: "Northwind Store",
+        version: "1.1.0",
+        settings: [
           {
             name: "site",
             type: "string",
+            format: "https-url",
             required: true,
             label: "Store address",
             description: "Enter the full HTTPS address.",
@@ -54,7 +88,7 @@ for (const language of ["en", "es"] as const) {
     await open(page, `#view=marketplace&item=ext%3A${id}`);
     const spanish = language === "es";
     const connect = spanish ? "Conectar" : "Connect";
-    await page.getByRole("button", { name: connect, exact: true }).click();
+    await page.getByRole("button", { name: spanish ? "Ver qué cambia" : "See what changes", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: `${connect} Northwind Store` });
     const submit = dialog.getByRole("button", { name: connect, exact: true });
     const address = dialog.getByLabel(spanish ? "Dirección de la tienda" : "Store address", { exact: true });
@@ -67,6 +101,9 @@ for (const language of ["en", "es"] as const) {
     );
     await expect(dialog).toContainText(spanish ? "Creala en tu perfil." : "Create it in your profile.");
     await expect(credential).toHaveAttribute("type", "password");
+    await expect(address).toHaveValue("");
+    await expect(credential).toHaveValue("");
+    await expect(dialog.getByLabel("Legacy credential")).toHaveCount(0);
     await expect(submit).toBeDisabled();
     await address.fill("https://shop.example.com");
     await username.fill("northwind-test");
@@ -77,6 +114,12 @@ for (const language of ["en", "es"] as const) {
     await expect(dialog).toBeVisible();
     expect(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
     await expect(submit).toBeInViewport();
+    await address.fill("http://shop.example.com");
+    await submit.click();
+    await expect(dialog.getByRole("alert")).toContainText(
+      spanish ? "Revisá lo que ingresaste" : "Check the information you entered",
+    );
+    await expect(address).toBeEditable();
 
     await dialog.getByRole("button", { name: spanish ? "Cerrar" : "Close", exact: true }).click();
     await rpc("extensions.settings", {
