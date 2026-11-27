@@ -32,6 +32,12 @@
   padding-top: 12px;
   border-top: 1px solid var(--apx-border);
 }
+.mkt__installed-row {
+  height: 44px;
+}
+.mkt__installed-row .apx-nav__icon {
+  width: 36px;
+}
 .mkt__label {
   margin: 0 10px 6px;
   color: var(--apx-fg-subtle);
@@ -403,6 +409,9 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+.mkt-part__connector--unmarked .apx-disclosure__body {
+  padding-left: 14px;
 }
 .mkt-part__note {
   margin: 0;
