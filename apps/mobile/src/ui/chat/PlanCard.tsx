@@ -26,7 +26,7 @@ export function PlanCard({
   const s = useStyles();
   const done = steps?.filter((step) => step.state === "done").length ?? 0;
   const list = (
-    <View style={[s.list, collapsible && s.compactList]}>
+    <View testID="plan-steps" style={[s.list, collapsible && s.compactList]}>
       {steps
         ? steps.map((step, i) => (
             <ActionBranch
@@ -114,7 +114,7 @@ const useStyles = makeStyles((theme) => ({
   title: { flex: 1, color: theme.fg, fontSize: 13, fontWeight: "500" },
   count: { color: theme.fgSubtle, fontSize: 12 },
   list: { paddingHorizontal: 12, paddingVertical: 8, gap: 6 },
-  compactList: { paddingHorizontal: 0, paddingVertical: 2, gap: 4 },
+  compactList: { paddingHorizontal: 0, paddingVertical: 2, gap: 0 },
   step: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
   text: { flex: 1, color: theme.fg, fontSize: 14, lineHeight: 19 },
   compactText: { fontSize: 13, lineHeight: 18 },

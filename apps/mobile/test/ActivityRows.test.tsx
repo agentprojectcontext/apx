@@ -144,6 +144,7 @@ test("plan step guides belong to the chat, not the task detail checklist", async
   await ui.rerender(<PlanCard label="Plan" steps={steps} collapsible />);
   await fireEvent.press(ui.getByRole("button"));
   expect(ui.getAllByTestId("action-guide", { includeHiddenElements: true })).toHaveLength(2);
+  expect(StyleSheet.flatten(ui.getByTestId("plan-steps").props.style).gap).toBe(0);
   expect(ui.getAllByRole("button")).toHaveLength(1);
 });
 
