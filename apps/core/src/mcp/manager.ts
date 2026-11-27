@@ -9,6 +9,7 @@ import { z } from "zod";
 import { lineage, parentOf } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, conflict, errorMessage, unavailable } from "../errors.ts";
+import { connectionGenerationFields } from "../extensions/connection-generation.ts";
 import { commandEnv, SECRET_NAME } from "../harness/env.ts";
 import type { Log } from "../log.ts";
 import { waitForExit } from "../process-exit.ts";
@@ -19,7 +20,8 @@ import { type Confirm, type Effect, invalidArguments, type ScopedThread, type To
 import { type McpTool, mcpApproval, mcpServerApproval, serverApprovalId } from "./approval.ts";
 import { ARGS_SECRET, type McpDef, mcpConfig } from "./config.ts";
 import type { Conn, Connected } from "./connection.ts";
-import { connectionErrors, MCP_SECRET_REF } from "./connection-errors.ts";
+import { connectionErrors } from "./connection-errors.ts";
+import { secretNames } from "./definition-secrets.ts";
 import { fileRefs, fillFileArgs, hasFileRefs, type OpenFile, refOf } from "./file-args.ts";
 import { createStderrLogs } from "./logs.ts";
 import { closePosixTree } from "./posix-process-tree.ts";
@@ -45,15 +47,6 @@ const SIGN_IN_FIRST = "it waits for you to sign in: use Sign in";
 const SIGN_IN_ASKED = "it asked you to sign in: finish on the page it opened in your browser";
 
 export type { McpStatus } from "./status.ts";
-
-/** The stored secrets a definition names, in order, once each. */
-const secretNames = (d: McpDef): string[] => [
-  ...new Set(
-    [...Object.values(d.env), ...Object.values(d.headers), ...d.args, d.url ?? ""].flatMap((v) =>
-      [...v.matchAll(MCP_SECRET_REF)].map((m) => m[1] as string),
-    ),
-  ),
-];
 
 /**
  * When an MCP tool waits for the owner. MCP's defaults: a tool may change things and may be destructive unless it
@@ -253,8 +246,8 @@ export function createMcp(deps: {
    * from the panel (mcp.signIn) or its definition changes: every start would open their browser once more.
    */
   const signInKey = (d: McpDef) => `mcp_sign_in:${keyOf(d)}`;
-  const disconnectedKey = (d: Pick<McpDef, "scope" | "project_id" | "name">) =>
-    `mcp_disconnected:${d.scope}:${d.project_id ?? ""}:${d.name}`;
+  const disconnectedKey = (d: Pick<McpDef, "scope" | "project_id" | "name" | "extension_id">) =>
+    `mcp_disconnected:${d.scope}:${d.project_id ?? ""}:${d.extension_id ? `extension:${d.extension_id}:` : ""}${d.name}`;
   const waitsSignIn = (d: McpDef) =>
     Boolean(deps.store.settings.get(disconnectedKey(d))) || deps.store.settings.get(signInKey(d)) === d.hash;
   const setWaitsSignIn = (d: McpDef, on: boolean) => {
@@ -612,6 +605,7 @@ export function createMcp(deps: {
           : (seen(d) ?? []);
         return {
           name: d.name,
+          ...connectionGenerationFields(deps.store, d.extension_id),
           scope: d.scope,
           ...(d.project_id || d.only ? { project_id: d.project_id ?? d.only } : {}),
           ...(d.values_of ? { values_of: d.values_of } : {}),
@@ -746,7 +740,7 @@ export function createMcp(deps: {
       return stderr.read(keyOf(d), n);
     },
     /** Called while suspended and drained: no automatic use may recreate a cleared session. */
-    requireSignIn(servers: Array<Pick<McpDef, "scope" | "project_id" | "name">>) {
+    requireSignIn(servers: Array<Pick<McpDef, "scope" | "project_id" | "name" | "extension_id">>) {
       for (const server of servers) deps.store.settings.set(disconnectedKey(server), randomUUID());
     },
     /** Refuses new starts while an extension replaces the servers' files. */

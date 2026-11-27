@@ -216,6 +216,8 @@ export const extensionMethods = {
           enabled: z.boolean(),
           /** Atomically claim a first activation; a stale connection attempt must not adopt another's. */
           only_if_disabled: z.literal(true).optional(),
+          /** Required for a connection attempt's first activation: use its original extension snapshot. */
+          connection_generation: z.string().max(64).optional(),
           /** Undo only the activation identified by this receipt; a later change makes it a no-op. */
           rollback_token: z.string().uuid().optional(),
         })

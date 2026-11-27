@@ -17,7 +17,12 @@ test("disconnect drains OAuth callbacks, isolates connectors and permits explici
     waitFor(async () => (await status(name))?.status === state, `${name} to become ${state}`, { ms: 15_000 });
   const callbackFile = (id: string) => path.join(source.path, `${id}.callback`);
   const signIn = async (id: string) => {
-    await env.client.call("mcp.signIn", { scope: "global", server: `${id}-shop` });
+    const extension = (await env.client.call("extensions.list", {})).extensions.find((e) => e.id === id);
+    await env.client.call("mcp.signIn", {
+      scope: "global",
+      server: `${id}-shop`,
+      connection_generation: extension?.connection_generation,
+    });
     await becomes(`${id}-shop`, "needs-sign-in");
     const callback = fs.readFileSync(callbackFile(id), "utf8");
     assert.equal((await fetch(callback)).status, 200);
@@ -92,8 +97,12 @@ test("disconnect drains OAuth callbacks, isolates connectors and permits explici
     await signIn("first_shop");
     assert.ok(fs.existsSync(path.join(first, "mcp-remote-v1", "00000000000000000000000000000000_tokens.json")));
     // A callback still waiting for approval is stopped too, not just an established transport.
-    await env.client.call("extensions.disconnect", { id: "first_shop" });
-    await env.client.call("mcp.signIn", { scope: "global", server: "first_shop-shop" });
+    const latest = await env.client.call("extensions.disconnect", { id: "first_shop" });
+    await env.client.call("mcp.signIn", {
+      scope: "global",
+      server: "first_shop-shop",
+      connection_generation: latest.connection_generation,
+    });
     const pendingCallback = fs.readFileSync(callbackFile("first_shop"), "utf8");
     await env.client.call("extensions.disconnect", { id: "first_shop" });
     await assert.rejects(fetch(pendingCallback), /fetch failed/);

@@ -16,6 +16,7 @@ import type { ExtensionRecord, PreviousVersion } from "../domain/extensions.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, CallError, errorMessage, notFound } from "../errors.ts";
 import { isMcpRemote } from "../mcp/bridge.ts";
+import { assertExtensionNames } from "../mcp/extension-names.ts";
 import { expandHome, isInside, real, realpath, samePath, tildeHome } from "../paths.ts";
 import { extensionSecret as extSecret } from "../secret-names.ts";
 import type { Secrets } from "../secrets.ts";
@@ -23,6 +24,7 @@ import { addExtensionAgent, addedAgents, archiveExtensionAgents } from "./agents
 import { type Catalog, type CatalogCheck, DownloadError, downloadArchive } from "./catalog.ts";
 import { ASSET_MAX, createPackageReader, newest } from "./catalog-packages.ts";
 import type { Catalogs } from "./catalogs.ts";
+import { connectionGeneration } from "./connection-generation.ts";
 import { writeConnector } from "./connector.ts";
 import { clearChangedCredentials } from "./credential-contract.ts";
 import { createManifestV2, settingsInfo } from "./manifest-v2.ts";
@@ -196,6 +198,7 @@ export function createExtensions(deps: {
     version: e.manifest.version,
     description: e.manifest.description,
     enabled: e.enabled,
+    connection_generation: connectionGeneration(store, e),
     ...(hasManagedSession(e.manifest)
       ? { session: { can_disconnect: true as const, saved: savedExtensionSession(deps.home, e.id, e.manifest) } }
       : {}),
@@ -560,6 +563,7 @@ export function createExtensions(deps: {
     ): Promise<ExtensionInfo> {
       const { pkg, source, origin: catalogOrigin } = await load(input);
       const { manifest, hash } = pkg;
+      assertExtensionNames(store, manifest);
       if (expect && expect !== hash)
         throw refused("the extension is not the one you looked at; look at it again", { reason: "changed" });
       const check = await catalog.check(manifest.id, manifest.version, hash);
@@ -625,6 +629,7 @@ export function createExtensions(deps: {
         if (cur) clearChangedCredentials(id, cur.manifest, manifest, secrets);
         // The running plugin (if any) is of the files being replaced; it starts again only if allowed to stay on.
         await plugins.stopAndWait(id);
+        assertExtensionNames(store, manifest);
         if (cur && cur.hash !== hash && fs.existsSync(dir)) {
           fs.rmSync(previousDir(id), { recursive: true, force: true });
           fs.renameSync(dir, previousDir(id));
@@ -671,6 +676,7 @@ export function createExtensions(deps: {
       const e = get(id);
       const prev = e.previous;
       if (!prev) throw badRequest(`${e.manifest.name} has no earlier version kept`);
+      assertExtensionNames(store, prev.manifest);
       const sameSavedOrigin = e.origin_key && prev.origin_key && sameKeys(e.origin_key, prev.origin_key);
       if (
         !sameSavedOrigin &&
@@ -685,6 +691,7 @@ export function createExtensions(deps: {
         throw badRequest(`the earlier version of ${e.manifest.name} changed on disk; install it again`);
       clearChangedCredentials(id, e.manifest, prev.manifest, secrets);
       await plugins.stopAndWait(id);
+      assertExtensionNames(store, prev.manifest);
       const swap = path.join(root, `${id}.swap`);
       fs.rmSync(swap, { recursive: true, force: true });
       if (fs.existsSync(e.dir)) fs.renameSync(e.dir, swap);
@@ -715,6 +722,7 @@ export function createExtensions(deps: {
     },
     enable(id: string, enabled: boolean): ExtensionInfo {
       const e = get(id);
+      if (enabled) assertExtensionNames(store, e.manifest);
       // The copy must still be what was installed.
       if (enabled && !sameFiles(e.dir, e.hash))
         throw badRequest(`${e.manifest.name} changed on disk since it was installed; install it again`);

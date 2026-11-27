@@ -11,12 +11,15 @@ import { extensionMonitorDir } from "../extensions/data.ts";
 import { extSecret, SECRET_REF, SETTING_REF } from "../extensions/extensions.ts";
 import { NO_GLOBALS } from "../skills/skills.ts";
 import { isMcpRemote } from "./bridge.ts";
+import { assertManualName, extensionNameAssignments } from "./extension-names.ts";
 
 /** A command's arguments show in the process list to anyone on the computer: a variable goes in its env instead. */
 export const ARGS_SECRET = "a variable (secret://) in args shows in the process list: put it in env instead";
 
 export type McpDef = {
   name: string;
+  /** Owner of a managed extension definition; a manual server with the same label is not that extension. */
+  extension_id?: string;
   scope: "global" | "project";
   project_id?: string | undefined;
   /** An owner's server run for one project with that project's own variables (they win over the global ones). */
@@ -117,8 +120,10 @@ function readProjectFile(root: string): string | undefined {
 
 /** An enabled extension's servers, as the owner's own: its secrets renamed to its own, relative commands to its folder. */
 function extensionDefs(store: Store): McpDef[] {
+  const names = extensionNameAssignments(store);
   return store.extensions.enabled().flatMap((e) =>
     Object.entries(e.manifest.mcp).flatMap(([name, server]) => {
+      if (names.get(`${e.id}-${name}`) !== e.id) return [];
       // A whole value or inside text ("Bearer secret://token"): always the extension's own secret, never the owner's.
       // Its plain settings (manifest 2) are filled in as set, or their default.
       const setting = (n: string) => {
@@ -163,6 +168,7 @@ function extensionDefs(store: Store): McpDef[] {
       };
       const d = toDef(`${e.id}-${name}`, raw, { scope: "global", cwd: e.dir });
       if (!d) return [];
+      d.extension_id = e.id;
       d.literalSettings = literalSettings;
       if (Object.keys(literalSettings).length)
         d.hash = createHash("sha256")
@@ -299,6 +305,7 @@ export function mcpConfig(store: Store) {
     },
     /** Adds, replaces or (null) removes one of the owner's global servers. */
     setGlobal(name: string, server: Record<string, unknown> | null): void {
+      assertManualName(store, name, !server);
       const all = parse(store.settings.get("mcp_servers"));
       // As in a project's file: what the dialog does not edit (the project it is limited to) stays.
       if (server) {

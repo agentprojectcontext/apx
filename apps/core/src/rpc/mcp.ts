@@ -3,8 +3,10 @@
 import { ErrorCode } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
 import { badRequest, CallError, conflict, notFound } from "../errors.ts";
+import { checkConnectionGeneration } from "../extensions/connection-generation.ts";
 import { mcpServerApproval } from "../mcp/approval.ts";
 import { ARGS_SECRET } from "../mcp/config.ts";
+import { assertManualName } from "../mcp/extension-names.ts";
 import type { Mcp } from "../mcp/manager.ts";
 import { finishSignIn, returnAddress } from "../mcp/sign-in.ts";
 import type { Handlers } from "./router.ts";
@@ -133,9 +135,11 @@ export function mcpHandlers(mcp: Mcp, store: Store, switchable: (name: string) =
       mcp.config.setOn(project, server, on);
       return { servers: mcp.status(project) };
     },
-    "mcp.signIn": async ({ scope, server, project }) => {
+    "mcp.signIn": async ({ scope, server, project, connection_generation }) => {
       const d = mcp.find(scope, server, project);
       if (!d) throw notFound(`MCP server ${server}`);
+      if (d.extension_id) checkConnectionGeneration(store, d.extension_id, connection_generation);
+      else if (connection_generation) throw conflict("This server does not belong to the selected extension");
       await mcp.signIn(d);
       const s = mcp.status(project ?? d.only).find((x) => x.scope === scope && x.name === server);
       if (!s) throw new Error("server vanished");
@@ -160,6 +164,7 @@ export function mcpHandlers(mcp: Mcp, store: Store, switchable: (name: string) =
       return mcp.test(d);
     },
     "mcp.set": async ({ name, server, project }) => {
+      if (!project) assertManualName(store, name, !server);
       if (Array.isArray(server?.args) && JSON.stringify(server.args).includes("secret://"))
         throw badRequest(ARGS_SECRET);
       if (server?.project && !store.projects.get(server.project)) throw notFound(`project ${server.project}`);

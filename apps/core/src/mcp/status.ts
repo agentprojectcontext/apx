@@ -1,5 +1,6 @@
 export type McpStatus = {
   name: string;
+  connection_generation?: string;
   scope: "global" | "project";
   project_id?: string;
   values_of?: string;

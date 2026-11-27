@@ -8,6 +8,19 @@ const servers = [
   { name: "github", scope: "global" },
 ];
 
+test("signing in forwards the selected extension server's connection generation without refreshing it", async () => {
+  const generation = "a".repeat(64);
+  const { client, calls } = recordingClient({
+    "mcp.list": { servers: [{ name: "shop-main", scope: "global", connection_generation: generation }] },
+    "mcp.signIn": { server: { name: "shop-main", status: "ready", tools: 1 } },
+  });
+  assert.match(await printed(() => mcpCommand(client, ["signin", "shop-main"], {})), /signed in/);
+  assert.deepEqual(calls, [
+    ["mcp.list", {}],
+    ["mcp.signIn", { scope: "global", server: "shop-main", connection_generation: generation }],
+  ]);
+});
+
 test("tool descriptions filter by name and print shell-safe invocation arguments", async () => {
   const { client, calls } = recordingClient({
     "mcp.list": { servers: [{ name: "owner's notes", scope: "project", project_id: "acme" }] },
