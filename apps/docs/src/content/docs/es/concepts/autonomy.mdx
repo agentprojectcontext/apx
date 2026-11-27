@@ -142,9 +142,13 @@ de Claude Code, en vez de preguntarte cada vez:
   con trabajo sin mergear, un worktree con cambios sin guardar, un archivo tuyo que el agente no hizo, o cualquier cosa
   fuera de las carpetas de tus proyectos que puede cambiar. `sudo`, una versión y lo que se manda en tu nombre siguen
   con su propia tarjeta.
-- **El resto** (un comando en otra máquina, `xargs rm`, `find -exec rm`) lo decide el modelo auxiliar, que lee la
-  tarea, lo que dijiste hace poco y las reglas de tu proyecto sobre limpiar (en AGENTS.md). Si no hay modelo auxiliar,
-  falla o no está seguro, te llega la tarjeta.
+- **El resto** (un comando en otra máquina, `xargs rm -f`, `find -exec rm -f`, un patrón que todavía no coincide con
+  nada) lo decide el modelo auxiliar, que lee la tarea, lo que dijiste hace poco y las reglas de tu proyecto sobre
+  limpiar (en AGENTS.md). Si no hay modelo auxiliar, falla o no está seguro, te llega la tarjeta.
+
+Cuenta como borrado un `rm` forzado o recursivo (`-f`, `-r`), corra donde corra, y un comando de git que tira trabajo.
+Un `rm` simple, `find -delete` o `find -exec rm` sin esas opciones corre como cualquier otro cambio. Un patrón como
+`logs/*` se mira por los archivos que encuentra en el disco, uno por uno.
 
 A los agentes se les dice que borren en un comando aparte. Si un borrado viene encadenado después de otro trabajo, se
 mira solo, y la tarjeta muestra solo esa parte.

@@ -8,7 +8,7 @@ import { openDb } from "../db/db.ts";
 import { createStore } from "../domain/store.ts";
 import { deletionCard } from "../engine/owner-words.ts";
 import { tempDir } from "../testkit/platform.ts";
-import { deletionTargets, losesWork } from "./command-deletions.ts";
+import { deletes, deletionTargets, losesWork } from "./command-deletions.ts";
 
 const FILES = ["Dockerfile", "LICENSE", "pnpm-lock.yaml"];
 const CLEANUP =
@@ -111,4 +111,13 @@ test("the deletion card lists what goes in plain words, relative to the project,
     command: "rm -rf build && git branch -D fix/old",
   });
   assert.match(forced.detail, /^Why: Old build output\.$/m);
+});
+
+test("find and xargs are deletions when their rm is forced or recursive, as rm alone (DECISIONS.md#d-266)", () => {
+  for (const command of ["find . -name '*.log' -exec rm -f {} +", "ls logs | xargs -I{} rm -rf logs/{}"]) {
+    assert.equal(deletes(command), true, command);
+    assert.deepEqual(deletionTargets(command, "/work/acme").later.length, 1, command);
+  }
+  for (const command of ["find . -name '*.log' -delete", "find logs -exec rm {} \\;", "ls logs | xargs rm"])
+    assert.equal(deletes(command), false, command);
 });

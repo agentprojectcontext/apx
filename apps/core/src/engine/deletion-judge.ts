@@ -74,7 +74,7 @@ function context(c: DeletionCall, weighed: Weighed[], task: ReturnType<Store["ta
   const rules = projectRules(c.store, c.thread.project_id);
   return [
     `Command:\n${(c.deletion.parts ?? []).join("\n")}`,
-    `What it removes:\n${weighed.map((w) => `- ${w.what} (${w.why})`).join("\n")}`,
+    `What it removes:\n${listed(weighed)}`,
     c.reason ? `The agent's reason: ${c.reason}` : "The agent gave no reason.",
     task ? `Task: ${task.title}\n${(task.description ?? "").slice(0, 1500)}` : "",
     owner.length ? `The owner's recent words:\n${owner.join("\n").slice(0, 1500)}` : "",
@@ -85,6 +85,14 @@ function context(c: DeletionCall, weighed: Weighed[], task: ReturnType<Store["ta
   ]
     .filter(Boolean)
     .join("\n\n");
+}
+
+/** What the judge reads of each removed thing; a glob's many matches end in a count. */
+const LISTED = 40;
+function listed(weighed: Weighed[]): string {
+  const lines = weighed.slice(0, LISTED).map((w) => `- ${w.what} (${w.why})`);
+  if (weighed.length > LISTED) lines.push(`- and ${weighed.length - LISTED} more`);
+  return lines.join("\n");
 }
 
 function projectRules(store: Store, projectId: string | undefined): string {

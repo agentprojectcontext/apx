@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import type { PendingInput } from "@apx/protocol";
 import { callTool, inputOrEnd, inputsOrEnd, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { realpath } from "../paths.ts";
 import { removeDir } from "../testkit/platform.ts";
+import { waitFor } from "../testkit/wait.ts";
 import { deletionTargets } from "./command-deletions.ts";
 import { workDir } from "./folders.ts";
 import { broadScan, commandFailed, commandRisk, onlyDeletes, reachesOut } from "./shell.ts";
@@ -303,6 +304,7 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
   if (said.includes("judge other please"))
     return callTool("j2", "shell", { command: "find tmp-other -name '*.log' -exec rm -f {} +" });
   if (said.includes("coverage please")) return callTool("c1", "shell", { command: "rm -r coverage" });
+  if (said.includes("glob please")) return callTool("g1", "shell", { command: "rm -rf tmp-glob/*" });
   if (said.includes("homelab please")) return callTool("h1", "shell", { command: HOMELAB });
   if (said.includes("restore please"))
     return callTool("r1", "shell", { command: "git -C restore-repo restore --worktree -- a.txt b.txt" });
@@ -686,6 +688,22 @@ test("auto: test output it did not make goes without a card; what only the task 
   await env.settle(chat);
   assert.equal(await readFile(path.join(cwd, "tmp-other", "keep.log"), "utf8"), "x\n");
   assert.equal(judgeCalls() - before, 2, "the judge is asked only for what the rules leave open");
+});
+
+test("auto: a glob over the owner's files opens the card, as the files it matches would (DECISIONS.md#d-281)", async () => {
+  const cwd = workDir(env.core.store, env.home, {});
+  await mkdir(path.join(cwd, "tmp-glob"), { recursive: true });
+  await writeFile(path.join(cwd, "tmp-glob", "keep.log"), "x\n");
+  // The run starts after the file was made: it is the owner's, not the run's.
+  const born = (await stat(path.join(cwd, "tmp-glob", "keep.log"))).birthtimeMs;
+  await waitFor(() => Date.now() > born + 2, "the clock to pass the file's birth");
+  const chat = await thread();
+  await env.client.call("threads.send", { thread: chat, text: "glob please" });
+  const [card] = await inputsOrEnd(env.client, chat);
+  assert.equal(card?.deletion?.command, "rm -rf tmp-glob/*");
+  await env.client.call("runs.respond", { input: card?.id ?? "", decision: "deny" });
+  await env.settle(chat);
+  assert.equal(await readFile(path.join(cwd, "tmp-glob", "keep.log"), "utf8"), "x\n");
 });
 
 test("auto: the homelab cleanup chained after other work asks the judge, and its card shows only the part that deletes", async (t) => {

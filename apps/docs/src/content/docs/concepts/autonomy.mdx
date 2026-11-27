@@ -136,9 +136,13 @@ Claude Code's auto mode does, instead of asking each time:
 - **It asks you** before losing your work: changes not yet committed, a stash, files git does not track, a branch
   with work not merged, a worktree with unsaved work, a file of yours the agent did not make, or anything outside the
   folders of your projects it may change. `sudo`, a release and anything sent in your name keep their own card.
-- **Anything else** (a command on another machine, `xargs rm`, `find -exec rm`) goes to the auxiliary model, which
-  reads the task, your recent words and your project's rules about cleaning up (in AGENTS.md) and decides. If there
-  is no auxiliary model, it fails or it is not sure, you get the card.
+- **Anything else** (a command on another machine, `xargs rm -f`, `find -exec rm -f`, a pattern that matches nothing
+  yet) goes to the auxiliary model, which reads the task, your recent words and your project's rules about cleaning up
+  (in AGENTS.md) and decides. If there is no auxiliary model, it fails or it is not sure, you get the card.
+
+What counts as a deletion is a forced or recursive `rm` (`-f`, `-r`), wherever it runs, and a git command that throws
+work away. A plain `rm`, `find -delete` or `find -exec rm` without those flags runs like any other change. A pattern
+like `logs/*` is weighed by the files it matches on disk, one by one.
 
 Agents are told to delete in a command of its own. When a deletion comes chained after other work, it is weighed on
 its own and the card shows only that part.

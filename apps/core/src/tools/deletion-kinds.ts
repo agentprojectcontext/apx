@@ -47,10 +47,15 @@ const OUTPUT = new Set([
 /** How many entries of a folder are looked at to tell it is all new; a bigger one is not plainly the agent's. */
 const WALK_LIMIT = 500;
 
+/** How many files a glob may match to be weighed one by one; past it, the owner's card. */
+const MATCH_LIMIT = 1000;
+
+const GLOB = /[*?[]/;
+
 /** Each thing a deletion removes, weighed; `git` answers what only the repository knows. */
 export function weighDeletion(d: Deletion, at: DeletionPlace, git: GitFacts = gitFacts): Weighed[] {
   return [
-    ...d.paths.map((p) => weighPath(p, at)),
+    ...d.paths.flatMap((p) => weighPath(p, at)),
     ...d.git.flatMap((l) => (l.soft ? [] : [weighGit(l, git)])),
     ...d.later.map((w) => weighLater(w, at)),
   ];
@@ -60,16 +65,75 @@ export function weighDeletion(d: Deletion, at: DeletionPlace, git: GitFacts = gi
 export const verdictOf = (weighed: Weighed[]): Verdict =>
   weighed.some((w) => w.verdict === "ask") ? "ask" : weighed.every((w) => w.verdict === "run") ? "run" : "judge";
 
-function weighPath(p: string, at: DeletionPlace): Weighed {
+/** A path, or each file a glob matches on disk: the shell removes those, never the pattern as written. */
+function weighPath(p: string, at: DeletionPlace): Weighed[] {
+  if (!GLOB.test(p)) return [weighOne(p, at, { verdict: "run", why: "does not exist" })];
+  const found = globMatches(p);
+  if (!found) return [{ what: p, verdict: "ask", why: "more files than Auto looks at" }];
+  if (!found.length) return [weighOne(p, at, { verdict: "judge", why: "a pattern that matches nothing yet" })];
+  return found.map((f) => weighOne(f, at, { verdict: "run", why: "does not exist" }));
+}
+
+function weighOne(p: string, at: DeletionPlace, missing: Omit<Weighed, "what">): Weighed {
   const what = p;
   if (insideReal(at.scratch, p)) return { what, verdict: "run", why: "the chat's temp folder" };
   const root = at.roots.find((r) => insideReal(r, p));
   if (!root) return { what, verdict: "ask", why: "outside the owner's projects" };
-  if (!fs.existsSync(p)) return { what, verdict: "run", why: "does not exist" };
+  if (!there(p)) return { what, ...missing };
   const inside = path.relative(root, p).split(path.sep);
   if (inside.some((part) => OUTPUT.has(part))) return { what, verdict: "run", why: "build or test output" };
   if (madeSince(p, at.since)) return { what, verdict: "run", why: "made during this task" };
   return { what, verdict: "ask", why: "the owner's, not made during this task" };
+}
+
+/**
+ * What a glob matches on disk, the pattern itself included when a file has that name; undefined past MATCH_LIMIT.
+ * It matches more than the shell would (hidden files, anything from a `[`), never less: a quoted `*` is weighed too.
+ */
+function globMatches(pattern: string): string[] | undefined {
+  const { root } = path.parse(pattern);
+  let found = [root];
+  for (const part of pattern.slice(root.length).split(path.sep).filter(Boolean)) {
+    if (!GLOB.test(part)) {
+      found = found.map((f) => path.join(f, part));
+      continue;
+    }
+    const like = segmentPattern(part);
+    const next: string[] = [];
+    for (const folder of found) {
+      let names: string[];
+      try {
+        names = fs.readdirSync(folder);
+      } catch {
+        continue;
+      }
+      for (const name of names) if (like.test(name)) next.push(path.join(folder, name));
+      if (next.length > MATCH_LIMIT) return undefined;
+    }
+    found = next;
+  }
+  const all = new Set(found.filter(there));
+  if (there(pattern)) all.add(pattern);
+  return [...all];
+}
+
+/** Whether something is at `p`, a link included (a path through a file is nothing). */
+function there(p: string): boolean {
+  try {
+    return !!fs.lstatSync(p, { throwIfNoEntry: false });
+  } catch {
+    return false;
+  }
+}
+
+/** One path segment of a glob as a regular expression: `*` any run, `?` one character, from a `[` on anything. */
+function segmentPattern(part: string): RegExp {
+  let out = "";
+  for (const ch of part) {
+    if (ch === "[") return new RegExp(`^${out}.*$`, "s");
+    out += ch === "*" ? ".*" : ch === "?" ? "." : ch.replace(/[\\^$.|+(){}\]]/g, "\\$&");
+  }
+  return new RegExp(`^${out}$`, "s");
 }
 
 function weighGit(l: GitLoss, git: GitFacts): Weighed {

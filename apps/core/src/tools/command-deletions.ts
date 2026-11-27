@@ -254,7 +254,8 @@ function written(words: Word[]): string {
   return words
     .map((w) => {
       // A word the shell would read differently bare (a glob, a `$` the quotes kept) was quoted: quote it again.
-      const quoted = /[\s'"]/.test(w.text) || (!w.unknown && !w.brace && /[*?[\]{}()$`;&|<>\\]/.test(w.text));
+      const quoted =
+        /[\s'"]/.test(w.text) || (!w.unknown && !w.brace && !w.glob && /[*?[\]{}()$`;&|<>\\]/.test(w.text));
       const text = quoted ? `'${w.text.replace(/'/g, "'\\''")}'` : w.text;
       return w.redirect === "write" ? `> ${text}` : w.redirect === "read" ? `< ${text}` : text;
     })
@@ -271,5 +272,7 @@ function expand(w: Word, vars: Map<string, string>): string | undefined {
     return v ?? "";
   });
   if (unknown || /[$`]/.test(text) || !text) return undefined;
+  // `~user`, `~+` and `~-` are folders only the shell knows; a bare `~` is the owner's home.
+  if (w.tilde && /^~[^/\\]/.test(text)) return undefined;
   return w.tilde ? expandHome(text) : text;
 }

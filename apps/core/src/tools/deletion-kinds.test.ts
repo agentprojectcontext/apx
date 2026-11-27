@@ -89,3 +89,42 @@ test("uncommitted work asks; a container this run started goes; what only the re
   ]);
   assert.equal(verdictOf(weighDeletion(d, place())), "judge");
 });
+
+test("a glob is weighed by what it matches on disk, never as a path that does not exist", async () => {
+  const { dir, repo, place } = project();
+  await using _ = dir;
+  fs.mkdirSync(path.join(repo, "logs"));
+  fs.writeFileSync(path.join(repo, "logs", "app.log"), "the owner's\n");
+  fs.writeFileSync(path.join(repo, "logs", "[a].log"), "x\n");
+  // The task began after the owner's logs were written.
+  const before = place(Date.now() + 1000);
+  for (const command of [
+    "rm -rf logs/*",
+    "rm -rf logs/*.log",
+    "rm -f logs/app.lo?",
+    "rm -f logs/[ab]pp.log",
+    "rm -f 'logs/[a].log'",
+    "rm -rf ./*/app.log",
+    "D=logs/*; rm -rf $D",
+  ])
+    assert.equal(verdict(command, repo, before), "ask", command);
+  // What it matches is the agent's own: it runs, as the folder itself would.
+  assert.equal(verdict("rm -rf logs/*", repo, place(0)), "run");
+  fs.mkdirSync(path.join(repo, "coverage", "a"), { recursive: true });
+  assert.equal(verdict("rm -rf coverage/*", repo, before), "run");
+  // Matching nothing now, it may match what the same command makes first: the judge reads it.
+  assert.equal(verdict("rm -rf empty/*", repo, before), "judge");
+  assert.equal(verdict(`rm -rf ${before.scratch}/*`, repo, before), "run");
+  // The card shows the glob as the agent wrote it, not quoted as if it named one file.
+  assert.deepEqual(deletionTargets("rm -rf logs/* 'a b'/x\\*", repo).parts, ["rm -rf logs/* 'a b/x*'"]);
+});
+
+test("what only the shell resolves goes to the judge: braces, another user's home, unset variables", async () => {
+  const { dir, repo, place } = project();
+  await using _ = dir;
+  for (const command of ["rm -rf {logs,notes.md}", "rm -rf ~nobody/x", "rm -rf ~+/notes.md", "rm -rf $UNSET/x"]) {
+    const weighed = weighDeletion(deletionTargets(command, repo), place());
+    assert.ok(weighed.length > 0 && weighed.every((w) => w.why !== "does not exist"), command);
+    assert.equal(verdictOf(weighed), "judge", command);
+  }
+});

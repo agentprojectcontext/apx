@@ -6566,8 +6566,9 @@ Code in auto mode does, "sin preguntarme a cada rato". Manual and Total are unch
   (`git clean`), an unmerged branch, a worktree with unsaved or unmerged work, a file of the owner's the agent did not
   make, or anything outside the folders of the owner's projects it may change. `sudo`, a release and acting in the
   owner's name never reach this: they keep their own card (D-208).
-- What only the task can tell (a command on another machine, `xargs rm`, `find -exec rm`, a container it did not
-  start) goes to the auxiliary model (`engine/deletion-judge.ts`, purpose `deletion` in the auxiliary calls, 20 s
+- What only the task can tell (a command on another machine, a forced `xargs rm -f` or `find -exec rm -f`, a container
+  it did not start, a glob that matches nothing yet, `~user`, braces or a variable the line does not set) goes to the
+  auxiliary model (`engine/deletion-judge.ts`, purpose `deletion` in the auxiliary calls, 20 s
   deadline). It reads the deleting parts, what is known of each, the agent's reason, the task, the owner's recent words
   and the lines of the project's AGENTS.md about deleting or cleaning up, and answers run or ask. No model, a failure,
   the deadline or an unclear answer is a card. With outside content in the turn it still judges, told to answer run
@@ -6576,6 +6577,12 @@ Code in auto mode does, "sin preguntarme a cada rato". Manual and Total are unch
 - Agents are told to delete in a command of their own, in the git line, one character shorter than before
   (PROMPT_SIZE.md). A deletion chained after other work is still weighed on its own, and its card shows only the
   simple commands that delete; the channels' text keeps the whole command.
+
+- A glob (`logs/*`, `*.log`, `[ab]`) is weighed by each file it matches on disk, never as a path that does not exist:
+  read literally it would run, and the command would empty the folder. The match is wider than the shell's (hidden
+  files, anything from a `[` on, the pattern's own name), so it never weighs less than what goes; past 1000 matches it
+  asks. Only forced or recursive deletions are weighed at all (D-266): a plain `rm`, `find -delete` or
+  `find -exec rm` without `-f`/`-r` runs as any change.
 
 Known limits: "made since" reads creation time, which a copy renews and a move keeps; containers count as the agent's
 only when this run started them by `--name`.
