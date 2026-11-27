@@ -16,6 +16,7 @@ import { agentTrip, trip } from "./breaker.ts";
 import { frameInput } from "./context.ts";
 import { continuationCanStart } from "./continuations.ts";
 import { createDelegations } from "./delegation.ts";
+import type { AuxJudge } from "./deletion-judge.ts";
 import type { Display } from "./display.ts";
 import { createFanout, deliverResults } from "./fanout.ts";
 import type { Hooks } from "./hooks.ts";
@@ -199,6 +200,8 @@ export function createEngine(deps: {
   tools: Tool[];
   log: Log;
   call: ToolCall;
+  /** The auxiliary model's one-shot answer: whether a deletion in Auto runs without a card (DECISIONS.md#d-281). */
+  judge?: AuxJudge | undefined;
   /** How agents act and how far their files reach (engine/permissions.ts). */
   permissions: Permissions;
   home: string;

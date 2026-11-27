@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "registry": "apx-official",
-  "generated_at": "2026-11-26T23:36:15.105Z",
+  "generated_at": "2026-11-27T12:02:52.378Z",
   "publishers": [
     {
       "id": "apx",
@@ -17231,6 +17231,194 @@
         }
       ],
       "tier": "official"
+    },
+    {
+      "kind": "extension",
+      "id": "terraform-registry",
+      "publisher": "apx",
+      "name": "Terraform Registry",
+      "description": "Find public Terraform modules and providers before adding them to a configuration.",
+      "categories": [
+        "dev"
+      ],
+      "tags": [
+        "optional"
+      ],
+      "icon": "https://marketplace.apxagent.app/avatars/terraform-registry/0.1.2/f499caf917b595fe2ba15bc15ff66c9f42d4a963030aaf8acb799a02f151fb35.png",
+      "license": "MIT",
+      "tagline": "Look up public Terraform versions",
+      "category": "development",
+      "listing": "https://marketplace.apxagent.app/listings/terraform-registry/0.1.2/3e691297943e3912004d71896a0db640b1ee5f59c95f1503858e43735dd25ffd/apx-listing.json",
+      "versions": [
+        {
+          "version": "0.1.2",
+          "source": {
+            "type": "archive",
+            "url": "https://marketplace.apxagent.app/packages/terraform-registry/0.1.2/3e691297943e3912004d71896a0db640b1ee5f59c95f1503858e43735dd25ffd.apxext"
+          },
+          "integrity": "sha256-3e691297943e3912004d71896a0db640b1ee5f59c95f1503858e43735dd25ffd",
+          "archive": {
+            "url": "https://marketplace.apxagent.app/packages/terraform-registry/0.1.2/3e691297943e3912004d71896a0db640b1ee5f59c95f1503858e43735dd25ffd.apxext",
+            "sha256": "3e691297943e3912004d71896a0db640b1ee5f59c95f1503858e43735dd25ffd"
+          },
+          "content_hash": "ac90edf4cd909d71",
+          "apx": "2.17.2",
+          "published_at": "2026-11-27T12:02:52.378Z",
+          "card": {
+            "summary": "Find public Terraform modules and providers before adding them to a configuration.",
+            "features": [
+              "Look up public modules and providers by name.",
+              "Check published versions in the Terraform Registry."
+            ],
+            "requirements": [
+              "Docker running on the computer that runs APX.",
+              "Internet access to the public Terraform Registry."
+            ],
+            "limits": [
+              "Public Registry only. No private registries, workspaces, runs or infrastructure changes."
+            ],
+            "pricing": "No subscription is needed for public lookups.",
+            "privacy": "APX sends module and provider lookups to the public Terraform Registry. Leave private project names and secrets out of your lookup.",
+            "id": "terraform-registry",
+            "authentication": "none",
+            "billing": "free",
+            "docs": "README.md",
+            "schema": 2,
+            "tagline": "Look up public Terraform versions",
+            "description": "Ask for the published version of a Terraform module or provider, or find the right entry when you only know its name. Use the result to decide which version to pin before editing your Terraform configuration.",
+            "prompts": [
+              "What version of terraform-aws-modules/vpc/aws is published in the Terraform Registry?",
+              "Find the public Terraform AWS provider and tell me which publisher maintains it.",
+              "Look up the public Kubernetes provider for Terraform and show its published version."
+            ],
+            "category": "development",
+            "icon": "assets/icon.png",
+            "screenshots": [],
+            "connection": "none",
+            "links": {
+              "website": "https://registry.terraform.io/",
+              "privacy": "https://www.hashicorp.com/privacy",
+              "terms": "https://registry.terraform.io/terms",
+              "docs": "https://developer.hashicorp.com/terraform/mcp-server/deploy/local"
+            },
+            "publisher": {
+              "name": "APX",
+              "verified": true
+            },
+            "locales": {
+              "es": {
+                "summary": "Encontrá módulos y proveedores públicos de Terraform antes de sumarlos a tu configuración.",
+                "features": [
+                  "Buscá módulos y proveedores públicos por nombre.",
+                  "Revisá las versiones publicadas en el Registro de Terraform."
+                ],
+                "requirements": [
+                  "Docker abierto en el equipo donde corre APX.",
+                  "Acceso a internet para consultar el Registro público de Terraform."
+                ],
+                "limits": [
+                  "Solo el registro público. No accede a registros privados ni espacios de trabajo, no ejecuta tareas ni cambia infraestructura."
+                ],
+                "pricing": "No necesitás una suscripción para consultar el registro público.",
+                "privacy": "APX envía las búsquedas de módulos y proveedores al Registro público de Terraform. No incluyas nombres de proyectos privados ni claves.",
+                "tagline": "Consultá versiones públicas de Terraform",
+                "description": "Pedí la versión publicada de un módulo o proveedor de Terraform, o encontrá la entrada correcta si solo sabés el nombre. Usá el resultado para decidir qué versión fijar antes de editar tu configuración de Terraform.",
+                "prompts": [
+                  "¿Qué versión de terraform-aws-modules/vpc/aws está publicada en el Registro de Terraform?",
+                  "Buscá el proveedor público de AWS para Terraform y decime quién lo mantiene.",
+                  "Buscá el proveedor público de Kubernetes para Terraform y mostrame su versión publicada."
+                ],
+                "screenshots": []
+              }
+            }
+          }
+        },
+        {
+          "version": "0.1.1",
+          "source": {
+            "type": "archive",
+            "url": "https://marketplace.apxagent.app/packages/terraform-registry/0.1.1/a9c70467324942cf627941a462226edfd61bac3b91562705ec39e67f4de4a4ae.apxext"
+          },
+          "integrity": "sha256-a9c70467324942cf627941a462226edfd61bac3b91562705ec39e67f4de4a4ae",
+          "archive": {
+            "url": "https://marketplace.apxagent.app/packages/terraform-registry/0.1.1/a9c70467324942cf627941a462226edfd61bac3b91562705ec39e67f4de4a4ae.apxext",
+            "sha256": "a9c70467324942cf627941a462226edfd61bac3b91562705ec39e67f4de4a4ae"
+          },
+          "content_hash": "83ec81a69e6e2ecf",
+          "apx": "2.17.2",
+          "published_at": "2026-11-27T11:04:23.455Z",
+          "card": {
+            "summary": "Find public Terraform modules and providers before adding them to a configuration.",
+            "features": [
+              "Look up public modules and providers by name.",
+              "Check published versions in the Terraform Registry."
+            ],
+            "requirements": [
+              "Docker running on the computer that runs APX.",
+              "Internet access to the public Terraform Registry."
+            ],
+            "limits": [
+              "Public Registry only. No private registries, workspaces, runs or infrastructure changes."
+            ],
+            "pricing": "No subscription is needed for public lookups.",
+            "privacy": "APX sends module and provider lookups to the public Terraform Registry. Leave private project names and secrets out of your lookup.",
+            "id": "terraform-registry",
+            "authentication": "none",
+            "billing": "free",
+            "docs": "README.md",
+            "schema": 2,
+            "tagline": "Look up public Terraform versions",
+            "description": "Ask for the published version of a Terraform module or provider, or find the right entry when you only know its name. Use the result to decide which version to pin before editing your Terraform configuration.",
+            "prompts": [
+              "What version of terraform-aws-modules/vpc/aws is published in the Terraform Registry?",
+              "Find the public Terraform AWS provider and tell me which publisher maintains it.",
+              "Look up the public Kubernetes provider for Terraform and show its published version."
+            ],
+            "category": "development",
+            "icon": "assets/icon.svg",
+            "screenshots": [],
+            "connection": "none",
+            "links": {
+              "website": "https://registry.terraform.io/",
+              "privacy": "https://www.hashicorp.com/privacy",
+              "terms": "https://registry.terraform.io/terms",
+              "docs": "https://developer.hashicorp.com/terraform/mcp-server/deploy/local"
+            },
+            "publisher": {
+              "name": "APX",
+              "verified": true
+            },
+            "locales": {
+              "es": {
+                "summary": "Encontrá módulos y proveedores públicos de Terraform antes de sumarlos a tu configuración.",
+                "features": [
+                  "Buscá módulos y proveedores públicos por nombre.",
+                  "Revisá las versiones publicadas en el Registro de Terraform."
+                ],
+                "requirements": [
+                  "Docker abierto en el equipo donde corre APX.",
+                  "Acceso a internet para consultar el Registro público de Terraform."
+                ],
+                "limits": [
+                  "Solo el registro público. No accede a registros privados ni espacios de trabajo, no ejecuta tareas ni cambia infraestructura."
+                ],
+                "pricing": "No necesitás una suscripción para consultar el registro público.",
+                "privacy": "APX envía las búsquedas de módulos y proveedores al Registro público de Terraform. No incluyas nombres de proyectos privados ni claves.",
+                "tagline": "Consultá versiones públicas de Terraform",
+                "description": "Pedí la versión publicada de un módulo o proveedor de Terraform, o encontrá la entrada correcta si solo sabés el nombre. Usá el resultado para decidir qué versión fijar antes de editar tu configuración de Terraform.",
+                "prompts": [
+                  "¿Qué versión de terraform-aws-modules/vpc/aws está publicada en el Registro de Terraform?",
+                  "Buscá el proveedor público de AWS para Terraform y decime quién lo mantiene.",
+                  "Buscá el proveedor público de Kubernetes para Terraform y mostrame su versión publicada."
+                ],
+                "screenshots": []
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official",
+      "mcp_provider": "HashiCorp"
     },
     {
       "kind": "extension",

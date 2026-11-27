@@ -25,6 +25,7 @@ import { movedRuns } from "../chat/waiting";
 import { textOrder } from "../format";
 import type { ComputerStage } from "../ui/chat/ComputerProgress";
 import { isWorking } from "./chatSelectors";
+import { respondToInput } from "./respondToInput";
 
 function upsert(messages: Message[], message: Message, matchOptimistic = true): Message[] {
   const realText =
@@ -70,8 +71,9 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
   const [error, setError] = useState("");
   const [thread, setThread] = useState<Thread>();
   const [usage, setUsage] = useState<Usage>();
+  const [runStates, setRunStates] = useState<Record<string, string>>({});
   const [computer, setComputer] = useState<ComputerStage>();
-  const reload = useRef<() => Promise<void>>(async () => {});
+  const reload = useRef<(unavailableInput?: string) => Promise<void>>(async () => {});
   useEffect(() => {
     let socket: ApxSocket | undefined;
     let stopped = false;
@@ -80,6 +82,7 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
     let readyShown: ReturnType<typeof setTimeout> | undefined;
     let attempt = 0;
     const changes = new Map<string, Message>();
+    const changedRunStates = new Map<string, string>();
     const incomplete = new Map<string, number>();
     const lastSeq = new Map<string, number>();
     const deleted = new Set<string>();
@@ -101,6 +104,9 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
           setThread(result.thread);
         }
         setUsage(usageOf(result.runs));
+        const states = Object.fromEntries(changedRunStates);
+        for (const run of result.runs) if (run.ended_at || !changedRunStates.has(run.id)) states[run.id] = run.state;
+        setRunStates(states);
         setMessages((current) => {
           for (const message of result.messages) {
             const requiredVersion = incomplete.get(message.id);
@@ -125,7 +131,14 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
         setError(err instanceof Error ? err.message : String(err));
       }
     };
-    reload.current = load;
+    reload.current = async (unavailableInput) => {
+      // A streamed pending card must not override the authoritative settlement fetched after a conflict.
+      if (unavailableInput)
+        for (const [id, message] of changes)
+          if (message.parts.some((part) => part.type === "input" && part.input_id === unavailableInput))
+            changes.delete(id);
+      await load();
+    };
     const scheduleLoad = () => {
       if (!refetch)
         refetch = setTimeout(() => {
@@ -153,8 +166,10 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
             stateVersion++;
             setState(event.thread.state);
             setThread(event.thread);
-          } else if (event.type === "run.updated" && event.run.thread_id === threadId && event.run.usage?.context) {
-            setUsage(event.run.usage);
+          } else if (event.type === "run.updated" && event.run.thread_id === threadId) {
+            changedRunStates.set(event.run.id, event.run.state);
+            setRunStates((current) => ({ ...current, [event.run.id]: event.run.state }));
+            if (event.run.usage?.context) setUsage(event.run.usage);
           } else if (
             (event.type === "message.created" || event.type === "message.updated") &&
             event.message.thread_id === threadId
@@ -217,6 +232,7 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
     setThread(cached?.thread);
     if (cached?.thread) setState(cached.thread.state);
     setUsage(undefined);
+    setRunStates({});
     setComputer(undefined);
     if (!cached?.thread) setState("idle");
     setError("");
@@ -245,12 +261,13 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
     thread,
     setThread,
     usage,
+    runStates,
     computer,
   };
 }
 
 /** Native counterpart of the web's live store: subscribe, load, fold events, recover missing parts. */
-export function useThread(creds: Creds, threadId: string, onUnpair: () => void) {
+export function useThread(creds: Creds, threadId: string, onUnpair: () => void, refreshInputs?: () => Promise<void>) {
   const client = useMemo(() => new ApxClient({ url: creds.url, token: creds.token, client: APP_CLIENT }), [creds]);
   const sequence = useRef(0);
   const [stopping, setStopping] = useState(false);
@@ -267,6 +284,7 @@ export function useThread(creds: Creds, threadId: string, onUnpair: () => void) 
     thread,
     setThread,
     usage,
+    runStates,
     computer,
   } = useThreadFeed(client, threadId, onUnpair);
   const send = useCallback(
@@ -321,11 +339,12 @@ export function useThread(creds: Creds, threadId: string, onUnpair: () => void) 
     }
   }, [client, threadId, reload, setError]);
   const respond = useCallback(
-    async (input: string, answer: Answer) => {
-      await client.call("runs.respond", { input, ...answer });
-      await reload.current();
-    },
-    [client, reload],
+    (input: string, answer: Answer) =>
+      respondToInput(client, input, answer, async (unavailable) => {
+        await reload.current(unavailable);
+        await refreshInputs?.();
+      }),
+    [client, reload, refreshInputs],
   );
   const failed = useCallback((err: unknown) => setError(err instanceof Error ? err.message : String(err)), [setError]);
   /** The agent takes a waiting message at once: the step it is on stops, or it goes first in line. */
@@ -408,6 +427,7 @@ export function useThread(creds: Creds, threadId: string, onUnpair: () => void) 
     stopping,
     thread,
     usage,
+    runStates,
     setModel,
     client,
     computer,

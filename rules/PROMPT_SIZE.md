@@ -24,8 +24,9 @@ A realistic owner has its own budget in the same test: a WhatsApp channel with s
 instructions of their own, an "about" and a project with a 20,000-character AGENTS.md. Its project chat sends 8,249 (2026-11-25, [D-270](DECISIONS.md#d-270), [D-271](DECISIONS.md#d-271))
 chars of system prompt besides that AGENTS.md, which goes whole (budget 8,250: the super-agent is told to do small and
 medium work itself and what it hands on, [D-237](DECISIONS.md#d-237); an agent that can change a project's
-files is told to look at a visible change running, [D-166](DECISIONS.md#d-166), and to commit, pull, merge, push or delete only
-when asked or a project rule says so, [D-210](DECISIONS.md#d-210), [D-266](DECISIONS.md#d-266)), and 28,998 of tools on 2026-11-12 (29,000; `recall` lists the newest notes with no words,
+files is told to look at a visible change running, [D-166](DECISIONS.md#d-166), to commit, pull, merge or push only
+when asked or a project rule says so, [D-210](DECISIONS.md#d-210), and to delete in a command of its own,
+[D-281](DECISIONS.md#d-281), one character shorter than the line it replaced), and 28,998 of tools on 2026-11-12 (29,000; `recall` lists the newest notes with no words,
 its description shortened to fit; `message_contact`'s `stay`, [D-224](DECISIONS.md#d-224), paid for by a shorter description); its
 WhatsApp turn's input is 265 chars before the message (600). Before the fixed instructions left the turn they were about
 27,000 and 2,250.

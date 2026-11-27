@@ -57,8 +57,9 @@ export type ChatOf = {
 export function ChatMessage({
   message,
   agents,
-  waiting = false,
-  runState,
+  waiting: chatWaiting = false,
+  runState: chatRunState,
+  runStates,
   thread,
   projects,
   last = false,
@@ -79,6 +80,7 @@ export function ChatMessage({
   waiting?: boolean;
   /** The chat's run state: a picture being made shows forming while it works. */
   runState?: string;
+  runStates?: Readonly<Record<string, string>>;
   thread?: ChatOf;
   projects?: ReadonlyArray<{ id: string; name: string }>;
   /** The chat's newest message: offers (choices) wait only there. */
@@ -101,6 +103,9 @@ export function ChatMessage({
   /** What the owner can do with their own message while it waits; `line` when it waits in line for the next turn. */
   queue?: { actions: WaitingActions; line?: Message[] };
 }) {
+  // A newer turn must not make the history look active again.
+  const runState = message.run_id && runStates ? runStates[message.run_id] : chatRunState;
+  const waiting = message.run_id && runStates ? runState === "input-required" : chatWaiting;
   const theme = useTheme();
   const s = useStyles();
   const mailContext = useMemo(() => ({ client, messageId: message.id }), [client, message.id]);
@@ -120,11 +125,23 @@ export function ChatMessage({
         : author.kind === "surface"
           ? author.title
           : "APX";
-  const hasText = message.parts.some((part) => part.type === "text" && part.text.trim());
   const live = runState === "working" || runState === "submitted" || runState === "queued";
   const rows = useMemo(() => mediaRows(message.parts, { shown: showPlan, live }), [message.parts, showPlan, live]);
+  const hasText = rows.some((row) => row.kind === "part" && row.part.type === "text" && row.part.text.trim());
   const generating = formsImage(message.parts, runState);
   const event = thread ? isAgentEvent(thread, message) : false;
+  const activityOnly =
+    author.kind === "agent" &&
+    !event &&
+    (tools.length > 0 || rows.length > 0) &&
+    rows.every(
+      (row) =>
+        row.kind === "part" &&
+        (row.part.type === "notice" ||
+          row.part.type === "plan" ||
+          row.part.type === "subthread" ||
+          (row.part.type === "input" && row.part.state !== "pending")),
+    );
   const skills = event ? undefined : message.parts.find((part) => part.type === "skills");
   const [open, setOpen] = useState<Open>();
   // A copy is the message's words as they read: the owner's as typed, an agent's without the markdown marks.
@@ -258,7 +275,7 @@ export function ChatMessage({
   const viaMark = via ? <ViaMark via={via} /> : null;
   return (
     <MailContext.Provider value={mailContext}>
-      <View style={[s.wrap, mine ? s.mineWrap : s.theirsWrap]}>
+      <View testID="chat-message" style={[s.wrap, activityOnly && s.activityWrap, mine ? s.mineWrap : s.theirsWrap]}>
         {author.kind === "person" ? (
           <View style={s.person}>
             <PersonAvatar person={author.id} name={author.name} size={26} />
@@ -311,6 +328,7 @@ export function ChatMessage({
 
 const useStyles = makeStyles((theme) => ({
   wrap: { gap: 4, marginVertical: 5 },
+  activityWrap: { marginVertical: 1 },
   mineWrap: { alignSelf: "flex-end", alignItems: "flex-end", maxWidth: "82%" },
   theirsWrap: { alignSelf: "stretch", alignItems: "flex-start" },
   bubble: { paddingVertical: 11, paddingHorizontal: 14, overflow: "hidden" },

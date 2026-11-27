@@ -268,6 +268,7 @@ export const en = {
   agent: "Agent",
   filesChanged: "{n} files changed",
   couldNotAnswer: "Could not answer",
+  inputUnavailable: "This request is no longer available.",
   answered: "Answered",
   withdrawn: "Withdrawn",
   deny: "Deny",

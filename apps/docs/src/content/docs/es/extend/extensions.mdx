@@ -184,6 +184,40 @@ puede nombrar tus otras variables ni el entorno, así que un paquete no puede ll
 | `platforms` | Los sistemas en los que corre (`darwin`, `linux`, `win32`); en otro no se enciende. |
 | `companion` | Una app en otro dispositivo: `name`, `platform` (`android`, `android-tv`, `ios`, `macos`, `windows`, `linux`), el `file` de la app en el paquete o la `url` de una tienda, `steps`, y `pairing`: `{ "with": "apx" }` la empareja con APX como dispositivo (un código y un QR), `{ "with": "extension", "server", "tool" }` le pide el código a una herramienta de la propia extensión. |
 
+### Credenciales vinculadas a los ajustes de conexión
+
+Un string sensible ingresado manualmente puede declarar `boundTo: ["address", "username"]`, con nombres de ajustes
+no sensibles declarados. Los secretos generados no pueden usarlo. Por ejemplo:
+
+```json
+"settings": {
+  "address": { "type": "string", "label": "Installation address", "required": true, "format": "https-url" },
+  "username": { "type": "string", "label": "Username", "required": true },
+  "password": { "type": "string", "label": "Application password", "sensitive": true, "boundTo": ["address", "username"] }
+}
+```
+
+`format: "https-url"` corresponde a strings no sensibles sin valores predeterminados, opciones ni generación. APX exige
+HTTPS y rechaza credenciales en la dirección, espacios, controles, barras invertidas, consultas y fragmentos. Guarda la
+URL canónica con la subcarpeta de instalación. Cambiar solo mayúsculas del dominio o el puerto predeterminado no exige
+otra credencial.
+
+El servidor recibe un sobre JSON mediante su referencia de entorno `secret://password`, no la contraseña directamente:
+
+```json
+{"format":"apx-bound-secret@1","binding":{"address":"https://shop.example/store","username":"reader"},"value":"application password"}
+```
+
+Antes de hacer cualquier solicitud, el servidor debe validar el formato del sobre y cada valor vinculado completo contra
+sus ajustes actuales, exigir HTTPS y rechazar redirecciones. Nunca pongas el sobre ni la contraseña en argumentos,
+registros o errores, ni aceptes una contraseña antigua sin sobre como alternativa. Cambiar un valor vinculado o reemplazar
+una credencial antigua incompatible exige otra credencial no vacía; APX valida la solicitud completa antes de escribir.
+
+Los ajustes se conservan sujetos a la compatibilidad de las credenciales. Una actualización o reversión que cambia una
+declaración de credencial vinculada borra las afectadas y exige reconectar; volver atrás no restaura contraseñas. Borrar
+una credencial local no la revoca en el servicio. Los paquetes que usan este contrato deben exigir APX 2.17.5 o posterior;
+las versiones anteriores no entienden la vinculación.
+
 ### Su ficha: `apx-listing.json`
 
 Un `apx-listing.json` opcional junto al manifiesto es su ficha en el Marketplace: un `summary` y un `tagline`, una

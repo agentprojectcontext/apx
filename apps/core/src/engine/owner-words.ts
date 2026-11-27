@@ -74,9 +74,7 @@ export const stalledWords = (store: Store, agent: string) =>
 
 /** A deletion card's question: the owner decides on what is deleted, not on a command (DECISIONS.md#d-266). */
 export const deletePrompt = (store: Store, agent: string) =>
-  english(store)
-    ? `${agent} wants to delete this. In Auto an agent deletes only when you ask:`
-    : `${agent} quiere borrar esto. En Auto un agente solo borra cuando vos se lo pedís:`;
+  english(store) ? `${agent} needs your OK to delete this:` : `${agent} necesita tu OK para borrar esto:`;
 
 /**
  * What a deletion card shows: what goes, one line each, with paths relative to the project; the agent's reason only
@@ -97,7 +95,9 @@ export function deletionCard(
     "",
     `${en ? "Command" : "Comando"}: ${command}`,
   ].join("\n");
-  return { detail, deletion: { items, ...(reason ? { reason } : {}), command } };
+  // Of a longer command, the card shows only what deletes; the channels' text keeps it whole.
+  const part = d.parts?.length ? d.parts.join("\n") : command;
+  return { detail, deletion: { items, ...(reason ? { reason } : {}), command: part } };
 }
 
 type Words = {

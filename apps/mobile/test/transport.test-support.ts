@@ -16,7 +16,7 @@ export function deferred<T>() {
 /** Native network boundaries only: hooks and the shared SDK execute unchanged. */
 export function transport(options: { holdWelcome?: boolean } = {}) {
   const calls: { method: string; params: Record<string, unknown> }[] = [];
-  const faults: Record<string, { code: string; message: string }> = {};
+  const faults: Record<string, { code: string; message: string; detail?: unknown; status?: number }> = {};
   const responses: Record<string, unknown | ((params: Record<string, unknown>) => unknown)> = {
     "threads.list": { threads: [] },
     "projects.list": { projects: [] },
@@ -45,8 +45,10 @@ export function transport(options: { holdWelcome?: boolean } = {}) {
     const params = JSON.parse(String(init?.body)) as Record<string, unknown>;
     methods[method].params.parse(params);
     calls.push({ method, params });
-    if (faults[method])
-      return { ok: false, status: 403, json: async () => ({ ok: false, error: faults[method] }) } as Response;
+    if (faults[method]) {
+      const { status = 403, ...error } = faults[method];
+      return { ok: false, status, json: async () => ({ ok: false, error }) } as Response;
+    }
     if (!(method in responses)) throw new Error(`Unexpected request ${method}`);
     const response = responses[method];
     const result = await (typeof response === "function" ? response(params) : response);

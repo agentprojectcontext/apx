@@ -4,6 +4,7 @@ import { t } from "../../i18n";
 import type { PlanStep } from "../../protocol";
 import { Icon } from "../Icon";
 import { makeStyles, useTheme } from "../theme";
+import { ActionBranch } from "./ActionBranch";
 import { CompactRow } from "./CompactRow";
 
 /**
@@ -25,35 +26,47 @@ export function PlanCard({
   const s = useStyles();
   const done = steps?.filter((step) => step.state === "done").length ?? 0;
   const list = (
-    <View style={[s.list, collapsible && s.compactList]}>
+    <View testID="plan-steps" style={[s.list, collapsible && s.compactList]}>
       {steps
         ? steps.map((step, i) => (
-            <View
+            <ActionBranch
               // biome-ignore lint/suspicious/noArrayIndexKey: a plan may repeat a step's words; its place is its identity
               key={i}
-              style={s.step}
-              accessible
-              accessibilityLabel={`${step.step}, ${t(step.state === "done" ? "runDone" : step.state === "doing" ? "runWorking" : "planPending")}`}
+              last={i === steps.length - 1}
+              compact
+              enabled={collapsible}
             >
-              <Mark state={step.state} compact={collapsible} />
-              <Text
-                style={[
-                  s.text,
-                  collapsible && s.compactText,
-                  step.state === "done" && s.done,
-                  step.state === "doing" && s.doing,
-                ]}
+              <View
+                style={s.step}
+                accessible
+                accessibilityLabel={`${step.step}, ${t(step.state === "done" ? "runDone" : step.state === "doing" ? "runWorking" : "planPending")}`}
               >
-                {step.step}
-              </Text>
-            </View>
+                <Mark state={step.state} compact={collapsible} />
+                <Text
+                  style={[
+                    s.text,
+                    collapsible && s.compactText,
+                    step.state === "done" && s.done,
+                    step.state === "doing" && s.doing,
+                  ]}
+                >
+                  {step.step}
+                </Text>
+              </View>
+            </ActionBranch>
           ))
         : children}
     </View>
   );
   if (collapsible)
     return (
-      <CompactRow title={label} summary={t("planDone", { done, count: steps?.length ?? 0 })} icon="ListChecks" compact>
+      <CompactRow
+        title={label}
+        summary={t("planDone", { done, count: steps?.length ?? 0 })}
+        icon="ListChecks"
+        compact
+        branch={false}
+      >
         {list}
       </CompactRow>
     );
@@ -101,7 +114,7 @@ const useStyles = makeStyles((theme) => ({
   title: { flex: 1, color: theme.fg, fontSize: 13, fontWeight: "500" },
   count: { color: theme.fgSubtle, fontSize: 12 },
   list: { paddingHorizontal: 12, paddingVertical: 8, gap: 6 },
-  compactList: { paddingHorizontal: 0, paddingVertical: 2, gap: 4 },
+  compactList: { paddingHorizontal: 0, paddingVertical: 2, gap: 0 },
   step: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
   text: { flex: 1, color: theme.fg, fontSize: 14, lineHeight: 19 },
   compactText: { fontSize: 13, lineHeight: 18 },

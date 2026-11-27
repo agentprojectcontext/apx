@@ -249,6 +249,7 @@ test("quoted search patterns are not deletion commands, even in the normalized f
   assert.deepEqual(deletionTargets(searchAndDelete, cwd), {
     ...empty,
     paths: [path.join(cwd, "work", "build output")],
+    parts: ["rm -rf 'build output'"],
   });
   for (const command of [
     'rg -n "$(rm -rf build)" notes.txt',
@@ -267,10 +268,22 @@ test("quoted search patterns are not deletion commands, even in the normalized f
   assert.deepEqual(deletionTargets(`${quotedSearch} && git reset --hard`, cwd), {
     ...empty,
     git: [{ what: "changes", target: cwd }],
+    parts: ["git reset --hard"],
   });
 });
 
+/** The real cleanup of a canceled CI run on the owner's Linux box (2026-11-27), chained after saving its logs. */
+const HOMELAB =
+  'ssh homelab-vps \'tar -C "$HOME/apx-ci/slots/fix-x/coverage/all" -czf - logs\' > logs.tgz && ssh homelab-vps \'docker rm apx-fix-x && rm -r "$HOME/apx-ci/slots/fix-x/coverage"; df -h "$HOME/apx-ci"\'';
+
 const llm = scriptedLlm((req, { said, afterTool }) => {
+  // Auto's judge of a deletion (DECISIONS.md#d-281): the agent's own logs run, anything else asks.
+  if (String(req.messages[0]?.content).startsWith("You decide whether an AI agent may run a deletion"))
+    return say(
+      said.includes("tmp-judge")
+        ? '{"decision":"run","why":"its own logs"}'
+        : '{"decision":"ask","why":"not sure whose it is"}',
+    );
   if (req.messages.some((m) => m.role === "user" && String(m.content).includes("background then keep working"))) {
     const tools = req.messages.filter((m) => m.role === "tool").length;
     if (tools === 0) return callTool("k1", "shell", { command: "sleep 0.2 && echo bg-busy", background: true });
@@ -285,6 +298,12 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
   if (said.includes("list then write")) return callTool("l1", "shell", { command: "ls" });
   if (said.includes("quote search please")) return callTool("s10", "shell", { command: runtimeSearch });
   if (said.includes("quote search plus deletion please")) return callTool("s11", "shell", { command: searchAndDelete });
+  if (said.includes("judge logs please"))
+    return callTool("j1", "shell", { command: "find tmp-judge -name '*.log' -exec rm -f {} +" });
+  if (said.includes("judge other please"))
+    return callTool("j2", "shell", { command: "find tmp-other -name '*.log' -exec rm -f {} +" });
+  if (said.includes("coverage please")) return callTool("c1", "shell", { command: "rm -r coverage" });
+  if (said.includes("homelab please")) return callTool("h1", "shell", { command: HOMELAB });
   if (said.includes("restore please"))
     return callTool("r1", "shell", { command: "git -C restore-repo restore --worktree -- a.txt b.txt" });
   if (said.includes("echo please")) return callTool("s1", "shell", { command: "echo hi-from-shell" });
@@ -301,9 +320,9 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
     return {
       message: {
         role: "assistant",
-        content: "I made build/old for the test run; removing it.",
+        content: "These drafts are old; removing them.",
         tool_calls: [
-          { id: "d1", type: "function", function: { name: "shell", arguments: '{"command":"rm -rf build/old"}' } },
+          { id: "d1", type: "function", function: { name: "shell", arguments: '{"command":"rm -rf drafts/old"}' } },
         ],
       },
     };
@@ -353,11 +372,13 @@ test("a deletion card lists the paths a command deletes, resolved where it runs;
     paths: [at("work", "en", "subtitles", "words", "es"), at("work", "en", "subtitles", "captions", "es.srt")],
     later: [],
     git: [],
+    parts: ["rm -rf $D/words/es $D/captions/es.srt"],
   });
   assert.deepEqual(deletionTargets("rm -rf $OUT/x && ls | xargs rm -f", cwd), {
     paths: [],
     later: ["$OUT/x", "xargs rm -f"],
     git: [],
+    parts: ["rm -rf $OUT/x", "xargs rm -f"],
   });
   assert.equal(onlyDeletes("rm -rf build"), true);
   assert.equal(onlyDeletes("python3 - <<'PY'\nprint(1)\nPY\nrm -rf out"), true);
@@ -368,13 +389,13 @@ test("a deletion card lists the paths a command deletes, resolved where it runs;
 test("git commands that throw away work git would keep ask like a deletion; the forms git itself guards do not (DECISIONS.md#d-266)", () => {
   const cwd = path.resolve("/work/acme/.worktrees/reels");
   const at = (...p: string[]) => path.join(cwd, ...p);
-  const discards: Array<[string, Array<{ what: string; target: string }>]> = [
+  const discards: Array<[string, Array<{ what: string; target: string; in?: string }>]> = [
     ["git worktree remove --force .worktrees/old", [{ what: "worktree", target: at(".worktrees", "old") }]],
     ["git worktree remove -f ../reels-old", [{ what: "worktree", target: path.resolve(cwd, "../reels-old") }]],
-    ["git branch -D fix/old", [{ what: "branch", target: "fix/old" }]],
-    ["git branch --delete --force fix/old", [{ what: "branch", target: "fix/old" }]],
-    ["git branch -df fix/old", [{ what: "branch", target: "fix/old" }]],
-    ["git -C ../main branch -D fix/old", [{ what: "branch", target: "fix/old" }]],
+    ["git branch -D fix/old", [{ what: "branch", target: "fix/old", in: cwd }]],
+    ["git branch --delete --force fix/old", [{ what: "branch", target: "fix/old", in: cwd }]],
+    ["git branch -df fix/old", [{ what: "branch", target: "fix/old", in: cwd }]],
+    ["git -C ../main branch -D fix/old", [{ what: "branch", target: "fix/old", in: path.resolve(cwd, "../main") }]],
     ["git clean -f", [{ what: "untracked", target: at() }]],
     ["git clean -fd", [{ what: "untracked", target: at() }]],
     ["git clean -fdx build", [{ what: "untracked", target: at("build") }]],
@@ -488,7 +509,7 @@ test("a read-only command runs in the foreground and its output comes back marke
 
 test("auto: quoted search runs without a card; a separate deletion still gets the resolved target", async () => {
   const cwd = workDir(env.core.store, env.home, {});
-  await mkdir(path.join(cwd, "work"), { recursive: true });
+  await mkdir(path.join(cwd, "work", "build output"), { recursive: true });
   await writeFile(path.join(cwd, "shell-search-fixture.txt"), "A literal rm -rf search result\n");
   const read = await thread();
   await env.client.call("threads.send", { thread: read, text: "quote search please" });
@@ -586,19 +607,23 @@ test("manual: a command that changes something waits for the owner", async () =>
 });
 
 test("auto: a deletion asks with what goes and why; the owner's OK for this chat covers the next one (DECISIONS.md#d-266)", async () => {
+  // The owner's drafts, there before the turn: not the agent's own, so Auto asks (DECISIONS.md#d-281).
+  const drafts = path.join(workDir(env.core.store, env.home, {}), "drafts", "old");
+  await mkdir(drafts, { recursive: true });
   const t = await thread();
   await env.client.call("threads.send", { thread: t, text: "clean build please" });
   const [card] = await inputsOrEnd(env.client, t);
   assert.equal(card?.tool, "shell");
   assert.match(card?.prompt ?? "", /delete|borrar/);
   // The reason is the agent's own message right above the card; only the channels' text repeats it.
-  assert.deepEqual(card?.deletion, { items: ["build/old"], command: "rm -rf build/old" });
-  assert.match(card?.detail ?? "", /^build\/old$/m, "the path, on a line of its own");
-  assert.match(card?.detail ?? "", /removing it/);
-  assert.match(card?.detail ?? "", /rm -rf build\/old/);
+  assert.deepEqual(card?.deletion, { items: ["drafts/old"], command: "rm -rf drafts/old" });
+  assert.match(card?.detail ?? "", /^drafts\/old$/m, "the path, on a line of its own");
+  assert.match(card?.detail ?? "", /removing them/);
+  assert.match(card?.detail ?? "", /rm -rf drafts\/old/);
   assert.deepEqual(card?.approval_scopes, ["once", "session"], "for this chat at most, never for good");
   await env.client.call("runs.respond", { input: card?.id ?? "", decision: "approve", scope: "session" });
   await env.settle(t);
+  await mkdir(drafts, { recursive: true });
   await env.client.call("threads.send", { thread: t, text: "clean build please" });
   await env.settle(t);
   assert.deepEqual((await env.client.call("runs.pending", { thread: t })).inputs, []);
@@ -633,6 +658,50 @@ test("auto: restoring files deleted in a repository runs without a card; over re
   await env.client.call("runs.respond", { input: card?.id ?? "", decision: "deny" });
   await env.settle(t);
   assert.equal(await readFile(path.join(repo, "b.txt"), "utf8"), "edited\n");
+});
+
+test("auto: test output it did not make goes without a card; what only the task can tell goes to the judge (DECISIONS.md#d-281)", async (t) => {
+  const cwd = workDir(env.core.store, env.home, {});
+  await mkdir(path.join(cwd, "coverage", "all"), { recursive: true });
+  await mkdir(path.join(cwd, "tmp-judge"), { recursive: true });
+  await mkdir(path.join(cwd, "tmp-other"), { recursive: true });
+  await writeFile(path.join(cwd, "tmp-judge", "run.log"), "x\n");
+  await writeFile(path.join(cwd, "tmp-other", "keep.log"), "x\n");
+  // The judge is the auxiliary model; without one, what only the task can tell asks.
+  env.core.store.settings.set("model_aux", "openai/gpt-4o-mini");
+  t.after(() => env.core.store.settings.set("model_aux", ""));
+  const chat = await thread();
+  const judgeCalls = () =>
+    llm.calls.filter((c) => String(c.messages[0]?.content).startsWith("You decide whether")).length;
+  const before = judgeCalls();
+  await env.client.call("threads.send", { thread: chat, text: "coverage please" });
+  assert.deepEqual(await inputsOrEnd(env.client, chat), []);
+  await env.client.call("threads.send", { thread: chat, text: "judge logs please" });
+  assert.deepEqual(await inputsOrEnd(env.client, chat), [], "the judge let it run");
+  await assert.rejects(readFile(path.join(cwd, "tmp-judge", "run.log")));
+  await env.client.call("threads.send", { thread: chat, text: "judge other please" });
+  const [card] = await inputsOrEnd(env.client, chat);
+  assert.deepEqual(card?.deletion?.command, "find tmp-other -name '*.log' -exec rm -f {} +");
+  await env.client.call("runs.respond", { input: card?.id ?? "", decision: "deny" });
+  await env.settle(chat);
+  assert.equal(await readFile(path.join(cwd, "tmp-other", "keep.log"), "utf8"), "x\n");
+  assert.equal(judgeCalls() - before, 2, "the judge is asked only for what the rules leave open");
+});
+
+test("auto: the homelab cleanup chained after other work asks the judge, and its card shows only the part that deletes", async (t) => {
+  env.core.store.settings.set("model_aux", "openai/gpt-4o-mini");
+  t.after(() => env.core.store.settings.set("model_aux", ""));
+  const chat = await thread();
+  await env.client.call("threads.send", { thread: chat, text: "homelab please" });
+  const [card] = await inputsOrEnd(env.client, chat);
+  assert.equal(
+    card?.deletion?.command,
+    'ssh homelab-vps \'docker rm apx-fix-x && rm -r "$HOME/apx-ci/slots/fix-x/coverage"; df -h "$HOME/apx-ci"\'',
+  );
+  const judged = llm.calls.findLast((c) => String(c.messages[0]?.content).startsWith("You decide whether"));
+  assert.match(String(judged?.messages.at(-1)?.content), /apx-ci\/slots\/fix-x\/coverage/);
+  await env.client.call("runs.respond", { input: card?.id ?? "", decision: "deny" });
+  await env.settle(chat);
 });
 
 test("auto: a command that changes something where the agent works runs without a card", async () => {

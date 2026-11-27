@@ -1,7 +1,8 @@
 import { act, renderHook } from "@testing-library/react-native";
 import { newChatId } from "../src/chat/newChat";
 import { useThread } from "../src/hooks/useThread";
-import type { Message, Thread } from "../src/protocol";
+import { t } from "../src/i18n";
+import type { Message, Run, Thread } from "../src/protocol";
 import { credentials, deferred, transport } from "./transport.test-support";
 
 let net: ReturnType<typeof transport>;
@@ -16,7 +17,18 @@ const message = (id: string, seq: number, text: string, author: "user" | "agent"
   created_at: "2026-10-18T10:00:00Z",
 });
 const snapshot = (messages: Message[] = []) => ({ thread, messages, runs: [] });
-const mount = (id = thread.id) => renderHook(() => useThread(credentials, id, unpair));
+const run: Run = {
+  id: "run_old",
+  thread_id: thread.id,
+  agent_id: "april",
+  state: "working",
+  trigger: "user",
+  depth: 0,
+  tool_calls: 1,
+  started_at: "2026-10-18T10:00:00Z",
+};
+const mount = (id = thread.id, refreshInputs?: () => Promise<void>) =>
+  renderHook(() => useThread(credentials, id, unpair, refreshInputs));
 
 beforeEach(() => {
   jest.useFakeTimers({ doNotFake: ["queueMicrotask"] });
@@ -474,6 +486,101 @@ test("input responses reload the thread and model choices update the thread's ov
   net.responses["threads.model"] = { model_choice: undefined };
   await act(() => hook.result.current.setModel(null));
   expect(hook.result.current.thread?.model_choice).toBeUndefined();
+  await hook.unmount();
+});
+
+test.each(["question", "confirm"] as const)(
+  "an unavailable %s refetches its settlement even when the event was missed",
+  async (kind) => {
+    const pending: Message = {
+      ...message("msg_request", 1, ""),
+      parts: [{ type: "input", input_id: "inp_old", kind, state: "pending", prompt: "Continue?" }],
+    };
+    net.responses["threads.get"] = snapshot([pending]);
+    const refreshInputs = jest.fn(async () => {});
+    const hook = await mount(thread.id, refreshInputs);
+    const streamed: Message = { ...pending, created_at: "2026-10-18T10:01:00Z" };
+    const unrelated = message("msg_other", 2, "Live progress");
+    await act(async () => {
+      net.sockets[0]?.event({ type: "message.updated", message: streamed });
+      net.sockets[0]?.event({ type: "message.created", message: unrelated });
+    });
+    const expired: Message = {
+      ...streamed,
+      parts: [{ type: "input", input_id: "inp_old", kind, state: "expired", prompt: "Continue?" }],
+    };
+    net.responses["threads.get"] = snapshot([expired]);
+    net.faults["runs.respond"] = {
+      code: "conflict",
+      message: "Internal stale input explanation",
+      status: 409,
+      detail: { reason: "input_unavailable" },
+    };
+    net.calls.length = 0;
+    await act(async () => {
+      await expect(
+        hook.result.current.respond("inp_old", kind === "confirm" ? { decision: "approve" } : { text: "Yes" }),
+      ).rejects.toThrow(t("inputUnavailable"));
+    });
+    expect(net.calls.map((call) => call.method)).toEqual(["runs.respond", "threads.get"]);
+    expect(hook.result.current.messages).toEqual([expired, unrelated]);
+    expect(refreshInputs).toHaveBeenCalledTimes(1);
+    await hook.unmount();
+  },
+);
+
+test.each([
+  { code: "conflict", message: "Different conflict", detail: { reason: "different_conflict" } },
+  { code: "unavailable", message: "Connection unavailable" },
+])("other response failures are preserved without a misleading refresh: $code", async (fault) => {
+  const hook = await mount();
+  net.faults["runs.respond"] = fault;
+  net.calls.length = 0;
+  await act(async () => {
+    await expect(hook.result.current.respond("inp_old", { text: "Yes" })).rejects.toThrow(fault.message);
+  });
+  expect(net.calls.map((call) => call.method)).toEqual(["runs.respond"]);
+  await hook.unmount();
+});
+
+test("per-turn action states keep historical turns settled when a newer turn waits", async () => {
+  net.responses["threads.get"] = {
+    ...snapshot(),
+    runs: [
+      { ...run, state: "canceled", ended_at: "2026-10-18T10:02:00Z" },
+      { ...run, id: "run_new", state: "input-required" },
+    ],
+  };
+  const hook = await mount();
+  expect(hook.result.current.runStates).toEqual({ [run.id]: "canceled", run_new: "input-required" });
+  await act(async () =>
+    net.sockets[0]?.event({
+      type: "run.updated",
+      run: { ...run, id: "run_new", state: "completed", ended_at: "2026-10-18T10:03:00Z" },
+    }),
+  );
+  expect(hook.result.current.runStates).toEqual({ [run.id]: "canceled", run_new: "completed" });
+  await hook.unmount();
+});
+
+test("an authoritative terminal run wins over a streamed wait after a lost settlement event", async () => {
+  const hook = await mount();
+  await act(async () => net.sockets[0]?.event({ type: "run.updated", run: { ...run, state: "input-required" } }));
+  expect(hook.result.current.runStates[run.id]).toBe("input-required");
+  net.responses["threads.get"] = {
+    ...snapshot(),
+    runs: [{ ...run, state: "canceled", ended_at: "2026-10-18T10:02:00Z" }],
+  };
+  net.faults["runs.respond"] = {
+    code: "conflict",
+    message: "Unavailable",
+    status: 409,
+    detail: { reason: "input_unavailable" },
+  };
+  await act(async () => {
+    await expect(hook.result.current.respond("inp_old", { text: "Yes" })).rejects.toThrow(t("inputUnavailable"));
+  });
+  expect(hook.result.current.runStates[run.id]).toBe("canceled");
   await hook.unmount();
 });
 

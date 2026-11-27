@@ -157,7 +157,7 @@ Hay dos tareas abiertas en Acme Store: el catálogo de primavera (en curso, Luc�
 | `apx agents new <slug> "<Name>"` | Un agente nuevo; `--project <id>` lo pone en un proyecto (se escribe en `.apx/agents/<slug>.md`), `--role "<role>"` le da un rol. |
 | `apx agents set <agent> key=value…` | Cambia cualquier campo del editor de agentes (uno desconocido los lista todos). Listas como `tools=web_search,shell` (`tools=` es todas), `orchestrator=true`, `rules='{"write":"ask"}'`; `autonomy=` o `rules=` vuelven al valor por defecto. |
 | `apx agents set <agent> --prompt-file <file>` | Reemplaza su prompt desde un archivo (`-` lee stdin). |
-| `apx agents limits [<agent> runs=… tokens=… \| <agent> clear \| default runs=… tokens=… \| stalled runs=… tokens=…]` | Hasta dónde avanzan los agentes sin vos en un chat: el valor por defecto y el presupuesto propio de un agente (`0` = sin límite). |
+| `apx agents limits [<agent> runs=… tokens=… \| <agent> clear \| default runs=… tokens=… \| stalled runs=… tokens=…]` | Hasta dónde avanzan los agentes sin vos en un chat: el valor por defecto y el presupuesto propio de un agente (`0` = sin límite). `stalled` configura por separado la pausa de tareas sin avances; poné ambos umbrales en `0` para desactivarla. |
 | `apx agents clone <agent…>` | Copia agentes a un proyecto (`--project <id>`); `--rename` le da a cada uno un nombre libre, `--under <slug>` fija el padre. |
 | `apx agents archive <agent>` | Archiva un agente (el archivo de un agente de proyecto pasa a `.apx/agents/.archived/`). |
 | `apx agents archived` | Agentes archivados; `apx agents restore <agent>` trae uno de vuelta. |

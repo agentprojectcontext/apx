@@ -24,6 +24,8 @@ import { DEFAULT_COLUMNS, type TaskColumn, type TaskPatch } from "../tasks/field
 import { continueSession } from "./continueSession";
 import { keepSame, RELOADS } from "./keepSame";
 import { reloadGate } from "./reloadGate";
+import { respondToInput } from "./respondToInput";
+import { useSecondaryWorkspace } from "./useSecondaryWorkspace";
 
 export type Agent = {
   id: string;
@@ -268,77 +270,7 @@ export function useWorkspace(creds: Creds) {
     }
   }, [client]);
 
-  const loadSecondary = useCallback(async () => {
-    const get = <T>(method: string, params?: Record<string, unknown>) =>
-      rpc<T>(client, method, params).catch(() => undefined);
-    const [
-      projects,
-      agents,
-      open,
-      done,
-      dropped,
-      inbox,
-      pending,
-      routines,
-      engines,
-      jobs,
-      owner,
-      channels,
-      memory,
-      contacts,
-      disk,
-    ] = await Promise.all([
-      get<{ projects: Project[] }>("projects.list", { include_unregistered: true }),
-      get<{ agents: Agent[] }>("agents.list", {}),
-      get<{ tasks: Task[]; columns: TaskColumn[] }>("tasks.list", { state: "open", limit: 200 }),
-      get<{ tasks: Task[] }>("tasks.list", { state: "done", limit: 25 }),
-      get<{ tasks: Task[] }>("tasks.list", { state: "dropped", limit: 25 }),
-      get<{ notifications: Notice[]; unread: number }>("notifications.list", { limit: 100 }),
-      get<{ inputs: PendingInput[] }>("runs.pending", {}),
-      get<{ routines: Routine[] }>("routines.list", {}),
-      get<{ engines: Engine[] }>("engines.status", {}),
-      get<Workspace["jobs"]>("jobs.list", { finished: 12 }),
-      get<{ name: string }>("owner.get", {}),
-      get<{ channels: Channel[] }>("channels.list", {}),
-      get<{ total: number }>("memory.settings", {}),
-      get<{ persons: Person[] }>("contacts.list", {}),
-      get<Workspace["disk"]>("storage.status", {}),
-    ]);
-    // Each engine's sessions, or undefined where the list did not load (it keeps the one it had).
-    let native: Array<[string, NativeSession[] | undefined]> | undefined;
-    if (engines?.engines) {
-      const installed = engines.engines.filter((engine) => engine.installed && ["claude", "codex"].includes(engine.id));
-      const lists = await Promise.all(
-        installed.map((engine) =>
-          get<{ sessions: NativeSession[] }>("sessions.native", { engine: engine.id, limit: 100 }),
-        ),
-      );
-      native = installed.map((engine, i) => [engine.id, lists[i]?.sessions]);
-    }
-    setData((d) =>
-      keepSame(d, {
-        ...d,
-        projects: projects?.projects ?? d.projects,
-        agents: agents?.agents ?? d.agents,
-        tasks: open ? [...open.tasks, ...(done?.tasks ?? []), ...(dropped?.tasks ?? [])] : d.tasks,
-        columns: open?.columns.length ? open.columns : d.columns,
-        notices: inbox?.notifications ?? d.notices,
-        unread: inbox?.unread ?? d.unread,
-        inputs: pending?.inputs ?? d.inputs,
-        routines: routines?.routines ?? d.routines,
-        engines: engines?.engines ?? d.engines,
-        sessions: native
-          ? Object.fromEntries(native.map(([id, list]) => [id, list ?? d.sessions[id] ?? []]))
-          : d.sessions,
-        jobs: jobs ?? d.jobs,
-        owner: owner?.name ?? d.owner,
-        channels: channels?.channels ?? d.channels,
-        persons: contacts?.persons ?? d.persons,
-        memories: memory?.total ?? d.memories,
-        disk: disk ?? d.disk,
-      }),
-    );
-  }, [client]);
+  const loadSecondary = useSecondaryWorkspace(client, setData);
 
   const gate = useMemo(
     () =>
@@ -420,7 +352,12 @@ export function useWorkspace(creds: Creds) {
               }));
           }
           // Only for what the lists show, one reload at a time; in the background the next return reloads.
-          if (RELOADS.has(event.type) && !away()) gate.later();
+          if (
+            (RELOADS.has(event.type) ||
+              (event.type === "message.updated" && event.message.parts.some((part) => part.type === "input"))) &&
+            !away()
+          )
+            gate.later();
         });
         await refresh();
         await socket.closed;
@@ -506,10 +443,7 @@ export function useWorkspace(creds: Creds) {
   );
 
   const respond = useCallback(
-    async (input: string, response: Answer) => {
-      await rpc(client, "runs.respond", { input, ...response });
-      await loadSecondary();
-    },
+    (input: string, response: Answer) => respondToInput(client, input, response, loadSecondary),
     [client, loadSecondary],
   );
 
@@ -791,6 +725,7 @@ export function useWorkspace(creds: Creds) {
     error,
     client,
     refresh,
+    refreshInputs: loadSecondary,
     openThread,
     readThreads,
     updateThread,

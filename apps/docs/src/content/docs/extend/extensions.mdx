@@ -179,6 +179,39 @@ other variables or the environment, so a bundle can't carry your credentials els
 | `platforms` | The systems it runs on (`darwin`, `linux`, `win32`); it does not turn on elsewhere. |
 | `companion` | An app on another device: `name`, `platform` (`android`, `android-tv`, `ios`, `macos`, `windows`, `linux`), the app `file` in the package or a store `url`, `steps`, and `pairing`: `{ "with": "apx" }` pairs it with APX as a device (a code and QR), `{ "with": "extension", "server", "tool" }` asks the extension's own tool for the code. |
 
+### Credentials bound to connection settings
+
+A manually entered sensitive string can declare `boundTo: ["address", "username"]`, naming declared non-sensitive
+settings. Generated secrets cannot use it. For example:
+
+```json
+"settings": {
+  "address": { "type": "string", "label": "Installation address", "required": true, "format": "https-url" },
+  "username": { "type": "string", "label": "Username", "required": true },
+  "password": { "type": "string", "label": "Application password", "sensitive": true, "boundTo": ["address", "username"] }
+}
+```
+
+`format: "https-url"` is for plain strings without defaults, options or generation. APX requires HTTPS and rejects
+credentials in the address, whitespace, control characters, backslashes, queries and fragments. It stores the canonical
+URL including the installation path. Equivalent host casing and default ports do not require another credential.
+
+The server receives a JSON envelope through its `secret://password` environment reference, not the plain password:
+
+```json
+{"format":"apx-bound-secret@1","binding":{"address":"https://shop.example/store","username":"reader"},"value":"application password"}
+```
+
+Before making any request, the server must validate the envelope format and every complete bound value against its
+current settings, require HTTPS and refuse redirects. Never put the envelope or password in arguments, logs or errors,
+and never fall back to a legacy plain password. Changing a bound value, or replacing an incompatible legacy credential,
+requires a different nonempty credential; APX validates the complete request before writing any value.
+
+Settings are preserved subject to credential compatibility checks. An update or rollback that changes a bound
+credential declaration clears affected credentials and requires reconnection; rolling back does not restore passwords.
+Deleting a local credential does not revoke it at the service. Packages using this contract must require APX 2.17.5 or
+later; older versions do not understand the binding.
+
 ### Its page: `apx-listing.json`
 
 An optional `apx-listing.json` beside the manifest is its page in the Marketplace: a `summary` and `tagline`, a
