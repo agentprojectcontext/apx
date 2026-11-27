@@ -138,7 +138,8 @@ export function MarketplaceScreen() {
   const own = (i: Item) => (
     <NavItem
       key={i.key}
-      icon={<ItemIcon item={i} size={20} />}
+      className="mkt__installed-row"
+      icon={<ItemIcon item={i} size={36} />}
       label={i.name}
       trailing={
         waits(i) ? (

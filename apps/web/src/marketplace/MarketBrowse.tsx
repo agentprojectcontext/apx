@@ -1,17 +1,13 @@
 import { Button, EmptyState, Icons, Menu, SearchField, SegmentedControl, Select } from "@apx/ui";
 import { useState } from "react";
-import { isChannelKind } from "../channels/kinds.ts";
 import { type MessageKey, useLanguage, useT } from "../i18n/index.ts";
 import { openExtensionInstall } from "../resources/extensionInstall.ts";
 import { groupByCategory, type Item, kindOf } from "../resources/extensionItems.ts";
-import { go } from "../shell/nav.ts";
-import { addSource, askToAdd } from "./adding.ts";
 import { ItemRow } from "./ItemRow.tsx";
 import { listingIn, newest } from "./itemText.ts";
 import type { CatalogState } from "./MarketplaceScreen.tsx";
 
-// Explore: search and filters on top, then what is new and every category in compact rows of two columns. A row opens
-// the extension's page; its one button adds it (or connects one included with APX).
+// Explore opens details before the owner chooses to add or connect anything.
 
 const FIRST = 6;
 
@@ -32,19 +28,6 @@ export function useLine(): (i: Item) => string {
     const l = listingIn(i.listing, lang);
     return l?.tagline ?? i.tagline ?? l?.summary ?? i.description;
   };
-}
-
-/** Its button from a list: add it on its page (which stays, added, with Connect), start a channel, or open its page. */
-export function rowAction(i: Item, open: () => void): (() => void) | undefined {
-  if (i.state !== "available") return undefined;
-  const kind = i.channel;
-  if (kind) return () => isChannelKind(kind) && go.newChannel(kind);
-  if (addSource(i))
-    return () => {
-      askToAdd(i.key);
-      open();
-    };
-  return open;
 }
 
 function Section({ title, items, onOpen }: { title: string; items: Item[]; onOpen(i: Item): void }) {
@@ -69,7 +52,7 @@ function Section({ title, items, onOpen }: { title: string; items: Item[]; onOpe
       </header>
       <div className="mkt-rows">
         {shown.map((i) => (
-          <ItemRow key={i.key} item={i} line={line(i)} onOpen={() => onOpen(i)} onAct={rowAction(i, () => onOpen(i))} />
+          <ItemRow key={i.key} item={i} line={line(i)} onOpen={() => onOpen(i)} />
         ))}
       </div>
     </section>

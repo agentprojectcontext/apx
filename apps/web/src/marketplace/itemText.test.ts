@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { ExtensionInfo, McpServerStatus } from "@apx/protocol";
+import { enMarketplace } from "../i18n/marketplace-en.ts";
+import { esMarketplace } from "../i18n/marketplace-es.ts";
 import type { Item } from "../resources/extensionItems.ts";
+import { bringsOf } from "./brings.ts";
 import {
+  AUTH_TEXT,
   accessLines,
   authText,
   connectionUpdateText,
@@ -150,6 +154,7 @@ test("one next step per state: add, connect, pair a device, then done", () => {
     "review",
   );
   assert.equal(nextStep(item({ state: "on", ext: ext() })), "done");
+  assert.equal(nextStep(item({ state: "starting", ext: ext() })), "starting");
 });
 
 test("why one of the owner's own waits, and nothing for one that works", () => {
@@ -180,6 +185,38 @@ test("a connector with skills is a connector; what it reaches and how it signs i
   assert.equal(authText(account(), t), undefined);
   assert.equal(authText(account({ transport: "http", target: "https://mcp.d.example/mcp" }), t), "mkt.auth.none");
   assert.equal(authText(account({ transport: "stdio", target: "npx" }), t), "mkt.auth.signIn");
+});
+
+test("local access is not no authorization, before and after installation", () => {
+  const local = item({ connection: "local" });
+  assert.equal(authText(local, t), "mkt.auth.local");
+  assert.equal(authText({ ...local, state: "on", ext: ext({ mcp: ["service"] }) }, t), "mkt.auth.local");
+  const listing = { connection: "local" } as Item["listing"];
+  assert.equal(authText(item({ listing }), t), "mkt.auth.local");
+  assert.equal(authText(item({ connection: "none" }), t), "mkt.auth.none");
+  assert.equal(authText(item({ connection: "oauth" }), t), "mkt.auth.signIn");
+  assert.equal(
+    authText(item({ connection: "local", ext: ext({ secrets: [{ name: "key", label: "Key", set: true }] }) }), t),
+    "mkt.auth.key",
+  );
+  assert.equal(
+    authText(item({ connection: "local", server: { status: "needs-sign-in" } as McpServerStatus }), t),
+    "mkt.auth.signIn",
+  );
+});
+
+test("local authorization is the same requirement in the page and connector in both languages", () => {
+  const local = item({ connection: "local", ext: ext({ mcp: ["service"] }), state: "on" });
+  for (const [lang, messages, expected] of [
+    ["en", enMarketplace, "Requires credentials or permissions on the computer running APX."],
+    ["es", esMarketplace, "Requiere credenciales o permisos en el equipo donde corre APX"],
+  ] as const) {
+    const translate = (key: string) => messages[key as keyof typeof messages] ?? key;
+    assert.equal(authText(local, translate), expected);
+    const connector = bringsOf(local, [], lang).connectors[0];
+    assert.ok(connector?.auth);
+    assert.equal(translate(AUTH_TEXT[connector.auth]), expected);
+  }
 });
 
 test("new ones stand out only while most of the catalog is not new", () => {

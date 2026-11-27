@@ -175,11 +175,15 @@ export function contentsOf(
 ): ExtensionContents {
   const agentLines = Object.fromEntries(m.agents.filter((a) => a.description).map((a) => [a.name, a.description]));
   const settings = m.settings.filter((s) => s.required && !s.sensitive && !s.generate && s.default === undefined);
+  const keys = [...m.secrets, ...m.settings.filter((s) => s.sensitive)];
   return {
     hosts: hostsOf(m),
     runs_code: Boolean(m.plugin) || Object.values(m.mcp).some((s) => s.command),
     servers: Object.keys(m.mcp).length,
-    keys: [...m.secrets.map((s) => s.label), ...m.settings.filter((s) => s.sensitive).map((s) => s.label)],
+    keys: keys.map((s) => s.label),
+    ...(keys.some((s) => s.locales)
+      ? { key_labels: keys.map(({ label, locales }) => ({ label, ...(locales ? { locales } : {}) })) }
+      : {}),
     ...(skills ? { skills: skills.names } : {}),
     ...(skills?.lines && Object.keys(skills.lines).length ? { skill_lines: skills.lines } : {}),
     agents: m.agents.map((a) => a.name),
@@ -189,6 +193,9 @@ export function contentsOf(
     hash,
     connectors: connectorsOf(m),
     ...(settings.length ? { settings: settings.map((s) => s.label) } : {}),
+    ...(settings.some((s) => s.locales)
+      ? { setting_labels: settings.map(({ label, locales }) => ({ label, ...(locales ? { locales } : {}) })) }
+      : {}),
     ...(m.apps.length ? { apps: m.apps.length } : {}),
   };
 }

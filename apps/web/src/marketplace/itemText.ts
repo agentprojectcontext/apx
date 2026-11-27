@@ -66,12 +66,14 @@ export type Step =
   | "channel"
   | "browser"
   | "coming"
+  | "starting"
   | "done";
 
 export function nextStep(i: Item): Step {
   if (i.builtin === "browser") return "browser";
   if (i.channel) return i.state === "available" ? "connect" : "channel";
   if (i.state === "coming") return "coming";
+  if (i.state === "starting") return "starting";
   if (i.state === "available") return i.integration || i.origin === "included" ? "connect" : "add";
   if (i.integration) return i.attention === "sign-in" ? "sign-in" : i.attention ? "fix" : "done";
   if (i.server && !i.ext) {
@@ -103,6 +105,7 @@ const STEP_LABEL: Record<Step, MessageKey> = {
   channel: "mkt.step.channel",
   browser: "mkt.step.browser",
   coming: "mkt.step.coming",
+  starting: "box.state.connecting",
   done: "mkt.step.connected",
 };
 
@@ -126,6 +129,7 @@ const signsIn = (i: Item) =>
 /** Why one of the owner's own waits on them, in a few words; nothing when it does not. */
 export function waitReason(i: Item, t: T): string | undefined {
   if (i.state === "available" || i.state === "coming") return undefined;
+  if (i.state === "starting") return t("box.state.connecting");
   if (i.update && i.state === "on") return t("mkt.why.update", { version: i.update });
   if (i.state === "off") return t(i.attention === "update-waits" ? "mkt.why.updateWaits" : "mkt.why.off");
   if (i.attention === "keys") return t("mkt.why.keys");
@@ -154,8 +158,8 @@ function serverPlace(s: McpServerStatus, t: T): string {
   return s.transport === "http" ? host(s.definition?.url ?? s.target) : t("mkt.place.here");
 }
 
-/** How it signs in: on the service's page, with a key of the owner's, with a code a device shows, or not at all. */
-export type Auth = "signIn" | "key" | "pairing" | "none";
+/** How access is authorized: a service sign-in, a key, a device code, local setup, or no authorization. */
+export type Auth = "signIn" | "key" | "pairing" | "local" | "none";
 
 /** How it signs in, as its listing, its keys or its server say; nothing when APX does not know. */
 export function authOf(i: Item): Auth | undefined {
@@ -171,7 +175,8 @@ export function authOf(i: Item): Auth | undefined {
   if (i.ext?.companion || i.entry?.contents?.companion || via === "pairing") return "pairing";
   if (via === "oauth" || i.server?.status === "needs-sign-in") return "signIn";
   if (via === "key" || i.ext?.secrets.length || i.entry?.contents?.keys.length) return "key";
-  if (via === "none" || via === "local") return "none";
+  if (via === "local") return "local";
+  if (via === "none") return "none";
   return undefined;
 }
 
@@ -179,6 +184,7 @@ export const AUTH_TEXT: Record<Auth, MessageKey> = {
   signIn: "mkt.auth.signIn",
   key: "mkt.auth.key",
   pairing: "mkt.auth.pairing",
+  local: "mkt.auth.local",
   none: "mkt.auth.none",
 };
 

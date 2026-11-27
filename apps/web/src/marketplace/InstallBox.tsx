@@ -22,6 +22,7 @@ import { AboutCard } from "./AboutParts.tsx";
 import { type About, aboutAddress, aboutExtension, type Origin, originOf } from "./about.ts";
 import { nothingToConnect, type Problem, problemOf } from "./adding.ts";
 import { ApxMark, ItemIcon } from "./ConnectHead.tsx";
+import { connectExtension, connectionFailureKey } from "./connecting.ts";
 import { SettingField } from "./ExtensionConfig.tsx";
 import { connectionUpdateText, nameFor, settingCopyIn } from "./itemText.ts";
 import { PairBody, usePairing } from "./PairStep.tsx";
@@ -278,11 +279,41 @@ export function InstallBox({
         s = (await client.call("mcp.list", {})).servers.find((x) => x.scope === "global" && x.name === server);
       }
       if (s?.status === "needs-sign-in") throw new Error(t("box.err.signInNotDone"));
-      if (!s || s.status !== "ready") throw new Error(t("box.err.noAnswer"));
+      if (s?.status !== "ready") throw new Error(t("box.err.noAnswer"));
       setSignInUrl(undefined);
       found.push(...s.tool_names);
     }
     return found;
+  };
+
+  const startExtension = (extension: ExtensionInfo) =>
+    connectExtension(extension, {
+      enable: (id, enabled, options) => client.call("extensions.enable", { id, enabled, ...options }),
+      start: startServers,
+      changed: (updated) => {
+        setExt(updated);
+        extensionsChanged();
+      },
+    });
+
+  const recoverConnection = async (error: unknown, extension: ExtensionInfo, hasFields: boolean) => {
+    setLink("broken");
+    let confirmed = false;
+    try {
+      const actual = (await client.call("extensions.list", {})).extensions.find((entry) => entry.id === extension.id);
+      if (actual) {
+        setExt(actual);
+        confirmed = true;
+      }
+    } catch {}
+    extensionsChanged();
+    const key = confirmed ? connectionFailureKey(error, hasFields) : "box.err.rollback";
+    setProblem({
+      key,
+      vars: { name: extension.name },
+      ...(key === "box.err.checkFields" ? {} : { detail: errText(error) }),
+      retry: true,
+    });
   };
 
   const add = async () => {
@@ -296,10 +327,13 @@ export function InstallBox({
         setOwn(ownName);
         setPhase("connect");
         setLink("connecting");
-        const on = await client.call("extensions.enable", { id: added.id, enabled: true });
-        setExt(on);
-        extensionsChanged();
-        setTools(await startServers(on.mcp));
+        setExt(added);
+        try {
+          setTools((await startExtension(added)).tools);
+        } catch (error) {
+          await recoverConnection(error, added, false);
+          return;
+        }
         setLink("connected");
         setPhase("done");
         return;
@@ -350,24 +384,19 @@ export function InstallBox({
         }),
       );
       if (Object.keys(settings).length) await client.call("extensions.settings", { id: ext.id, values: settings });
-      const on = ext.enabled ? ext : await client.call("extensions.enable", { id: ext.id, enabled: true });
-      setExt(on);
-      extensionsChanged();
-      if (on.companion) {
+      if (ext.companion) {
+        const on = ext.enabled ? ext : await client.call("extensions.enable", { id: ext.id, enabled: true });
+        setExt(on);
+        extensionsChanged();
         await pair.start();
         return;
       }
-      setTools(await startServers(on.mcp));
+      setTools((await startExtension(ext)).tools);
       setValues({});
       setLink("connected");
       setPhase("done");
     } catch (e) {
-      setLink("broken");
-      setProblem(
-        fields.length > 0
-          ? { key: "box.err.checkFields", retry: true }
-          : { key: "box.err.connect", vars: { name: ext.name }, detail: errText(e), retry: true },
-      );
+      await recoverConnection(e, ext, fields.length > 0);
     } finally {
       setBusy(false);
     }
@@ -497,14 +526,18 @@ export function InstallBox({
         <Button variant="secondary" onClick={onClose}>
           {t("box.later")}
         </Button>
-        {!(pairs && pair.state === "waiting") && (
-          <Button
-            disabled={!ready || !ext}
-            loading={busy || (link === "connecting" && !pairs)}
-            onClick={() => void connect()}
-          >
-            {problem?.retry ? t("box.retry") : t(verb)}
-          </Button>
+        {problem?.key === "box.err.rollback" ? (
+          <Button onClick={openPage}>{t("box.viewStatus")}</Button>
+        ) : (
+          !(pairs && pair.state === "waiting") && (
+            <Button
+              disabled={!ready || !ext}
+              loading={busy || (link === "connecting" && !pairs)}
+              onClick={() => void connect()}
+            >
+              {problem?.retry ? t("box.retry") : t(verb)}
+            </Button>
+          )
         )}
         {pairs && pair.code && pair.state === "waiting" && <Button onClick={pair.confirm}>{t("box.pairTyped")}</Button>}
       </>
@@ -573,7 +606,7 @@ export function InstallBox({
                 kind === "secret" ? (
                   <Field
                     key={s.name}
-                    label={s.label}
+                    label={settingCopyIn(s, lang).label}
                     hint={
                       "url" in s && s.url ? (
                         <a href={s.url} target="_blank" rel="noreferrer">

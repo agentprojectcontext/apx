@@ -24,7 +24,7 @@ type Origin = "included" | "catalog" | "own";
  */
 export type Label = "included" | "official" | "third" | "own";
 /** Shown on the row: not here yet, coming, installed but off, working, or waiting on the owner. */
-type ItemState = "available" | "coming" | "off" | "on" | "attention";
+type ItemState = "available" | "coming" | "off" | "on" | "attention" | "starting";
 /** Why one waits on the owner. */
 type Attention = "keys" | "settings" | "sign-in" | "error" | "update-waits" | "plugin";
 
@@ -146,21 +146,27 @@ function fromChannel(c: ChannelOffer): Item {
 function installed(e: ExtensionInfo, entry: CatalogEntry | undefined, servers: McpServerStatus[]): Item {
   const signingIn =
     e.enabled && servers.some((s) => s.scope === "global" && e.mcp.includes(s.name) && s.status === "needs-sign-in");
+  const starting =
+    e.enabled && servers.some((s) => s.scope === "global" && e.mcp.includes(s.name) && s.status === "starting");
+  const failed =
+    e.enabled && servers.some((s) => s.scope === "global" && e.mcp.includes(s.name) && s.status === "error");
   const missing = e.enabled && e.secrets.some((s) => !s.set);
   const unset = e.enabled && e.settings.some((s) => s.required && !s.set && s.value === undefined);
   const attention: Attention | undefined = !e.enabled
     ? e.update?.adds.length
       ? "update-waits"
       : undefined
-    : e.plugin?.status === "error"
-      ? "plugin"
-      : missing
-        ? "keys"
-        : unset
-          ? "settings"
-          : signingIn
-            ? "sign-in"
-            : undefined;
+    : failed
+      ? "error"
+      : e.plugin?.status === "error"
+        ? "plugin"
+        : missing
+          ? "keys"
+          : unset
+            ? "settings"
+            : signingIn
+              ? "sign-in"
+              : undefined;
   const update = entry && newer(entry.version, e.version) ? entry.version : undefined;
   const listing = e.listing ?? entry?.listing;
   const label: Label =
@@ -183,7 +189,7 @@ function installed(e: ExtensionInfo, entry: CatalogEntry | undefined, servers: M
     connection: listing?.connection,
     brings: e.brings,
     needs: e.needs,
-    state: attention ? "attention" : e.enabled ? "on" : "off",
+    state: attention ? "attention" : starting ? "starting" : e.enabled ? "on" : "off",
     attention,
     version: known(e.version),
     update,

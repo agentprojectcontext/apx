@@ -209,6 +209,7 @@ export function createExtensions(deps: {
     secrets: e.manifest.secrets.map((s) => ({
       name: s.name,
       label: s.label,
+      ...(s.locales ? { locales: s.locales } : {}),
       ...(s.url ? { url: s.url } : {}),
       set: secrets.has(`secret://${extSecret(e.id, s.name)}`),
     })),

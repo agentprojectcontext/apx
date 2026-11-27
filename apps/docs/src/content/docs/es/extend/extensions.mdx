@@ -43,8 +43,9 @@ aparece en el Marketplace.
   agentes, un teléfono para la app de un dispositivo; pasá el mouse para leerlo). Qué es sale de
   lo que trae: un **Canal** por el que habla APX; una **Integración** con código o una app propia (**Integración
   nativa** cuando la hace APX, como Google Calendar); un **Conector**, un servidor MCP (con habilidades para usarlo o
-  no); **Agentes**; o solo **Habilidades**. Cada fila tiene un solo botón: **Agregar** (abre la ficha de la extensión
-  y la agrega ahí), o **Conectar** si es Incluida.
+  no); **Agentes**; o solo **Habilidades**. Cada fila disponible tiene un solo botón: **Ver detalle**. Abrir la
+  ficha no agrega ni conecta nada. Primero leé su alcance y requisitos; después elegí **Agregar** o **Conectar**
+  en esa ficha, también para los canales y las integraciones incluidas con APX.
 - **Tus extensiones** lista lo que agregaste, en dos grupos: **Necesitan atención** (sin conectar, con una versión
   nueva, con error) y **Activas**. Los mismos grupos aparecen en la columna de la izquierda. Los canales se encuentran y se
   conectan desde Explorar, pero viven en **Canales**, así que acá no se repiten.
@@ -69,6 +70,8 @@ aparece en el Marketplace.
   enviar datos a api.hubapi.com", "Ejecuta código en tu compu", archivos que nadie verificó), **Autorización** ("Una
   clave tuya", "Iniciás sesión en el servicio"), qué necesita y qué no hace, costo, privacidad, enlaces y su huella en
   **Detalles**. Un dato que nadie dio no aparece.
+  El acceso local dice **Credenciales o permisos configurados en el equipo**, no **No hace falta**. Seguí los requisitos
+  de la extensión para preparar ese acceso en el equipo donde corre APX; agregarla no configura las credenciales.
 - **Agregar** › **Desde una dirección** o **Desde un archivo** suma algo que no está en un catálogo: el mismo cuadro se
   abre debajo de un selector (un archivo, una dirección o una carpeta). La dirección de un `.apxext` se lee como
   paquete; cualquier otra dirección https es un servidor MCP: APX lo agrega como una extensión tuya con ese servidor
@@ -150,8 +153,12 @@ El esquema es estricto: las claves desconocidas se rechazan.
 | `skills` | Una carpeta de carpetas de skills, cada una con su `SKILL.md`. |
 | `mcp` | Servidores por nombre (letras, números y `_`): `command` + `args` + `env`, o `url` + `headers`. Un comando que empieza con `./` corre desde la carpeta de la extensión. |
 | `routines` | Plantillas con `name`, `schedule` (`cron`, `every` cada N minutos con N de 5 o más, o `once`) y `prompt`. |
-| `secrets` | Hasta 10, cada uno con `name`, `label` y una `url` opcional de dónde sacarlo. Cada valor lo escribís una vez. |
+| `secrets` | Hasta 10, cada uno con `name`, `label` en inglés, `locales.es.label` opcional (español, con respaldo al inglés) y una `url` opcional de dónde sacarlo. Las etiquetas se traducen en el formulario de conexión y los detalles del paquete; los valores permanecen en el almacén de secretos. Cada valor lo escribís una vez. |
 | `plugin` | Código opcional; mirá más abajo. |
+
+La primera conexión se muestra como conectada recién cuando sus servidores están listos. Si un servidor falla al iniciar, APX desactiva esa extensión recién activada para que puedas reintentar, incluso después de volver a abrir su ficha, salvo que se haya cambiado desde otro lugar o se haya reiniciado APX. Dos fichas abiertas no pueden atribuirse la misma primera activación, y un intento fallido no puede deshacer una activación posterior. Si ya estaba activada antes del intento, un fallo no la desactiva.
+
+Si APX no puede confirmar que la extensión esté apagada, el diálogo lo informa por separado, sin atribuir el fallo a los datos ingresados. Elegí **Ver estado** para revisar la extensión antes de reintentar; los campos se conservan en el diálogo hasta que salgas de él. Instalar otra extensión, o una instalación rechazada antes de cambiar nada, no impide que una primera conexión pendiente pueda apagarse si falla.
 
 Un servidor MCP de una extensión solo puede usar los secretos **propios** de la extensión, como `secret://name`. No
 puede nombrar tus otras variables ni el entorno, así que un paquete no puede llevarse tus credenciales a otro lado.
@@ -169,7 +176,7 @@ puede nombrar tus otras variables ni el entorno, así que un paquete no puede ll
 
 | Campo | Qué tiene |
 |---|---|
-| `settings` | Valores que pone el dueño, con un `type` (`string`, `number`, `boolean`, `directory`, `file`), un `label`, y opcionales `description`, `default`, `options` (una elección), `required`. Usá `locales.es.label` o `locales.es.description` para mostrar textos en español en el panel; si falta alguna traducción, se usa el texto original. Uno `sensitive` va al almacén de secretos y se usa como `secret://name`; uno común se usa como `setting://name` en los argumentos, el entorno, la dirección o los encabezados de sus servidores (en una dirección, `setting://address/api` saca una `/` final que haya escrito el dueño). `"generate": "random"` (sólo strings sensibles) hace que APX ponga una clave al azar al instalar. |
+| `settings` | Valores que pone el dueño, con un `type` (`string`, `number`, `boolean`, `directory`, `file`), un `label`, y opcionales `description`, `locales.es.label` y `locales.es.description` (texto en español, cada uno usa el inglés si falta; las etiquetas de ajustes obligatorios también se traducen en Qué trae, incluso antes de agregar cuando están disponibles los detalles del paquete), `default`, `options` (una elección), `required`. Uno `sensitive` va al almacén de secretos y se usa como `secret://name`; uno común se usa como `setting://name` en los argumentos, el entorno, la dirección o los encabezados de sus servidores (en una dirección, `setting://address/api` saca una `/` final que haya escrito el dueño). `"generate": "random"` (sólo strings sensibles) hace que APX ponga una clave al azar al instalar. |
 | `agents` | Agentes listos (`id`, `name`, `description`, `prompt`) que el dueño agrega desde su ficha. |
 | `pages` | Sus propias páginas HTML (`id`, `title`, `entry`), que se abren desde su configuración en un marco aislado y sin red. Una página lee y cambia sólo sus propios ajustes con `window.apx` (`settings.get`, `settings.set`, `secrets.has`, `secrets.set`, `close`). |
 | `apps` | Widgets o apps (archivos `.apxart`) que el dueño agrega a Apps desde su ficha. |
