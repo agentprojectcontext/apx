@@ -4,7 +4,7 @@ export const enAutoDecisions = {
   "autoDel.lead":
     "In Auto, what an agent does that is not plainly safe is weighed on its own: a deletion, a page with outside content, a command on another machine. What the work plainly asks for goes ahead, the rest asks you. Here you can check each one.",
   "autoDel.all": "All",
-  "autoDel.onlyRan": "Went ahead",
+  "autoDel.onlyRan": "Approved",
   "autoDel.onlyAsked": "Asked you",
   "autoDel.filter": "Which decisions",
   "autoDel.empty":
@@ -13,6 +13,4 @@ export const enAutoDecisions = {
   "autoDel.retry": "Try again",
   "autoDel.older": "See older ones",
   "autoDel.openChat": "Open the chat",
-  "autoDel.rule": "Fixed rule",
-  "autoDel.helper": "Helper model",
 };

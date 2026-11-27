@@ -293,7 +293,7 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
   if (String(req.messages[0]?.content).startsWith("You decide whether an AI agent working for its owner"))
     return say(
       said.includes("host.invalid")
-        ? '{"decision":"run","why":"a check on the project runner"}'
+        ? '{"decision":"run","why":"revisa el runner"}'
         : '{"decision":"ask","why":"not sure"}',
     );
   if (req.messages.some((m) => m.role === "user" && String(m.content).includes("background then keep working"))) {
@@ -809,7 +809,7 @@ test("auto: a command on another machine goes to the judge, never to a folder ca
     ["action", "run", ["remote"]],
   );
   const [kept] = (await env.client.call("auto_decisions.list", { limit: 1 })).decisions;
-  assert.deepEqual([kept?.tool, kept?.why], ["shell", "a check on the project runner"]);
+  assert.deepEqual([kept?.tool, kept?.why], ["shell", "revisa el runner"]);
 });
 
 test("auto: a command that changes something where the agent works runs without a card", async () => {

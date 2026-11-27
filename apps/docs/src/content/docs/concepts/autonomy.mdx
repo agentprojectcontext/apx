@@ -148,10 +148,10 @@ like `logs/*` is weighed by the files it matches on disk, one by one.
 Agents are told to delete in a command of its own. When a deletion comes chained after other work, it is weighed on
 its own and the card shows only that part.
 
-Every deletion Auto weighs leaves a line under the agent's steps, such as "Auto deleted it: build or test output"
-or "Auto asked you: your files, not made during this task". Open it to see what goes and who decided: a fixed rule, or
-the helper model with its own words. **Settings › Agents › What Auto decided** lists them all, with the other calls
-below, newest first, with **Went ahead** and **Asked you** to narrow it down; each one opens its chat. They are kept
+When Auto lets a deletion go ahead it leaves a short line under the agent's steps, "Auto approved it", that opens to who
+decided: "GPT-6-Luna · you asked for it" (the helper model by name and its reason in a few words) or "Fixed rule".
+When it asks you, the card is the line. **Settings › Agents › What Auto decided** lists them all, with the other calls
+below, newest first, with **Approved** and **Asked you** to narrow it down; each one opens its chat. They are kept
 for 90 days.
 
 When a deletion asks, its card lists what would be deleted in plain words, with paths relative to the project, and
@@ -180,7 +180,7 @@ message), when a page or a message asks for it and you did not, and for plainly 
 answer or a doubt is the card. These never reach it and always ask: sending or posting in your name, paying,
 passwords, keys and anything shaped like one, `sudo` and system changes, APX's own settings, `AGENTS.md` and `.apx/`,
 writing outside your projects, your own Chrome, and an agent's own rule to ask. Each answer shows under the step
-("Auto went ahead: …") and in **What Auto decided**.
+("Auto approved it") and in **What Auto decided**.
 
 Git commands that throw away work git would otherwise keep are deletions too, weighed the same way, and their card
 names the branch, worktree, files or stash they lose: `git worktree remove --force`, `git branch -D`, `git clean -f` (or `-fd`, `-fdx`),

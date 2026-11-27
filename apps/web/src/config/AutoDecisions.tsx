@@ -88,9 +88,7 @@ function List() {
               <div className="autodels__head">
                 <span className="autodels__when">{dayLabel(d.at)}</span>
                 <span className="autodels__who">
-                  {[agents[d.agent_id]?.name, t(d.by === "judge" ? "autoDel.helper" : "autoDel.rule")]
-                    .filter(Boolean)
-                    .join(" · ")}
+                  {[agents[d.agent_id]?.name, d.items[0]].filter(Boolean).join(" · ")}
                 </span>
               </div>
               <AutoDecisionLine note={d}>

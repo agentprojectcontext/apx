@@ -57,7 +57,7 @@ test("the judge decides only what the rules leave open, within its deadline; any
     { timeoutMs: JUDGE_MS, purpose: "deletion" },
   );
   assert.match(asked[0]?.user ?? "", /rm -r ~\/ci\/slots\/x\/coverage[\s\S]*Leftovers of a canceled run/);
-  assert.match(asked[0]?.user ?? "", /write it in Spanish/, "the owner reads its why in their language");
+  assert.match(asked[0]?.user ?? "", /2 to 4 words in Spanish/, "the owner reads its why in their language");
   for (const answer of ['{"decision":"ask"}', "Sure, go ahead.", "", new Error("timed out")])
     assert.equal((await deletionRuns(call(answering(answer), REMOTE))).runs, false, String(answer));
   assert.equal((await deletionRuns(call(undefined, REMOTE))).runs, false, "no auxiliary model: a card");

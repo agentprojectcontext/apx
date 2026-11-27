@@ -224,7 +224,11 @@ export function AgentTurn({
         </Suspense>
       )}
       {tools.length > 0 && <ToolGroup parts={tools} waiting={waiting} ended={ended} />}
-      {tools.map((p) => p.auto_decision && <AutoDecisionLine key={`auto:${p.call_id}`} note={p.auto_decision} />)}
+      {/* What waited for the owner shows as its card, not as a line. */}
+      {tools.map(
+        (p) =>
+          p.auto_decision?.verdict === "run" && <AutoDecisionLine key={`auto:${p.call_id}`} note={p.auto_decision} />,
+      )}
       {items.map(({ key, part, media, segment, whole, generation }, i) => {
         if (generation)
           return (
