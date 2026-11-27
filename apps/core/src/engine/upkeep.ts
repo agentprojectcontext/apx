@@ -213,13 +213,25 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
   });
 
   /** One call to the auxiliary model; its tokens are kept with what it was for. */
+  type AskOptions = { models?: string[]; timeoutMs?: number; images?: Array<{ media_id: string; mime: string }> };
   async function ask(
     about: AuxAbout,
     agentId: string | undefined,
     system: string,
     user: string,
-    o: { models?: string[]; timeoutMs?: number; images?: Array<{ media_id: string; mime: string }> } = {},
+    o: AskOptions = {},
   ): Promise<string | undefined> {
+    return (await answered(about, agentId, system, user, o))?.text;
+  }
+
+  /** The answer with the model that gave it. */
+  async function answered(
+    about: AuxAbout,
+    agentId: string | undefined,
+    system: string,
+    user: string,
+    o: AskOptions = {},
+  ): Promise<{ text: string; model: string } | undefined> {
     const models = o.models ?? auxModels(agentId);
     if (!models.length) return undefined;
     const r = await llm.complete({
@@ -233,7 +245,7 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
       signal: AbortSignal.any([ac.signal, AbortSignal.timeout(o.timeoutMs ?? AUX_TIMEOUT_MS)]),
     });
     if (r.usage) store.auxCalls.add(about, r.model, r.usage);
-    return typeof r.message.content === "string" ? r.message.content : undefined;
+    return typeof r.message.content === "string" ? { text: r.message.content, model: r.model } : undefined;
   }
 
   async function title(run: RunRecord): Promise<void> {
@@ -385,6 +397,15 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
         ...(models?.length ? { models } : {}),
         ...(timeoutMs ? { timeoutMs } : {}),
       }),
+    /**
+     * A one-shot decision with the model that made it (a deletion in Auto, D-281): only the helper list's first model,
+     * never a fallback, which may be a small local one; none answering is the owner's card.
+     */
+    decide: (system: string, user: string, about: AuxAbout, timeoutMs?: number) => {
+      const [first] = auxModels();
+      if (!first) return Promise.resolve(undefined);
+      return answered(about, undefined, system, user, { models: [first], ...(timeoutMs ? { timeoutMs } : {}) });
+    },
     /**
      * A long read for an agent (an imported chat's digest): on the models that agent already sends its turns to, the
      * auxiliary one after them, with more time than a title gets.

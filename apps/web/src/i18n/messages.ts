@@ -44,6 +44,10 @@ const PACKS = {
     en: () => import("./activity-review-en.ts").then((m) => m.enActivityReview),
     es: () => import("./activity-review-es.ts").then((m) => m.esActivityReview),
   },
+  autoDeletions: {
+    en: () => import("./auto-deletions-en.ts").then((m) => m.enAutoDeletions),
+    es: () => import("./auto-deletions-es.ts").then((m) => m.esAutoDeletions),
+  },
   call: {
     en: () => import("./call-en.ts").then((m) => m.enCall),
     es: () => import("./call-es.ts").then((m) => m.esCall),

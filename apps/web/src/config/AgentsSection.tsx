@@ -9,10 +9,11 @@ import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { ArchivedAgents } from "../project/team/ArchivedAgents.tsx";
 import { AgentLimitsBlock } from "./AgentLimitsBlock.tsx";
+import { AutoDeletions } from "./AutoDeletions.tsx";
 import { AgentModelPicker } from "./models/AgentModelPicker.tsx";
 import { SectionHead, SubHead } from "./SectionHead.tsx";
 
-/** Agents: how far they go on their own and the archived ones first, then which model and browser profile each uses. */
+/** Agents: how far they go on their own, what Auto deleted and the archived ones first, then which model and browser profile each uses. */
 export function AgentsSection() {
   const t = useT();
   const agents = useData((s) => s.agents);
@@ -39,6 +40,7 @@ export function AgentsSection() {
     <>
       <SectionHead title={t("config.agents")} />
       <AgentLimitsBlock />
+      <AutoDeletions />
       <ArchivedAgents />
       <SubHead>{t("agents.each")}</SubHead>
       <p className="config__lead">{t("agents.lead")}</p>

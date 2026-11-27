@@ -82,6 +82,7 @@ export function moveChatRows(
     "surfaces",
     "nudges",
     "aux_calls",
+    "auto_deletions",
     "flow_events",
     "flow_graph_nodes",
   ] as const)

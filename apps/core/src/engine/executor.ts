@@ -3,7 +3,7 @@
 // model a capped copy.
 import path from "node:path";
 
-import type { MethodName, Params, Result, Thread } from "@apx/protocol";
+import type { AutoDeletionNote, MethodName, Params, Result, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import { type ApprovalTarget, DELETE_GRANT, deleteApproval, strictApproval } from "../domain/approvals.ts";
 import { type Asked, HELD_ANSWER } from "../domain/inputs.ts";
@@ -310,6 +310,8 @@ export function createExecutor(o: {
     const tool = bridged ? byName.get(name) : undefined;
     const title = tool ? toolTitle(store, tool, raw) : name;
     const began = now();
+    // What Auto decided about the deletion, shown on the step from then on (DECISIONS.md#d-281).
+    let auto: AutoDeletionNote | undefined;
     const card = (status: "running" | "ok" | "error", detail?: string) =>
       display.upsert((p) => p.type === "tool" && p.call_id === callId, {
         type: "tool",
@@ -319,6 +321,7 @@ export function createExecutor(o: {
         status,
         ...(detail ? { detail } : {}),
         ...(status === "running" ? {} : { ms: Math.max(0, Math.round(now() - began)) }),
+        ...(auto ? { auto_deletion: auto } : {}),
       });
     card("running");
     signal.throwIfAborted();
@@ -428,21 +431,27 @@ export function createExecutor(o: {
       gate.kind === "confirm" && target?.key === DELETE_GRANT
         ? tool.deletes?.(args, { agent, thread: callThread })
         : undefined;
-    const judged =
-      !!deleted?.place &&
-      !granted &&
-      modeOf(agent) === "auto" &&
-      (await deletionRuns({
-        store,
-        run,
-        agentId: agent.id,
-        thread,
-        deletion: deleted,
-        place: deleted.place,
-        reason: lastWords(display),
-        judge: o.judge,
-        untrusted,
-      }));
+    const decided =
+      deleted?.place && !granted && modeOf(agent) === "auto"
+        ? await deletionRuns({
+            store,
+            run,
+            agentId: agent.id,
+            thread,
+            deletion: deleted,
+            place: deleted.place,
+            reason: lastWords(display),
+            judge: o.judge,
+            untrusted,
+            callId,
+            command: String(args.command ?? ""),
+          })
+        : undefined;
+    if (decided) {
+      auto = decided.note;
+      card("running");
+    }
+    const judged = !!decided?.runs;
     if (
       !judged &&
       gate.kind === "confirm" &&
@@ -725,25 +734,27 @@ export function createExecutor(o: {
     if (grantable && store.approvals.allows(deleteApproval, thread.id, agent.id)) return allow();
     const gone = deletion ? { ...deletionTargets(command, base), root: deletionRoot(store, thread, base) } : undefined;
     // In Auto, what is plainly the agent's own, or what the judge finds the work asked for, runs (DECISIONS.md#d-281).
-    if (
-      gone &&
-      modeOf(agent) === "auto" &&
-      (await deletionRuns({
-        store,
-        run: o.run(),
-        agentId: agent.id,
-        thread,
-        deletion: gone,
-        place: { roots: [...new Set([gone.root, base])], scratch: o.scratchDir ?? base },
-        reason:
-          typeof req.input === "object" && req.input && "description" in req.input
-            ? String(req.input.description)
-            : undefined,
-        judge: o.judge,
-        untrusted,
-      }))
-    )
-      return allow();
+    const decided =
+      gone && modeOf(agent) === "auto"
+        ? await deletionRuns({
+            store,
+            run: o.run(),
+            agentId: agent.id,
+            thread,
+            deletion: gone,
+            place: { roots: [...new Set([gone.root, base])], scratch: o.scratchDir ?? base },
+            reason:
+              typeof req.input === "object" && req.input && "description" in req.input
+                ? String(req.input.description)
+                : undefined,
+            judge: o.judge,
+            untrusted,
+            callId: req.callId,
+            command: String(command ?? ""),
+          })
+        : undefined;
+    if (decided) noteDeletion(req.callId, decided.note);
+    if (decided?.runs) return allow();
     // A change outside its folders is the same folder card as ours: once, or always for this agent (DECISIONS.md#d-108).
     const offered = [...new Set(judged.flatMap((r) => ("refused" in r && r.offer ? [r.offer] : [])))];
     // A command that only reads keeps the plain card, and so does one asking to read first (its offer may be a read).
@@ -790,6 +801,14 @@ export function createExecutor(o: {
   };
   /** Why the owner's answer was no, per external call (see approve). */
   const refused = new Map<string, string>();
+  /** What Auto decided about an external call's deletion, for its step (DECISIONS.md#d-281). */
+  const autoNotes = new Map<string, AutoDeletionNote>();
+  const noteDeletion = (callId: string, note: AutoDeletionNote) => {
+    autoNotes.set(callId, note);
+    const shown = display.find((p) => p.type === "tool" && p.call_id === callId);
+    if (shown?.type === "tool")
+      display.upsert((p) => p.type === "tool" && p.call_id === callId, { ...shown, auto_deletion: note });
+  };
 
   /** When each of an external agent's tool calls began. */
   const seen = new Map<string, number>();
@@ -819,6 +838,7 @@ export function createExecutor(o: {
       status: ev.status,
       ...(ev.detail ? { detail: ev.detail } : {}),
       ...(ev.status === "running" ? {} : { ms: Math.max(0, Math.round(now() - (seen.get(ev.callId) ?? now()))) }),
+      ...(autoNotes.has(ev.callId) ? { auto_deletion: autoNotes.get(ev.callId) } : {}),
     });
   };
 

@@ -1407,4 +1407,26 @@ export const MIGRATIONS: readonly string[] = [
   -- shows a list and folds the command away; detail keeps the same as one text for channels.
   ALTER TABLE pending_inputs ADD COLUMN deletion TEXT;
   `,
+  `
+  -- Auto's decision on each deletion it weighed (DECISIONS.md#d-281): ran or asked, by a fixed rule or the judge (its
+  -- model and words), what went and the command, for the owner to review.
+  CREATE TABLE auto_deletions (
+    id TEXT PRIMARY KEY,
+    at TEXT NOT NULL,
+    thread_id TEXT NOT NULL,
+    run_id TEXT,
+    call_id TEXT,
+    agent_id TEXT NOT NULL,
+    project_id TEXT,
+    command TEXT NOT NULL,
+    items TEXT NOT NULL DEFAULT '[]',
+    verdict TEXT NOT NULL CHECK(verdict IN ('run', 'ask')),
+    decided_by TEXT NOT NULL CHECK(decided_by IN ('rule', 'judge')),
+    reasons TEXT NOT NULL DEFAULT '[]',
+    why TEXT,
+    model TEXT
+  );
+  CREATE INDEX auto_deletions_at ON auto_deletions(at);
+  CREATE INDEX auto_deletions_thread ON auto_deletions(thread_id);
+  `,
 ];
