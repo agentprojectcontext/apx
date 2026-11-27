@@ -146,8 +146,10 @@ The schema is strict: unknown keys are refused.
 | `skills` | A folder of skill folders, each with its `SKILL.md`. |
 | `mcp` | Servers by name (letters, digits and `_`): `command` + `args` + `env`, or `url` + `headers`. A command starting with `./` runs from the extension's folder. |
 | `routines` | Templates with a `name`, a `schedule` (`cron`, `every` N minutes with N of 5 or more, or `once`) and a `prompt`. |
-| `secrets` | Up to 10, each with a `name`, a `label` and an optional `url` where to get it. You type each value once. |
+| `secrets` | Up to 10, each with a `name`, an English `label`, optional `locales.es.label` (Spanish, falling back to English), and an optional `url` where to get it. Labels are translated in the connection form and package details; values remain in the secret store. You type each value once. |
 | `plugin` | Optional code; see below. |
+
+A first connection is shown as connected only after its servers are ready. If starting a server fails, APX turns that newly enabled extension off so you can retry, including after reopening its page. Retrying an extension that was already enabled does not turn it off on failure.
 
 An MCP server in an extension can only use the extension's **own** secrets, as `secret://name`. It can't name your
 other variables or the environment, so a bundle can't carry your credentials elsewhere.

@@ -333,6 +333,20 @@ test("one installed from an added catalog stays under it; a namesake from elsewh
   );
 });
 
+test("an extension does not claim connection while its own server starts or fails", () => {
+  const connector = ext("acme", { mcp: ["acme-main"] });
+  const find = (status: McpServerStatus["status"]) =>
+    buildItems({
+      ...sources,
+      installed: [connector],
+      servers: [server("acme-main", status)],
+    }).find((i) => i.ext?.id === "acme");
+  assert.equal(find("starting")?.state, "off");
+  assert.equal(find("error")?.state, "attention");
+  assert.equal(find("error")?.attention, "error");
+  assert.equal(find("ready")?.state, "on");
+});
+
 test("an enabled extension awaiting its own server login is not shown as connected", () => {
   const connector = ext("linear", { mcp: ["linear-main"] });
   const pending = buildItems({

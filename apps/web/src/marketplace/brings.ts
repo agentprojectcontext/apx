@@ -119,7 +119,7 @@ export function bringsOf(i: Item, servers: McpServerStatus[], lang: string): Bri
       routines: e.routines.map((r) => r.name),
       device: e.companion ? { name: e.companion.name, platform: e.companion.platform } : undefined,
       widgets: e.apps.length,
-      keys: [...e.secrets.map((s) => s.label), ...e.settings.filter((s) => s.sensitive).map((s) => s.label)],
+      keys: [...e.secrets, ...e.settings.filter((s) => s.sensitive)].map((s) => settingText(s, lang).label),
       settings: e.settings
         .filter((s) => s.required && !s.sensitive && !s.generate && s.default === undefined)
         .map((s) => settingText(s, lang).label),
@@ -146,7 +146,7 @@ export function bringsOf(i: Item, servers: McpServerStatus[], lang: string): Bri
       routines: k.routines,
       device: k.companion,
       widgets: k.apps ?? (i.brings.includes("apps") ? 1 : 0),
-      keys: k.keys,
+      keys: k.key_labels?.map((s) => settingText(s, lang).label) ?? k.keys,
       settings: k.setting_labels?.map((s) => settingText(s, lang).label) ?? k.settings ?? [],
       known: true,
     };

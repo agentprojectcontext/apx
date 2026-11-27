@@ -141,6 +141,7 @@ export const ExtensionManifest = z
                 schemaFields({
                   name: () => ExtName,
                   label: () => z.string().max(120),
+                  locales: () => ExtensionSetting.shape.locales,
                   url: () => z.string().max(500).optional(),
                 }),
               )
@@ -419,6 +420,8 @@ export const ExtensionContents = z.object(
     servers: () => z.number().int(),
     /** The labels of the keys it asks for. */
     keys: () => z.array(z.string()),
+    /** Display copy for secret labels, never their names or values. */
+    key_labels: () => z.array(ExtensionSetting.pick({ label: true, locales: true })).optional(),
     skills: () => z.array(z.string()).optional(),
     agents: () => z.array(z.string()),
     routines: () => z.array(z.string()),
@@ -506,6 +509,7 @@ export const ExtensionInfo = z.object(
           schemaFields({
             name: () => z.string(),
             label: () => z.string(),
+            locales: () => ExtensionSetting.shape.locales,
             url: () => z.string().optional(),
             set: () => z.boolean(),
           }),

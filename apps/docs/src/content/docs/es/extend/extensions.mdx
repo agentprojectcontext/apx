@@ -151,8 +151,10 @@ El esquema es estricto: las claves desconocidas se rechazan.
 | `skills` | Una carpeta de carpetas de skills, cada una con su `SKILL.md`. |
 | `mcp` | Servidores por nombre (letras, números y `_`): `command` + `args` + `env`, o `url` + `headers`. Un comando que empieza con `./` corre desde la carpeta de la extensión. |
 | `routines` | Plantillas con `name`, `schedule` (`cron`, `every` cada N minutos con N de 5 o más, o `once`) y `prompt`. |
-| `secrets` | Hasta 10, cada uno con `name`, `label` y una `url` opcional de dónde sacarlo. Cada valor lo escribís una vez. |
+| `secrets` | Hasta 10, cada uno con `name`, `label` en inglés, `locales.es.label` opcional (español, con respaldo al inglés) y una `url` opcional de dónde sacarlo. Las etiquetas se traducen en el formulario de conexión y los detalles del paquete; los valores permanecen en el almacén de secretos. Cada valor lo escribís una vez. |
 | `plugin` | Código opcional; mirá más abajo. |
+
+La primera conexión se muestra como conectada recién cuando sus servidores están listos. Si un servidor falla al iniciar, APX desactiva esa extensión recién activada para que puedas reintentar, incluso después de volver a abrir su ficha. Si ya estaba activada antes del intento, un fallo no la desactiva.
 
 Un servidor MCP de una extensión solo puede usar los secretos **propios** de la extensión, como `secret://name`. No
 puede nombrar tus otras variables ni el entorno, así que un paquete no puede llevarse tus credenciales a otro lado.

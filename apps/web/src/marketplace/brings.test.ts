@@ -55,6 +55,7 @@ test("before adding it, its page shows each connector's address, its skills and 
           agents: ["Closer"],
           agent_lines: { Closer: "Follows up on open deals." },
           keys: ["API key"],
+          key_labels: [{ label: "API key", locales: { es: { label: "Clave de API" } } }],
           settings: ["Workspace"],
         }),
       ),
@@ -75,6 +76,22 @@ test("before adding it, its page shows each connector's address, its skills and 
   ]);
   assert.deepEqual(b.agents, [{ name: "Closer", line: "Follows up on open deals." }]);
   assert.deepEqual([b.keys, b.settings], [["API key"], ["Workspace"]]);
+});
+
+test("secret labels translate from inspected catalog contents with English fallback", () => {
+  const i = item({
+    entry: entry(
+      contents({
+        keys: ["Connection string", "API key"],
+        key_labels: [
+          { label: "Connection string", locales: { es: { label: "Cadena de conexión" } } },
+          { label: "API key" },
+        ],
+      }),
+    ),
+  });
+  assert.deepEqual(bringsOf(i, [], "es").keys, ["Cadena de conexión", "API key"]);
+  assert.deepEqual(bringsOf(i, [], "en").keys, ["Connection string", "API key"]);
 });
 
 test("required settings use the same translated copy before and after adding an extension", () => {

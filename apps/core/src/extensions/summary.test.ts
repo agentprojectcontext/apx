@@ -8,6 +8,7 @@ test("catalog contents keep translated required setting labels without values or
     id: "acme",
     name: "Acme",
     version: "1.0.0",
+    secrets: [{ name: "token", label: "Connection string", locales: { es: { label: "Cadena de conexión" } } }],
     settings: [
       {
         name: "workspace",
@@ -28,7 +29,11 @@ test("catalog contents keep translated required setting labels without values or
     { label: "Workspace", locales: { es: { label: "Espacio de trabajo" } } },
     { label: "Region" },
   ]);
-  assert.deepEqual(contents.keys, ["Private key"]);
+  assert.deepEqual(contents.keys, ["Connection string", "Private key"]);
+  assert.deepEqual(contents.key_labels, [
+    { label: "Connection string", locales: { es: { label: "Cadena de conexión" } } },
+    { label: "Private key" },
+  ]);
 });
 
 test("catalog contents without translations preserve the legacy labels", () => {
