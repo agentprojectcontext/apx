@@ -61,7 +61,7 @@ export function McpTab({ projectId, query, scope, adding, setAdding, res, ownOnl
           .filter((p) => shown.some((s) => s.project_id === p.id))
           .map((p) => ({ title: p.name, items: shown.filter((s) => s.project_id === p.id) })),
       ];
-  const current = (all ?? []).find((s) => keyOf(s) === picked);
+  const current = shown.find((s) => keyOf(s) === picked && !(ownOnly && isGlobal(s)));
   const inherit = useInheritance(projectId, "mcp", res.loadServers);
   const changed = () => res.loadServers();
   const setPermissions = async (s: McpServerStatus, mode: "ask" | "all") => {

@@ -141,7 +141,7 @@ export function McpTools({
           />
         )}
       </div>
-      {s.scope === "global" && Boolean(projectId) && !s.only && (
+      {s.scope === "global" && !s.only && (
         <p className="resd__muted">{t(s.values_of ? "res.permissionsProject" : "res.permissionsShared")}</p>
       )}
       {tools && tools.length > 0 && (
