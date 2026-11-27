@@ -1,6 +1,7 @@
 import type { NoticeKey } from "./notices-en.ts";
 
 export const noticeEs: Record<NoticeKey, string> = {
+  "notice.continuation.loading": "Cargando seguimiento…",
   "notice.continuation.scheduled": "Programado",
   "notice.continuation.waiting": "En espera",
   "notice.continuation.started": "En curso",
