@@ -42,6 +42,7 @@ export const enMarketplace = {
   "mkt.from.you": "Added by you",
   "mkt.comesWithApx": "Comes with APX",
   "mkt.versionN": "version {version}",
+  "mkt.viewDetails": "View details",
   "mkt.step.add": "Add",
   "mkt.step.connect": "Connect",
   "mkt.step.pair": "Pair",

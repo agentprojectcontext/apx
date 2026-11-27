@@ -2,7 +2,7 @@
 // has, and one that can't be read says so with a way to try again.
 import fs from "node:fs";
 import path from "node:path";
-import { expect, open, test, world } from "./kit.ts";
+import { expect, open, rpc, test, world } from "./kit.ts";
 
 async function catalogFolder() {
   const { dir } = await world.info();
@@ -55,4 +55,19 @@ test("a catalog is read in the background: its row lists it once read, or says i
     .getByRole("button", { name: "Quitar" })
     .click();
   await expect(bad).toBeHidden();
+
+  const before = await rpc("extensions.list");
+  const servers = await rpc("mcp.list");
+  const channels = await rpc("channels.list");
+  await row.getByRole("button", { name: "Ver en Explorar" }).click();
+  const notes = page.locator(".apx-catalogrow").filter({ hasText: "notes" }).first();
+  await notes.getByRole("button", { name: "Ver detalle", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "notes", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Agregar", exact: true })).toBeVisible();
+  expect(await rpc("extensions.list")).toEqual(before);
+  expect(await rpc("mcp.list")).toEqual(servers);
+  expect(await rpc("channels.list")).toEqual(channels);
+  await page.getByRole("button", { name: "Agregar", exact: true }).click();
+  await expect.poll(() => rpc("extensions.list")).not.toEqual(before);
+  await expect(page.getByRole("button", { name: "Agregar", exact: true })).toHaveCount(0);
 });

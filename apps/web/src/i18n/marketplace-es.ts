@@ -44,6 +44,7 @@ export const esMarketplace = {
   "mkt.from.you": "Agregada por vos",
   "mkt.comesWithApx": "Viene con APX",
   "mkt.versionN": "versión {version}",
+  "mkt.viewDetails": "Ver detalle",
   "mkt.step.add": "Agregar",
   "mkt.step.connect": "Conectar",
   "mkt.step.pair": "Emparejar",
