@@ -33,6 +33,7 @@ export const enMarketplace = {
   "mkt.group.attention": "Needs attention",
   "mkt.group.active": "Active",
   "mkt.from": "Created by {name}",
+  "mkt.from.mcp": "{name} MCP · published by APX",
   "mkt.creatorUnknown": "Creator not listed",
   "mkt.published": "Published",
   "mkt.from.github": "Code on GitHub: {name}",

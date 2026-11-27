@@ -232,6 +232,7 @@ export function createPackageReader(deps: { home: string; fetch?: typeof fetch; 
           version: v.version,
           ...(v.published_at ? { published_at: v.published_at } : {}),
           provenance: isOfficial ? "official" : "third_party",
+          ...(isOfficial && e.mcp_provider ? { mcp_provider: e.mcp_provider } : {}),
           ...(v.archive ? { url: v.archive.url } : {}),
           ...(pkg ? { brings: bringsOf(pkg.manifest, listing), needs: needsOf(pkg.manifest, listing) } : {}),
           ...(listing ? { listing: listingCopy(listing, pkg?.manifest, isOfficial) } : {}),

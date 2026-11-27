@@ -292,6 +292,16 @@ publishes. APX asks for the catalog only when you inspect or install an extensio
 copy when it can't reach it; with no copy, the dialog says it couldn't tell. A different catalog address can be set
 with `APX_MARKETPLACE_INDEX` ([Configuration](/reference/configuration/)).
 
+For a direct official MCP, the official index may set `mcp_provider` to the service provider's display name. Its card
+then says “{name} MCP · published by APX”: the provider and the package publisher are separate. Added catalogs cannot
+claim this attribution. The existing website link still leads to the service's official site.
+
+An official entry's index `icon` is its Marketplace avatar, separate from the package listing's `icon`. APX prefers
+that avatar in the catalog, detail and connection views, including a matching officially installed package, and
+falls back to the package icon if the avatar cannot be loaded. Images are fetched by the core, not by the panel
+from an external host. Use an immutable, content-addressed avatar URL when replacing an image: cached image bytes
+are keyed by URL; changing only the bytes at the same URL does not invalidate an existing cached copy.
+
 ### Your own catalogs
 
 GitHub catalog branches are separate sources. A branch catalog added before APX recorded the branch in its address

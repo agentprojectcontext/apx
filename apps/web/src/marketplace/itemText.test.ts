@@ -50,6 +50,23 @@ test("authorship does not come from review, a brand, a GitHub account or who add
   assert.equal(fromText(item({ label: "own" }), t), "mkt.from.you");
 });
 
+test("a direct official MCP names its provider separately from its APX publisher", () => {
+  const entry = {
+    id: "x",
+    name: "X",
+    description: "",
+    categories: [],
+    version: "1.0.0",
+    provenance: "official" as const,
+    mcp_provider: "Acme",
+  };
+  assert.equal(fromText(item({ entry, publisher: "APX" }), t), "mkt.from.mcp(Acme)");
+  assert.equal(
+    fromText(item({ entry: { ...entry, catalog: "added" }, publisher: "Northwind" }), t),
+    "mkt.from(Northwind)",
+  );
+});
+
 test("one next step per state: add, connect, pair a device, then done", () => {
   assert.equal(nextStep(item()), "add");
   assert.equal(nextStep(item({ origin: "included" })), "connect");

@@ -123,6 +123,7 @@ before(async () => {
         {
           kind: "extension",
           id: "weather",
+          mcp_provider: "Acme weather",
           name: "Weather",
           description: "Forecasts.",
           categories: ["data"],
@@ -150,6 +151,7 @@ before(async () => {
         {
           kind: "extension",
           id: "notch",
+          mcp_provider: "Spoofed provider",
           name: "Notch",
           description: "An island.",
           tagline: "Your agent above the menu bar",
@@ -198,6 +200,8 @@ test("the catalog lists each extension at its newest version, with what its own 
   );
   const w = entries[0];
   assert.equal(w?.provenance, "official");
+  assert.equal(w?.mcp_provider, "Acme weather");
+  assert.equal(entries.find((e) => e.id === "notch")?.mcp_provider, undefined);
   assert.equal(w?.url, "https://dl.example.com/weather-1.1.0.apxext");
   assert.deepEqual(w?.brings, ["accounts", "tools", "skills"]);
   assert.deepEqual(w?.needs, ["code", "cost"]);

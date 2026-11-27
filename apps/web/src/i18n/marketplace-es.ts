@@ -35,6 +35,7 @@ export const esMarketplace = {
   "mkt.group.attention": "Necesitan atención",
   "mkt.group.active": "Activas",
   "mkt.from": "Creada por {name}",
+  "mkt.from.mcp": "MCP de {name} · publicado por APX",
   "mkt.creatorUnknown": "Sin autor indicado",
   "mkt.published": "Publicada",
   "mkt.from.github": "Código en GitHub: {name}",

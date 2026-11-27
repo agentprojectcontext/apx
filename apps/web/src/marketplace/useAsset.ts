@@ -1,34 +1,26 @@
 import { useEffect, useState } from "react";
 import { client } from "../data/client.ts";
+import { createAssetCache } from "./assetCache.ts";
 
-// An image of an extension's listing (icon, screenshot) as a data URL, asked of the core once per file.
+// Images go through the core: the panel never contacts the catalog's image host directly.
+const load = createAssetCache(async (id, file) => {
+  const image = await client.call("extensions.asset", { id, file });
+  return image.mime && image.data ? `data:${image.mime};base64,${image.data}` : undefined;
+});
 
-const cache = new Map<string, Promise<string | undefined>>();
-
-function load(id: string, file: string): Promise<string | undefined> {
-  const key = `${id}\0${file}`;
-  let p = cache.get(key);
-  if (!p) {
-    p = client
-      .call("extensions.asset", { id, file })
-      .then((r) => (r.mime && r.data ? `data:${r.mime};base64,${r.data}` : undefined))
-      .catch(() => undefined);
-    cache.set(key, p);
-  }
-  return p;
-}
-
-/** The image's data URL once it arrives; undefined while it does not (or when the extension has none). */
-export function useAsset(id: string, file: string | undefined): string | undefined {
-  const [url, setUrl] = useState<string>();
+/** A core-served image, with a package fallback when the catalog avatar is unavailable. */
+export function useAsset(id: string, file: string | undefined, revision = "", fallback?: string): string | undefined {
+  const key = JSON.stringify([id, file, revision, fallback]);
+  const [image, setImage] = useState<{ key: string; url: string | undefined }>();
   useEffect(() => {
-    setUrl(undefined);
     if (!file) return;
     let live = true;
-    void load(id, file).then((u) => live && setUrl(u));
+    void load(id, file, revision, fallback).then((url) => {
+      if (live) setImage({ key, url });
+    });
     return () => {
       live = false;
     };
-  }, [id, file]);
-  return url;
+  }, [id, file, revision, fallback, key]);
+  return image?.key === key ? image.url : undefined;
 }

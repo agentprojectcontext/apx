@@ -48,6 +48,7 @@ const Entry = z.object({
   /** Absolute https addresses of its `apx-listing.json` and its icon. */
   listing: z.string().max(500).startsWith("https://").optional(),
   icon: z.string().max(500).startsWith("https://").optional(),
+  mcp_provider: z.string().trim().min(1).max(100).optional(),
   tier: z.string().optional(),
   versions: z.array(z.unknown()).default([]),
 });
@@ -62,6 +63,7 @@ export type Listed = {
   category: string | undefined;
   listing: string | undefined;
   icon: string | undefined;
+  mcp_provider?: string | undefined;
   tier: string | undefined;
   versions: ListedVersion[];
 };
@@ -89,6 +91,7 @@ function parseIndex(raw: unknown): { schema: number; entries: Listed[] } | undef
       category: p.data.category,
       listing: p.data.listing,
       icon: p.data.icon,
+      mcp_provider: p.data.mcp_provider,
       tier: p.data.tier,
       versions,
     });

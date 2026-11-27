@@ -1,6 +1,8 @@
 import { ChannelIcon, ConnectSignal, Icons, IntegrationIcon } from "@apx/ui";
+import { useState } from "react";
 import logoUrl from "../assets/logo.png";
 import type { Item } from "../resources/extensionItems.ts";
+import { iconFiles } from "./brand.ts";
 import { useAsset } from "./useAsset.ts";
 import "@apx/ui/summary.css";
 import "../styles/install-box.css";
@@ -10,16 +12,19 @@ import "../styles/install-box.css";
 
 export type LinkState = "idle" | "connecting" | "connected" | "broken";
 
-/** An extension's own icon when its listing has one; a channel's or the browser's mark; else the app's mark or its letter. */
+/** A verified catalog avatar, then the package icon; otherwise the channel, browser or app mark. */
 export function ItemIcon({
   item,
   size,
 }: {
-  item: Pick<Item, "id" | "name"> & Partial<Pick<Item, "listing" | "channel" | "builtin" | "entry">>;
+  item: Pick<Item, "id" | "name"> & Partial<Pick<Item, "listing" | "channel" | "builtin" | "entry" | "ext">>;
   size: number;
 }) {
-  // Its package's icon once read; until then the one the catalog's index points at.
-  const icon = useAsset(item.id, item.listing?.icon ?? (item.entry?.icon_url ? "@icon" : undefined));
+  const { file, fallback, revision } = iconFiles(item);
+  const [broken, setBroken] = useState<{ identity: string; urls: string[] }>();
+  const identity = JSON.stringify([item.id, file, revision]);
+  const failures = broken?.identity === identity ? broken.urls : [];
+  const icon = useAsset(item.id, failures.length ? fallback : file, revision, fallback);
   if (item.channel)
     return (
       <span className="mkt__tile" style={{ width: size, height: size }}>
@@ -32,8 +37,16 @@ export function ItemIcon({
         <Icons.Globe size={Math.round(size * 0.55)} />
       </span>
     );
-  return icon ? (
-    <img className="mkt__icon" src={icon} alt="" width={size} height={size} style={{ width: size, height: size }} />
+  return icon && !failures.includes(icon) ? (
+    <img
+      className="mkt__icon"
+      src={icon}
+      alt=""
+      width={size}
+      height={size}
+      style={{ width: size, height: size }}
+      onError={() => setBroken({ identity, urls: [...failures, icon] })}
+    />
   ) : (
     <IntegrationIcon id={item.id} name={item.name} size={size} />
   );
@@ -48,7 +61,7 @@ export function ConnectHead({
   from = "apx",
   state,
 }: {
-  item: Pick<Item, "id" | "name"> & Partial<Pick<Item, "listing" | "entry">>;
+  item: Pick<Item, "id" | "name"> & Partial<Pick<Item, "listing" | "entry" | "ext">>;
   /** Where the link starts: APX (an account) or the app (a companion app pairing with APX). */
   from?: "apx" | "app";
   state: LinkState;

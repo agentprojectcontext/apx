@@ -1,6 +1,7 @@
 import type { ExtensionListing, McpServerStatus } from "@apx/protocol";
 import type { MessageKey } from "../i18n/index.ts";
 import { type Item, kindOf } from "../resources/extensionItems.ts";
+import { officialMcpProvider } from "./brand.ts";
 
 // What the Marketplace says about an item, in the owner's words, from what APX knows of it (its manifest, its listing,
 // its servers): what it brings, its one next step, why it waits, what it may reach and how it signs in. A fact APX
@@ -96,7 +97,9 @@ export function kindText(i: Item, t: T): string {
 }
 
 /** Authorship is independent of APX's review, the service's brand and who added the package. */
-export function fromText(i: Pick<Item, "label" | "publisher" | "github">, t: T): string {
+export function fromText(i: Pick<Item, "label" | "publisher" | "github" | "entry" | "ext">, t: T): string {
+  const provider = officialMcpProvider(i);
+  if (provider) return t("mkt.from.mcp", { name: provider });
   if (i.publisher) return t("mkt.from", { name: i.publisher });
   if (i.github) return t("mkt.from.github", { name: i.github });
   return t(i.label === "own" ? "mkt.from.you" : "mkt.creatorUnknown");
