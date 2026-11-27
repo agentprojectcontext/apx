@@ -76,7 +76,11 @@ export function continueTask(store: Store, admit: AdmitFn, run: RunRecord): RunR
   if (capped) {
     const advancedPlan = !!run.started_at && !!ctx.progress_at && ctx.progress_at >= run.started_at;
     const earlier = previous.flatMap((r) => store.runs.steps(r.id));
-    if (!advancedPlan && !verified && (stalled(steps) || stalled(steps, earlier))) return undefined;
+    const milestone = ctx.progress_at ?? task.created_at;
+    if (!advancedPlan && !verified) {
+      if (ctx.effect_progress === milestone || stalled(steps) || stalled(steps, earlier)) return undefined;
+      store.threads.mergeContext(task.thread_id, { effect_progress: milestone });
+    }
   } else if (done.length && !verified && stalled(steps, previous[0] ? store.runs.steps(previous[0].id) : [])) {
     return undefined;
   }
@@ -89,7 +93,7 @@ export function continueTask(store: Store, admit: AdmitFn, run: RunRecord): RunR
     part: last?.kind === "task_continue" ? last.part + 1 : 2,
     ...(!capped ? { of: MAX_AUTO_PARTS + 1 } : {}),
   };
-  const next = admit({
+  return admit({
     thread_id: thread.id,
     agent_id: run.agent_id,
     trigger: "system",
@@ -97,15 +101,28 @@ export function continueTask(store: Store, admit: AdmitFn, run: RunRecord): RunR
     text: `${task.title}: go on`,
     reply_to: run.input?.reply_to,
   });
-  const message = capped && run.message_id ? store.messages.get(run.message_id) : undefined;
+}
+
+/** Mark the previous boundary only once the new part actually starts. */
+export function markContinuedPart(store: Store, start: RunRecord): void {
+  const origin = start.input?.origin;
+  if (start.state !== "working" || origin?.kind !== "task_continue" || !origin.from_run) return;
+  const prior = store.runs.get(origin.from_run);
+  if (prior?.end_reason !== "step_limit" || prior.thread_id !== start.thread_id || prior.agent_id !== start.agent_id)
+    return;
+  const message = prior.message_id ? store.messages.get(prior.message_id) : undefined;
   if (message)
     store.messages.update({
       ...message,
       parts: message.parts.map((p) =>
         p.type === "notice" && p.code === "run.stepLimit"
-          ? { ...p, level: "info", code: "run.partContinued", text: "Part ended. APX is continuing this task." }
+          ? {
+              ...p,
+              level: "info",
+              code: "run.partContinued",
+              text: "Part ended. APX started the next part of this task.",
+            }
           : p,
       ),
     });
-  return next;
 }

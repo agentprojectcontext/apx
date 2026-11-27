@@ -316,6 +316,11 @@ export function approvalsRepo(q: Sql) {
         for (const [k, g] of sessions) if (g.key === key && (!thread || g.thread_id === thread)) sessions.delete(k);
       saveSessions();
     },
+    /** Clear only the permanent grant for everybody, preserving chat and one-use decisions. */
+    revokeOwnerWide(key: string): void {
+      write(read().filter((g) => g.key !== key || Boolean(g.agent_id)));
+      for (const listener of listeners) listener();
+    },
     /** Every grant of one agent under a key, for good and for single chats. */
     revokeAgent(key: string, agent: string): void {
       write(read().filter((g) => g.key !== key || g.agent_id !== agent));

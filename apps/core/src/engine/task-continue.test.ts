@@ -62,6 +62,12 @@ const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
       return afterTool ? say("Checked half of it.") : callTool("check", "task_list", {});
     return afterTool ? say("Wrote it, checking next.") : callTool("w", "task_update", { task, status: "doing" });
   }
+  if (said.includes("Rewrite without a milestone")) {
+    if (!req.tools.length) return say("Still rewriting.");
+    const part = said.includes("Part 2:") ? 2 : 1;
+    if (!afterTool) return callTool(`rewrite-${part}`, "file_write", { path: "rewrite.md", content: `Draft ${part}` });
+    return callTool(`look-${req.messages.length}`, "memory_search", { query: `draft-${part}-${req.messages.length}` });
+  }
   if (said.includes("Native boundary")) {
     if (said.includes("Part 2:"))
       return afterTool
@@ -140,6 +146,55 @@ test("a native cap continues in the same task after progress, with no replay or 
   );
 });
 
+test("canceling at the completed boundary prevents the task from continuing", async () => {
+  let stopped = 0;
+  const off = env.core.bus.on((event) => {
+    if (event.type === "run.updated" && event.run.end_reason === "step_limit")
+      queueMicrotask(() => {
+        stopped += env.core.engine.cancel(event.run.thread_id);
+      });
+  });
+  try {
+    const task = await env.client.call("tasks.create", {
+      title: "Native boundary canceled",
+      description: "Native boundary: save the work.",
+      assignee: "vera",
+    });
+    await waitFor(() => stopped > 0, "the completed turn is still in finalization when canceled");
+    assert.deepEqual(
+      turnsOn(task.id).map((r) => r.end_reason),
+      ["step_limit"],
+    );
+  } finally {
+    off();
+  }
+});
+
+test("a canceled queued continuation does not claim the next part started", async () => {
+  const off = env.core.bus.on((event) => {
+    if (event.type !== "run.updated" || event.run.state !== "submitted") return;
+    const run = env.core.store.runs.get(event.run.id);
+    if (run?.input?.origin.kind === "task_continue") queueMicrotask(() => env.core.engine.cancel(run.thread_id));
+  });
+  try {
+    const task = await env.client.call("tasks.create", {
+      title: "Native boundary queued",
+      description: "Native boundary: save the work.",
+      assignee: "vera",
+    });
+    await waitFor(() => turnsOn(task.id)[1]?.state === "canceled", "the next part is canceled in the queue");
+    const [first, next] = turnsOn(task.id);
+    assert.equal(next?.error, "canceled before it started");
+    assert.equal(next?.message_id, undefined);
+    const msg = env.core.store.messages.get(first?.message_id ?? "");
+    assert.ok(msg);
+    assert.ok(msg.parts.some((p) => p.type === "notice" && p.code === "run.stepLimit"));
+    assert.ok(!msg.parts.some((p) => p.type === "notice" && p.code === "run.partContinued"));
+  } finally {
+    off();
+  }
+});
+
 test("a native cap with only repeated lookups does not continue", async () => {
   const task = await env.client.call("tasks.create", {
     title: "Native boundary without progress",
@@ -151,6 +206,28 @@ test("a native cap with only repeated lookups does not continue", async () => {
     turnsOn(task.id).map((r) => r.end_reason),
     ["step_limit"],
   );
+});
+
+test("changing write arguments cannot start unlimited parts without a new milestone, even with the guard off", async () => {
+  const { stuck } = await env.client.call("agents.limits", {});
+  await env.client.call("agents.set_limits", { stuck: { runs: 0, tokens: 0 } });
+  try {
+    const task = await env.client.call("tasks.create", {
+      title: "Rewrite without a milestone",
+      description: "Rewrite without a milestone: update the draft.",
+      assignee: "vera",
+    });
+    await waitFor(() => turnsOn(task.id)[1]?.ended_at, "the second capped part ends");
+    const turns = turnsOn(task.id);
+    assert.deepEqual(
+      turns.map((r) => r.end_reason),
+      ["step_limit", "step_limit"],
+    );
+    const message = env.core.store.messages.get(turns[1]?.message_id ?? "");
+    assert.ok(message?.parts.some((p) => p.type === "notice" && p.code === "run.stepLimit"));
+  } finally {
+    await env.client.call("agents.set_limits", { stuck });
+  }
 });
 
 test("a part that gets nowhere is not followed by another: the stall watch has it", async () => {

@@ -238,7 +238,7 @@ export function createEngine(deps: {
   /** Whether a desktop app is linked as a node. */
   desktopLinked?: () => boolean;
   /** Work on the thread once a run ended (title, compaction); never blocks the next run. */
-  afterRun?: (run: RunRecord) => void;
+  afterRun?: (run: RunRecord, signal?: AbortSignal) => void;
 }) {
   const { store, log } = deps;
   const busy = new Set<string>();
@@ -475,7 +475,7 @@ export function createEngine(deps: {
       );
       ended(done);
       // A turn APX's shutdown cut off is not over: the next boot closes and resumes it.
-      if (TERMINAL.has(done.state)) deps.afterRun?.(done);
+      if (TERMINAL.has(done.state)) deps.afterRun?.(done, ac.signal);
       retryDropped(done);
     } finally {
       clock.stop();

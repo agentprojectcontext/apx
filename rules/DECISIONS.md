@@ -6516,8 +6516,9 @@ rules/SUPER_AGENT_POWERS.md, the apx-agents and apx-mcps skills, and news (`mcp-
 ## D-280 — 2026-11-26 — A turn boundary is not a budget pause; permission changes target an account
 
 A native task turn that reaches its step cap can admit another part in the same task chat when its plan or its
-recorded tool results show progress. It keeps its original end reason for usage and diagnostics, but the chat says
-that the task continued instead of asking the owner to do so. No automatic restart replays tool calls. Waiting,
+recorded tool results show progress. Novel tool effects alone can bridge one cap per milestone, not an endless
+series of edits. It keeps its original end reason for usage and diagnostics, but once the next part actually starts,
+the previous part records that start instead of asking the owner to continue. No automatic restart replays tool calls. Waiting,
 cancellation, provider limits, project scope and turn-specific browser consent are unchanged. Non-cap follow-ups still
 have a fixed bound (D-162).
 

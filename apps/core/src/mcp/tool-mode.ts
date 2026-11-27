@@ -6,13 +6,7 @@ import type { McpDef } from "./config.ts";
 export type OpenedBy = "owner" | "default";
 
 /** Owner-wide grants leave per-agent and per-chat grants alone. */
-export function setMcpToolMode(
-  store: Store,
-  d: McpDef,
-  mode: "ask" | "all",
-  by: OpenedBy = "owner",
-  known: readonly { key: string }[] = [],
-): void {
+export function setMcpToolMode(store: Store, d: McpDef, mode: "ask" | "all", by: OpenedBy = "owner"): void {
   const server = mcpServerApproval(d);
   if (mode === "all") {
     store.approvals.grant({ ...server, ...(by === "default" ? { byDefault: true as const } : {}) }, "always", "");
@@ -28,9 +22,9 @@ export function setMcpToolMode(
         !g.thread_id &&
         (g.credential_scope !== undefined
           ? g.credential_scope === server.credential_scope
-          : g.key === server.key || known.some((t) => t.key === g.key)),
+          : g.project_id === server.project_id),
     );
-  for (const g of ownerWide) store.approvals.revoke(g.key);
+  for (const g of ownerWide) store.approvals.revokeOwnerWide(g.key);
 }
 
 type ServerId = Pick<McpDef, "scope" | "project_id" | "name">;
@@ -48,7 +42,7 @@ export function allowsAll(store: Store, d: McpDef): OpenedBy | undefined {
         !g.agent_id &&
         !g.thread_id &&
         (g.key === target.key ||
-          g.credential_scope === target.credential_scope ||
+          (!d.values_of && g.credential_scope === target.credential_scope) ||
           (g.credential_scope === undefined && !d.values_of && g.project_id === d.project_id)),
     );
   if (!all.length) return undefined;

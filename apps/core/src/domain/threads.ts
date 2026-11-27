@@ -134,6 +134,7 @@ export type ThreadContext = {
   progress_at?: string;
   /** One verification checkpoint per plan milestone, so repeated checks can't keep the guard open. */
   verified_progress?: { milestone: string; at: string | undefined };
+  effect_progress?: string;
   /** On a task's conversation: the stretch without progress the owner was already told about (its start). */
   stuck_told?: string;
   /** On a task's conversation: its assignee was asked once whether documents alone were what it asked for. */

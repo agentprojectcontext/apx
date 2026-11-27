@@ -32,6 +32,7 @@ export const McpServerStatus = z.object(
     project_id: () => Id.optional(),
     /** Project credentials, if this is a separate instance of a global server. */
     values_of: () => Id.optional(),
+    credential_key: () => z.string().optional(),
     transport: () => z.enum(["stdio", "http"]),
     /** The command line or URL (no secret values: those are references). */
     target: () => z.string(),

@@ -4,7 +4,8 @@ import { Id, McpServerStatus } from "./domain.ts";
 import { McpTarget } from "./resource-methods-schemas.ts";
 
 // Fail closed if credentials changed since the operator picked a server. Null explicitly selects shared credentials.
-const PermissionTarget = () => McpTarget.extend({ values_of: Id.nullable().optional() });
+const PermissionTarget = () =>
+  McpTarget.extend({ values_of: Id.nullable().optional(), credential_key: z.string().optional() });
 export const resourceMethodsPart2 = {
   "mcp.tools": deferMethod({
     params: PermissionTarget,

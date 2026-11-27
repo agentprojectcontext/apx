@@ -82,7 +82,7 @@ export function McpTools({
       setBusy(false);
       onLoaded();
     });
-  }, [s.name, s.scope, s.values_of, project, usable, reload]);
+  }, [s.name, s.scope, s.values_of, s.credential_key, project, usable, reload]);
   useEffect(() => {
     setPicking(pickRequest > 0);
   }, [pickRequest]);

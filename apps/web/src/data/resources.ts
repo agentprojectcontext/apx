@@ -132,6 +132,7 @@ const permissionTarget = (s: McpServerStatus, project?: string) => ({
   server: s.name,
   ...scoped(s.scope === "project" ? (s.project_id ?? project) : (s.values_of ?? s.project_id)),
   ...(s.scope === "global" ? { values_of: s.values_of ?? null } : {}),
+  ...(s.credential_key ? { credential_key: s.credential_key } : {}),
 });
 
 /** Its tools and their permissions, or why the server did not start (`error`). */
