@@ -24,11 +24,14 @@ for (const language of ["es", "en"] as const) {
     test(`${language} at ${width}px: local focus, retry, bounded dates, expiry and private task titles`, async ({
       page,
     }) => {
+      const description =
+        "Read the report and compare it with the previous one. If the figures have changed, summarize what is different. " +
+        "Check whether the new figures are final, and point out anything that still needs to be confirmed.";
       const text =
         language === "es"
           ? {
               scheduled: "Programado",
-              cancel: "Cancelar: Read the report",
+              cancel: `Cancelar: ${description}`,
               canceled: "Cancelado",
               retry: "No se pudo cancelar. Volvé a intentar.",
               view: "Ver ejecución",
@@ -38,7 +41,7 @@ for (const language of ["es", "en"] as const) {
             }
           : {
               scheduled: "Scheduled",
-              cancel: "Cancel: Read the report",
+              cancel: `Cancel: ${description}`,
               canceled: "Canceled",
               retry: "Couldn't cancel. Try again.",
               view: "View run",
@@ -66,34 +69,57 @@ for (const language of ["es", "en"] as const) {
           quiet_to: "23:59",
         });
         const task = await env.client.call("tasks.create", { title: "Simulated cycle" });
-        await create("Read the report", { kind: "time", at: "2026-10-06T03:10:00Z" });
+        await create(description, { kind: "time", at: "2026-10-06T03:10:00Z" });
         const event = await create("Read the cycle result", { kind: "task_done", task: task.id });
         await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
         await page.addInitScript((lang) => {
           if (location.protocol === "http:") localStorage.setItem("apx.prefs", JSON.stringify({ language: lang }));
         }, language);
-        await page.goto(`${env.core.url}/#thread=home`);
+        const chunk = "**/assets/ContinuationNotice-*.js";
+        const held = Promise.withResolvers<void>();
+        await page.route(chunk, async (route) => {
+          await held.promise;
+          await route.continue();
+        });
+        try {
+          await page.goto(`${env.core.url}/#thread=home`, { waitUntil: "domcontentloaded" });
+          await expect(page.getByText(language === "es" ? "Cargando seguimiento…" : "Loading follow-up…")).toHaveCount(
+            2,
+          );
+          await expect(page.getByText(description, { exact: false })).toHaveCount(0);
+        } finally {
+          held.resolve();
+        }
         const receipts = page.locator(".continuation-notice");
         await expect(receipts).toHaveCount(2);
         const timer = receipts.first();
         const status = timer.locator(".continuation-notice__status");
         const cancel = timer.getByRole("button", { name: text.cancel, exact: true });
+        const purpose = timer.getByText(description, { exact: true });
         await expect(timer).toContainText(text.scheduled);
-        await expect(timer).toContainText(language === "es" ? "El 6 de oct de 2026 a las" : "Oct 6, 2026 at");
-        await expect(timer).toContainText(/(0:10|12:10|00:10)/);
-        await expect(timer).toContainText(/(ART|GMT-3)/);
+        await expect(cancel).toBeVisible();
+        await expect(purpose).toBeHidden();
+        await expect(status).toHaveAttribute("aria-expanded", "false");
         const statusBox = await status.boundingBox();
         const buttonBox = await cancel.boundingBox();
         expect(statusBox).not.toBeNull();
         expect(buttonBox).not.toBeNull();
         if (statusBox && buttonBox) {
-          if (width === 1280) {
-            expect(buttonBox.x).toBeGreaterThan(statusBox.x + statusBox.width);
-            expect(Math.abs(buttonBox.y - statusBox.y)).toBeLessThan(10);
-          } else expect(buttonBox.y).toBeGreaterThan(statusBox.y + statusBox.height);
+          expect(buttonBox.x).toBeGreaterThanOrEqual(statusBox.x + statusBox.width);
+          expect(Math.abs(buttonBox.y - statusBox.y)).toBeLessThan(6);
         }
         await shot("pending");
-        await status.focus();
+        await status.press("Enter");
+        await expect(status).toHaveAttribute("aria-expanded", "true");
+        await expect(purpose).toBeVisible();
+        await expect(
+          timer.getByText(language === "es" ? /^El 6 de oct de 2026 a las/ : /^Oct 6, 2026 at/),
+        ).toBeVisible();
+        await expect(timer).toContainText(/(0:10|12:10|00:10)/);
+        await expect(timer).toContainText(/(ART|GMT-3)/);
+        await shot("expanded");
+        await status.press("Space");
+        await expect(purpose).toBeHidden();
         await page.keyboard.press("Tab");
         const focusColor = await visibleKeyboardFocus(cancel);
         await shot("cancel-tab");
@@ -111,6 +137,7 @@ for (const language of ["es", "en"] as const) {
         await page.unroute("**/rpc/continuations.cancel");
         await cancel.press("Enter");
         await expect(status).toHaveText(text.canceled);
+        await expect(status).toHaveAttribute("aria-expanded", "false");
         expect(await visibleKeyboardFocus(status)).toBe(focusColor);
         await shot("canceled");
         await env.client.call("tasks.close", { task: task.id, state: "done" });
@@ -118,6 +145,8 @@ for (const language of ["es", "en"] as const) {
         const view = receipts.nth(1).getByRole("button", { name: text.view, exact: true });
         await expect(view).toBeVisible();
         await expect(status).toBeFocused();
+        await page.keyboard.press("Tab");
+        await visibleKeyboardFocus(receipts.nth(1).locator(".continuation-notice__status"));
         await page.keyboard.press("Tab");
         expect(await visibleKeyboardFocus(view)).toBe(focusColor);
         await shot("view-tab");

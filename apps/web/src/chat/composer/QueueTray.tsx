@@ -183,7 +183,7 @@ function QueueRow({
           onKeyDown={keys}
         />
       )}
-      <Tooltip content={text}>
+      <Tooltip content={text && <span className="queue__preview">{text}</span>}>
         <span className="queue__text">
           {files > 0 && (
             <span className="queue__files">
@@ -191,7 +191,7 @@ function QueueRow({
               {files}
             </span>
           )}
-          {text}
+          <span className="queue__snippet">{text}</span>
         </span>
       </Tooltip>
       <span className="queue__acts">

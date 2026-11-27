@@ -28,6 +28,8 @@ export type McpDef = {
   headers: Record<string, string>;
   /** Extension settings explicitly marked optional can be empty without blocking the server. */
   optionalSecrets?: string[] | undefined;
+  /** Plain extension values substituted only after secret resolution, never interpreted as templates. */
+  literalSettings?: Record<string, string> | undefined;
   secretLabels?: Record<string, string> | undefined;
   /** Required extension settings this particular server references but the owner has not set. */
   missingSettings?: string[] | undefined;
@@ -123,12 +125,16 @@ function extensionDefs(store: Store): McpDef[] {
       };
       // In an address, a setting followed by a path drops its trailing "/" ("https://ha.example/" + "/api/mcp"), as the
       // native integrations' addresses do.
+      const literalSettings: Record<string, string> = {};
       const own = (v: string, address = false) =>
         v
           .replace(SECRET_REF, (_m, n: string) => `secret://${extSecret(e.id, n)}`)
-          .replace(SETTING_REF, (m, n: string, at: number, all: string) =>
-            address && all[at + m.length] === "/" ? setting(n).replace(/\/+$/, "") : setting(n),
-          );
+          .replace(SETTING_REF, (m, n: string, at: number, all: string) => {
+            const token = `{{apx-literal-${Object.keys(literalSettings).length}}}`;
+            literalSettings[token] =
+              address && all[at + m.length] === "/" ? setting(n).replace(/\/+$/, "") : setting(n);
+            return token;
+          });
       const map = (r: Record<string, string>) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, own(v)]));
       const bridge = isMcpRemote(server);
       const env = map(server.env);
@@ -155,6 +161,12 @@ function extensionDefs(store: Store): McpDef[] {
       };
       const d = toDef(`${e.id}-${name}`, raw, { scope: "global", cwd: e.dir });
       if (!d) return [];
+      d.literalSettings = literalSettings;
+      if (Object.keys(literalSettings).length)
+        d.hash = createHash("sha256")
+          .update(JSON.stringify([d.hash, literalSettings]))
+          .digest("hex")
+          .slice(0, 16);
       if (e.manifest.monitor?.server === name) d.monitorTool = e.manifest.monitor.tool;
       const optionalSecrets = e.manifest.settings
         .filter((s) => s.sensitive && !s.required)
@@ -181,6 +193,13 @@ function extensionDefs(store: Store): McpDef[] {
       return [{ ...d, hash, optionalSecrets, secretLabels, missingSettings }];
     }),
   );
+}
+
+/** A server switched on or off drops another app's `disabled` key, which would keep it off whatever `enabled` says. */
+function withoutDisabled(kept: Record<string, unknown>, server: Record<string, unknown>): Record<string, unknown> {
+  if (server.enabled === undefined) return kept;
+  const { disabled: _d, ...rest } = kept;
+  return rest;
 }
 
 export function mcpConfig(store: Store) {
@@ -271,7 +290,7 @@ export function mcpConfig(store: Store) {
           type: _t,
           ...rest
         } = (servers[name] ?? {}) as Record<string, unknown>;
-        servers[name] = { ...rest, ...server };
+        servers[name] = { ...withoutDisabled(rest, server), ...server };
       } else delete servers[name];
       fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(file, `${JSON.stringify({ ...doc, mcpServers: servers }, null, 2)}\n`);
@@ -291,7 +310,7 @@ export function mcpConfig(store: Store) {
           enabled: _o,
           ...rest
         } = all[name] ?? {};
-        all[name] = { ...rest, ...server } as Raw;
+        all[name] = { ...withoutDisabled(rest, server), ...server } as Raw;
       } else delete all[name];
       store.settings.set("mcp_servers", JSON.stringify({ mcpServers: all }));
     },

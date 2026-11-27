@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { Alert, Text, View } from "react-native";
 import type { DelegationState } from "../../hooks/continueSession";
 import { lang, t } from "../../i18n";
-import { type Message, noticeText } from "../../protocol";
+import { type ApxClient, type Message, noticeText } from "../../protocol";
 import { Icon } from "../Icon";
 import { Button } from "../kit";
 import { makeStyles, useTheme } from "../theme";
+import { CompactRow } from "./CompactRow";
+import { ContinuationNotice } from "./ContinuationNotice";
 
 type NoticePart = Extract<Message["parts"][number], { type: "notice" }>;
 /** Lets a conversation the breaker paused go on: a fresh budget, or no limit until the owner writes there again. */
@@ -21,35 +23,78 @@ export function NoticeCard({
   goOn,
   continueSession,
   sessionState,
+  client,
+  details,
 }: {
   part: NoticePart;
+  client?: ApxClient | undefined;
+  details?: string[] | undefined;
   goOn?: GoOn | undefined;
   continueSession?: ContinueSession | undefined;
   sessionState?: SessionState | undefined;
 }) {
   const theme = useTheme();
   const s = useStyles();
+  if (part.code === "continuation.receipt") return <ContinuationNotice part={part} client={client} />;
+  const actionable = Boolean(
+    (goOn && part.code.startsWith("breaker.") && typeof part.vars?.thread === "string") ||
+      (continueSession && part.code === "delegation.limit" && typeof part.vars?.subthread === "string"),
+  );
+  const text = noticeText(part, lang);
+  const body = (
+    <>
+      {part.code !== "memory.saved" || !(details?.length || part.detail) ? (
+        <Text selectable style={s.body}>
+          {text}
+        </Text>
+      ) : null}
+      {(details ?? (part.detail ? [part.detail] : [])).map((detail, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: repeated notes retain their order
+        <Text key={i} selectable style={s.code}>
+          {detail}
+        </Text>
+      ))}
+    </>
+  );
+  if (part.level !== "error" && !actionable) {
+    const memory = part.code === "memory.saved";
+    const research = part.code === "research.updated";
+    const title =
+      part.code === "thread.compacted"
+        ? t("noticeContext")
+        : memory || research
+          ? text
+          : t(part.level === "warn" ? "noticeWarning" : "noticeInfo");
+    const hasDetail = part.code !== "thread.compacted" && Boolean(details?.length || part.detail || title !== text);
+    return (
+      <CompactRow
+        title={title}
+        compact={memory || part.code === "thread.compacted"}
+        icon={
+          memory
+            ? "Brain"
+            : research
+              ? "Search"
+              : part.code === "thread.compacted"
+                ? "Archive"
+                : part.level === "warn"
+                  ? "TriangleAlert"
+                  : "Info"
+        }
+        warning={part.level === "warn"}
+      >
+        {hasDetail ? body : undefined}
+      </CompactRow>
+    );
+  }
   return (
-    <View style={s.notice}>
+    <View style={s.notice} accessibilityRole={part.level === "error" ? "alert" : undefined}>
       <Icon
         name={part.level === "info" ? "Info" : "TriangleAlert"}
         size={16}
-        color={part.level === "error" ? theme.danger : part.level === "warn" ? theme.warning : theme.fgMuted}
+        color={part.level === "error" ? theme.danger : theme.warning}
       />
-      <Text
-        style={[
-          s.text,
-          part.level === "error" && { color: theme.danger },
-          part.level === "info" && { color: theme.fgMuted },
-        ]}
-      >
-        {noticeText(part, lang)}
-      </Text>
-      {part.detail ? (
-        <Text numberOfLines={part.level === "error" ? 8 : 2} style={s.code}>
-          {part.detail}
-        </Text>
-      ) : null}
+      {body}
       {goOn && part.code.startsWith("breaker.") && typeof part.vars?.thread === "string" ? (
         <BreakerActions thread={part.vars.thread} goOn={goOn} />
       ) : null}
@@ -164,7 +209,7 @@ const useStyles = makeStyles((theme) => ({
     backgroundColor: theme.fill,
     maxWidth: "88%",
   },
-  text: { color: theme.warning, fontSize: 13, fontWeight: "500", flexShrink: 1 },
+  body: { color: theme.fg, fontSize: 13, lineHeight: 19, flexShrink: 1 },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 8, width: "100%" },
   done: { color: theme.fgMuted, fontSize: 12, width: "100%" },
   code: { color: theme.fgMuted, fontSize: 12, fontFamily: theme.mono },

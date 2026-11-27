@@ -202,6 +202,7 @@ export const esMarketplace = {
   "box.err.noAnswer": "no respondió",
   "box.err.address":
     "{name} no respondió en esa dirección. Queda en tus extensiones: revisá la dirección y probá de nuevo.",
+  "box.err.checkFields": "Revisá lo que ingresaste y volvé a intentar.",
   "box.err.connect":
     "{name} no se pudo conectar. Quedó agregada, sin conectar: probá ahora o más tarde desde su ficha.",
   "box.state.connected": "Conectada",
@@ -262,6 +263,9 @@ export const esMarketplace = {
   "box.update.stays": "Sigue conectada, sin que hagas nada.",
   "box.update.waits": "Después la conectás de nuevo para aprobar lo que suma.",
   "box.update.keeps": "La {from} queda guardada: podés volver a ella desde ⋯.",
+  "box.update.changed": "Cambia cómo se conecta: {list}",
+  "box.update.reconnect": "Volvé a conectarla con una credencial nueva.",
+  "box.update.keepsReconnect": "Podés volver a la {from} desde ⋯. Si lo hacés, vas a tener que conectarla de nuevo.",
   "box.collapse": "Mostrar menos",
   "box.expand": "Ver qué trae",
   "box.bringsUnknown":

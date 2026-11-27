@@ -203,6 +203,12 @@ out(
 mkdirSync(resolve(mobile, "assets"), { recursive: true });
 out(resolve(mobile, "assets/logo.png"), readFileSync(resolve(mobile, "../web/src/assets/logo.png")));
 
+// The action kinds and human labels stay aligned with the panel.
+out(
+  resolve(target, "chat/toolKind.ts"),
+  `// Synced from apps/web/src/chat/parts/toolKind.ts by scripts/sync-design-assets.mjs.\n${readFileSync(resolve(mobile, "../web/src/chat/parts/toolKind.ts"), "utf8")}`,
+);
+
 // The week as both apps order it, which the routines' cron reading below imports.
 mkdirSync(resolve(mobile, "src/common"), { recursive: true });
 out(

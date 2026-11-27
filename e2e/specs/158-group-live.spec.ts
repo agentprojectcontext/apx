@@ -14,7 +14,7 @@ test("a group shows the answer as it is written, offers its members after @, and
     rpc<Agent>("agents.create", { project_id: project.id, slug, name, role });
   const lena = await mk("lena", "Lena", "Design");
   const omar = await mk("omar", "Omar", "Sales");
-  const pia = await mk("pia", "Pia", "Support");
+  const support = await mk("northwind-support", "Northwind support", "Support");
   const group = await rpc<Thread>("threads.group", { agent_ids: [lena.id, omar.id], title: "Live team" });
   await open(page, `#project=${project.id}&tab=chats&thread=${group.id}`);
   const main = page.getByRole("main");
@@ -44,7 +44,7 @@ test("a group shows the answer as it is written, offers its members after @, and
   const last = messages.at(-1)?.author;
   expect(last?.kind === "agent" ? last.id : last?.kind).toBe(omar.id);
 
-  // The card: add Pia, take Lena out.
+  // The card: add the project's support agent, take Lena out.
   await page.locator(".chat__header").getByRole("button", { name: "Grupo" }).click();
   const card = page.getByRole("complementary", { name: "Grupo" });
   const member = (name: string) => card.locator(".groupcard__member", { hasText: name });
@@ -56,12 +56,12 @@ test("a group shows the answer as it is written, offers its members after @, and
   await expect(card.getByRole("button", { name: "Modelo de Lena" })).toContainText("el suyo");
   await expect(card.getByRole("button", { name: "Sobre el modelo que elige quién responde" })).toBeVisible();
   await card.getByRole("button", { name: "Sumar un agente" }).click();
-  await page.getByRole("menuitem", { name: /Pia/ }).click();
-  await expect(card.getByRole("button", { name: "Sacar a Pia" })).toBeVisible();
+  await page.getByRole("menuitem", { name: /Northwind support/ }).click();
+  await expect(card.getByRole("button", { name: "Sacar a Northwind support" })).toBeVisible();
   await card.getByRole("button", { name: "Sacar a Lena" }).click();
   await expect(member("Lena")).toHaveCount(0);
   await expect
     .poll(async () => (await rpc<{ thread: Thread }>("threads.get", { thread: group.id })).thread.agent_ids)
-    .toEqual([omar.id, pia.id]);
-  await expect(page.locator(".chat__members")).toHaveText(/Omar.*Pia/);
+    .toEqual([omar.id, support.id]);
+  await expect(page.locator(".chat__members")).toHaveText(/Omar.*Northwind support/);
 });

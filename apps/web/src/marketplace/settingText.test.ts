@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ExtensionSetting } from "@apx/protocol";
-import { settingText } from "./settingText.ts";
+import { settingCopyIn as settingText } from "./itemText.ts";
 
 const setting = { name: "project", label: "Cloud project", description: "Choose a project.", type: "string" };
 

@@ -45,12 +45,16 @@ export const ExtensionSetting = z
           .strict()
           .optional(),
       type: () => z.enum(["string", "number", "boolean", "directory", "file"]),
+      /** An HTTPS installation address, canonicalized before storage; no credentials, query or fragment. */
+      format: () => z.literal("https-url").optional(),
       required: () => z.boolean().default(false),
       sensitive: () => z.boolean().default(false),
       default: () => z.union([z.string().max(500), z.number(), z.boolean()]).optional(),
       /** The only values a string may take (a choice). */
       options: () => z.array(z.string().max(80)).max(20).optional(),
       generate: () => z.literal("random").optional(),
+      /** Sensitive string encoded with the exact values of these plain settings; changes require a new value. */
+      boundTo: () => z.array(ExtName).min(1).max(8).optional(),
     }),
   )
   .strict();
