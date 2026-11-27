@@ -240,6 +240,7 @@ pnpm remote status                 # every branch's run and its last line
 pnpm remote attach [branch]        # follow a run again (exit code is the run's)
 pnpm remote screen [branch]        # the run's virtual screen in the browser (noVNC through an ssh tunnel)
 pnpm remote stop [branch]
+pnpm remote clean [--days N] [--dry-run]   # what every run removes first; --days 0 frees every idle slot
 pnpm verify:mac                    # on the Mac: what Linux cannot prove (native pointer, desktop app's macOS paths)
 ```
 Each branch has one run at a time; several branches run side by side, each capped at `APX_REMOTE_CPUS` (24) and
@@ -254,6 +255,20 @@ A scratch core started by hand sets the same three (`APX_SECRETS=file APX_TELEME
 The box runs under the `apx-remote` AppArmor profile (`scripts/remote/apparmor`, installed by `setup` with sudo) and
 without Docker's seccomp filter, so the core's headless Chromium keeps its sandbox; `--init` reaps the processes tests
 orphan, as their process-tree checks expect.
+
+Each slot is a full checkout with its installs (about 14 GB), so every run cleans up first (`scripts/remote-clean.ts`):
+- **Slots** go when the commit of their last run is in `staging` or `origin/staging` or `origin/main` of this checkout
+  (pushed with each run as `refs/merged/*`), or when no run fetched into them for `APX_REMOTE_KEEP_DAYS` (3) days.
+  The `staging` and `main` slots go only by age. A slot never goes while its box runs, nor the one this run uses: a
+  starting run holds `locks/<slot>.lock` until its box runs, and the cleanup takes the same lock, checks again that no
+  box runs for it and nobody fetched into it since, and moves it to `trash/`, which is deleted in the background.
+  A branch with no commits of its own counts as merged; its next run clones it again from the shared caches.
+- **Boxes** that finished go once `pnpm remote` has read their exit code, with their slot, or a day after they ended
+  (until then `status` shows how they ended).
+- **Docker's build cache** is capped at `APX_REMOTE_BUILD_CACHE` (20gb); `setup` also removes the image it replaces.
+- **Free space**: with less than `APX_REMOTE_MIN_FREE_GB` (40) free after that, the run waits for the trash to be
+  deleted and then refuses to start, listing the idle slots `pnpm remote clean --days 0` would free (with sizes) and
+  what Docker could free on the machine (images and cache that are not only these runs').
 
 ## 5a. End to end (Playwright)
 ```bash
