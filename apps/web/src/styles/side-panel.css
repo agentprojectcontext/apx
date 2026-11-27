@@ -293,17 +293,6 @@
 .drawer.widgetchat {
   overflow: hidden;
 }
-.browser__stage {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-.browser__stage > .ctrllock {
-  inset: 0 10px 10px;
-  border-radius: var(--apx-radius-md);
-}
 
 /* Chat header tools: a dot on a tool with something running for this chat (its commands, the agents it called). */
 .panelswitch__btn {

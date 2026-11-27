@@ -237,6 +237,8 @@ test("the browser tab follows its slot, a popup over it shows a still, and a rel
   }, `#thread=${thread.id}&panel=browser`);
   const slot = main.locator(".browser__page--native");
   await expect(slot).toBeVisible();
+  expect(await main.evaluate((id) => window.apxDesktop?.hasBrowserView?.(id), tab)).toBe(true);
+  expect(await main.evaluate(() => window.apxDesktop?.hasBrowserView?.("h1"))).toBe(false);
   // A dialog still open (the welcome, when this test runs alone) covers the page with its backdrop.
   await main.keyboard.press("Escape");
   await expect(main.getByRole("dialog")).toHaveCount(0);
@@ -246,6 +248,23 @@ test("the browser tab follows its slot, a popup over it shows a still, and a rel
       return { x: Math.round(r.left), y: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height) };
     });
   await expect.poll(tabView).toEqual({ on: "top", ...(await rect()) });
+
+  // Opening a second tab for the agent cannot change the page under the first tab's toolbar.
+  const otherUrl = `${url}?tab=background`;
+  const other = await rpc<{ tab: string }>("browser.open", { url: otherUrl, by: "e2e" });
+  await expect
+    .poll(() =>
+      app.evaluate(({ BaseWindow, WebContentsView }, hidden) => {
+        const children = BaseWindow.getAllWindows().find((w) =>
+          w.contentView.children.some((v) => v instanceof WebContentsView && v.webContents.getURL() === hidden),
+        )?.contentView.children;
+        const top = children?.at(-1);
+        return top instanceof WebContentsView ? top.webContents.getURL() : undefined;
+      }, otherUrl),
+    )
+    .toBe(url);
+  expect(await main.evaluate((id) => window.apxDesktop?.browserFrame?.(id), other.tab)).toBeNull();
+  await rpc("browser.close", { tab: other.tab });
 
   // A popup over the page: the live tab steps behind and a still of it holds the place.
   await main.evaluate(() => {
@@ -315,10 +334,9 @@ test("the browser tab follows its slot, a popup over it shows a still, and a rel
     location.hash = hash;
   }, `#thread=${thread.id}`);
   await expect(slot).toHaveCount(0);
-  await main.evaluate(() =>
-    (
-      window as { apxDesktop?: { setBrowserBounds(b: { x: number; y: number; width: number; height: number }): void } }
-    ).apxDesktop?.setBrowserBounds({ x: 40, y: 40, width: 400, height: 300 }),
+  await main.evaluate(
+    (id) => window.apxDesktop?.setBrowserBounds({ tab: id, x: 40, y: 40, width: 400, height: 300 }),
+    tab,
   );
   await expect.poll(async () => (await tabView())?.on).toBe("top");
   await main.reload();

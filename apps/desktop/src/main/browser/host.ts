@@ -1,5 +1,6 @@
 // Owns the tabs. Executes browser.* for the core and for the user's own chrome (URL bar, take control).
 // The node re-checks control on every agent call: it never trusts that the core already did.
+import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 import {
   BROWSER_FILL_SECRET,
@@ -85,6 +86,11 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
       control: tab.control,
       consent_epoch: tab.cdp.consentEpoch,
     };
+  }
+
+  viewFor(id: string): WebContentsView | undefined {
+    const tab = this.#tabs.get(id);
+    return tab?.view.webContents?.isDestroyed() === false ? tab.view : undefined;
   }
 
   list(): TabInfo[] {
@@ -281,8 +287,8 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
     assertNavigable(url);
     if (this.#tabs.size >= MAX_TABS)
       throw new ApxError({ code: "unavailable", message: `tab limit (${MAX_TABS}) reached` });
-    const id = `t${++this.#seq}`;
-    const ses = session.fromPartition(partitionFor(profile, this.#seq));
+    const id = `t${randomUUID()}`;
+    const ses = session.fromPartition(partitionFor(profile, ++this.#seq));
     this.#configure(ses);
     const view = new WebContentsView({
       webPreferences: {

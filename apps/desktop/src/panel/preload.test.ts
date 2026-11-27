@@ -85,14 +85,14 @@ test("preload exposes only the panel and connection bridges, with strict native 
 test("panel actions use fixed IPC channels and normalize browser, attention and menu arguments", async (t) => {
   const { call, calls } = await preload(t);
   calls.length = 0;
-  const bounds = { x: 2, y: 3, width: 400, height: 300 };
+  const bounds = { tab: "tab_1", x: 2, y: 3, width: 400, height: 300 };
   const prefs = { shortcut: "CommandOrControl+Shift+Space", launchAtLogin: false, computerUse: true };
   const cases: [string, unknown[], string, unknown[]][] = [
     ["setBrowserBounds", [bounds], "panel:browser-bounds", [bounds]],
     ["setBrowserBounds", [null], "panel:browser-bounds", [null]],
     ["showBrowserTab", ["tab_1"], "panel:browser-tab", ["tab_1"]],
-    ["popOutBrowser", [true], "browser:popout", [true]],
-    ["popOutBrowser", ["true"], "browser:popout", [false]],
+    ["popOutBrowser", [true, "tab_1"], "browser:popout", [true, "tab_1"]],
+    ["popOutBrowser", ["true"], "browser:popout", [false, undefined]],
     ["openMain", ["thr_1"], "quick:open-main", ["thr_1"]],
     ["openMain", [13], "quick:open-main", [undefined]],
     ["applyDesktopPrefs", [prefs], "desktop:prefs", [prefs]],
@@ -121,7 +121,8 @@ test("panel requests return native replies without exposing a general invoke cap
     ["computerPermissions", [], "computer:permissions", []],
     ["openPrivacy", ["screen"], "computer:open-privacy", ["screen"]],
     ["computerFrame", [], "computer:frame", []],
-    ["browserFrame", [], "panel:browser-frame", []],
+    ["browserFrame", ["tab_1"], "panel:browser-frame", ["tab_1"]],
+    ["hasBrowserView", ["tab_1"], "panel:has-browser-view", ["tab_1"]],
     ["stopComputer", [], "computer:stop", []],
     ["pickFolder", [], "panel:pick-folder", []],
     ["servers", [], "desktop:servers", []],

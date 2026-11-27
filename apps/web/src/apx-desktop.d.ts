@@ -70,13 +70,17 @@ declare global {
        * Where to place the real browser view, in viewport CSS pixels (integers); null hides it. `behind` keeps it at
        * that place and size under the panel while something covers it.
        */
-      setBrowserBounds(bounds: { x: number; y: number; width: number; height: number; behind?: boolean } | null): void;
-      /** A still of the page the native browser view shows (a data URL), to stand in while it steps behind. */
-      browserFrame?(): Promise<string | null>;
+      setBrowserBounds(
+        bounds: { tab: string; x: number; y: number; width: number; height: number; behind?: boolean } | null,
+      ): void;
+      /** A still of the selected native tab, to stand in while it steps behind. */
+      browserFrame?(tab: string): Promise<string | null>;
+      /** Whether this desktop owns the tab's native view. */
+      hasBrowserView?(tab: string): Promise<boolean>;
       /** Which tab the native browser view shows. */
       showBrowserTab?(tab: string): void;
       /** Moves the browser to a window of its own (true) or back into the side panel (false). */
-      popOutBrowser?(open: boolean): void;
+      popOutBrowser?(open: boolean, tab?: string): void;
       /** Whether the browser is in its own window right now. */
       browserPoppedOut?(): boolean;
       /** The main window hears when the browser window opens or closes. */
