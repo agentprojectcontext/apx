@@ -38,6 +38,7 @@ for (const language of ["en", "es"] as const) {
             type: "string",
             required: true,
             sensitive: true,
+            boundTo: ["site", "username"],
             label: "Application password",
             description: "Create it in your profile.",
             locales: { es: { label: "Contraseña de aplicación", description: "Creala en tu perfil." } },
@@ -76,5 +77,36 @@ for (const language of ["en", "es"] as const) {
     await expect(dialog).toBeVisible();
     expect(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
     await expect(submit).toBeInViewport();
+
+    await dialog.getByRole("button", { name: spanish ? "Cerrar" : "Close", exact: true }).click();
+    await rpc("extensions.settings", {
+      id,
+      values: { site: "https://shop.example.com", username: "northwind-test", credential: "fixture-only" },
+    });
+    await open(page, `#view=marketplace&item=ext%3A${id}`);
+    await page
+      .locator(".mkt-page__act")
+      .getByRole("button", { name: spanish ? "Más opciones" : "More options" })
+      .click();
+    await page.getByRole("menuitem", { name: spanish ? "Configuración" : "Settings", exact: true }).click();
+    const settings = page.getByRole("dialog", {
+      name: spanish ? "Configuración de Northwind Store" : "Northwind Store settings",
+    });
+    const savedAddress = settings.getByLabel(spanish ? "Dirección de la tienda" : "Store address", { exact: true });
+    const replacement = settings.getByLabel(spanish ? "Contraseña de aplicación" : "Application password", {
+      exact: true,
+    });
+    const save = settings.getByRole("button", { name: spanish ? "Guardar" : "Save", exact: true });
+    await expect(replacement).toHaveValue("");
+    await savedAddress.fill("https://shop.example.com/new-subfolder");
+    await expect(save).toBeDisabled();
+    await expect(replacement).toHaveAttribute("autocomplete", "new-password");
+    await expect(settings).toContainText(
+      spanish
+        ? "Ingresá una credencial nueva para guardar este cambio."
+        : "Enter a new credential to save this change.",
+    );
+    await replacement.fill("replacement-fixture-only");
+    await expect(save).toBeEnabled();
   });
 }
