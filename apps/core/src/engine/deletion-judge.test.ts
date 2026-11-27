@@ -11,8 +11,17 @@ import { deletionTargets } from "../tools/command-deletions.ts";
 import { type AuxJudge, type DeletionCall, deletionRuns, JUDGE_MS } from "./deletion-judge.ts";
 
 async function setup() {
-  const dir = tempDir("apx-judge-");
-  const store = createStore(openDb(dir.path), createBus());
+  const folder = tempDir("apx-judge-");
+  const db = openDb(folder.path);
+  // The database closes before its folder goes: Windows cannot remove an open one.
+  const dir = {
+    path: folder.path,
+    [Symbol.asyncDispose]: async () => {
+      db.close();
+      await folder.remove();
+    },
+  };
+  const store = createStore(db, createBus());
   const call = (judge: AuxJudge | undefined, command: string, untrusted = false): DeletionCall => ({
     store,
     run: { id: "run_x", started_at: new Date().toISOString() } as RunRecord,

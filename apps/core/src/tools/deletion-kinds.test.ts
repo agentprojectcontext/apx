@@ -34,6 +34,9 @@ function project() {
   return { dir, repo, place };
 }
 
+/** A folder as a shell word: quoted, so a Windows path keeps its backslashes as Git Bash would. */
+const sh = (p: string) => `'${p}'`;
+
 const verdict = (command: string, cwd: string, place: DeletionPlace) =>
   verdictOf(weighDeletion(deletionTargets(command, cwd), place));
 
@@ -65,10 +68,10 @@ test("build and test output, what the task made, the temp folder and what is gon
   // One older file inside a folder made since keeps it the owner's.
   fs.renameSync(path.join(repo, "notes.md"), path.join(repo, "renders", "take-2", "notes.md"));
   assert.equal(verdict("rm -rf renders/take-2", repo, { ...before, since: Date.now() - 1 }), "ask");
-  assert.equal(verdict(`rm -rf ${before.scratch}/x`, repo, before), "run");
+  assert.equal(verdict(`rm -rf ${sh(before.scratch)}/x`, repo, before), "run");
   await using away = tempDir("apx-away-");
   fs.writeFileSync(path.join(away.path, "a.txt"), "x\n");
-  assert.equal(verdict(`rm -f ${away.path}/a.txt`, repo, place(0)), "ask", "outside the owner's projects");
+  assert.equal(verdict(`rm -f ${sh(away.path)}/a.txt`, repo, place(0)), "ask", "outside the owner's projects");
 });
 
 test("uncommitted work asks; a container this run started goes; what only the remote knows goes to the judge", async () => {
@@ -114,7 +117,7 @@ test("a glob is weighed by what it matches on disk, never as a path that does no
   assert.equal(verdict("rm -rf coverage/*", repo, before), "run");
   // Matching nothing now, it may match what the same command makes first: the judge reads it.
   assert.equal(verdict("rm -rf empty/*", repo, before), "judge");
-  assert.equal(verdict(`rm -rf ${before.scratch}/*`, repo, before), "run");
+  assert.equal(verdict(`rm -rf ${sh(before.scratch)}/*`, repo, before), "run");
   // The card shows the glob as the agent wrote it, not quoted as if it named one file.
   assert.deepEqual(deletionTargets("rm -rf logs/* 'a b'/x\\*", repo).parts, ["rm -rf logs/* 'a b/x*'"]);
 });

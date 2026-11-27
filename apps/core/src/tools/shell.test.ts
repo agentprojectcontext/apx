@@ -640,6 +640,8 @@ test("auto: restoring files deleted in a repository runs without a card; over re
       stdio: "ignore",
     });
   git("init", "-q");
+  // The agent's restore runs with this repository's settings: files come back as written, on Windows too.
+  git("config", "core.autocrlf", "false");
   await writeFile(path.join(repo, "a.txt"), "a\n");
   await writeFile(path.join(repo, "b.txt"), "b\n");
   git("add", ".");

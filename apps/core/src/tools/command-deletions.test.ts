@@ -78,7 +78,10 @@ test("paths of a git command are read from its -C folder, also when git cannot s
 
 test("the deletion card lists what goes in plain words, relative to the project, with no empty reason", async () => {
   await using dir = tempDir("apx-deletion-card-");
-  const store = createStore(openDb(dir.path), createBus());
+  const db = openDb(dir.path);
+  // Closed before its folder goes (disposed in reverse): Windows cannot remove an open database.
+  using _closed = { [Symbol.dispose]: () => db.close() };
+  const store = createStore(db, createBus());
   const root = path.resolve("/work/acme");
   const card = deletionCard(store, { ...deletionTargets(CLEANUP, root, () => undefined), root }, undefined, CLEANUP);
   assert.deepEqual(card.deletion, {
