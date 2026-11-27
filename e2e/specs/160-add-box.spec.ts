@@ -38,7 +38,11 @@ test("from a folder: looked at, added without running, then connected with its k
       mcp: { notes: { command: process.execPath, args: [SERVER], env: { NOTES_TOKEN: "secret://token" } } },
       secrets: [{ name: "token", label: "Notes token" }],
     },
-    { schema: 2, summary: "Notes for the CRM.", tools: [{ name: "echo" }, { name: "token" }] },
+    { schema: 2, summary: "Notes for the CRM.", icon: "icon.svg", tools: [{ name: "echo" }, { name: "token" }] },
+  );
+  fs.writeFileSync(
+    path.join(root, "icon.svg"),
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><circle cx="18" cy="18" r="13"/></svg>',
   );
   const box = await fromFolder(page, root);
   await expect(box.getByText("Tuya")).toBeVisible();
@@ -50,6 +54,22 @@ test("from a folder: looked at, added without running, then connected with its k
   await expect(box).toBeHidden();
   await expect(page.getByRole("heading", { name: "Northwind Notes", exact: true })).toBeVisible();
   await expect(page.getByText("Agregada. Conectala para que tus agentes la usen.")).toBeVisible();
+  await page.reload();
+  const installed = page
+    .getByRole("navigation", { name: "Marketplace" })
+    .getByRole("button", { name: "Northwind Notes" });
+  const mark = installed.locator("img");
+  await expect(mark).toBeVisible();
+  await expect(installed).toHaveCSS("height", "44px");
+  await expect(mark).toHaveCSS("height", "36px");
+  const label = installed.locator(".apx-nav__label");
+  await expect(label).toHaveText("Northwind Notes");
+  await expect.poll(() => label.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+  await expect(installed.locator(".mkt-dot--wait")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Conector", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Conector", exact: true }).locator("..").locator("img")).toHaveCount(
+    0,
+  );
   const added = (await rpc<{ extensions: Array<{ id: string; enabled: boolean }> }>("extensions.list")).extensions;
   expect(added.find((e) => e.id === "northwind-notes")?.enabled).toBe(false);
   await page.getByRole("button", { name: "Conectar", exact: true }).click();

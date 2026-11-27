@@ -2,6 +2,20 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { imageLimit, readsImages } from "./vision.ts";
 
+test("Groq ALLaM is text-only without guessing neighboring models' capabilities", () => {
+  for (const model of ["groq/allam-2-7b", "groq/allam-2-7b#high", "GROQ/ALLAM-2-7B"])
+    assert.equal(readsImages(model), false, model);
+  for (const model of [
+    "groq/allam-2-70b",
+    "groq/allam-2-7b-preview",
+    "groq/allam-2-7b:latest",
+    "acme/allam-2-7b",
+    "groq/acme/allam-2-7b",
+  ])
+    assert.equal(readsImages(model), undefined, model);
+  assert.equal(readsImages("groq/allam-2-7b-vision"), true);
+});
+
 test("the documented Groq image cap applies only to its exact Qwen 3.8 model", () => {
   assert.equal(imageLimit("groq/qwen/qwen3.8-27b"), 3);
   assert.equal(imageLimit("groq/qwen/qwen3.8-27b#high"), 3);

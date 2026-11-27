@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import type { PendingInput } from "@apx/protocol";
@@ -6,6 +7,7 @@ import { callTool, inputOrEnd, inputsOrEnd, say, scriptedLlm, startCore } from "
 import { realpath } from "../paths.ts";
 import { removeDir } from "../testkit/platform.ts";
 import { deletionTargets } from "./command-deletions.ts";
+import { workDir } from "./folders.ts";
 import { broadScan, commandFailed, commandRisk, onlyDeletes, reachesOut } from "./shell.ts";
 
 test("command risk: reading runs, changing asks, destroying always asks", () => {
@@ -229,6 +231,44 @@ test("command risk: reading runs, changing asks, destroying always asks", () => 
     assert.equal(commandRisk(c), "never", c);
 });
 
+const quotedSearch = "rg -n 'remote.*(dir|path)|apx-[a-z]|mkdtemp|tmpdir|cleanup|rm -rf' scripts/remote*";
+const runtimeSearch = "grep -n 'rm -rf' shell-search-fixture.txt";
+const searchAndDelete = `${runtimeSearch} && cd work && false && r\\m '-rf' 'build output'`;
+
+test("quoted search patterns are not deletion commands, even in the normalized fallback", () => {
+  const cwd = path.resolve("work");
+  const empty = { paths: [], later: [], git: [] };
+  for (const command of [quotedSearch, "grep -Fn 'r\\m -rf' notes.txt", 'grep -n -e "rm -rf" notes.txt']) {
+    assert.equal(commandRisk(command), "never", command);
+    assert.equal(onlyDeletes(command), false, command);
+    assert.deepEqual(deletionTargets(command, cwd), empty, command);
+  }
+  assert.equal(commandRisk(searchAndDelete), "always");
+  assert.equal(onlyDeletes(searchAndDelete), true);
+  assert.deepEqual(deletionTargets(searchAndDelete, cwd), {
+    ...empty,
+    paths: [path.join(cwd, "work", "build output")],
+  });
+  for (const command of [
+    'rg -n "$(rm -rf build)" notes.txt',
+    'rg -n "`rm -rf build`" notes.txt',
+    "rg -n 'rm -rf' notes.txt | sh",
+    "rg --pre 'rm -rf' notes.txt",
+    "bash -c 'rm -rf build'",
+    "find . -name build -exec rm -rf {} +",
+    "bash <<'EOF'\nrm -rf build\nEOF",
+    `${quotedSearch} && sudo rm -rf build`,
+    `${quotedSearch} && git reset --hard`,
+  ]) {
+    assert.equal(commandRisk(command), "always", command);
+  }
+  assert.equal(onlyDeletes(`${quotedSearch} && sudo rm -rf build`), false);
+  assert.deepEqual(deletionTargets(`${quotedSearch} && git reset --hard`, cwd), {
+    ...empty,
+    git: [{ what: "changes", target: cwd }],
+  });
+});
+
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (req.messages.some((m) => m.role === "user" && String(m.content).includes("background then keep working"))) {
     const tools = req.messages.filter((m) => m.role === "tool").length;
@@ -242,6 +282,8 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
     return callTool("w1", "file_write", { path: "notes.txt", content: "listed" });
   if (afterTool) return say(`Result: ${String(req.messages.at(-1)?.content).slice(0, 300)}`);
   if (said.includes("list then write")) return callTool("l1", "shell", { command: "ls" });
+  if (said.includes("quote search please")) return callTool("s10", "shell", { command: runtimeSearch });
+  if (said.includes("quote search plus deletion please")) return callTool("s11", "shell", { command: searchAndDelete });
   if (said.includes("echo please")) return callTool("s1", "shell", { command: "echo hi-from-shell" });
   if (said.includes("whose please")) return callTool("s9", "shell", { command: "echo agent=$APX_AGENT" });
   if (said.includes("background please"))
@@ -439,6 +481,29 @@ test("a read-only command runs in the foreground and its output comes back marke
   const job = finished.find((j) => j.kind === "terminal" && j.title === "echo hi-from-shell");
   assert.equal(job?.state, "completed");
   assert.equal(job?.exit_code, 0);
+});
+
+test("auto: quoted search runs without a card; a separate deletion still gets the resolved target", async () => {
+  const cwd = workDir(env.core.store, env.home, {});
+  await mkdir(path.join(cwd, "work"), { recursive: true });
+  await writeFile(path.join(cwd, "shell-search-fixture.txt"), "A literal rm -rf search result\n");
+  const read = await thread();
+  await env.client.call("threads.send", { thread: read, text: "quote search please" });
+  assert.deepEqual(await inputsOrEnd(env.client, read), []);
+  assert.match(lastSeen(), /1:A literal rm -rf search result/);
+
+  const remove = await thread();
+  await env.client.call("threads.send", { thread: remove, text: "quote search plus deletion please" });
+  const [card] = await inputsOrEnd(env.client, remove);
+  assert.equal(card?.tool, "shell");
+  assert.match(card?.prompt ?? "", /delete|borrar/);
+  assert.match(card?.detail ?? "", /[\\/]work[\\/]build output$/m);
+  assert.doesNotMatch(card?.detail ?? "", /^(?:Known only when it runs|Se sabe recién al correr):/m);
+  assert.ok(card?.detail?.endsWith(searchAndDelete), "the original command is still shown");
+  assert.deepEqual(card?.approval_scopes, ["once", "session"]);
+  await env.client.call("runs.respond", { input: card?.id ?? "", decision: "deny" });
+  await env.settle(remove);
+  assert.match(lastSeen(), /not run: the owner declined/);
 });
 
 test("a background command returns at once, shows as a terminal job, and its end wakes the agent", async () => {

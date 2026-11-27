@@ -78,6 +78,11 @@ Context windows distinguish API models from subscription defaults: GPT-5.6 Sol, 
 Sol/Terra and GPT-6.2 Astra/Sol have a 1,050,000-token API window; GPT-6 `codex/` and `chatgpt/` refs use a 500,000-token fallback.
 A window reported by the running provider takes precedence.
 
+The exact `groq/allam-2-7b` ref (including an effort suffix) has a 4,096-token context fallback and is text-only,
+per the [Groq model card](https://console.groq.com/docs/model/allam-2-7b). Neighboring IDs and other providers do
+not inherit these fallbacks. JSON Object Mode is not evidence of tool calling: these metadata do not change
+catalog classification, saved selections or prove inference access.
+
 GPT-6.2 Astra/Sol use the existing Responses adapter at the exact official `https://api.openai.com/v1` address,
 not Chat Completions (tool calling requires Responses). Stable guidance is the first developer input item;
 `none`/`minimal` efforts are floored to `low` per call, including auxiliary lighter requests, without persisting a

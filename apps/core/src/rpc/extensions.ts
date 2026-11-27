@@ -2,7 +2,8 @@
 // on or off, give it its secrets.
 import type { Bus } from "../bus.ts";
 import type { Store } from "../domain/store.ts";
-import { conflict } from "../errors.ts";
+import { conflict, notFound } from "../errors.ts";
+import { activationGuard } from "../extensions/activation.ts";
 import { type CatalogShown, isSuggestedCatalog, SUGGESTED } from "../extensions/catalogs.ts";
 import type { ExtensionInput, Extensions } from "../extensions/extensions.ts";
 import type { Mcp } from "../mcp/manager.ts";
@@ -47,7 +48,8 @@ const CHANGES = [
 ] as const;
 
 export function extensionHandlers(extensions: Extensions, mcp: Mcp, bus: Bus, store: Store) {
-  const handlers = extensionMethods(extensions, mcp, store);
+  const activation = activationGuard();
+  const handlers = extensionMethods(extensions, mcp, store, (id) => activation.invalidate(id));
   const told = { ...handlers };
   const serial = new Set<string>([
     "extensions.install",
@@ -57,6 +59,11 @@ export function extensionHandlers(extensions: Extensions, mcp: Mcp, bus: Bus, st
     "extensions.settings",
     "extensions.set_secret",
   ]);
+  const current = (id: string) => {
+    const found = extensions.list().find((extension) => extension.id === id);
+    if (!found) throw notFound("Extension not found");
+    return found;
+  };
   let changing = false;
   for (const name of CHANGES) {
     const run = handlers[name] as (p: never) => unknown;
@@ -69,7 +76,19 @@ export function extensionHandlers(extensions: Extensions, mcp: Mcp, bus: Bus, st
       if (changing) throw conflict("Another extension is being changed; try again shortly");
       changing = true;
       try {
-        const out = await run(p);
+        let out: unknown;
+        if (name === "extensions.enable") {
+          const params = p as { id: string; enabled: boolean; only_if_disabled?: true; rollback_token?: string };
+          out = await activation.change(
+            params,
+            () => current(params.id),
+            () => handlers["extensions.enable"](params),
+          );
+        } else {
+          const id = (p as { id?: string }).id;
+          if (id) activation.invalidate(id);
+          out = await run(p);
+        }
         bus.emit({ type: "extensions.changed" });
         return out;
       } finally {
@@ -80,7 +99,7 @@ export function extensionHandlers(extensions: Extensions, mcp: Mcp, bus: Bus, st
   return told as typeof handlers;
 }
 
-function extensionMethods(extensions: Extensions, mcp: Mcp, store: Store) {
+function extensionMethods(extensions: Extensions, mcp: Mcp, store: Store, invalidateActivation: (id: string) => void) {
   const { catalogs } = extensions;
   /** Its MCP servers stop now rather than at their idle timeout; their grants went when they were suspended. */
   const dropServers = async (id: string) => {
@@ -153,7 +172,13 @@ function extensionMethods(extensions: Extensions, mcp: Mcp, store: Store) {
       const before = extensions.list();
       const open = openedBy(before.flatMap((e) => e.mcp));
       const from = server ? { path: extensions.connector(server) } : source(path, file, url, entry);
-      const info = await extensions.install(from, hash, suspendServers);
+      const info = await extensions.install(from, hash, async (id) => {
+        const release = await suspendServers(id);
+        // Only this package is about to change; even a partial replacement supersedes its old activation.
+        invalidateActivation(id);
+        return release;
+      });
+      invalidateActivation(info.id);
       countInstall(store, params, info, entry ? isSuggestedCatalog(entry.catalog) : false);
       // Its servers start again with the new files at their next use; a server this version dropped stops now.
       const names = [...new Set([...(before.find((e) => e.id === info.id)?.mcp ?? []), ...info.mcp])];

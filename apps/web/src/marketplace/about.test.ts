@@ -48,6 +48,13 @@ test("an inspected package: its files' provenance, its keys, and its tools by it
   const a = aboutExtension(ext({ listing }), "en", { label: "official" });
   assert.equal(a.files, "official");
   assert.deepEqual(a.keys, ["Billing token"]);
+  const translated = ext({
+    secrets: [
+      { name: "token", label: "Connection string", locales: { es: { label: "Cadena de conexión" } }, set: false },
+    ],
+  });
+  assert.deepEqual(aboutExtension(translated, "es", { label: "official" }).keys, ["Cadena de conexión"]);
+  assert.deepEqual(aboutExtension(translated, "en", { label: "official" }).keys, ["Connection string"]);
   assert.deepEqual(a.tools, { names: ["list_invoices", "get_payment"], real: false });
   assert.deepEqual(a.requirements, ["A billing account"]);
   // Once its server answered, the real ones count.

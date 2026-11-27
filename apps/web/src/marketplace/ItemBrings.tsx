@@ -23,7 +23,6 @@ import type { Item } from "../resources/extensionItems.ts";
 import { attempt, ExtensionRoutines, useAddRoutine } from "../resources/InstalledExtension.tsx";
 import { toolsLine } from "./about.ts";
 import { type Brings, bringsOf, type Connector } from "./brings.ts";
-import { ItemIcon } from "./ConnectHead.tsx";
 import { AUTH_TEXT } from "./itemText.ts";
 
 // What an extension brings, the same on its page before and after adding it (as a Claude plugin's page shows its
@@ -90,7 +89,8 @@ function ConnectorRow({ item, c, open }: { item: Item; c: Connector; open: boole
   return (
     <Disclosure
       defaultOpen={open}
-      icon={c.mark ? <IntegrationIcon id={c.mark} name={c.name} size={24} /> : <ItemIcon item={item} size={24} />}
+      icon={c.mark ? <IntegrationIcon id={c.mark} name={c.name} size={24} /> : undefined}
+      className={c.mark ? undefined : "mkt-part__connector--unmarked"}
       title={c.name}
       trailing={
         st ? (
@@ -243,7 +243,7 @@ export function ItemBrings({
   // What it asks for matters until it works.
   const asks =
     item.state === "available" || item.state === "off" || item.attention === "keys" || item.attention === "settings";
-  // A catalog that only lists it (its files not read yet): adding it reads them first.
+  // Descriptive catalog copy is not an inspected list of package contents.
   if (!b.known && !b.connectors.length)
     return (
       <section className="mkt-brings" aria-label={t("extx.sec.brings")}>

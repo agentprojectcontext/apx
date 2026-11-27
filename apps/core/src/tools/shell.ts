@@ -13,10 +13,11 @@ import { AGENT_WORKSPACE } from "../environments/worker.ts";
 import { insideReal } from "../paths.ts";
 import { commandShell } from "../processes.ts";
 import { apxReads } from "./apx-reads.ts";
-import { deletes as deletesHere, deletionTargets, FORCED_RM } from "./command-deletions.ts";
+import { deletes, deletionTargets } from "./command-deletions.ts";
 import { shellCode } from "./command-heredocs.ts";
 import { namedPaths } from "./command-paths.ts";
 import { mayChange, readsOnly } from "./command-reads.ts";
+import { normalize } from "./command-text.ts";
 import {
   type Access,
   folderAccess,
@@ -57,13 +58,6 @@ function publishCard(command: string, publish: "auto" | "ask"): "grant" | undefi
   return publish === "ask" && (PUSH.test(c) || PUSH.test(normalize(c))) ? "grant" : undefined;
 }
 
-/** The command as the shell will mostly see it: quotes and escapes dropped, paths to programs reduced to names. */
-const normalize = (c: string) =>
-  c
-    .replace(/\\\n/g, " ")
-    .replace(/["'\\]/g, "")
-    .replace(/(^|[\s;&|(])\/(?:[\w.-]+\/)*([\w.-]+)/g, "$1$2");
-
 /** Programs that walk a whole folder tree; grep and ls only with a recursive flag. */
 const WALKERS = new Set(["find", "fd", "rg", "du", "tree"]);
 const RECURSIVE = { grep: /^-(\w*[rR]\w*|-recursive)$/, ls: /^-\w*R\w*$/ } as const;
@@ -102,12 +96,6 @@ export function broadScan(command: string, home = os.homedir()): string | undefi
 export function commandRisk(command: string, apxPort?: number): Confirm {
   return deletes(command) ? "always" : riskBesides(command, apxPort);
 }
-
-/**
- * Whether a command deletes: a forced `rm` or a git command that discards work git would keep. It asks in every mode
- * but Total, unless the owner asked (D-266).
- */
-const deletes = (command: string) => deletesHere(command) || FORCED_RM.test(normalize(shellCode(command.trim())));
 
 /**
  * A forced deletion is all that makes this command always ask: its card is a deletion's, and the owner's OK for this

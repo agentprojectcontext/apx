@@ -32,6 +32,12 @@
   padding-top: 12px;
   border-top: 1px solid var(--apx-border);
 }
+.mkt__installed-row {
+  height: 44px;
+}
+.mkt__installed-row .apx-nav__icon {
+  width: 36px;
+}
 .mkt__label {
   margin: 0 10px 6px;
   color: var(--apx-fg-subtle);
@@ -354,7 +360,7 @@
 }
 .mkt-page__head {
   display: grid;
-  grid-template-columns: 56px minmax(0, 1fr) auto;
+  grid-template-columns: 56px minmax(0, 1fr);
   gap: 16px;
   align-items: start;
   padding-bottom: 18px;
@@ -384,6 +390,7 @@
   margin: 4px 0 0;
 }
 .mkt-page__act {
+  grid-column: 1 / -1;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -403,6 +410,9 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+.mkt-part__connector--unmarked .apx-disclosure__body {
+  padding-left: 14px;
 }
 .mkt-part__note {
   margin: 0;
