@@ -161,6 +161,14 @@ test("steps without supporting detail stay static and do not truncate their labe
   expect(ui.getAllByRole("button")).toHaveLength(1);
   expect(ui.queryByTestId("icon-ChevronRight")).toBeNull();
   expect(ui.getByText(title).props.numberOfLines).toBeUndefined();
+  for (const label of [title, "Blank detail"]) {
+    const row = ui.getByLabelText(`${label}, ${t("runDone")}`);
+    expect(row.props.accessible).toBe(true);
+    expect(row.props.accessibilityRole).toBe("text");
+    expect(row.props.accessibilityState).toBeUndefined();
+    expect(row.props.onClick).toBeUndefined();
+    expect(row.props.onStartShouldSetResponder).toBeUndefined();
+  }
 });
 
 test.each(["screen reader", "large text"])("compact controls retain full touch targets for %s", async (mode) => {

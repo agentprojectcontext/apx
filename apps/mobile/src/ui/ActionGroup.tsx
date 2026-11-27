@@ -98,53 +98,56 @@ export function ActionGroup({
       </Pressable>
       {open ? (
         <View style={s.rows}>
-          {parts.map((part, index) => (
-            <ActionBranch
-              key={part.call_id}
-              last={index === parts.length - 1}
-              compact={compact || !part.detail?.trim()}
-            >
-              <Pressable
-                accessible
-                accessibilityRole={part.detail?.trim() ? "button" : "text"}
-                accessibilityLabel={`${stepLabel(part.tool, part.title)}, ${translate(part.status === "error" ? "runFailed" : part.status === "ok" ? "runDone" : ended ? "actionStopped" : waiting ? "runWaiting" : "runWorking")}`}
-                accessibilityState={part.detail?.trim() ? { expanded: detail === part.call_id } : undefined}
-                onPress={
-                  part.detail?.trim()
-                    ? () => setDetail((current) => (current === part.call_id ? undefined : part.call_id))
-                    : undefined
-                }
-                style={[s.row, compact && s.compactRow, !part.detail?.trim() && s.staticRow]}
+          {parts.map((part, index) => {
+            const Row = part.detail?.trim() ? Pressable : View;
+            return (
+              <ActionBranch
+                key={part.call_id}
+                last={index === parts.length - 1}
+                compact={compact || !part.detail?.trim()}
               >
-                {part.detail?.trim() ? (
-                  <Icon name={detail === part.call_id ? "ChevronDown" : "ChevronRight"} size={14} color={t.fgMuted} />
-                ) : null}
-                <Icon name={ICON[toolKind(part.tool)]} size={14} color={t.fgMuted} />
-                <Text
-                  style={[s.summary, part.status === "error" && s.failed]}
-                  numberOfLines={!part.detail?.trim() || detail === part.call_id ? undefined : 1}
+                <Row
+                  accessible
+                  accessibilityRole={part.detail?.trim() ? "button" : "text"}
+                  accessibilityLabel={`${stepLabel(part.tool, part.title)}, ${translate(part.status === "error" ? "runFailed" : part.status === "ok" ? "runDone" : ended ? "actionStopped" : waiting ? "runWaiting" : "runWorking")}`}
+                  accessibilityState={part.detail?.trim() ? { expanded: detail === part.call_id } : undefined}
+                  onPress={
+                    part.detail?.trim()
+                      ? () => setDetail((current) => (current === part.call_id ? undefined : part.call_id))
+                      : undefined
+                  }
+                  style={[s.row, compact && s.compactRow, !part.detail?.trim() && s.staticRow]}
                 >
-                  {stepLabel(part.tool, part.title)}
-                </Text>
-                {part.status === "error" ? (
-                  <Icon name="CircleX" size={14} color={t.danger} />
-                ) : part.status === "running" ? (
-                  ended ? (
-                    <Icon name="Square" size={12} color={t.fgMuted} />
-                  ) : waiting ? (
-                    <Icon name="Hand" size={14} color={t.fgMuted} />
-                  ) : (
-                    <Spinner size={12} />
-                  )
+                  {part.detail?.trim() ? (
+                    <Icon name={detail === part.call_id ? "ChevronDown" : "ChevronRight"} size={14} color={t.fgMuted} />
+                  ) : null}
+                  <Icon name={ICON[toolKind(part.tool)]} size={14} color={t.fgMuted} />
+                  <Text
+                    style={[s.summary, part.status === "error" && s.failed]}
+                    numberOfLines={!part.detail?.trim() || detail === part.call_id ? undefined : 1}
+                  >
+                    {stepLabel(part.tool, part.title)}
+                  </Text>
+                  {part.status === "error" ? (
+                    <Icon name="CircleX" size={14} color={t.danger} />
+                  ) : part.status === "running" ? (
+                    ended ? (
+                      <Icon name="Square" size={12} color={t.fgMuted} />
+                    ) : waiting ? (
+                      <Icon name="Hand" size={14} color={t.fgMuted} />
+                    ) : (
+                      <Spinner size={12} />
+                    )
+                  ) : null}
+                </Row>
+                {detail === part.call_id && part.detail ? (
+                  <Text selectable style={s.detail}>
+                    {part.detail}
+                  </Text>
                 ) : null}
-              </Pressable>
-              {detail === part.call_id && part.detail ? (
-                <Text selectable style={s.detail}>
-                  {part.detail}
-                </Text>
-              ) : null}
-            </ActionBranch>
-          ))}
+              </ActionBranch>
+            );
+          })}
         </View>
       ) : null}
     </View>
