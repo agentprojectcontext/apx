@@ -24,6 +24,8 @@ export const AuxPurpose = z.enum([
   "call",
   /** Whether a deletion in Auto runs or asks the owner (DECISIONS.md#d-281). */
   "deletion",
+  /** Whether another call in Auto runs or asks the owner (DECISIONS.md#d-283). */
+  "action",
 ]);
 export type AuxPurpose = z.infer<typeof AuxPurpose>;
 

@@ -6,7 +6,7 @@ import { setTimeout } from "node:timers/promises";
 import { BROWSER_CAP, BROWSER_REF, type BrowserDialog, chromeTabId, type TabInfo } from "@apx/protocol";
 import { servedHere } from "@apx/protocol/browser-urls";
 import { z } from "zod";
-import type { AgentRecord } from "../domain/agents.ts";
+import { markOwnerSessions, profileOf } from "../domain/browser-sessions.ts";
 import type { Store } from "../domain/store.ts";
 import { expandHome } from "../paths.ts";
 import { pruneUploads, saveUpload } from "../services/uploads.ts";
@@ -26,11 +26,7 @@ const SNAPSHOTS_KEPT = 4;
 /** Messages back a chat's own tab is looked for: past them a new tab opens. */
 const CHAT_TAB_LOOKBACK = 40;
 
-function profileFor(agent: AgentRecord): string {
-  if (agent.browser_profile === "incognito") return "incognito";
-  if (agent.browser_profile === "isolated") return `agent:${agent.id.toLowerCase().replace(/[^a-z0-9-]/g, "-")}`;
-  return "shared";
-}
+const profileFor = profileOf;
 
 const host = (url: unknown) => {
   try {
@@ -311,6 +307,8 @@ export function browserTools(
             best = { source: s.id, browser: `${s.browser} (${s.profile})`, domains: found.map((d) => d.domain), count };
         }
         if (!best) return `no session for ${site} in the owner's browsers; use browser_handoff so they log in`;
+        // From here on the owner's sessions may be in this profile (DECISIONS.md#d-283).
+        markOwnerSessions(store, profile);
         const r = await asOwner("browser.import_cookies", {
           source: best.source,
           domains: best.domains.slice(0, 50),
@@ -330,6 +328,8 @@ export function browserTools(
       title: (a) => `Asked you to: ${String(a.reason).slice(0, 60)}`,
       async run(a, ctx) {
         const tab = await own(ctx, a.tab);
+        // The owner may log in while they have the tab (DECISIONS.md#d-283).
+        markOwnerSessions(store, profileFor(ctx.agent));
         await card(ctx, tab, "handoff", a.reason);
         const r = await ctx.call("browser.handoff", { tab, reason: a.reason, by: ctx.agent.id, timeout_s: HANDOFF_S });
         await card(ctx, tab, r.resolved ? "agent" : "handoff", r.resolved ? undefined : "no answer");

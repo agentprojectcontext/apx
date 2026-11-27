@@ -9,7 +9,7 @@ import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { ArchivedAgents } from "../project/team/ArchivedAgents.tsx";
 import { AgentLimitsBlock } from "./AgentLimitsBlock.tsx";
-import { AutoDeletions } from "./AutoDeletions.tsx";
+import { AutoDecisions } from "./AutoDecisions.tsx";
 import { AgentModelPicker } from "./models/AgentModelPicker.tsx";
 import { SectionHead, SubHead } from "./SectionHead.tsx";
 
@@ -40,7 +40,7 @@ export function AgentsSection() {
     <>
       <SectionHead title={t("config.agents")} />
       <AgentLimitsBlock />
-      <AutoDeletions />
+      <AutoDecisions />
       <ArchivedAgents />
       <SubHead>{t("agents.each")}</SubHead>
       <p className="config__lead">{t("agents.lead")}</p>

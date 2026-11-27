@@ -150,14 +150,37 @@ its own and the card shows only that part.
 
 Every deletion Auto weighs leaves a line under the agent's steps, such as "Auto deleted it: build or test output"
 or "Auto asked you: your files, not made during this task". Open it to see what goes and who decided: a fixed rule, or
-the helper model with its own words. **Settings › Agents › What Auto deleted** lists them all, newest first, with
-**Deleted** and **Asked** to narrow it down; each one opens its chat. They are kept for 90 days.
+the helper model with its own words. **Settings › Agents › What Auto decided** lists them all, with the other calls
+below, newest first, with **Went ahead** and **Asked you** to narrow it down; each one opens its chat. They are kept
+for 90 days.
 
 When a deletion asks, its card lists what would be deleted in plain words, with paths relative to the project, and
 the command under **See command**. Why the agent wants to is its own message just above the card (for Claude Code or
 Codex, the reason it gave, on the card). You can accept it once, or for this chat: then that agent's next deletions
 in this chat run without asking. It is never allowed for good, and it never covers anything else that always asks,
 like `sudo` or a release.
+
+### Other calls the judge answers
+
+In Auto, the same judge answers other cards the mode would show where the agent works, so you are asked only about
+what is unclear or harmful:
+
+- reading a page (`web_read`) or using the browser (open, click, type, steps) with content from outside in the turn,
+  or with data in the address;
+- a connected service's tool (MCP) with content from outside in the turn;
+- a command, a new file or an edit in your projects that would still ask, and starting a session;
+- a command run on another machine over `ssh`, even one that would run without asking. What goes inside its quotes
+  is that machine's; a redirection outside them (`> /dev/shm/run.log`) still writes on this computer;
+- JavaScript in a page (`browser_evaluate`), only when the agent's browser holds none of your sessions: its own
+  profile or incognito, until you lend it your login, sign it in, take over one of its tabs or answer a handoff. In
+  the shared profile, where you are signed in, it always asks.
+
+It answers "ask" when the call could send your data somewhere you did not ask for (in an address, a form or a
+message), when a page or a message asks for it and you did not, and for plainly harmful scripts. A failure, a late
+answer or a doubt is the card. These never reach it and always ask: sending or posting in your name, paying,
+passwords, keys and anything shaped like one, `sudo` and system changes, APX's own settings, `AGENTS.md` and `.apx/`,
+writing outside your projects, your own Chrome, and an agent's own rule to ask. Each answer shows under the step
+("Auto went ahead: …") and in **What Auto decided**.
 
 Git commands that throw away work git would otherwise keep are deletions too, weighed the same way, and their card
 names the branch, worktree, files or stash they lose: `git worktree remove --force`, `git branch -D`, `git clean -f` (or `-fd`, `-fdx`),

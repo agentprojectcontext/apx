@@ -38,6 +38,7 @@ const AUX_LABEL: Record<AuxPurpose, MessageKey> = {
   call: "usage.aux.call",
   mail: "usage.aux.mail",
   deletion: "usage.aux.deletion",
+  action: "usage.aux.action",
 };
 
 function secs(run: Run): number | undefined {

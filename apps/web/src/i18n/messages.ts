@@ -44,9 +44,9 @@ const PACKS = {
     en: () => import("./activity-review-en.ts").then((m) => m.enActivityReview),
     es: () => import("./activity-review-es.ts").then((m) => m.esActivityReview),
   },
-  autoDeletions: {
-    en: () => import("./auto-deletions-en.ts").then((m) => m.enAutoDeletions),
-    es: () => import("./auto-deletions-es.ts").then((m) => m.esAutoDeletions),
+  autoDecisions: {
+    en: () => import("./auto-decisions-en.ts").then((m) => m.enAutoDecisions),
+    es: () => import("./auto-decisions-es.ts").then((m) => m.esAutoDecisions),
   },
   call: {
     en: () => import("./call-en.ts").then((m) => m.enCall),

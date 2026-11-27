@@ -7,7 +7,7 @@ import { agentMigrationMethods } from "./agent-migration.ts";
 import { appMethods } from "./app-methods.ts";
 import { artifactMethods } from "./artifact-methods.ts";
 import { asanaMethods } from "./asana-methods.ts";
-import { autoDeletionMethods } from "./auto-deletions.ts";
+import { autoDecisionMethods } from "./auto-decisions.ts";
 import { browserMethods } from "./browser.ts";
 import { callMethods } from "./call-methods.ts";
 import { channelMethods } from "./channel-methods.ts";
@@ -154,7 +154,7 @@ export const methods = {
   ...usageMethods,
   ...storageMethods,
   ...activityReviewMethods,
-  ...autoDeletionMethods,
+  ...autoDecisionMethods,
   ...discoveryMethods,
   ...agentMigrationMethods,
   ...instanceMethods,

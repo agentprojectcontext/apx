@@ -1,28 +1,28 @@
-import type { AutoDeletion } from "@apx/protocol";
+import type { AutoDecision } from "@apx/protocol";
 import { Button, EmptyState, Icons, SegmentedControl, Skeleton } from "@apx/ui";
 import { useEffect, useState } from "react";
-import { AutoDeletionLine } from "../chat/parts/AutoDeletionLine.tsx";
+import { AutoDecisionLine } from "../chat/parts/AutoDecisionLine.tsx";
 import { dayLabel } from "../common/format.ts";
 import { client } from "../data/client.ts";
 import { useData } from "../data/state.ts";
 import { usePack, useT } from "../i18n/index.ts";
 import { go, nav } from "../shell/nav.ts";
 import { SubHead } from "./SectionHead.tsx";
-import "./auto-deletions.css";
+import "./auto-decisions.css";
 
 const PAGE = 20;
 type Filter = "all" | "run" | "ask";
 
 /** Each deletion Auto weighed (DECISIONS.md#d-281): what went or asked, why, who decided; one opens its chat. */
-export function AutoDeletions() {
-  return usePack("autoDeletions") ? <List /> : <Skeleton height={120} shape="block" />;
+export function AutoDecisions() {
+  return usePack("autoDecisions") ? <List /> : <Skeleton height={120} shape="block" />;
 }
 
 function List() {
   const t = useT();
   const agents = useData((s) => s.agents);
   const [filter, setFilter] = useState<Filter>("all");
-  const [rows, setRows] = useState<AutoDeletion[]>();
+  const [rows, setRows] = useState<AutoDecision[]>();
   const [next, setNext] = useState<string>();
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -30,7 +30,7 @@ function List() {
     setBusy(true);
     setError(false);
     try {
-      const page = await client.call("auto_deletions.list", {
+      const page = await client.call("auto_decisions.list", {
         limit: PAGE,
         ...(before ? { before } : {}),
         ...(filter === "all" ? {} : { verdict: filter }),
@@ -93,11 +93,11 @@ function List() {
                     .join(" · ")}
                 </span>
               </div>
-              <AutoDeletionLine note={d}>
+              <AutoDecisionLine note={d}>
                 <Button size="sm" variant="ghost" onClick={() => open(d.thread_id)}>
                   {t("autoDel.openChat")}
                 </Button>
-              </AutoDeletionLine>
+              </AutoDecisionLine>
             </li>
           ))}
         </ol>

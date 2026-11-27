@@ -19,6 +19,10 @@ How a change asks, once the owner asked for it themselves (D-140's gate):
 | `card` | asks | asks | asks | keys, who reaches the owner, agents' limits, adding or starting MCP servers, publishing |
 | owner only | — | — | — | list C, and what list B keeps out of reach |
 
+In Auto, the judge of [D-283](DECISIONS.md#d-283) answers some cards a mode gives where the agent works (reading with
+outside content, a project's command or edit, a command over ssh, a script in a browser without the owner's sessions).
+None of this file's levels go to it: a settings or team change, `always`, `card` and owner-only stay as listed.
+
 ## A. Could not do on request, and should
 
 Done in this change:
