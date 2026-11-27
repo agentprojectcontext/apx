@@ -50,7 +50,12 @@ async function fixture(t: TestContext) {
       agent_id: "superagent",
       call_id: `question-${++serial}`,
       kind,
-      ...(kind === "confirm" ? { approval: { key: "shell.delete", group: "shell" }, tool: "shell" } : {}),
+      ...(kind === "confirm"
+        ? {
+            approval: { key: "shell.delete", group: "shell", server: "apx", tool: "shell", permanent: false },
+            tool: "shell",
+          }
+        : {}),
       prompt: kind === "confirm" ? "Remove the draft?" : "Which draft choice?",
       waitMs: 60_000,
     });
@@ -219,6 +224,28 @@ test("closing and reopening a task starts a fresh wait cycle without reviving an
   assert.equal(f.core.engine.releaseTaskInputs(f.task.id), 1);
   await f.settle(f.thread.id);
   assert.equal(f.store.threads.context(f.thread.id).task_inputs?.[second.id], undefined);
+});
+
+test("deleting a task retires bound inputs in a surviving work chat and clears their attention", async (t) => {
+  const f = await fixture(t);
+  const input = f.input();
+  awaitTaskInput(f.store, input);
+  f.store.notifications.add({
+    kind: "input",
+    level: "warn",
+    title: "Draft choice",
+    body: input.prompt,
+    thread_id: f.thread.id,
+    ref: input.id,
+  });
+  await f.client.call("tasks.delete", { task: f.task.id });
+  assert.ok(f.store.threads.get(f.thread.id));
+  assert.equal(f.store.inputs.get(input.id)?.state, "expired");
+  const { notifications } = await f.client.call("notifications.list", {});
+  assert.equal(
+    notifications.some((notice) => notice.ref === input.id && !notice.read_at),
+    false,
+  );
 });
 
 test("a listener notification stays durable until consumption, so losing the listener cannot lose the owner's answer", async (t) => {

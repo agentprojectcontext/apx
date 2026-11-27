@@ -7,14 +7,22 @@ import { createStore } from "../domain/store.ts";
 import { waitFor } from "../testkit/platform.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
-const model = scriptedLlm((req, { afterTool, said }) =>
-  afterTool || req.messages.some((m) => m.role === "tool") || said.includes("Their answer:")
+const model = scriptedLlm((_, { afterTool, said }) =>
+  afterTool || said.includes("Their answer:")
     ? say("Noted.")
     : callTool("choice", "ask_owner", { question: "Which draft should I use?" }),
 );
 
 test("closing a task retires the card in chat history and a new assignment can still be answered", async (t) => {
-  const env = await startCore({ llm: model });
+  const questions = new Set<string>();
+  const env = await startCore({
+    llm: scriptedLlm((_, { afterTool, said }) => {
+      if (afterTool || said.includes("Their answer:") || questions.has(said) || questions.size === 2)
+        return say("Noted.");
+      questions.add(said);
+      return callTool("choice", "ask_owner", { question: "Which draft should I use?" });
+    }),
+  });
   t.after(async () => {
     await env.core.close();
     await env.cleanup();
@@ -67,17 +75,48 @@ test("closing a task retires the card in chat history and a new assignment can s
     env.core.store.runs.list(old.thread_id).some((run) => run.input?.origin.kind === "input_answer"),
     false,
   );
-  const freshTask = await env.client.call("tasks.create", {
-    title: "New draft choice",
-    description: "Ask which new draft to use.",
+  await env.client.call("tasks.close", { task: task.id, state: "open", rework: true, note: "Collect a fresh choice." });
+  const fresh = await findInput(old.id);
+  assert.equal(env.core.store.threads.get(fresh.thread_id)?.task_id, task.id);
+  assert.equal((await env.client.call("runs.respond", { input: fresh.id, text: "New answer" })).state, "answered");
+  await env.settle(fresh.thread_id);
+  assert.equal(env.core.store.tasks.get(task.id)?.awaits_owner, false);
+});
+
+test("a turn preparing a confirmation cannot open it after the task closes", async (t) => {
+  const entered = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  const env = await startCore({
+    llm: scriptedLlm(async () => {
+      entered.resolve();
+      await release.promise;
+      return callTool("approval", "ask_owner", { action: "Remove the draft from the review folder now?" });
+    }),
+  });
+  t.after(async () => {
+    release.resolve();
+    await env.core.close();
+    await env.cleanup();
+  });
+  const task = await env.client.call("tasks.create", {
+    title: "Draft confirmation",
+    description: "Request approval for the draft.",
     assignee: "superagent",
     status: "doing",
   });
-  const fresh = await findInput(old.id);
-  assert.equal(env.core.store.threads.get(fresh.thread_id)?.task_id, freshTask.id);
-  assert.equal((await env.client.call("runs.respond", { input: fresh.id, text: "New answer" })).state, "answered");
-  await env.settle(fresh.thread_id);
-  assert.equal(env.core.store.tasks.get(freshTask.id)?.awaits_owner, false);
+  await entered.promise;
+  const [thread] = env.core.store.threads.byTask(task.id).filter((th) => th.kind === "loose");
+  assert.ok(thread);
+  await env.client.call("tasks.close", { task: task.id, state: "done" });
+  release.resolve();
+  await env.settle(thread.id);
+  assert.deepEqual((await env.client.call("runs.pending", {})).inputs, []);
+  const { messages } = await env.client.call("threads.get", { thread: thread.id });
+  assert.equal(
+    messages.flatMap((m) => m.parts).some((p) => p.type === "input"),
+    false,
+  );
+  assert.equal(env.core.store.runs.list(thread.id).at(-1)?.state, "canceled");
 });
 
 test("boot repairs cards that were still pending when an earlier core closed their task", async () => {
@@ -114,7 +153,7 @@ test("boot repairs cards that were still pending when an earlier core closed the
     );
     assert.deepEqual((await next.client.call("runs.pending", {})).inputs, []);
     assert.equal(
-      saved.runs.some((r) => r.input?.origin.kind === "input_answer"),
+      next.core.store.runs.list(old.thread_id).some((r) => r.input?.origin.kind === "input_answer"),
       false,
     );
   } finally {

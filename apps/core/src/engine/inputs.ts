@@ -7,8 +7,14 @@ import { type ApprovalTarget, writeFolderApproval } from "../domain/approvals.ts
 import { type InputRecord, publicInput } from "../domain/inputs.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
-import { awaitTaskInput, finishTaskInput, settleTaskInput, taskInputIsCurrent } from "../domain/task-input-wait.ts";
-import { badRequest, conflict, errorMessage, notFound, Shutdown, unauthorized } from "../errors.ts";
+import {
+  awaitTaskInput,
+  finishTaskInput,
+  settleTaskInput,
+  taskInputBoundary,
+  taskInputIsCurrent,
+} from "../domain/task-input-wait.ts";
+import { badRequest, Canceled, conflict, errorMessage, notFound, Shutdown, unauthorized } from "../errors.ts";
 import { addReadOnly } from "../tools/folders.ts";
 import type { Display } from "./display.ts";
 import type { AdmitFn } from "./engine.ts";
@@ -82,6 +88,7 @@ export function createInputs(deps: {
   hold: (runId: string) => () => void;
   /** Stops the exact turn whose request was invalidated, not other work in the chat. */
   cancelWaiting?: (runId: string) => void;
+  inputBoundary?: (runId: string) => string | undefined;
   /** How long a turn waits for an answer (tests shorten it). */
   waits?: InputWaits;
 }) {
@@ -210,6 +217,15 @@ export function createInputs(deps: {
       appOnly?: boolean | undefined;
       signal: AbortSignal;
     }): Promise<InputRecord> {
+      const boundary = deps.inputBoundary?.(o.run.id);
+      if (
+        boundary &&
+        boundary !== taskInputBoundary(store, { thread_id: o.run.thread_id, agent_id: o.agent.id, run_id: o.run.id })
+      ) {
+        const reason = new Canceled("the task assignment ended");
+        deps.cancelWaiting?.(o.run.id);
+        throw reason;
+      }
       const waitMs = o.external ? waits.external : waits.turn;
       const rec = store.tx(() => {
         const input = store.inputs.create({

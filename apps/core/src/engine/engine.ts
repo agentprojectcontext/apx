@@ -6,6 +6,7 @@ import type { RunTrigger, Thread } from "@apx/protocol";
 import { canInteractAcrossProjects } from "../domain/project-interaction.ts";
 import { type Attachment, type Origin, type RunInput, type RunRecord, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
+import { taskInputBoundary } from "../domain/task-input-wait.ts";
 import { Canceled, conflict, DeadlineExceeded, notFound, Shutdown, Superseded } from "../errors.ts";
 import type { Harnesses } from "../harness/index.ts";
 import type { Log } from "../log.ts";
@@ -244,7 +245,10 @@ export function createEngine(deps: {
   const busy = new Set<string>();
   const running = new Set<Promise<void>>();
   /** Running turns: run id → its abort controller, thread and deadline, and what cuts its current step short. */
-  const active = new Map<string, { ac: AbortController; thread: string; clock: Clock; cut: AbortController }>();
+  const active = new Map<
+    string,
+    { ac: AbortController; thread: string; clock: Clock; cut: AbortController; inputBoundary: string | undefined }
+  >();
   const live = new Map<string, Display>();
   /**
    * What reaches a running turn between its steps, not yet taken by its loop: the owner's words, or (`apx`) a result
@@ -327,6 +331,7 @@ export function createEngine(deps: {
     home: deps.home,
     admit: (a) => admit(a),
     cancelWaiting: (runId) => active.get(runId)?.ac.abort(new Canceled()),
+    inputBoundary: (runId) => active.get(runId)?.inputBoundary,
     hold: (runId) => {
       const clock = active.get(runId)?.clock;
       clock?.pause();
@@ -448,7 +453,12 @@ export function createEngine(deps: {
       (at) => deps.store.runs.setDeadline(run.id, new Date(at).toISOString()),
       deps.runTimers,
     );
-    const entry = { ac, thread: run.thread_id, clock, cut: new AbortController() };
+    const inputBoundary = taskInputBoundary(store, {
+      thread_id: run.thread_id,
+      agent_id: run.agent_id,
+      run_id: run.id,
+    });
+    const entry = { ac, thread: run.thread_id, clock, cut: new AbortController(), inputBoundary };
     active.set(run.id, entry);
     try {
       const takeSteered = () => {
