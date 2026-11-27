@@ -234,7 +234,7 @@ export function createMcp(deps: {
    * A server that asked the owner to sign in is not started again by itself, a restart included, until they sign in
    * from the panel (mcp.signIn) or its definition changes: every start would open their browser once more.
    */
-  const signInKey = (d: McpDef) => `mcp_sign_in:${keyOf(d)}`;
+  const signInKey = (d: McpDef) => `mcp_sign_in:${d.extension_id ? `extension:${d.extension_id}:` : ""}${keyOf(d)}`;
   const disconnectedKey = (d: Pick<McpDef, "scope" | "project_id" | "name" | "extension_id">) =>
     `mcp_disconnected:${d.scope}:${d.project_id ?? ""}:${d.extension_id ? `extension:${d.extension_id}:` : ""}${d.name}`;
   const waitsSignIn = (d: McpDef) =>
@@ -739,6 +739,7 @@ export function createMcp(deps: {
     /** Only after uninstalling a drained extension; older package versions may have left renamed servers. */
     forgetExtensionSignIn(id: string) {
       deps.store.settings.deletePrefix(`mcp_disconnected:global::extension:${id}:`);
+      deps.store.settings.deletePrefix(`mcp_sign_in:extension:${id}:`);
     },
     /** Refuses new starts while an extension replaces the servers' files. */
     suspend(servers: Array<Pick<McpDef, "scope" | "project_id" | "name">>, extensionId?: string): () => void {
