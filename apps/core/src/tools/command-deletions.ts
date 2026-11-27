@@ -5,9 +5,11 @@ import path from "node:path";
 import { expandHome } from "../paths.ts";
 import { shellCode } from "./command-heredocs.ts";
 import { segments, type Word } from "./command-paths.ts";
+import { normalize, withoutSearchPattern } from "./command-text.ts";
 
 /** A forced or recursive deletion; `git rm` is git's own, judged by gitLoss. */
-export const FORCED_RM = /(?<!\bgit(?:[ \t]+[^\s;&|]+)*[ \t]+)\brm\b[^|;&]*\s(-\w*[rf]|--recursive|--force)/;
+const FORCED_RM = /(?<!\bgit(?:[ \t]+[^\s;&|]+)*[ \t]+)\brm\b[^|;&]*\s(-\w*[rf]|--recursive|--force)/;
+const forcedRm = (code: string) => FORCED_RM.test(code) || FORCED_RM.test(normalize(code));
 
 /** What a git command throws away, as the owner reads it on the card. */
 export type GitLoss = {
@@ -25,14 +27,16 @@ export type Deletion = { paths: string[]; later: string[]; git: GitLoss[] };
 /** Text a shell is fed through a heredoc, read as the commands it is: the operator dropped, the body kept. */
 const unwrapped = (code: string) => code.replace(/(?<!<)<<-?\s*(['"]?)([\w.-]+)\1/g, "");
 
+const detectsDeletion = (code: string): boolean =>
+  forcedRm(code) || segments(unwrapped(code)).some((s) => gitLoss(s.map((w) => w.text)).length > 0);
+const deletionCode = (command: string) => withoutSearchPattern(shellCode(command.trim()), detectsDeletion);
+
 /** Whether a command deletes: a forced `rm`, or a git command that discards work, a script fed to a shell included. */
-export function deletes(command: string): boolean {
-  const code = shellCode(command.trim());
-  return FORCED_RM.test(code) || segments(unwrapped(code)).some((s) => gitLoss(s.map((w) => w.text)).length > 0);
-}
+export const deletes = (command: string): boolean => detectsDeletion(deletionCode(command));
 
 export function deletionTargets(command: string, cwd: string): Deletion {
-  const code = shellCode(command.trim());
+  const code = deletionCode(command);
+  if (!detectsDeletion(code)) return { paths: [], later: [], git: [] };
   const paths: string[] = [];
   const later: string[] = [];
   const git: GitLoss[] = [];
@@ -85,12 +89,9 @@ export function deletionTargets(command: string, cwd: string): Deletion {
     }
   }
   // A deletion no simple command here holds: inside a script a shell is fed.
-  if (!seen && deletes(command)) {
+  if (!seen) {
     const lines = unwrapped(code).split("\n");
-    later.push(
-      lines.find((l) => FORCED_RM.test(l) || segments(l).some((s) => gitLoss(s.map((w) => w.text)).length))?.trim() ??
-        code,
-    );
+    later.push(lines.find(detectsDeletion)?.trim() ?? shellCode(command.trim()));
   }
   return { paths, later, git };
 }
