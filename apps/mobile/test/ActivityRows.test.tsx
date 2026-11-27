@@ -1,11 +1,113 @@
 import { fireEvent, render } from "@testing-library/react-native";
-import { Text } from "react-native";
+import { AccessibilityInfo, Dimensions, StyleSheet, Text } from "react-native";
 import { mediaRows } from "../src/chat/media";
 import { t, translator } from "../src/i18n";
 import type { Message } from "../src/protocol";
+import { ActionGroup } from "../src/ui/ActionGroup";
+import { AgentEventCard } from "../src/ui/chat/AgentEventCard";
+import { CompactRow } from "../src/ui/chat/CompactRow";
 import { DetailBranch } from "../src/ui/chat/DetailBranch";
 import { InputCard } from "../src/ui/chat/InputCard";
 import { NoticeCard } from "../src/ui/chat/NoticeCard";
+
+test("action groups and nested details share the disclosure header and keep independent states", async () => {
+  jest.spyOn(AccessibilityInfo, "isScreenReaderEnabled").mockResolvedValue(false);
+  Dimensions.set({ window: { width: 390, height: 844, scale: 1, fontScale: 1 } });
+  const reference = await render(
+    <CompactRow compact title="Reference" icon="FileText">
+      <Text>Reference detail</Text>
+    </CompactRow>,
+  );
+  const headingStyle = StyleSheet.flatten(reference.getByRole("button").props.style);
+  const ui = await render(
+    <ActionGroup
+      parts={[
+        {
+          type: "tool",
+          tool: "file_read",
+          call_id: "read",
+          title: "Read the report",
+          status: "ok",
+          detail: "Report contents",
+        },
+        {
+          type: "tool",
+          tool: "shell",
+          call_id: "check",
+          title: "Check the report",
+          status: "error",
+          detail: "Missing reference",
+        },
+      ]}
+    />,
+  );
+  const header = ui.getByRole("button");
+  expect(StyleSheet.flatten(header.props.style)).toEqual(headingStyle);
+  expect(header.props.accessibilityState.expanded).toBe(false);
+  await fireEvent.press(header);
+  const first = ui.getByRole("button", { name: `Read the report, ${t("runDone")}` });
+  const second = ui.getByRole("button", { name: `Check the report, ${t("runFailed")}` });
+  expect(StyleSheet.flatten(first.props.style)).toEqual({ ...headingStyle, minHeight: 32 });
+  await fireEvent.press(first);
+  expect(ui.getByText("Report contents")).toBeTruthy();
+  await fireEvent.press(second);
+  expect(ui.queryByText("Report contents")).toBeNull();
+  expect(ui.getByText("Missing reference")).toBeTruthy();
+  expect(ui.getByTestId("detail-guide", { includeHiddenElements: true }).props.style).toMatchObject({
+    borderBottomLeftRadius: 8,
+  });
+});
+
+test("agent events share the header, retain source navigation and show the straight line only while open", async () => {
+  const reference = await render(
+    <CompactRow compact title="Reference" icon="Bot">
+      <Text>Reference detail</Text>
+    </CompactRow>,
+  );
+  const openThread = jest.fn();
+  const ui = await render(
+    <AgentEventCard
+      name="Acme"
+      openThread={openThread}
+      message={{
+        id: "msg_event",
+        thread_id: "th_main",
+        seq: 1,
+        created_at: "2026-10-21T15:00:00Z",
+        author: { kind: "agent", id: "agent_helper" },
+        parts: [
+          {
+            type: "text",
+            text: "Finished",
+            response: {
+              thread_id: "th_source",
+              run_id: "run_source",
+              task_id: "task_source",
+              title: "Review",
+              state: "completed",
+            },
+          },
+        ],
+      }}
+    >
+      <Text>Full event report</Text>
+    </AgentEventCard>,
+  );
+  const header = ui.getByRole("button");
+  expect(StyleSheet.flatten(header.props.style)).toEqual(StyleSheet.flatten(reference.getByRole("button").props.style));
+  expect(header.props.accessibilityState.expanded).toBe(true);
+  expect(ui.getByTestId("detail-guide", { includeHiddenElements: true }).props.style).toMatchObject({
+    top: 0,
+    bottom: 0,
+  });
+  await fireEvent.press(ui.getByRole("link"));
+  expect(openThread).toHaveBeenCalledWith("th_source");
+  await fireEvent.press(header);
+  expect(ui.queryByText("Full event report")).toBeNull();
+  expect(ui.queryByTestId("detail-guide", { includeHiddenElements: true })).toBeNull();
+  await fireEvent.press(header);
+  expect(ui.getByText("Full event report")).toBeTruthy();
+});
 
 test("only an exact echo of a settled question folds into its question row", () => {
   const question: Extract<Message["parts"][number], { type: "input" }> = {
