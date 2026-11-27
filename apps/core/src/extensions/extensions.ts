@@ -617,6 +617,7 @@ export function createExtensions(deps: {
         }
         let previous: PreviousVersion | undefined = cur?.previous;
         if (cur) release = await beforeReplace?.(id);
+        if (cur) clearChangedCredentials(id, cur.manifest, manifest, secrets);
         // The running plugin (if any) is of the files being replaced; it starts again only if allowed to stay on.
         await plugins.stopAndWait(id);
         if (cur && cur.hash !== hash && fs.existsSync(dir)) {
@@ -641,7 +642,6 @@ export function createExtensions(deps: {
           cur &&
           ((cur.hash === hash && !same && !officialUpdate) || (cur.origin_key && same && (input.file || input.url)));
         const originKey = preserveOrigin ? cur.origin_key : origin;
-        if (cur) clearChangedCredentials(id, cur.manifest, manifest, secrets);
         const e = store.extensions.put({
           id,
           manifest,
@@ -678,13 +678,13 @@ export function createExtensions(deps: {
       const back = previousDir(id);
       if (!fs.existsSync(back) || !sameFiles(back, prev.hash))
         throw badRequest(`the earlier version of ${e.manifest.name} changed on disk; install it again`);
+      clearChangedCredentials(id, e.manifest, prev.manifest, secrets);
       await plugins.stopAndWait(id);
       const swap = path.join(root, `${id}.swap`);
       fs.rmSync(swap, { recursive: true, force: true });
       if (fs.existsSync(e.dir)) fs.renameSync(e.dir, swap);
       fs.renameSync(back, e.dir);
       if (fs.existsSync(swap)) fs.renameSync(swap, back);
-      clearChangedCredentials(id, e.manifest, prev.manifest, secrets);
       const restored = store.extensions.put({
         id,
         manifest: prev.manifest,

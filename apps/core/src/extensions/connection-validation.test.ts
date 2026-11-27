@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { test } from "node:test";
+import { mock, test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { tempDir } from "../testkit/platform.ts";
 
@@ -77,6 +77,43 @@ test("HTTPS settings reject unsafe input before any write and bind to the canoni
     assert.equal((await info())?.settings.find((s) => s.name === "password")?.set, true);
     await assert.rejects(save({ address: "https://shop.example/other/" }), /different application password/);
   } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});
+
+test("failed credential invalidation leaves upgrade and rollback files aligned with the installed record", async () => {
+  await using source = tempDir("apx-credential-failure-");
+  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  const installed = () => {
+    const entry = env.core.store.extensions.get("shop");
+    assert.ok(entry);
+    const disk = JSON.parse(fs.readFileSync(path.join(entry.dir, "apx-extension.json"), "utf8"));
+    assert.equal(disk.version, entry.manifest.version);
+    return entry.manifest.version;
+  };
+  try {
+    writeManifest(source.path, "1.0.0", [], [{ name: "legacy_auth", label: "Legacy credential" }]);
+    await env.client.call("extensions.install", { path: source.path });
+    writeManifest(source.path, "2.0.0", currentSettings);
+    const fail = () =>
+      mock.method(env.core.secrets, "set", () => {
+        throw new Error("credential store unavailable");
+      });
+    const upgrade = fail();
+    await assert.rejects(env.client.call("extensions.install", { path: source.path }));
+    upgrade.mock.restore();
+    assert.equal(installed(), "1.0.0");
+    await env.client.call("extensions.install", { path: source.path });
+    assert.equal(installed(), "2.0.0");
+    const rollback = fail();
+    await assert.rejects(env.client.call("extensions.rollback", { id: "shop" }));
+    rollback.mock.restore();
+    assert.equal(installed(), "2.0.0");
+    await env.client.call("extensions.rollback", { id: "shop" });
+    assert.equal(installed(), "1.0.0");
+  } finally {
+    mock.restoreAll();
     await env.core.close();
     await env.cleanup();
   }

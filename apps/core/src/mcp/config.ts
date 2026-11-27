@@ -162,10 +162,11 @@ function extensionDefs(store: Store): McpDef[] {
       const d = toDef(`${e.id}-${name}`, raw, { scope: "global", cwd: e.dir });
       if (!d) return [];
       d.literalSettings = literalSettings;
-      d.hash = createHash("sha256")
-        .update(JSON.stringify([d.hash, literalSettings]))
-        .digest("hex")
-        .slice(0, 16);
+      if (Object.keys(literalSettings).length)
+        d.hash = createHash("sha256")
+          .update(JSON.stringify([d.hash, literalSettings]))
+          .digest("hex")
+          .slice(0, 16);
       if (e.manifest.monitor?.server === name) d.monitorTool = e.manifest.monitor.tool;
       const optionalSecrets = e.manifest.settings
         .filter((s) => s.sensitive && !s.required)

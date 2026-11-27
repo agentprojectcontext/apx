@@ -167,7 +167,10 @@ export function createMcp(deps: {
       return value ?? (ref.startsWith("secret://") && optional.has(ref.slice(9)) ? "" : undefined);
     });
     const fill = (value: string) =>
-      errors.fill(value).replace(/\{\{apx-literal-\d+\}\}/g, (token) => d.literalSettings?.[token] ?? token);
+      value
+        .split(/(\{\{apx-literal-\d+\}\})/g)
+        .map((part) => d.literalSettings?.[part] ?? errors.fill(part))
+        .join("");
     const resolve = (values: Record<string, string>) =>
       Object.fromEntries(Object.entries(values).map(([k, v]) => [k, fill(v)]));
     // Loaded with the first server: a core with none never loads the MCP client.

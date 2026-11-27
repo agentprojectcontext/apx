@@ -26,6 +26,7 @@ export type SecretField = SecretSite["kind"] | "login";
 export type Login = { username: string; password: string };
 type Entry = {
   value?: string;
+  revoked?: boolean;
   updated_at: string;
   hint?: string;
   field?: SecretField;
@@ -104,7 +105,8 @@ export function createSecrets(
   const read = (): Record<string, Entry> => {
     try {
       return JSON.parse(fs.readFileSync(file, "utf8")) as Record<string, Entry>;
-    } catch {
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
       return {};
     }
   };
@@ -123,6 +125,7 @@ export function createSecrets(
       if (ref.startsWith("env:")) return env[ref.slice(4)] || undefined;
       if (!ref.startsWith("secret://")) return undefined;
       const name = ref.slice(9);
+      if (read()[name]?.revoked) return undefined;
       if (!store) return read()[name]?.value || undefined;
       if (cache.has(name)) return cache.get(name);
       // The Keychain may hold a value from an earlier install in another home; the newer stores only what is listed.
@@ -140,7 +143,8 @@ export function createSecrets(
      * install in another home, which `has` sees and the owner's list does not.
      */
     listed(name: string): boolean {
-      return Object.hasOwn(read(), name);
+      const entry = read()[name];
+      return entry !== undefined && !entry.revoked;
     },
     /**
      * Like resolve, but a project's own value for a `secret://` name comes first. Given several (a subproject and its
@@ -164,26 +168,28 @@ export function createSecrets(
     }> {
       const all = read();
       let cleaned = false;
-      const listed = Object.entries(all).map(([name, e]) => {
-        let hint = e.hint;
-        // JSON-tail hints may belong to a bound envelope; avoid unlocking unrelated keyring entries.
-        if (hint?.endsWith('"}')) {
-          const value = e.value ?? api.resolve(`secret://${name}`);
-          if (value === undefined || isBoundCredential(value)) hint = undefined;
-          if (value !== undefined && hint === undefined) {
-            delete e.hint;
-            cleaned = true;
+      const listed = Object.entries(all)
+        .filter(([, e]) => !e.revoked)
+        .map(([name, e]) => {
+          let hint = e.hint;
+          // JSON-tail hints may belong to a bound envelope; avoid unlocking unrelated keyring entries.
+          if (hint?.endsWith('"}')) {
+            const value = e.value ?? api.resolve(`secret://${name}`);
+            if (value === undefined || isBoundCredential(value)) hint = undefined;
+            if (value !== undefined && hint === undefined) {
+              delete e.hint;
+              cleaned = true;
+            }
           }
-        }
-        return {
-          name,
-          updated_at: e.updated_at,
-          ...(hint ? { hint } : {}),
-          ...(e.field ? { field: e.field } : {}),
-          sites: e.sites ?? [],
-          ...(e.used ? { last_used: e.used } : {}),
-        };
-      });
+          return {
+            name,
+            updated_at: e.updated_at,
+            ...(hint ? { hint } : {}),
+            ...(e.field ? { field: e.field } : {}),
+            sites: e.sites ?? [],
+            ...(e.used ? { last_used: e.used } : {}),
+          };
+        });
       if (cleaned) write(all);
       return listed;
     },
@@ -195,7 +201,7 @@ export function createSecrets(
     setField(name: string, field: SecretField | null): boolean {
       const all = read();
       const e = all[name];
-      if (!e) return false;
+      if (!e || e.revoked) return false;
       if (field) e.field = field;
       else delete e.field;
       write(all);
@@ -224,7 +230,7 @@ export function createSecrets(
     setSites(name: string, sites: SecretSite[]): boolean {
       const all = read();
       const e = all[name];
-      if (!e) return false;
+      if (!e || e.revoked) return false;
       if (sites.length) e.sites = sites;
       else delete e.sites;
       write(all);
@@ -242,9 +248,9 @@ export function createSecrets(
      * its last use; the value stays inside the core. "taken" when the other key already holds one.
      */
     move(from: string, to: string): "moved" | "missing" | "taken" {
-      if (from === to) return Object.hasOwn(read(), from) ? "moved" : "missing";
+      if (from === to) return api.listed(from) ? "moved" : "missing";
       const before = read();
-      if (Object.hasOwn(before, to)) return "taken";
+      if (api.listed(to)) return "taken";
       const value = Object.hasOwn(before, from) ? api.resolve(`secret://${from}`) : undefined;
       if (value === undefined) return "missing";
       const { sites, used, field } = before[from] ?? {};
@@ -260,12 +266,19 @@ export function createSecrets(
     /** `field` undefined keeps what it was for; null makes it a plain variable. */
     set(name: string, value: string | null, field?: SecretField | null): void {
       const all = read();
+      if (value === null) {
+        // A locked keyring may keep the physical value: persist revocation before attempting its deletion.
+        all[name] = { revoked: true, updated_at: new Date().toISOString() };
+        write(all);
+        cache.delete(name);
+        store?.set(name, null);
+        return;
+      }
       if (store) {
         store.set(name, value);
         cache.delete(name);
       }
-      if (value === null) delete all[name];
-      else {
+      {
         // A new value keeps the sites it may sign in on: the owner changed a password, not where it goes.
         const { sites, used, field: was } = all[name] ?? {};
         const kind = field === undefined ? was : (field ?? undefined);
@@ -289,7 +302,7 @@ export function createSecrets(
   if (store && fs.existsSync(legacy)) {
     try {
       const old = JSON.parse(fs.readFileSync(legacy, "utf8")) as Record<string, Entry>;
-      for (const [name, e] of Object.entries(old)) if (e.value) api.set(name, e.value);
+      for (const [name, e] of Object.entries(old)) if (e.value && !read()[name]?.revoked) api.set(name, e.value);
       fs.rmSync(legacy);
     } catch {}
   }

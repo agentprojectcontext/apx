@@ -51,6 +51,41 @@ test("a project's own value wins over the global one there, and only there", () 
   }
 });
 
+test("revocation survives a failed Keychain deletion and reopening without reviving a cached legacy value", async () => {
+  await using home = tempDir("apx-secret-revocation-");
+  let stored = "synthetic legacy credential";
+  const run: Run = (_cmd, args, opts = {}) => {
+    if (args[0] === "find-generic-password") return stored;
+    if (args[0] === "delete-generic-password") throw new Error("keychain locked");
+    if (args[0] === "-i") {
+      stored = "synthetic replacement credential";
+      assert.ok(opts.input);
+      return "";
+    }
+    throw new Error("unexpected keychain operation");
+  };
+  const secrets = createSecrets(home.path, "keychain", {}, run);
+  assert.equal(secrets.resolve("secret://legacy"), "synthetic legacy credential");
+  secrets.set("legacy", null);
+  assert.equal(secrets.resolve("secret://legacy"), undefined);
+  fs.writeFileSync(path.join(home.path, "secrets.json"), JSON.stringify({ legacy: { value: stored } }));
+  const reopened = createSecrets(home.path, "keychain", {}, run);
+  assert.equal(reopened.resolve("secret://legacy"), undefined);
+  assert.equal(reopened.listed("legacy"), false);
+  assert.deepEqual(reopened.list(), []);
+  assert.equal(reopened.move("legacy", "other"), "missing");
+  const index = path.join(home.path, "secrets.index.json");
+  const kept = fs.readFileSync(index, "utf8");
+  fs.writeFileSync(index, "{");
+  assert.throws(() => reopened.resolve("secret://legacy"), SyntaxError);
+  fs.writeFileSync(index, kept);
+  reopened.set("legacy", "synthetic replacement credential");
+  assert.equal(
+    createSecrets(home.path, "keychain", {}, run).resolve("secret://legacy"),
+    "synthetic replacement credential",
+  );
+});
+
 test("each home has its own Keychain service; the default home keeps the plain one", () => {
   assert.equal(keychainService("/home/u/.apx/v2", "/home/u/.apx/v2"), "apx2");
   assert.equal(keychainService("/home/u/.apx/v2/", "/home/u/.apx/v2"), "apx2");
