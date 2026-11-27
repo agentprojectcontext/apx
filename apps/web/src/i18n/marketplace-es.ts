@@ -2,6 +2,17 @@ import type { enMarketplace } from "./marketplace-en.ts";
 
 // UI strings, Spanish: the Marketplace's lists, an extension's page and its dialogs (part of the resources pack).
 export const esMarketplace = {
+  "mkt.chooseBackup": "Elegir copia",
+  "mkt.changeBackup": "Cambiar copia",
+  "mkt.chooseFile": "Elegir archivo",
+  "mkt.changeFile": "Cambiar archivo",
+  "mkt.fileHostOnly": "Abrí APX Desktop en el equipo donde corre APX para elegir el archivo.",
+  "mkt.fileMissing": "No encontramos ese archivo. Elegí una copia que ya exista.",
+  "mkt.fileUnreadable": "No pudimos leer ese archivo. Revisá sus permisos o elegí otra copia.",
+  "mkt.fileInvalidSqlite": "No pudimos abrir este archivo como una base SQLite. Elegí una copia válida.",
+  "mkt.fileActiveSqlite": "Puede que esta base siga en uso. Elegí una copia independiente.",
+  "mkt.filePickerFailed": "No pudimos abrir el selector de archivos. Volvé a intentar.",
+
   "mkt.explore": "Explorar",
   "mkt.advanced": "Avanzado",
   "mkt.advancedLead": "Para armar extensiones, probarlas o sumarlas desde otros lados.",

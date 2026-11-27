@@ -105,6 +105,8 @@ contextBridge.exposeInMainWorld("apxDesktop", {
   openServer: (id: string): Promise<unknown> => ipcRenderer.invoke("desktop:open-server", String(id)),
   /** The computer name the server in use reports, so the list can show it when another one is in use. */
   nameServer: (name: string) => ipcRenderer.send("desktop:server-name", String(name)),
+  canPickFile: (): Promise<boolean> => ipcRenderer.invoke("panel:can-pick-file"),
+  pickFile: (): Promise<string | undefined> => ipcRenderer.invoke("panel:pick-file"),
   pickFolder: (): Promise<string | undefined> => ipcRenderer.invoke("panel:pick-folder"),
   memory: (): Promise<unknown> => ipcRenderer.invoke("desktop:memory"),
   /** Whether a newer APX app is out (check: ask the release feed now). */
