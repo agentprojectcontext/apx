@@ -383,10 +383,12 @@ export function InstallBox({
     setBusy(true);
     setProblem(undefined);
     setLink("connecting");
+    let configured = ext;
     try {
       for (const s of ext.secrets) {
         const v = filled(values[s.name]);
-        if (typeof v === "string") await client.call("extensions.set_secret", { id: ext.id, name: s.name, value: v });
+        if (typeof v === "string")
+          configured = await client.call("extensions.set_secret", { id: ext.id, name: s.name, value: v });
       }
       const settings = Object.fromEntries(
         ext.settings.flatMap((s) => {
@@ -394,15 +396,18 @@ export function InstallBox({
           return v === undefined ? [] : [[s.name, v]];
         }),
       );
-      if (Object.keys(settings).length) await client.call("extensions.settings", { id: ext.id, values: settings });
-      if (ext.companion) {
-        const on = ext.enabled ? ext : await client.call("extensions.enable", { id: ext.id, enabled: true });
+      if (Object.keys(settings).length)
+        configured = await client.call("extensions.settings", { id: ext.id, values: settings });
+      if (configured.companion) {
+        const on = configured.enabled
+          ? configured
+          : await client.call("extensions.enable", { id: ext.id, enabled: true });
         setExt(on);
         extensionsChanged();
         await pair.start();
         return;
       }
-      setTools((await startExtension(ext)).tools);
+      setTools((await startExtension(configured)).tools);
       setValues({});
       setLink("connected");
       setPhase("done");

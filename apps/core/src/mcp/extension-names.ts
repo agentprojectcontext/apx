@@ -11,7 +11,7 @@ function manualNames(store: Store): Set<string> {
   }
 }
 
-export function extensionNameOwners(store: Store, name: string): string[] {
+function extensionNameOwners(store: Store, name: string): string[] {
   return store.extensions
     .list()
     .filter((e) => Object.keys(e.manifest.mcp).some((n) => `${e.id}-${n}` === name))

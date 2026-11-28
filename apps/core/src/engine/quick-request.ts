@@ -11,7 +11,7 @@ export const QUICK_WAIT_MS = 25_000;
 /** The engine was told to hang up and did not: the core hangs up itself. */
 export const QUICK_END_GRACE_MS = 10_000;
 /** The voice said it did not understand this many turns in a row: it says so and hangs up. */
-export const QUICK_MISSES = 2;
+const QUICK_MISSES = 2;
 
 export const wallTimers: RunTimers = {
   now: () => Date.now(),

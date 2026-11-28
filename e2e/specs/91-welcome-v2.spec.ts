@@ -57,6 +57,7 @@ test("the last slide ends with Vamos", async ({ page }) => {
 
 test("the three phone clips play on wide and narrow screens", async ({ page }, info) => {
   const keys = ["phone-calls", "errands-on-the-way", "wake-by-voice"];
+  await keep(page, { welcomeSeen: ALL_SLIDES.filter((key) => !keys.includes(key)) });
   await page.route("https://apxagent.app/media/whats-new/**", async (route) => {
     const file = new URL(route.request().url()).pathname.split("/").at(-1);
     if (!file || !keys.some((key) => file === `${key}.mp4`)) return route.abort();
