@@ -6675,3 +6675,29 @@ on an agent's tab without taking it over (the desktop app needs the takeover to 
 *Amends [D-281](#d-281), [D-165](#d-165).*
 
 Docs impact: updated concepts/autonomy in English and Spanish and rules/SUPER_AGENT_POWERS.md.
+
+<a id="d-284"></a>
+## D-284 — 2026-11-27 — A paired phone registers as a node with its own token, though its socket carries an Origin
+
+The phone app never became a node: agents never got `phone_location` or `phone_photo`. The core let only a socket
+without an Origin register as a node, so that a browser page could not. React Native's Android WebSocket always adds
+one (the core's own address) unless the app sends its own, so every attempt was refused and retried in silence. The
+operator link passed because that Origin is one of the core's own addresses.
+
+- A node socket with an Origin now passes only when its token is a paired device's whose platform is `android` or
+  `ios`, and every capability it asks for is a phone's (`PHONE_CAPS` in the protocol: location, camera). Without an
+  Origin nothing changes (terminal, desktop main process).
+- A page of the panel is still refused: it has no device token, or the one a browser gets when it pairs (`other`,
+  `desktop`). A phone's token cannot lend `browser`, `fs` or `computer`, where requests could carry what the owner keeps
+  (a stored secret to fill, a file). What a phone node gets is a request for its position or for a picture the owner
+  takes; what it answers is data, never instructions (rule 10).
+- Rejected: having the app send an empty or fake Origin. It leans on how OkHttp and Node read an empty header, and a
+  phone that looks like a native client on the computer could lend any capability.
+- A refused node is now written to the log (`node refused`, with its origin, client and capabilities).
+
+Known limit: the platform is what the device said when it paired. Pairing needs a code from the owner, and the device
+shows as a phone in Settings › Devices, where it can be revoked; a client that lied would still reach only the phone's
+capabilities.
+
+Docs impact: none. devices/phone (English and Spanish) already describes the phone lending location and camera; this
+makes it true.

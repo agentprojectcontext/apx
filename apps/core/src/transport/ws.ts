@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Server } from "node:http";
 import {
   ClientFrame,
+  type DevicePlatform,
   FILE_PAYLOAD_BYTES,
   type HelloFrame,
   methodAccess,
@@ -39,7 +40,7 @@ export function attachWs(
     broker: NodeBroker;
     bus: Bus;
     gate: Gate;
-    deviceOf?: (token: string) => { id: string; name: string } | undefined;
+    deviceOf?: (token: string) => { id: string; name: string; platform: DevicePlatform } | undefined;
     /** Paths other sockets on this server handle (the VM display, calls): left to them. */
     streamPaths?: readonly string[] | undefined;
     clientOf?: ClientLookup;
@@ -49,6 +50,7 @@ export function attachWs(
   /** An outside app's client token: its client, or a refusal when it is unknown or revoked (as over HTTP). */
   const clientFor = (key: string | null) => (key?.startsWith(CLIENT_TOKEN) ? deps.clientOf?.(key) : undefined);
   const unknownClient = (key: string | null) => Boolean(key?.startsWith(CLIENT_TOKEN)) && !clientFor(key);
+  const deviceFor = (key: string | null) => (key?.startsWith("apxd_") ? deps.deviceOf?.(key) : undefined);
   const wss = new WebSocketServer({
     noServer: true,
     maxPayload: MAX_PAYLOAD,
@@ -78,7 +80,6 @@ export function attachWs(
   });
 
   wss.on("connection", (ws, req) => {
-    const canBeNode = mayBeNode(req);
     const key = new URL(req.url ?? "/", "http://core").searchParams.get("token");
     let hello: HelloFrame | undefined;
     const session = randomUUID();
@@ -118,7 +119,8 @@ export function attachWs(
           ws.close(1008, `protocol ${frame.protocol} unsupported (server speaks ${PROTOCOL_VERSION})`);
           return;
         }
-        if (frame.role === "node" && !canBeNode) {
+        if (frame.role === "node" && !mayBeNode(req, frame.caps, deviceFor(key))) {
+          log.warn({ origin: req.headers.origin, client: frame.client.name, caps: frame.caps }, "node refused");
           ws.close(1008, "browser pages cannot register as nodes");
           return;
         }
@@ -160,7 +162,7 @@ export function attachWs(
         else broker.event(session, frame);
         return;
       }
-      const device = key?.startsWith("apxd_") ? deps.deviceOf?.(key) : undefined;
+      const device = deviceFor(key);
       const client = clientFor(key);
       const out = await dispatch(
         frame.method,
