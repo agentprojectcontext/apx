@@ -48,6 +48,7 @@ import { MCP_REACH_NEWS } from "./mcp-reach.ts";
 import { MEMORY_REVIEW_NEWS } from "./memory-review.ts";
 import { MOVE_BACKUP_NEWS } from "./move-backup.ts";
 import { OLDER_NEWS } from "./older-entries.ts";
+import { PHONE_NODE_NEWS } from "./phone-node.ts";
 import { PUBLIC_ARTIFACTS_NEWS } from "./public-artifacts.ts";
 import { QUEUED_MESSAGES_NEWS } from "./queued-messages.ts";
 import { QUICK_CHAT_NEWS } from "./quick-chat.ts";
@@ -102,6 +103,8 @@ export type NewsFacts = {
   desktop?: boolean;
   /** Devices paired to reach this core from elsewhere (a desktop app by address, a phone, a browser). */
   devices?: number;
+  /** A phone (Android or iOS) is paired: it lends its location and camera while its app is open. */
+  phone?: boolean;
   /** Open tasks with an agent on them. */
   tasks?: number;
   /** Open tasks whose comments piled up (worth cleaning). */
@@ -155,6 +158,7 @@ export type NewsEntry = {
 };
 
 export const NEWS: readonly NewsEntry[] = [
+  PHONE_NODE_NEWS,
   SERVER_BROWSER_CONTROL_NEWS,
   AUTO_JUDGE_NEWS,
   {
@@ -778,6 +782,7 @@ export const newsFacts = (store: Store, o: { hermes?: boolean; storeSize?: Store
   artifacts: store.surfaces.list().length,
   desktop: store.devices.list().some((d) => d.platform === "desktop"),
   devices: store.devices.list().length,
+  phone: store.devices.list().some((d) => d.platform === "android" || d.platform === "ios"),
   codex: store.threads.list({ engine: "codex", limit: 1 }).length > 0,
   claude: store.threads.list({ engine: "claude", limit: 1 }).length > 0,
   google: {

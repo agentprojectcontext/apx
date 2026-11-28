@@ -1,6 +1,7 @@
 // Who may talk to the core. Browsers always send Origin: only the APX panel's own origins pass.
 // Native clients (terminal, desktop main process) send none. A token, when configured, is required everywhere.
 import type { IncomingMessage } from "node:http";
+import { type DevicePlatform, PHONE_CAPS } from "@apx/protocol";
 
 export type Gate = {
   allowedOrigins: ReadonlySet<string>;
@@ -48,9 +49,19 @@ export function refuse(
   return undefined;
 }
 
-/** Nodes lend capabilities (browser, files): only native clients may register as one. */
-export function mayBeNode(req: IncomingMessage): boolean {
-  return !req.headers.origin;
+/**
+ * Nodes lend capabilities (browser, files): only native clients may register as one. Most send no Origin; the phone
+ * app's socket always carries one (React Native adds it), so a paired phone passes with its own token and only the
+ * phone's capabilities. See DECISIONS.md#d-284.
+ */
+export function mayBeNode(
+  req: IncomingMessage,
+  caps: readonly string[],
+  device?: { platform: DevicePlatform } | undefined,
+): boolean {
+  if (!req.headers.origin) return true;
+  const phone = device?.platform === "android" || device?.platform === "ios";
+  return phone && caps.every((c) => PHONE_CAPS.includes(c));
 }
 
 const PROXY_HEADERS = ["x-forwarded-for", "forwarded", "x-real-ip", "tailscale-user-login"];
