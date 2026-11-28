@@ -2,12 +2,21 @@ import { Button, SettingRow, Skeleton, Switch } from "@apx/ui";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { client } from "../data/client.ts";
 import { useT } from "../i18n/index.ts";
+import { go, useNav } from "../shell/nav.ts";
 import { SubHead } from "./SectionHead.tsx";
 
 type Privacy = { location: boolean; trips: boolean; revision: string };
 
 export function PhonePrivacyBlock() {
   const t = useT();
+  const section = useRef<HTMLElement>(null);
+  const focus = useNav((s) => s.focus);
+  useEffect(() => {
+    if (focus !== "phone-privacy") return;
+    section.current?.scrollIntoView({ block: "start" });
+    section.current?.focus({ preventScroll: true });
+    go.focus("");
+  }, [focus]);
   const [value, setValue] = useState<Privacy>();
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -54,11 +63,13 @@ export function PhonePrivacyBlock() {
       if (scope.current.live) setBusy(false);
     }
   };
-  if (!value && !failed) return <Skeleton width="100%" height={160} />;
   return (
-    <>
+    <section className="config__privacy" ref={section} tabIndex={-1} aria-label={t("privacy.title")}>
       <SubHead>{t("privacy.title")}</SubHead>
-      <p className="config__lead">{t("privacy.scope")}</p>
+      <p id="phone-privacy-scope" className="config__lead">
+        {t("privacy.scope")}
+      </p>
+      {!value && !failed && <Skeleton width="100%" height={160} />}
       {failed && (
         <p role="alert" className="config__lead">
           {t("privacy.error")}{" "}
@@ -67,22 +78,28 @@ export function PhonePrivacyBlock() {
           </Button>
         </p>
       )}
-      <SettingRow title={t("privacy.location")} description={t("privacy.locationHelp")}>
-        <Switch
-          aria-label={t("privacy.location")}
-          checked={value?.location ?? false}
-          disabled={!value || busy || failed}
-          onCheckedChange={(location) => void save({ location })}
-        />
-      </SettingRow>
-      <SettingRow title={t("privacy.trips")} description={t("privacy.tripsHelp")}>
-        <Switch
-          aria-label={t("privacy.trips")}
-          checked={value?.trips ?? false}
-          disabled={!value || busy || failed}
-          onCheckedChange={(trips) => void save({ trips })}
-        />
-      </SettingRow>
-    </>
+      {value && !failed && (
+        <>
+          <SettingRow title={t("privacy.location")} description={t("privacy.locationHelp")}>
+            <Switch
+              aria-label={t("privacy.location")}
+              aria-describedby="phone-privacy-scope"
+              checked={value.location}
+              disabled={!value || busy || failed}
+              onCheckedChange={(location) => void save({ location })}
+            />
+          </SettingRow>
+          <SettingRow title={t("privacy.trips")} description={t("privacy.tripsHelp")}>
+            <Switch
+              aria-label={t("privacy.trips")}
+              aria-describedby="phone-privacy-scope"
+              checked={value.trips}
+              disabled={!value || busy || failed}
+              onCheckedChange={(trips) => void save({ trips })}
+            />
+          </SettingRow>
+        </>
+      )}
+    </section>
   );
 }

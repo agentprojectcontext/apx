@@ -17,13 +17,13 @@ Empieza apagado. Hasta que lo prendas, el celular no corre nada en segundo plano
 
 ## Prenderlo
 
-1. Abrí **Ajustes › En el auto** en el celular o la computadora y activá **Recados en todos los dispositivos**.
+1. Abrí **Ajustes › En el auto** en el celular o la computadora y activá **Recados en todos los teléfonos**.
 2. En cada Android que deba participar, activá **Usar este teléfono para recados**. Los dos interruptores son independientes y empiezan apagados. **Ajustes › Privacidad › Ubicación durante viajes** también debe permitir compartirla.
 3. Permití lo que pide la lista, un toque cada uno: **Leer notificaciones** (así APX ve que se conectó Android Auto o
    que Maps empezó una ruta), **Ubicación** y **Notificaciones**.
 4. Probalo sin manejar: **Probar sin auto** empieza un viaje de prueba desde donde estás.
 
-Apagá **Recados en todos los dispositivos** desde cualquiera de las dos apps para detenerlos en todas partes, o **Usar este teléfono para recados** para detener solo ese teléfono. Si pierde conexión, el teléfono pausa su GPS después de una comprobación de seguridad fallida y requiere que lo vuelvas a habilitar ahí. El corte remoto de GPS necesita el core y el APK en 2.18.1 o posterior; un APK anterior puede seguir usando GPS aunque el core actualizado descarte las posiciones. Mirá [Privacidad y telemetría](/es/reference/privacy/#la-ubicación-del-teléfono-se-elige-por-separado) para los límites de tiempo y compatibilidad.
+Apagá **Recados en todos los teléfonos** desde cualquiera de las dos apps para detenerlos en todas partes, o **Usar este teléfono para recados** para detener solo ese teléfono. Si pierde conexión, el teléfono pausa su GPS después de una comprobación de seguridad fallida y requiere que lo vuelvas a habilitar ahí. El corte remoto de GPS necesita el core y el APK en 2.18.1 o posterior; un APK anterior puede seguir usando GPS aunque el core actualizado descarte las posiciones. Mirá [Privacidad y telemetría](/es/reference/privacy/#la-ubicación-del-teléfono-se-elige-por-separado) para los límites de tiempo y compatibilidad.
 
 En el panel, **Ajustes › En el auto** tiene el resto: con cuánta anticipación querés enterarte de un lugar, de dónde
 salen los lugares y si también querés el aviso en tu chat (Telegram, WhatsApp…).

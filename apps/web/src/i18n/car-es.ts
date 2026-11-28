@@ -9,13 +9,14 @@ export const esCar: Record<keyof typeof enCar, string> = {
   "privacy.trips": "Ubicación durante viajes",
   "privacy.tripsHelp":
     "Compartí ubicación para recados mientras manejás. Al apagarla también se detienen los recados; al encenderla no se inicia un viaje.",
-  "privacy.error": "No se pudieron leer o guardar tus opciones de privacidad. Revisá la conexión y volvé a intentar.",
+  "privacy.error": "No se pudo consultar el estado. Revisá la conexión y volvé a intentar.",
   "car.title": "En el auto",
   "car.lead": "Mientras manejás, APX te avisa cuando pasás cerca de un lugar donde podés hacer un recado pendiente.",
   "car.loadError": "No se pudo cargar esta configuración.",
   "car.saveError": "No se pudo guardar el cambio. Probá de nuevo.",
   "car.retry": "Probar de nuevo",
-  "car.enabled": "Recados en todos los dispositivos",
+  "car.enabled": "Recados en todos los teléfonos",
+  "car.manageLocation": "Configurar ubicación de viajes",
   "car.enabledHint":
     "Se aplica a todos los teléfonos conectados. Cada teléfono también necesita tener encendidos los recados y el acceso a ubicación.",
   "car.reach": "Qué tan lejos",

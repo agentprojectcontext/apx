@@ -183,11 +183,13 @@ export function Toggle({
   value,
   onChange,
   label,
+  hint,
   disabled,
 }: {
   value: boolean;
   onChange: (value: boolean) => void;
   label: string;
+  hint?: string;
   disabled?: boolean;
 }) {
   const t = useTheme();
@@ -196,6 +198,7 @@ export function Toggle({
     <Pressable
       accessibilityRole="switch"
       accessibilityLabel={label}
+      accessibilityHint={hint}
       accessibilityState={{ checked: value, disabled: Boolean(disabled) }}
       disabled={disabled}
       hitSlop={8}

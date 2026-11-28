@@ -2,6 +2,9 @@ import type { Key } from "./en.ts";
 
 export const es: Record<Key, string> = {
   privacyTitle: "Privacidad",
+  privacyLocationGroup: "Ubicación",
+  privacyStatsGroup: "Estadísticas de uso",
+  privacyUnknown: "No se pudo consultar el estado",
   privacyPermission: "Acceso a ubicación en este teléfono",
   privacyPermissionHelp:
     "Android también necesita tu permiso. Esto no enciende los recados ni el uso de ubicación por sí solo.",
@@ -19,7 +22,7 @@ export const es: Record<Key, string> = {
   privacyUnavailable:
     "No se pudieron leer tus opciones de privacidad. Revisá la conexión y actualizá APX en tu computadora; después, volvé a intentar.",
   privacyReload: "Volver a intentar",
-  carGlobal: "Recados en todos los dispositivos",
+  carGlobal: "Recados en todos los teléfonos",
   carGlobalHelp:
     "Al apagarlos se detienen los viajes en los teléfonos conectados. Cada teléfono también tiene su propio interruptor.",
   artifactReviewOnComputer: "Abrí APX en la compu para revisar esta copia.",

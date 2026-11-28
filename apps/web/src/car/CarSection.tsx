@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { SectionHead, SubHead } from "../config/SectionHead.tsx";
 import { client } from "../data/client.ts";
 import { useT } from "../i18n/index.ts";
+import { go } from "../shell/nav.ts";
 import { CarPlaces } from "./CarPlaces.tsx";
 import { CarPreview } from "./CarPreview.tsx";
 import { TripView } from "./TripCard.tsx";
@@ -91,15 +92,29 @@ export function CarSection() {
           {t("car.loadError")}
         </p>
       )}
-      <SettingRow title={t("car.enabled")} description={t("car.enabledHint")}>
+      <p id="car-global-scope" className="config__lead">
+        {t("car.enabledHint")}
+      </p>
+      <SettingRow title={t("car.enabled")}>
         <Switch
           size="sm"
           aria-label={t("car.enabled")}
+          aria-describedby="car-global-scope"
           checked={s.enabled}
           disabled={busy || loadFailed}
           onCheckedChange={(enabled) => void save({ enabled })}
         />
       </SettingRow>
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={() => {
+          go.focus("phone-privacy");
+          go.config("advanced");
+        }}
+      >
+        {t("car.manageLocation")}
+      </Button>
       {saveFailed && (
         <p role="alert" className="config__lead">
           {t("car.saveError")}
@@ -138,11 +153,6 @@ export function CarSection() {
               disabled={busy}
               onCheckedChange={(voice_while_driving) => void save({ voice_while_driving })}
             />
-          </SettingRow>
-          <SettingRow title={t("car.phone")} description={t(status.phone ? "car.phoneOnHint" : "car.phoneOffHint")}>
-            <Badge tone={status.phone ? "brand" : "neutral"} dot>
-              {t(status.phone ? "car.phoneOn" : "car.phoneOff")}
-            </Badge>
           </SettingRow>
           <CarPreview />
           <CurrentTrip />

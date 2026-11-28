@@ -15,6 +15,7 @@ export interface SwitchProps {
   className?: string;
   /** Accessible name when there is no visible label. */
   "aria-label"?: string;
+  "aria-describedby"?: string;
 }
 
 /** On/off setting. Track fills with the selection color (ink in minimal, green in classic). */
@@ -28,6 +29,7 @@ export function Switch({
   size = "md",
   className,
   "aria-label": ariaLabel,
+  "aria-describedby": ariaDescribedBy,
 }: SwitchProps) {
   const id = useId();
   const control = (
@@ -39,6 +41,7 @@ export function Switch({
       onCheckedChange={(v) => onCheckedChange?.(v)}
       disabled={disabled}
       aria-label={label ? undefined : ariaLabel}
+      aria-describedby={ariaDescribedBy}
     >
       <BaseSwitch.Thumb className="apx-switch__thumb" />
     </BaseSwitch.Root>

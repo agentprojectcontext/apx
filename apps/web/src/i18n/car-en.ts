@@ -8,13 +8,14 @@ export const enCar = {
   "privacy.trips": "Location during trips",
   "privacy.tripsHelp":
     "Share location for errands while driving. Turning this off also stops errands; turning it on does not start a trip.",
-  "privacy.error": "Could not read or save your privacy choices. Check your connection and try again.",
+  "privacy.error": "Couldn’t check the current setting. Check your connection and try again.",
   "car.title": "In the car",
   "car.lead": "While you drive, APX tells you when you pass near a place where you can do an open errand.",
   "car.loadError": "Couldn't load these settings.",
   "car.saveError": "Couldn't save the change. Try again.",
   "car.retry": "Try again",
-  "car.enabled": "Errands on all devices",
+  "car.enabled": "Errands on all phones",
+  "car.manageLocation": "Manage trip location",
   "car.enabledHint":
     "Applies to all connected phones. Each phone must also have errands and location access turned on.",
   "car.reach": "How far ahead",

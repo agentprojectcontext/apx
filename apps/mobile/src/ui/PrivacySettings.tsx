@@ -78,6 +78,7 @@ export function PrivacySettings({ call }: { call: Call }) {
   return (
     <>
       <Text style={type.rowTitle}>{t("privacyTitle")}</Text>
+      <Text style={type.rowTitle}>{t("privacyLocationGroup")}</Text>
       <Text style={type.meta}>{t("privacyScope")}</Text>
       {failed || statsFailed ? (
         <>
@@ -89,31 +90,37 @@ export function PrivacySettings({ call }: { call: Call }) {
         <ListRow
           wrap
           label={t("privacyLocation")}
-          sub={t("privacyLocationHelp")}
+          sub={t(privacy && !failed ? "privacyLocationHelp" : failed ? "privacyUnknown" : "privacyLoading")}
           leading={<IconTile icon="MapPin" />}
           chevron={false}
           trailing={
-            <Toggle
-              label={t("privacyLocation")}
-              value={privacy?.location ?? false}
-              disabled={!privacy || busy || failed}
-              onChange={(location) => void save("phone.configure_privacy", { location })}
-            />
+            privacy && !failed ? (
+              <Toggle
+                label={t("privacyLocation")}
+                hint={t("privacyScope")}
+                value={privacy.location}
+                disabled={busy}
+                onChange={(location) => void save("phone.configure_privacy", { location })}
+              />
+            ) : undefined
           }
         />
         <ListRow
           wrap
           label={t("privacyTrips")}
-          sub={t("privacyTripsHelp")}
+          sub={t(privacy && !failed ? "privacyTripsHelp" : failed ? "privacyUnknown" : "privacyLoading")}
           leading={<IconTile icon="Car" />}
           chevron={false}
           trailing={
-            <Toggle
-              label={t("privacyTrips")}
-              value={privacy?.trips ?? false}
-              disabled={!privacy || busy || failed}
-              onChange={(trips) => void save("phone.configure_privacy", { trips })}
-            />
+            privacy && !failed ? (
+              <Toggle
+                label={t("privacyTrips")}
+                hint={t("privacyScope")}
+                value={privacy.trips}
+                disabled={busy}
+                onChange={(trips) => void save("phone.configure_privacy", { trips })}
+              />
+            ) : undefined
           }
         />
         <ListRow
@@ -126,19 +133,25 @@ export function PrivacySettings({ call }: { call: Call }) {
             ? { detail: t("carReady") }
             : { trailing: <Button label={t("carAllow")} size="sm" onPress={() => void allow()} /> })}
         />
+      </ListGroup>
+      <Text style={type.rowTitle}>{t("privacyStatsGroup")}</Text>
+      <ListGroup>
         <ListRow
           wrap
           label={t("privacyStats")}
-          sub={t("privacyStatsHelp")}
+          sub={t(stats && !statsFailed ? "privacyStatsHelp" : statsFailed ? "privacyUnknown" : "privacyLoading")}
           leading={<IconTile icon="Settings" />}
           chevron={false}
           trailing={
-            <Toggle
-              label={t("privacyStats")}
-              value={stats?.usage === true}
-              disabled={!stats?.enabled || busy || statsFailed}
-              onChange={(usage) => void save("telemetry.set", { usage })}
-            />
+            stats && !statsFailed ? (
+              <Toggle
+                label={t("privacyStats")}
+                hint={t("privacyStatsHelp")}
+                value={stats.usage === true}
+                disabled={!stats.enabled || busy}
+                onChange={(usage) => void save("telemetry.set", { usage })}
+              />
+            ) : undefined
           }
         />
       </ListGroup>

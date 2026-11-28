@@ -141,16 +141,19 @@ function CarModeSettings({ creds, call, back }: { creds: Creds; call: Call; back
         <ListGroup>
           <ListRow
             label={t("carGlobal")}
-            sub={t("carGlobalHelp")}
+            sub={t(core && !failed ? "carGlobalHelp" : failed ? "privacyUnknown" : "privacyLoading")}
             leading={<IconTile icon="Car" />}
             chevron={false}
             trailing={
-              <Toggle
-                label={t("carGlobal")}
-                value={core?.settings.enabled ?? false}
-                disabled={!core || busy || failed}
-                onChange={(on) => void coreOn(on)}
-              />
+              core && !failed ? (
+                <Toggle
+                  label={t("carGlobal")}
+                  hint={t("carGlobalHelp")}
+                  value={core.settings.enabled}
+                  disabled={busy}
+                  onChange={(on) => void coreOn(on)}
+                />
+              ) : undefined
             }
           />
           <ListRow
@@ -163,7 +166,12 @@ function CarModeSettings({ creds, call, back }: { creds: Creds; call: Call; back
             chevron={false}
           />
         </ListGroup>
-        {failed ? <Text style={s.error}>{t("privacyUnavailable")}</Text> : null}
+        {failed ? (
+          <>
+            <Text style={s.error}>{t("privacyUnavailable")}</Text>
+            <Button label={t("privacyReload")} onPress={readCore} />
+          </>
+        ) : null}
         {enabled && core && !core.settings.enabled ? <Text style={type.muted}>{t("carCoreOff")}</Text> : null}
         {enabled && status ? (
           <>

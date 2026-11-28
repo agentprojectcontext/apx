@@ -1,6 +1,9 @@
 // The app's words in English, the source language; every other language mirrors these keys.
 export const en = {
   privacyTitle: "Privacy",
+  privacyLocationGroup: "Location",
+  privacyStatsGroup: "Usage statistics",
+  privacyUnknown: "Couldn’t check the current setting",
   privacyPermission: "Location access on this phone",
   privacyPermissionHelp:
     "Android also needs your permission. This does not turn on errands or location sharing by itself.",
@@ -17,7 +20,7 @@ export const en = {
   privacyUnavailable:
     "Could not read privacy choices. Check the connection and update APX on your computer, then try again.",
   privacyReload: "Try again",
-  carGlobal: "Errands on all devices",
+  carGlobal: "Errands on all phones",
   carGlobalHelp: "Turning this off stops trips on connected phones. Each phone also has its own switch.",
   artifactReviewOnComputer: "Open APX on your computer to review this copy.",
   browserTechnical: "Technical details",

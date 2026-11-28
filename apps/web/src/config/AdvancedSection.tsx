@@ -44,6 +44,7 @@ export function AdvancedSection() {
           </Button>
         }
       />
+      <PhonePrivacyBlock />
       <dl className="kv">
         <div className="kv__row">
           <dt>{t("advanced.connection")}</dt>
@@ -91,7 +92,6 @@ export function AdvancedSection() {
       )}
       <SubHead>{t("sysUsage.title")}</SubHead>
       <UsageOverview />
-      <PhonePrivacyBlock />
       <TelemetryBlock />
     </>
   );

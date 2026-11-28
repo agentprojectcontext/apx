@@ -49,10 +49,29 @@ test("an older core leaves unavailable location choices disabled but retains its
     method.startsWith("phone.") ? Promise.reject(new Error("Unknown method")) : f.call(method, patch),
   );
   const ui = await render(<PrivacySettings call={call} />);
-  expect(ui.getByRole("switch", { name: t("privacyLocation") })).toBeDisabled();
+  expect(ui.queryByRole("switch", { name: t("privacyLocation") })).toBeNull();
+  expect(ui.queryByRole("switch", { name: t("privacyTrips") })).toBeNull();
+  expect(ui.getAllByText(t("privacyUnknown"))).toHaveLength(2);
+  expect(ui.getByRole("button", { name: t("privacyReload") })).toBeVisible();
   expect(ui.getByRole("switch", { name: t("privacyStats") })).not.toBeDisabled();
   await fireEvent.press(ui.getByRole("switch", { name: t("privacyStats") }));
   expect(f.call).toHaveBeenCalledWith("telemetry.set", { usage: false });
+  await ui.unmount();
+});
+
+test("a pending first read does not present an unknown choice as switched off", async () => {
+  const pending = deferred<unknown>();
+  const f = fixture();
+  const call = jest.fn((method: string, patch: Record<string, unknown>) =>
+    method === "phone.privacy" ? pending.promise : f.call(method, patch),
+  );
+  const ui = await render(<PrivacySettings call={call} />);
+  expect(ui.queryByRole("switch", { name: t("privacyLocation") })).toBeNull();
+  expect(ui.getAllByText(t("privacyLoading"))).toHaveLength(3);
+  await act(async () => pending.resolve({ location: true, trips: false, revision: "one" }));
+  expect(ui.getByRole("switch", { name: t("privacyLocation") })).toBeChecked();
+  expect(ui.getByRole("switch", { name: t("privacyTrips") })).not.toBeChecked();
+  expect(ui.getByRole("switch", { name: t("privacyLocation") }).props.accessibilityHint).toBe(t("privacyScope"));
   await ui.unmount();
 });
 
