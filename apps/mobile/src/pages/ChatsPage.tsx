@@ -12,12 +12,14 @@ import { BottomSheet, Dot, EmptyState, IconButton, ListRow, OwnerAvatar, Segment
 import { makeStyles, useTheme } from "../ui/theme";
 import { type ChatFilter, filtering } from "../viewPrefs";
 import { InboxRow, inboxTitle, ThreadAvatar } from "./InboxRows";
+import { SessionsPage } from "./SessionsPage";
 
-/** As the panel's Inbox: chats, task chats and routine runs in a tab each. */
-type Tab = "chats" | "tasks" | "routines";
+/** As the panel's Inbox: chats, task chats and routine runs in a tab each, and the engines' sessions. */
+type Tab = "chats" | "tasks" | "routines" | "sessions";
+type ListTab = Exclude<Tab, "sessions">;
 const TAB_OF = { thread: "chats", channel: "chats", task: "tasks", routine: "routines" } as const;
 // A run from before routines had ids is still a routine's.
-const tabOf = (node: InboxNode): Tab => (node.thread.kind === "routine" ? "routines" : TAB_OF[node.kind]);
+const tabOf = (node: InboxNode): ListTab => (node.thread.kind === "routine" ? "routines" : TAB_OF[node.kind]);
 const TAB_TITLE = { chats: "navChats", tasks: "navTasks", routines: "routines" } as const;
 const SEARCH = { chats: "searchChats", tasks: "searchTasks", routines: "searchRoutines" } as const;
 
@@ -34,6 +36,7 @@ export function ChatsPage({
   taskMenu,
   openArchived,
   readThreads,
+  sessions,
 }: {
   data: Workspace;
   online: boolean;
@@ -52,6 +55,11 @@ export function ChatsPage({
   openArchived?: () => void;
   /** Marks chats read; a long press on a tab offers it for that tab's chats. */
   readThreads?: (ids: string[]) => Promise<void>;
+  /** Starting and resuming the engines' sessions, in their own tab (left out: no Sessions tab). */
+  sessions?: {
+    create: (engine: string, project: string) => Promise<Thread>;
+    resume: (engine: string, id: string) => Promise<Thread>;
+  };
 }) {
   const type = useType();
   const theme = useTheme();
@@ -61,20 +69,27 @@ export function ChatsPage({
   const [filters, setFilters] = useState(false);
   const working = useMemo(() => workingNow(data.threads, data.jobs.running), [data.threads, data.jobs.running]);
   const [tab, setTab] = useState<Tab>("chats");
+  // Search and filters belong to the lists; Sessions keeps the last list's.
+  const [listTab, setListTab] = useState<ListTab>("chats");
+  const pick = (next: Tab) => {
+    setTab(next);
+    if (next !== "sessions") setListTab(next);
+  };
+  const onSessions = tab === "sessions";
   /** The tab whose options a long press opened. */
-  const [held, setHeld] = useState<Tab>();
+  const [held, setHeld] = useState<ListTab>();
   const tree = useMemo(
     () => inboxTree(data.threads, { ...filter, routines: true, tasks: true }, data.tasks),
     [data.threads, data.tasks, filter],
   );
   const rows = useMemo(() => {
-    const shown = tree.filter((node) => tabOf(node) === tab);
+    const shown = tree.filter((node) => tabOf(node) === listTab);
     // Tasks go by what needs the owner: waiting and running on top, dropped and done at the end.
-    return searchInbox(tab === "tasks" ? byAttention(shown, data.tasks) : shown, query, (node) =>
+    return searchInbox(listTab === "tasks" ? byAttention(shown, data.tasks) : shown, query, (node) =>
       inboxTitle(node, data),
     );
-  }, [tree, tab, query, data]);
-  const unreadIn = (which: Tab) =>
+  }, [tree, listTab, query, data]);
+  const unreadIn = (which: ListTab) =>
     tree
       .filter((node) => tabOf(node) === which)
       .flatMap(nodeThreads)
@@ -105,38 +120,42 @@ export function ChatsPage({
           {t("navChats")}
         </Text>
         <IconButton icon="SquarePen" label={t("newChat")} size={18} color={theme.fgMuted} onPress={create} />
-        <IconButton
-          icon="Search"
-          label={t(SEARCH[tab])}
-          size={18}
-          color={query === undefined ? theme.fgMuted : theme.fg}
-          onPress={() => setQuery((q) => (q === undefined ? "" : undefined))}
-        />
-        <View>
-          <IconButton
-            icon="ListFilter"
-            label={t(filtered ? "filterChatsOn" : "filterChats")}
-            size={18}
-            color={filtered ? theme.fg : theme.fgMuted}
-            onPress={() => setFilters(true)}
-          />
-          {filtered ? <Dot size={7} style={s.filterDot} /> : null}
-        </View>
+        {onSessions ? null : (
+          <>
+            <IconButton
+              icon="Search"
+              label={t(SEARCH[listTab])}
+              size={18}
+              color={query === undefined ? theme.fgMuted : theme.fg}
+              onPress={() => setQuery((q) => (q === undefined ? "" : undefined))}
+            />
+            <View>
+              <IconButton
+                icon="ListFilter"
+                label={t(filtered ? "filterChatsOn" : "filterChats")}
+                size={18}
+                color={filtered ? theme.fg : theme.fgMuted}
+                onPress={() => setFilters(true)}
+              />
+              {filtered ? <Dot size={7} style={s.filterDot} /> : null}
+            </View>
+          </>
+        )}
         <Pressable accessibilityRole="button" accessibilityLabel={t("navMore")} onPress={account} style={s.account}>
           <OwnerAvatar name={data.owner} online={online} size={28} />
         </Pressable>
       </View>
       {/* Searching takes the tabs' place: the list under it stays where it was. */}
       <View style={s.switch}>
-        {query !== undefined ? (
+        {query !== undefined && !onSessions ? (
           <View style={s.search}>
             <Icon name="Search" size={15} color={theme.fgSubtle} />
             <TextInput
               autoFocus
               value={query}
               onChangeText={setQuery}
-              accessibilityLabel={t(SEARCH[tab])}
-              placeholder={t(SEARCH[tab])}
+              accessibilityLabel={t(SEARCH[listTab])}
+              placeholder={t(SEARCH[listTab])}
               placeholderTextColor={theme.fgSubtle}
               returnKeyType="search"
               style={s.searchInput}
@@ -153,21 +172,26 @@ export function ChatsPage({
         ) : (
           <Segmented
             value={tab}
-            onChange={setTab}
+            onChange={pick}
             onLongPress={(which) => {
-              setTab(which);
-              setHeld(which);
+              pick(which);
+              if (which !== "sessions") setHeld(which);
             }}
             style={s.tabs}
             options={[
               { value: "chats", label: t("navChats") },
               { value: "tasks", label: t("navTasks") },
               { value: "routines", label: t("routines") },
+              ...(sessions ? [{ value: "sessions" as const, label: t("navSessions") }] : []),
             ]}
           />
         )}
       </View>
+      {onSessions && sessions ? (
+        <SessionsPage data={data} open={open} create={sessions.create} resume={sessions.resume} embedded />
+      ) : null}
       <FlatList
+        style={onSessions ? s.hidden : undefined}
         testID="chats-list"
         data={rows}
         keyExtractor={(node) => node.key}
@@ -189,9 +213,9 @@ export function ChatsPage({
         ListEmptyComponent={
           filtered || searching ? (
             <EmptyState title={t("filterNone")} icon="ListFilter" />
-          ) : tab === "tasks" ? (
+          ) : listTab === "tasks" ? (
             <EmptyState title={t("emptyTaskChats")} icon="ListChecks" />
-          ) : tab === "routines" ? (
+          ) : listTab === "routines" ? (
             <EmptyState title={t("emptyRoutineChats")} icon="Clock" />
           ) : (
             <EmptyState title={t("noChats")} body={t("noChatsBody")} icon="MessageCircle" />
@@ -336,5 +360,6 @@ const useStyles = makeStyles((theme) => ({
   },
   workTitle: { color: theme.fg, fontSize: 13, fontWeight: "500" },
   tabs: { marginHorizontal: 16 },
+  hidden: { display: "none" },
   filterDot: { position: "absolute", top: 11, right: 11, backgroundColor: theme.brand },
 }));

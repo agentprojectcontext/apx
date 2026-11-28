@@ -282,3 +282,22 @@ test("holding a tab marks only that tab's chats read", async () => {
   await waitFor(() => expect(readThreads).toHaveBeenCalledWith(["run_today"]));
   await ui.unmount();
 });
+
+test("the engines' sessions are a tab of Chats, and the lists come back as they were", async () => {
+  const sessions = { create: jest.fn(), resume: jest.fn() };
+  const without = await mount();
+  expect(without.queryByRole("tab", { name: t("navSessions") })).toBeNull();
+  await without.unmount();
+
+  const ui = await mount({ sessions });
+  expect(ui.getByRole("button", { name: "Launch planning" })).toBeVisible();
+  await showTab(ui, t("navSessions"));
+  expect(ui.getByText(t("sessionsLead"))).toBeVisible();
+  expect(ui.getByText(t("connectEngine"))).toBeVisible();
+  // Search and filters are for the lists.
+  expect(ui.queryByRole("button", { name: t("filterChats") })).toBeNull();
+  expect(ui.queryByRole("button", { name: "Launch planning" })).toBeNull();
+  await showTab(ui, t("navChats"));
+  expect(ui.getByRole("button", { name: "Launch planning" })).toBeVisible();
+  await ui.unmount();
+});

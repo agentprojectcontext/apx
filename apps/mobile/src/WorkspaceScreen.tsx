@@ -1,7 +1,9 @@
 import * as Notifications from "expo-notifications";
+import * as SecureStore from "expo-secure-store";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, BackHandler, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { hasNativeVoice } from "../modules/apx-voice";
 import { ChatScreen } from "./ChatScreen";
 import { useCarNative, useCarSync, useCarTrip } from "./car/hooks";
 import { tripSummary } from "./car/model";
@@ -29,12 +31,13 @@ import { NewTaskPage } from "./pages/NewTaskPage";
 import { RoutineDetailPage } from "./pages/RoutineDetailPage";
 import { RoutineEditPage } from "./pages/RoutineEditPage";
 import { RoutinesPage } from "./pages/RoutinesPage";
-import { SessionsPage } from "./pages/SessionsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { SharedFilesPage } from "./pages/SharedFilesPage";
 import { TaskDetailPage } from "./pages/TaskDetailPage";
 import { TasksPage } from "./pages/TasksPage";
 import { TripPage } from "./pages/TripPage";
+import { centerMode, voiceNoteTarget } from "./roby/center";
+import { RobyButton } from "./roby/RobyButton";
 import { SurfacesScreen } from "./SurfacesScreen";
 import { TaskMenu } from "./tasks/TaskMenu";
 import { ChatMenu } from "./ui/ChatMenu";
@@ -46,16 +49,18 @@ import { BottomNav, type NavItem } from "./ui/kit/BottomNav";
 import { MediaClient } from "./ui/media/context";
 import { makeStyles, useTheme } from "./ui/theme";
 import { useChatFilter } from "./viewPrefs";
-import { useNativeVoice } from "./voice";
+import { boss, callAgent, useNativeVoice } from "./voice";
 
-type Tab = "chats" | "inbox" | "tasks" | "sessions" | "more";
+// Two tabs on each side of the super-agent's button; the engines' sessions are a tab of Chats.
+type Tab = "chats" | "inbox" | "tasks" | "more";
 const TABS: Array<NavItem<Tab>> = [
   { id: "chats", label: t("navChats"), icon: "MessageCircle" },
   { id: "inbox", label: t("navInbox"), icon: "Inbox" },
   { id: "tasks", label: t("navTasks"), icon: "ListChecks" },
-  { id: "sessions", label: t("navSessions"), icon: "Terminal" },
   { id: "more", label: t("navMore"), icon: "LayoutGrid" },
 ];
+/** The chat last opened on this phone: where the center button's notes go when no chat is pinned. */
+const LAST_CHAT = "apx.lastChat";
 
 /** What opens over the tabs: a chat, the apps, a routine, a task, a page of More, the archived chats. */
 type Page =
@@ -109,6 +114,29 @@ export function WorkspaceScreen({
   const trip = useCarTrip(workspace.call, workspace.listen, car.status?.trip?.id);
   const tripNow = tripSummary(trip.view, car.status);
   useNotifications(creds);
+  const lead = boss(workspace.data.agents);
+  // Whether the computer can carry a call now; asked again each time the core comes back.
+  const [callsReady, setCallsReady] = useState<boolean>();
+  const { client, online } = workspace;
+  useEffect(() => {
+    if (!hasNativeVoice || !online) return;
+    let live = true;
+    client
+      .call("calls.status", {})
+      .then((result) => live && setCallsReady(result.ready === true))
+      .catch(() => live && setCallsReady(false));
+    return () => {
+      live = false;
+    };
+  }, [client, online]);
+  const lastChat = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    void SecureStore.getItemAsync(LAST_CHAT)
+      .then((id) => {
+        if (id && !lastChat.current) lastChat.current = id;
+      })
+      .catch(() => undefined);
+  }, []);
   const [tab, setTab] = useState<Tab>("chats");
   /** Tabs opened once stay mounted, so each keeps its scroll and state while another is shown. */
   const [visited, setVisited] = useState<ReadonlySet<Tab>>(() => new Set(["chats"]));
@@ -145,6 +173,13 @@ export function WorkspaceScreen({
     }),
     [workspace.taskDetail, workspace.updateTask, workspace.closeTask, workspace.deleteTask, workspace.commentTask],
   );
+  const sessionActions = useMemo(
+    () => ({
+      create: async (engine: string, project: string) => workspace.newSession(engine, project),
+      resume: workspace.resumeSession,
+    }),
+    [workspace.newSession, workspace.resumeSession],
+  );
   const [picker, setPicker] = useState<"switch" | "new">();
   /** A chat's long-press sheet, or the Chats tab's ("mark all read"). */
   const [menu, setMenu] = useState<Thread | "all">();
@@ -177,6 +212,10 @@ export function WorkspaceScreen({
     (thread: Thread, how: "push" | "replace" = "push", focus?: string) => {
       if (viewing === thread.id && !focus) return;
       (how === "replace" ? replace : push)({ kind: "chat", thread, ...(focus ? { focus } : {}) });
+      if (!isNewChat(thread.id)) {
+        lastChat.current = thread.id;
+        void SecureStore.setItemAsync(LAST_CHAT, thread.id).catch(() => undefined);
+      }
       if (!isNewChat(thread.id) && thread.unread > 0) void readThreads([thread.id]).catch(() => undefined);
     },
     [viewing, push, replace, readThreads],
@@ -386,6 +425,7 @@ export function WorkspaceScreen({
             taskMenu={(id, threads) => setTaskMenu({ id, threads: threads.map((thread) => thread.id) })}
             openArchived={() => on.push({ kind: "archived" })}
             readThreads={workspace.readThreads}
+            sessions={sessionActions}
           />
         );
       case "inbox":
@@ -412,15 +452,6 @@ export function WorkspaceScreen({
             create={() => on.push({ kind: "newTask" })}
             openThread={on.openById}
             {...(tripNow.active ? { trip: { waiting: tripNow.waiting, open: () => on.push({ kind: "trip" }) } } : {})}
-          />
-        );
-      case "sessions":
-        return (
-          <SessionsPage
-            data={workspace.data}
-            open={on.showChat}
-            create={async (engine, project) => workspace.newSession(engine, project)}
-            resume={workspace.resumeSession}
           />
         );
       case "more":
@@ -494,6 +525,18 @@ export function WorkspaceScreen({
           value={tab}
           onChange={setTab}
           onLongPress={(id) => id === "chats" && unreadIds.length > 0 && setMenu("all")}
+          center={
+            lead ? (
+              <RobyButton
+                agent={lead}
+                mode={centerMode({ nativeVoice: hasNativeVoice, callsReady })}
+                client={workspace.client}
+                target={() => voiceNoteTarget(workspace.data.threads, lead.id, lastChat.current)}
+                make={() => workspace.makeChat(newChatThread({ agent: lead.id }, t("newChat")))}
+                call={() => void callAgent(lead.id)}
+              />
+            ) : undefined
+          }
         />
         {stack.pages.map((item) => (
           <StackSlide key={item.key} leaving={item.leaving} onGone={() => gone(item.key)}>
