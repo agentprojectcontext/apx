@@ -76,7 +76,7 @@ export function createTelemetry(opts: {
   };
 
   const send = async (event: TelemetryEvent) => {
-    if (!sink) return false;
+    if (!sink || (event.kind === "usage" && state().usage !== true)) return false;
     await sink(event);
     save({ last: { at: clock().toISOString(), event } });
     return true;

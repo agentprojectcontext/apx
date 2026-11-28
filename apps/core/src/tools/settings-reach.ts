@@ -102,6 +102,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "environments.enable": POWER,
   "environments.bind": POWER,
   "telemetry.set": POWER,
+  "phone.configure_privacy": POWER,
   "storage.clear": "the owner frees space from Settings › Storage, having seen what it removes (DECISIONS.md#d-185)",
   "projects.move_folder":
     "a retry of the move APX runs by itself at start; it deletes files in the owner's folder, so the owner presses Try again on the project or runs apx doctor --fix (DECISIONS.md#d-275)",

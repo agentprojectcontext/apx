@@ -302,6 +302,20 @@ export const deviceMethods = {
     result: () => Device,
     effect: true,
   }),
+  "phone.privacy": deferMethod({
+    params: () => z.object({}).strict(),
+    result: () =>
+      z.object({ location: z.boolean(), trips: z.boolean(), revision: z.string(), trip_revision: z.string() }),
+    effect: false,
+    access: "human",
+  }),
+  "phone.configure_privacy": deferMethod({
+    params: () => z.object({ location: z.boolean().optional(), trips: z.boolean().optional() }).strict(),
+    result: () =>
+      z.object({ location: z.boolean(), trips: z.boolean(), revision: z.string(), trip_revision: z.string() }),
+    effect: true,
+    access: "human",
+  }),
   /** The owner's phone, as a node: where it is now. */
   "phone.location": deferMethod({
     params: () => z.object({}).strict(),

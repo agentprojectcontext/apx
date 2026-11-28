@@ -462,7 +462,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...deviceHandlers(d.store, { addresses: d.addresses, onRevoke: (id) => d.vm?.revokeDevice(id) }),
     ...accessHandlers(d.access),
     ...webhookHandlers(d.webhooks, d.publicCredentials),
-    ...phoneHandlers(d.broker, d.store, d.app.home),
+    ...phoneHandlers(d.broker, d.store, d.app.home, () => d.car.configure({ enabled: false })),
     ...computerHandlers(d.broker, d.store, d.app.home, d.engine, (thread) => Boolean(d.vm?.hasThread(thread)), d.bus),
     ...extensionHandlers(d.extensions, d.mcp, d.bus, d.store),
     ...extensionEventHandlers(d.extensionEvents),

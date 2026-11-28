@@ -1,6 +1,7 @@
 // The owner's phone as a node: where it is, and a picture the owner takes there. The core only routes; a photo comes
 // back as bytes and is kept as media like an upload.
 import { PHONE_CAMERA_CAP, PHONE_LOCATION_CAP } from "@apx/protocol";
+import { configurePhonePrivacy, phonePrivacy, tripPrivacyRevision } from "../domain/phone-privacy.ts";
 import type { Store } from "../domain/store.ts";
 import { CallError } from "../errors.ts";
 import type { NodeBroker } from "../nodes/broker.ts";
@@ -12,15 +13,28 @@ const LOCATION_MS = 12_000;
 /** The owner has to frame and take the picture. */
 const PHOTO_MS = 90_000;
 
-export function phoneHandlers(broker: NodeBroker, store: Store, home: string) {
+export function phoneHandlers(broker: NodeBroker, store: Store, home: string, stopTrips: () => void = () => {}) {
   return {
-    "phone.location": async () =>
-      (await broker.invoke(PHONE_LOCATION_CAP, "phone.location", {}, LOCATION_MS)) as {
+    "phone.privacy": () => ({ ...phonePrivacy(store), trip_revision: tripPrivacyRevision(store) }),
+    "phone.configure_privacy": (patch) => {
+      const next = configurePhonePrivacy(store, patch);
+      if (!next.trips) stopTrips();
+      return { ...next, trip_revision: tripPrivacyRevision(store) };
+    },
+    "phone.location": async () => {
+      const before = phonePrivacy(store);
+      if (!before.location) throw new CallError({ code: "conflict", message: "Phone location is turned off" });
+      const result = (await broker.invoke(PHONE_LOCATION_CAP, "phone.location", {}, LOCATION_MS)) as {
         lat: number;
         lon: number;
         accuracy_m?: number;
         at: string;
-      },
+      };
+      const after = phonePrivacy(store);
+      if (!after.location || after.revision !== before.revision)
+        throw new CallError({ code: "conflict", message: "Phone location permission changed" });
+      return result;
+    },
     "phone.photo": async ({ reason, thread }) => {
       const r = (await broker.invoke(PHONE_CAMERA_CAP, "phone.photo", reason ? { reason } : {}, PHOTO_MS)) as {
         mime?: string;

@@ -15,6 +15,7 @@ import type {
 import type { Bus } from "../bus.ts";
 import type { AlertRow, Hold } from "../domain/car-alerts.ts";
 import type { TripRow } from "../domain/car-trips.ts";
+import { phonePrivacy, revokeTripConsent } from "../domain/phone-privacy.ts";
 import type { Store } from "../domain/store.ts";
 import type { BackgroundCheck } from "../engine/background.ts";
 import { badRequest, unavailable } from "../errors.ts";
@@ -143,7 +144,7 @@ export function createCar(d: CarDeps) {
   function matchTrip(tripId: string): CarAlert | undefined {
     const trip = store.carTrips.get(tripId);
     const at = trip?.position;
-    if (!settings().enabled || !trip || trip.ended_at || !at) return undefined;
+    if (!settings().enabled || !phonePrivacy(store).trips || !trip || trip.ended_at || !at) return undefined;
     if (quiet({ silenced: trip.silenced, last_alert_at: trip.last_alert_at, now: now() })) return undefined;
     const spent = store.carAlerts.spent(trip.id);
     const holds = store.carAlerts.holds(trip.id);
@@ -199,7 +200,8 @@ export function createCar(d: CarDeps) {
 
   function positionAt(p: PositionIn): { alerts: CarAlert[]; active: boolean } {
     const trip = store.carTrips.get(p.trip_id);
-    if (!settings().enabled || !trip || trip.ended_at) return { alerts: [], active: false };
+    if (!settings().enabled || !phonePrivacy(store).trips || !trip || trip.ended_at)
+      return { alerts: [], active: false };
     const at = now().toISOString();
     // A bad fix is neither kept nor searched around; offers already made still reach the phone.
     if ((p.accuracy_m ?? 0) <= WORST_ACCURACY_M) {
@@ -236,12 +238,20 @@ export function createCar(d: CarDeps) {
       const { google_key, ...rest } = patch;
       if (google_key !== undefined) d.secrets.set(GOOGLE_KEY_SECRET, google_key.trim() || null);
       const next = { ...settings(), ...rest };
-      if (next.source === "google" && !d.secrets.has(GOOGLE_REF))
+      if (
+        next.source === "google" &&
+        !d.secrets.has(GOOGLE_REF) &&
+        !(patch.enabled === false && patch.source === undefined)
+      )
         throw badRequest("Google needs its key first; OpenStreetMap needs none");
+      if (!next.enabled && settings().enabled) revokeTripConsent(store);
       store.settings.write("car", next);
       if (!next.enabled) {
         const trip = store.carTrips.active();
-        if (trip) store.carTrips.end(trip.id, now().toISOString());
+        if (trip) {
+          store.settings.set(`car_revoked:${trip.id}`, "1");
+          store.carTrips.end(trip.id, now().toISOString());
+        }
         plans.keep(new Set());
       }
       changed();
@@ -255,7 +265,8 @@ export function createCar(d: CarDeps) {
       device_id?: string | undefined;
     }): CarTripView {
       // Off, the core does nothing with what the phone says.
-      if (!settings().enabled) return { alerts: [], errands: [] };
+      if (!settings().enabled || !phonePrivacy(store).trips || store.settings.get(`car_revoked:${p.trip_id}`) === "1")
+        return { alerts: [], errands: [] };
       const trip = store.carTrips.start({
         id: p.trip_id,
         source: p.source,
@@ -316,7 +327,7 @@ export function createCar(d: CarDeps) {
       id: "car-trips",
       everyMs: 60_000,
       run: (at: Date) => {
-        if (!settings().enabled) return;
+        if (!settings().enabled || !phonePrivacy(store).trips) return;
         const idle = store.carTrips.idle(new Date(at.getTime() - IDLE_TRIP_MS).toISOString());
         for (const t of idle) {
           store.carTrips.end(t.id, at.toISOString());
