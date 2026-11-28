@@ -24,6 +24,9 @@ test("the phone node releases late connections and cancels scheduled reconnects 
   const calls: unknown[][] = [];
   const waiting: ReturnType<typeof Promise.withResolvers<ReturnType<typeof socket>>>[] = [];
   let allowed = true;
+  let deliver = true;
+  let removed = 0;
+  let stateChanged: ((state: string) => void) | undefined;
   const locationCalls: unknown[] = [];
   const api = {
     ApxClient: class {
@@ -37,6 +40,13 @@ test("the phone node releases late connections and cancels scheduled reconnects 
         return pending.promise;
       }
     },
+    AppState: {
+      currentState: "active",
+      addEventListener: (_event: string, listener: (state: string) => void) => {
+        stateChanged = listener;
+        return { remove() {} };
+      },
+    },
     Location: {
       Accuracy: { Balanced: 3 },
       async getForegroundPermissionsAsync() {
@@ -44,8 +54,12 @@ test("the phone node releases late connections and cancels scheduled reconnects 
       },
       async watchPositionAsync(options: unknown, receive: (p: unknown) => void) {
         locationCalls.push(options);
-        receive({ coords: { latitude: 10, longitude: 20, accuracy: 5 } });
-        return { remove() {} };
+        if (deliver) receive({ coords: { latitude: 10, longitude: 20, accuracy: 5 } });
+        return {
+          remove() {
+            removed++;
+          },
+        };
       },
     },
   };
@@ -54,6 +68,7 @@ test("the phone node releases late connections and cancels scheduled reconnects 
   const hooks = registerHooks({
     resolve(specifier, context, next) {
       if (specifier === "expo-location") return { url: "apx-phone-test:location", shortCircuit: true };
+      if (specifier === "react-native") return { url: "apx-phone-test:native", shortCircuit: true };
       if (specifier === "./protocol" && context.parentURL?.endsWith("/phone.ts"))
         return { url: "apx-phone-test:protocol", shortCircuit: true };
       if (specifier === "./phoneRequests" || specifier === "./phoneLocation") return next(`${specifier}.ts`, context);
@@ -63,6 +78,8 @@ test("the phone node releases late connections and cancels scheduled reconnects 
       const base = 'const api = globalThis[Symbol.for("apx.phone-test")];';
       if (url === "apx-phone-test:protocol")
         return { shortCircuit: true, format: "module", source: `${base} export const ApxClient = api.ApxClient;` };
+      if (url === "apx-phone-test:native")
+        return { shortCircuit: true, format: "module", source: `${base} export const AppState = api.AppState;` };
       if (url === "apx-phone-test:location")
         return {
           shortCircuit: true,
@@ -104,7 +121,18 @@ test("the phone node releases late connections and cancels scheduled reconnects 
     { lat: 10, lon: 20, accuracy_m: 5 },
   );
   assert.ok(Number.isFinite(Date.parse(position.at)));
-  assert.deepEqual(locationCalls, [{ accuracy: 3 }]);
+  assert.deepEqual(locationCalls, [{ accuracy: 3, mayShowUserSettingsDialog: false }]);
+  deliver = false;
+  const background = assert.rejects(connected.handler("phone.location", {}), /allow/);
+  await setImmediate();
+  api.AppState.currentState = "background";
+  stateChanged?.("background");
+  await background;
+  assert.equal(removed, 2, "backgrounding removes the in-flight watcher without waiting for paused JS timers");
+  const count = locationCalls.length;
+  await assert.rejects(connected.handler("phone.location", {}), /allow/);
+  assert.equal(locationCalls.length, count, "a background phone never starts another capture");
+  api.AppState.currentState = "active";
   allowed = false;
   await assert.rejects(connected.handler("phone.location", {}), /allow/);
   connected.close();

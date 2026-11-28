@@ -1,6 +1,7 @@
 // The phone as a node (it lends its location and camera to the core) and its push registration. Both run while the
 // app is paired; the node link reconnects on its own.
 import * as Location from "expo-location";
+import { AppState } from "react-native";
 import type { Creds } from "./creds";
 import { capturePhoneLocation } from "./phoneLocation";
 import { handlePhoneRequest, PHONE_CAPS, type PhoneDeps } from "./phoneRequests";
@@ -14,6 +15,9 @@ export function startPhoneNode(creds: Creds, photo: PhoneDeps["photo"]): () => v
   let socket: ApxSocket | undefined;
   let stopped = false;
   const captures = new Set<() => void>();
+  const app = AppState.addEventListener("change", (state) => {
+    if (state !== "active") for (const stop of captures) stop();
+  });
   let attempt = 0;
   let retry: ReturnType<typeof setTimeout> | undefined;
   const deps: PhoneDeps = {
@@ -27,9 +31,10 @@ export function startPhoneNode(creds: Creds, photo: PhoneDeps["photo"]): () => v
             captures.delete(stop);
           };
         },
-        permitted: async () => !stopped && (await Location.getForegroundPermissionsAsync()).granted,
+        permitted: async () =>
+          !stopped && AppState.currentState === "active" && (await Location.getForegroundPermissionsAsync()).granted,
         watch: (receive) =>
-          Location.watchPositionAsync({ accuracy: Location.Accuracy.Balanced }, (p) =>
+          Location.watchPositionAsync({ accuracy: Location.Accuracy.Balanced, mayShowUserSettingsDialog: false }, (p) =>
             receive({
               lat: p.coords.latitude,
               lon: p.coords.longitude,
@@ -67,6 +72,7 @@ export function startPhoneNode(creds: Creds, photo: PhoneDeps["photo"]): () => v
   void loop();
   return () => {
     stopped = true;
+    app.remove();
     for (const stop of captures) stop();
     captures.clear();
     clearTimeout(retry);
