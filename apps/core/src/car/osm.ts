@@ -110,6 +110,7 @@ export function osmProvider(opts: OsmOptions): PlaceProvider {
   async function attempt(url: string, query: string, signal: AbortSignal | undefined): Promise<OverpassElement[]> {
     const wait = lastStart + gap - opts.now().getTime();
     if (wait > 0) await sleep(wait);
+    signal?.throwIfAborted();
     lastStart = opts.now().getTime();
     const deadline = AbortSignal.timeout(opts.deadlineMs ?? DEADLINE_MS);
     const res = await opts.fetch(url, {
@@ -120,6 +121,7 @@ export function osmProvider(opts: OsmOptions): PlaceProvider {
     });
     if (!res.ok) throw Object.assign(new Error(`Overpass answered ${res.status}`), { status: res.status });
     const json = (await res.json()) as { elements?: OverpassElement[]; remark?: string };
+    signal?.throwIfAborted();
     // A query that ran out of time answers 200 with a partial list and a remark; caching it would hide places.
     if (json.remark && /error/i.test(json.remark)) throw new Error(`Overpass: ${json.remark.slice(0, 120)}`);
     return json.elements ?? [];
@@ -151,6 +153,7 @@ export function osmProvider(opts: OsmOptions): PlaceProvider {
   async function fetchTiles(tiles: readonly string[], signal: AbortSignal | undefined): Promise<void> {
     // Searches for several errands share tiles: a batch another search fetched while this one waited is skipped.
     const elements = await enqueue(() => {
+      signal?.throwIfAborted();
       const since = new Date(opts.now().getTime() - FRESH_MS).toISOString();
       const fresh = opts.cache.freshTiles(tiles, since);
       return fresh.size === tiles.length ? Promise.resolve(undefined) : overpass(overpassQuery(tiles), signal);

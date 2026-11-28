@@ -6,6 +6,59 @@ import { createLog } from "./log.ts";
 import { createTelemetry } from "./telemetry.ts";
 import { countUsage } from "./telemetry-counts.ts";
 
+test("an in-flight usage response cannot settle a later consent period", async () => {
+  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  const dispatched = Promise.withResolvers<void>();
+  const response = Promise.withResolvers<void>();
+  let at = new Date("2026-04-01T10:00:00Z");
+  let hold = true;
+  const events: TelemetryEvent[] = [];
+  const telemetry = createTelemetry({
+    home: env.home,
+    store: env.core.store,
+    log: createLog("test", true),
+    version: "2.0.0",
+    channel: "test",
+    now: () => at,
+    sink: async (event) => {
+      events.push(event);
+      if (hold && event.kind === "usage") {
+        dispatched.resolve();
+        await response.promise;
+      }
+    },
+  });
+  try {
+    telemetry.set(true);
+    await telemetry.flush();
+    countUsage(env.core.store, "signins");
+    at = new Date("2026-04-02T10:00:00Z");
+    const flushing = telemetry.flush();
+    await dispatched.promise;
+    telemetry.set(false);
+    telemetry.set(true);
+    countUsage(env.core.store, "signins");
+    const fresh = env.core.store.settings.read("telemetry");
+    at = new Date("2026-04-03T10:00:00Z");
+    hold = false;
+    response.resolve();
+    await flushing;
+    const settled = env.core.store.settings.read("telemetry");
+    assert.equal(settled.counts.signins, 1);
+    assert.equal(settled.usage_from, fresh.usage_from);
+    assert.equal(settled.usage_day, fresh.usage_day);
+    await telemetry.flush();
+    const last = events.findLast((event) => event.kind === "usage");
+    assert.ok(last?.kind === "usage");
+    assert.equal(last.stats.signins, 1);
+  } finally {
+    response.resolve();
+    await telemetry.flush();
+    await env.core.close();
+    await env.cleanup();
+  }
+});
+
 test("revoking usage while a flush is queued drops its old counts and does not send a usage report", async () => {
   const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
   const blocked = Promise.withResolvers<void>();

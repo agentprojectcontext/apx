@@ -14,6 +14,8 @@ type Deps = {
 export async function capturePhoneLocation(d: Deps): Promise<PhonePosition | undefined> {
   const initial = await d.privacy();
   if (!initial.location || !(await d.permitted())) return undefined;
+  const current = await d.privacy();
+  if (!current.location || current.revision !== initial.revision) return undefined;
   return new Promise((resolve) => {
     let ended = false;
     let checking = false;

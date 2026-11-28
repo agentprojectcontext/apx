@@ -103,7 +103,7 @@ class TripLocationService : Service() {
     }
     running = true
     if (!listening) {
-      TripPrivacy.validate(this) {
+      TripPrivacy.validate(this, beginning = true) {
         if (!running || !CarPrefs(this).tripActive) return@validate
         acceptedAfterNanos = SystemClock.elapsedRealtimeNanos()
         requestUpdates()
@@ -158,6 +158,7 @@ class TripLocationService : Service() {
     lastUploadMs = now
     val params = JSONObject()
       .put("trip_id", prefs.tripId)
+      .put("consent_revision", prefs.tripPrivacyRevision)
       .put("lat", location.latitude)
       .put("lon", location.longitude)
       .put("at", isoNow())

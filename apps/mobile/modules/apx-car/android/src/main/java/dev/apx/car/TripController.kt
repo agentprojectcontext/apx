@@ -54,9 +54,6 @@ object TripController {
     val id = UUID.randomUUID().toString()
     prefs.startTrip(id, source, destination)
     Log.i(TAG, "trip started ($source)")
-    CoreClient.send(context, "car.trip_start", tripStart(id, source, destination)) { view ->
-      view?.let { CarAlertStore.put(CarTripView.from(it).alerts, quiet = true) }
-    }
     TripLocationService.start(context)
   }
 
@@ -77,7 +74,16 @@ object TripController {
   private fun setDestination(context: Context, destination: String) {
     val prefs = CarPrefs(context)
     prefs.setTripDestination(destination)
-    CoreClient.send(context, "car.trip_start", tripStart(prefs.tripId, prefs.tripSource, destination))
+    CoreClient.send(context, "car.trip_start", tripStart(prefs.tripId, prefs.tripSource, destination)
+      .put("consent_revision", prefs.tripPrivacyRevision))
+  }
+
+  fun announce(context: Context, revision: String): JSONObject {
+    val prefs = CarPrefs(context)
+    val view = CoreClient.call(context, "car.trip_start", tripStart(prefs.tripId, prefs.tripSource, prefs.tripDestination)
+      .put("consent_revision", revision))
+    CarAlertStore.put(CarTripView.from(view).alerts, quiet = true)
+    return view
   }
 
   private fun tripStart(id: String, source: String, destination: String): JSONObject {

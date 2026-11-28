@@ -5,9 +5,10 @@ export function carHandlers(car: Car) {
   return {
     "car.settings": () => car.status(),
     "car.configure": (patch) => car.configure(patch),
-    "car.trip_start": ({ trip_id, source, destination, at }, ctx) =>
+    "car.trip_start": ({ trip_id, source, destination, at, consent_revision }, ctx) =>
       car.tripStart({
         trip_id,
+        ...(consent_revision ? { consent_revision } : {}),
         source,
         at,
         ...(destination ? { destination } : {}),

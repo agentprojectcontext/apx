@@ -15,7 +15,7 @@ import type {
 import type { Bus } from "../bus.ts";
 import type { AlertRow, Hold } from "../domain/car-alerts.ts";
 import type { TripRow } from "../domain/car-trips.ts";
-import { phonePrivacy, revokeTripConsent } from "../domain/phone-privacy.ts";
+import { phonePrivacy, revokeTripConsent, tripPrivacyRevision } from "../domain/phone-privacy.ts";
 import type { Store } from "../domain/store.ts";
 import type { BackgroundCheck } from "../engine/background.ts";
 import { badRequest, unavailable } from "../errors.ts";
@@ -51,6 +51,7 @@ export type CarDeps = {
 
 type PositionIn = {
   trip_id: string;
+  consent_revision?: string | undefined;
   lat: number;
   lon: number;
   accuracy_m?: number | undefined;
@@ -200,7 +201,15 @@ export function createCar(d: CarDeps) {
 
   function positionAt(p: PositionIn): { alerts: CarAlert[]; active: boolean } {
     const trip = store.carTrips.get(p.trip_id);
-    if (!settings().enabled || !phonePrivacy(store).trips || !trip || trip.ended_at)
+    const revision = tripPrivacyRevision(store);
+    if (
+      !settings().enabled ||
+      !phonePrivacy(store).trips ||
+      !trip ||
+      trip.ended_at ||
+      (p.consent_revision ?? "initial") !== revision ||
+      (store.settings.get(`car_consent:${trip.id}`) ?? "initial") !== revision
+    )
       return { alerts: [], active: false };
     const at = now().toISOString();
     // A bad fix is neither kept nor searched around; offers already made still reach the phone.
@@ -263,10 +272,19 @@ export function createCar(d: CarDeps) {
       at: string;
       destination?: CarDestination | undefined;
       device_id?: string | undefined;
+      consent_revision?: string | undefined;
     }): CarTripView {
-      // Off, the core does nothing with what the phone says.
-      if (!settings().enabled || !phonePrivacy(store).trips || store.settings.get(`car_revoked:${p.trip_id}`) === "1")
+      const revision = tripPrivacyRevision(store);
+      const previous = store.carTrips.get(p.trip_id);
+      if (
+        !settings().enabled ||
+        !phonePrivacy(store).trips ||
+        (p.consent_revision ?? "initial") !== revision ||
+        (previous && (store.settings.get(`car_consent:${p.trip_id}`) ?? "initial") !== revision) ||
+        store.settings.get(`car_revoked:${p.trip_id}`) === "1"
+      )
         return { alerts: [], errands: [] };
+      store.settings.set(`car_consent:${p.trip_id}`, revision);
       const trip = store.carTrips.start({
         id: p.trip_id,
         source: p.source,

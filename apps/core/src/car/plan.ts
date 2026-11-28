@@ -16,7 +16,7 @@ export const REQUEST_DEADLINE_MS = 25_000;
 export type OpenErrand = { task_id: string; title: string; place: ErrandPlace | undefined };
 
 type Entry = { sig: string; places: FoundPlace[] };
-type Plan = { at?: Point; byTask: Map<string, Entry>; warming?: Promise<WarmResult> };
+type Plan = { at?: Point; byTask: Map<string, Entry>; warming?: Promise<WarmResult>; abort?: AbortController };
 export type WarmResult = { searched: number; failed: number };
 
 const signature = (e: OpenErrand) => JSON.stringify(e.place ?? null);
@@ -42,6 +42,7 @@ export function createPlans(o: {
   onError?: (err: unknown) => void;
 }) {
   const plans = new Map<string, Plan>();
+  const running = new Set<Promise<WarmResult>>();
   const planOf = (key: string) => {
     let plan = plans.get(key);
     if (!plan) {
@@ -57,17 +58,18 @@ export function createPlans(o: {
     reach: CarReach,
     signal: AbortSignal,
   ): Promise<FoundPlace[] | undefined> {
+    if (signal.aborted) return undefined;
     const fixed = pinned(e);
     if (fixed) return [fixed];
     const categories = e.place?.categories ?? [];
     if (!categories.length) return [];
     const provider = await o.provider();
-    if (!provider) return undefined;
+    if (!provider || signal.aborted) return undefined;
     const radius_m = 1.5 * (e.place?.radius_m ?? REACH_M[reach]);
     try {
       return await provider.search({ lat: at.lat, lon: at.lon, radius_m }, categories, o.now(), signal);
     } catch (err) {
-      o.onError?.(err);
+      if (!signal.aborted) o.onError?.(err);
       return undefined;
     }
   }
@@ -88,8 +90,12 @@ export function createPlans(o: {
     const moved = !plan.at || distanceM(plan.at, at) > WARM_MOVE_M;
     const wanted = moved ? errands : errands.filter((e) => plan.byTask.get(e.task_id)?.sig !== signature(e));
     const center = moved ? { lat: at.lat, lon: at.lon } : (plan.at as Point);
-    const signal = AbortSignal.timeout(SEARCH_DEADLINE_MS);
+    const signal = AbortSignal.any([
+      AbortSignal.timeout(SEARCH_DEADLINE_MS),
+      plan.abort?.signal ?? AbortSignal.abort(),
+    ]);
     const found = await Promise.all(wanted.map((e) => search(e, center, reach, signal)));
+    if (signal.aborted) return { searched: wanted.length, failed: wanted.length };
     let failed = 0;
     wanted.forEach((e, i) => {
       const places = found[i];
@@ -112,22 +118,30 @@ export function createPlans(o: {
     warm(key: string, at: Point, errands: readonly OpenErrand[], reach: CarReach): Promise<WarmResult> {
       const plan = planOf(key);
       if (plan.warming) return plan.warming;
+      plan.abort = new AbortController();
       const run = warmNow(plan, at, errands, reach).finally(() => {
         plan.warming = undefined;
+        running.delete(run);
       });
+      running.add(run);
       plan.warming = run;
       return run;
     },
     /** Every warm still running, settled (tests and a closing core wait on it). */
     async idle(): Promise<void> {
-      await Promise.allSettled([...plans.values()].flatMap((p) => (p.warming ? [p.warming] : [])));
+      await Promise.allSettled([...running]);
     },
     drop(key: string): void {
+      plans.get(key)?.abort?.abort();
       plans.delete(key);
     },
     /** Forgets every trip's plan but these. */
     keep(keys: ReadonlySet<string>): void {
-      for (const k of plans.keys()) if (!keys.has(k)) plans.delete(k);
+      for (const [k, plan] of plans)
+        if (!keys.has(k)) {
+          plan.abort?.abort();
+          plans.delete(k);
+        }
     },
   };
 }

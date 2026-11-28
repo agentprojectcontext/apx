@@ -48,7 +48,7 @@ test("the phone node releases late connections and cancels scheduled reconnects 
       },
     },
     Location: {
-      Accuracy: { Balanced: 3 },
+      Accuracy: { High: 4 },
       async getForegroundPermissionsAsync() {
         return { granted: allowed };
       },
@@ -121,7 +121,7 @@ test("the phone node releases late connections and cancels scheduled reconnects 
     { lat: 10, lon: 20, accuracy_m: 5 },
   );
   assert.ok(Number.isFinite(Date.parse(position.at)));
-  assert.deepEqual(locationCalls, [{ accuracy: 3, mayShowUserSettingsDialog: false }]);
+  assert.deepEqual(locationCalls, [{ accuracy: 4, mayShowUserSettingsDialog: false }]);
   deliver = false;
   const background = assert.rejects(connected.handler("phone.location", {}), /allow/);
   await setImmediate();
@@ -135,7 +135,12 @@ test("the phone node releases late connections and cancels scheduled reconnects 
   api.AppState.currentState = "active";
   allowed = false;
   await assert.rejects(connected.handler("phone.location", {}), /allow/);
+  allowed = true;
+  const disconnected = assert.rejects(connected.handler("phone.location", {}), /allow/);
+  await setImmediate();
   connected.close();
+  await disconnected;
+  assert.equal(removed, 3, "socket loss removes its capture without waiting for an HTTP poll");
   await setImmediate();
   stop();
   t.mock.timers.tick(60_000);

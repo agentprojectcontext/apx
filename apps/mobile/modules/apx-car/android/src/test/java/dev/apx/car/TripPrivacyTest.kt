@@ -19,8 +19,8 @@ class TripPrivacyTest {
     assertTrue(TripPrivacyLease.accepts(true, true, "revoked", "revoked", "new-trip", "new-trip"))
   }
 
-  @Test fun existingPhonesAdoptTheirFirstLeaseWithoutExpandingOsPermissions() {
-    assertTrue(TripPrivacyLease.accepts(true, true, "current", "", "trip", "trip"))
+  @Test fun existingPhonesRequireExplicitLocalConsentBeforeAdoptingAChangedLease() {
+    assertFalse(TripPrivacyLease.accepts(true, true, "current", "", "trip", "trip"))
     assertFalse(TripPrivacyLease.accepts(false, true, "current", "", "trip", "trip"))
   }
 }

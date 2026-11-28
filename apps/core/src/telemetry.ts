@@ -106,14 +106,16 @@ export function createTelemetry(opts: {
     const today = clock().toISOString().slice(0, 10);
     // The first report is the day after the owner's yes: nothing from before it is ever counted.
     if (s.usage === true && s.usage_from && s.usage_day !== today) {
+      const revision = store.settings.get("telemetry_usage_revision");
       const report = stats(s.usage_from);
-      await send({
+      const sent = await send({
         kind: "usage",
         install_id: installId,
         day: today,
         version: opts.version,
         stats: report,
       });
+      if (!sent || state().usage !== true || store.settings.get("telemetry_usage_revision") !== revision) return;
       settleUsageCounts(store, report);
       save({ usage_day: today, usage_from: clock().toISOString() });
     }
@@ -169,6 +171,7 @@ export function createTelemetry(opts: {
     set(usage: boolean): TelemetryState {
       const s = state();
       const at = clock().toISOString();
+      if (s.usage !== usage) store.settings.set("telemetry_usage_revision", randomUUID());
       // A new yes starts counting now; the day it was given is not reported.
       const fresh = usage && s.usage !== true;
       save({

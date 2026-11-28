@@ -13,7 +13,7 @@ object TripPrivacy {
   private val checks = mutableListOf<Runnable>()
 
   @Synchronized
-  fun validate(context: Context, allowed: () -> Unit) {
+  fun validate(context: Context, beginning: Boolean = false, allowed: () -> Unit) {
     if (pending) return
     pending = true
     val app = context.applicationContext
@@ -30,7 +30,10 @@ object TripPrivacy {
         val previous = CarPrefs(app).tripPrivacyRevision
         if (TripPrivacyLease.accepts(privacy.optBoolean("trips", false),
           settings.optJSONObject("settings")?.optBoolean("enabled", false) == true,
-          revision, previous, settings.optJSONObject("trip")?.optString("id"), id)) revision else null
+          revision, previous, if (beginning) id else settings.optJSONObject("trip")?.optString("id"), id)) {
+          CarPrefs(app).setTripPrivacyRevision(revision)
+          if (!beginning || TripController.announce(app, revision).optJSONObject("trip")?.optString("id") == id) revision else null
+        } else null
       } catch (_: Exception) {
         null
       }

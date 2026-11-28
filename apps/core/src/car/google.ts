@@ -105,6 +105,7 @@ export function googleProvider(opts: GoogleOptions): PlaceProvider {
   }
 
   async function searchOne(area: SearchArea, category: ErrandCategory, key: string, signal?: AbortSignal) {
+    signal?.throwIfAborted();
     // About 100 m of rounding: the car moves, the answer for the block does not.
     const memoKey = `${area.lat.toFixed(3)},${area.lon.toFixed(3)},${Math.round(area.radius_m / 100)},${category},${language}`;
     const cached = recall(memoKey);
@@ -131,6 +132,7 @@ export function googleProvider(opts: GoogleOptions): PlaceProvider {
       throw unavailable(`Google Places answered ${res.status}${body?.error?.status ? ` (${body.error.status})` : ""}`);
     }
     const json = (await res.json()) as { places?: GooglePlace[] };
+    signal?.throwIfAborted();
     const places = (json.places ?? []).map((p) => toFound(p, category)).filter((p): p is FoundPlace => p !== undefined);
     remember(memoKey, places);
     return places;

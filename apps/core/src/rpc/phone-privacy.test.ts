@@ -75,9 +75,16 @@ test("trip location revocation rejects legacy positions and ends the trip withou
       "a stale APK cannot reopen the trip revoked by the owner",
     );
     assert.equal(
-      (await client.call("car.trip_start", { trip_id: "fresh-trip", source: "manual", at })).trip?.id,
+      (await client.call("car.trip_start", { trip_id: "fresh-legacy", source: "manual", at })).trip,
+      undefined,
+    );
+    const { trip_revision: consent_revision } = await client.call("phone.privacy", {});
+    assert.equal(
+      (await client.call("car.trip_start", { trip_id: "fresh-trip", source: "manual", at, consent_revision })).trip?.id,
       "fresh-trip",
     );
+    assert.equal((await client.call("car.position", { trip_id: "fresh-trip", ...fix })).active, false);
+    assert.equal((await client.call("car.position", { trip_id: "fresh-trip", ...fix, consent_revision })).active, true);
   } finally {
     await env.core.close();
     await env.cleanup();

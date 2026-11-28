@@ -225,6 +225,7 @@ export type PreferredPlace = z.infer<typeof PreferredPlace>;
 const Position = z
   .object({
     trip_id: z.string().min(8).max(64),
+    consent_revision: z.string().min(1).max(64).optional(),
     lat: z.number().min(-90).max(90),
     lon: z.number().min(-180).max(180),
     accuracy_m: z.number().nonnegative().max(100_000).optional(),
@@ -259,6 +260,7 @@ export const carMethods = {
       z
         .object({
           trip_id: z.string().min(8).max(64),
+          consent_revision: z.string().min(1).max(64).optional(),
           source: CarTripSource,
           destination: CarDestination.optional(),
           at: z.string().datetime(),

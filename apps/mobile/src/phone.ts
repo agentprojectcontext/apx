@@ -22,10 +22,11 @@ export function startPhoneNode(creds: Creds, photo: PhoneDeps["photo"]): () => v
   let retry: ReturnType<typeof setTimeout> | undefined;
   const deps: PhoneDeps = {
     async location() {
+      const requested = socket;
       return capturePhoneLocation({
         privacy: () => client.call("phone.privacy", {}),
         onStop: (stop) => {
-          if (stopped) stop();
+          if (stopped || !requested || socket !== requested || AppState.currentState !== "active") stop();
           else captures.add(stop);
           return () => {
             captures.delete(stop);
@@ -34,7 +35,7 @@ export function startPhoneNode(creds: Creds, photo: PhoneDeps["photo"]): () => v
         permitted: async () =>
           !stopped && AppState.currentState === "active" && (await Location.getForegroundPermissionsAsync()).granted,
         watch: (receive) =>
-          Location.watchPositionAsync({ accuracy: Location.Accuracy.Balanced, mayShowUserSettingsDialog: false }, (p) =>
+          Location.watchPositionAsync({ accuracy: Location.Accuracy.High, mayShowUserSettingsDialog: false }, (p) =>
             receive({
               lat: p.coords.latitude,
               lon: p.coords.longitude,
@@ -63,6 +64,8 @@ export function startPhoneNode(creds: Creds, photo: PhoneDeps["photo"]): () => v
       attempt = 0;
       socket.onRequest((method, params) => handlePhoneRequest(method, params, deps));
       await socket.closed;
+      socket = undefined;
+      for (const stop of captures) stop();
     } catch {
       // the core is not reachable now
     }

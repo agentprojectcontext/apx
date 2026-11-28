@@ -64,6 +64,22 @@ async function start(f: ReturnType<typeof fixture>) {
   return { result };
 }
 
+test("revocation during the OS permission read prevents watcher registration", async () => {
+  const f = fixture();
+  const permission = Promise.withResolvers<boolean>();
+  const reading = Promise.withResolvers<void>();
+  f.deps.permitted = async () => {
+    reading.resolve();
+    return permission.promise;
+  };
+  const result = capturePhoneLocation(f.deps);
+  await reading.promise;
+  f.set({ location: false, revision: "revoked" });
+  permission.resolve(true);
+  assert.equal(await result, undefined);
+  assert.equal(f.watches, 0);
+});
+
 test("disabled location never asks the OS for a fix", async () => {
   const f = fixture();
   f.set({ location: false, revision: "off" });
