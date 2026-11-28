@@ -81,9 +81,10 @@ object TripController {
       .put("consent_revision", prefs.tripPrivacyRevision))
   }
 
-  fun announce(context: Context, revision: String): JSONObject {
+  fun announce(context: Context, revision: String, expectedId: String = CarPrefs(context).tripId): JSONObject {
     val prefs = CarPrefs(context)
-    val view = CoreClient.call(context, "car.trip_start", tripStart(prefs.tripId, prefs.tripSource, prefs.tripDestination)
+    if (!prefs.active || prefs.tripId != expectedId || prefs.tripPrivacyRevision != revision) return JSONObject()
+    val view = CoreClient.call(context, "car.trip_start", tripStart(expectedId, prefs.tripSource, prefs.tripDestination)
       .put("consent_revision", revision))
     CarAlertStore.put(CarTripView.from(view).alerts, quiet = true)
     return view

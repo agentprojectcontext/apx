@@ -1,5 +1,6 @@
 // The phones that take part in errands on the way (rules/ERRANDS_ON_THE_WAY.md#phones). A phone turns itself on or
 // off; the owner turns one off from APX, which ends its trip here and switches the phone off on its next point.
+import { randomUUID } from "node:crypto";
 import type { CarPhone } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
 import { badRequest, notFound } from "../errors.ts";
@@ -31,6 +32,8 @@ export function createPhones(store: Store, now: () => Date, changed: () => void)
   };
 
   return {
+    revision: (deviceId: string | undefined): string =>
+      deviceId ? (store.settings.get(`car_phone_consent:${deviceId}`) ?? "initial") : "initial",
     list(): CarPhone[] {
       return store.carPhones.list().flatMap((row) => view(row.device_id) ?? []);
     },
@@ -53,7 +56,10 @@ export function createPhones(store: Store, now: () => Date, changed: () => void)
       if (!store.devices.get(id)) throw notFound("phone");
       if (!own && p.enabled) throw badRequest("Only the phone itself turns errands on");
       store.carPhones.set(id, p.enabled, own ? "phone" : "owner", now().toISOString());
-      if (!p.enabled) endTripOf(id);
+      if (!p.enabled) {
+        store.settings.set(`car_phone_consent:${id}`, randomUUID());
+        endTripOf(id);
+      }
       changed();
       const phone = view(id);
       if (!phone) throw notFound("phone");

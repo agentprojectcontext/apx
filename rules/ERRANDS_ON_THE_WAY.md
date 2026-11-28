@@ -66,9 +66,12 @@ starts sharing that phone's location. The super-agent may turn a phone off throu
 - `car.position` carries one point (lat, lon, accuracy, speed, heading, time) — never a track. The core keeps the
   last point on the trip row only. The answer carries the new offers, so the phone does not need a socket (**v1**: an
   offer must become buttons within a second; a phone in a tunnel cannot ask).
-- A trip with no position for 20 minutes ends on its own (background check `car-trips`, D-171), so a phone that died
-  mid-drive does not leave the owner "driving" forever. Trip state lives in the DB, so a core restart keeps it
-  (**v1**: an in-memory trip answered "trip ended" for the rest of a real drive).
+- A trip with no position for 20 minutes is marked idle (background check `car-trips`, D-171), so a phone that died
+  mid-drive does not leave the owner "driving" forever. Only idle expiry allows an ended trip id to reopen, and only
+  when no other trip is active: an authorized phone's next point or native privacy reannouncement recovers it
+  (D-287). Explicit trip end, global
+  consent revocation and per-phone disable are not idle expiry. Disabling and reenabling a phone invalidates its
+  previous trips, including idle ones. Trip state and consent revisions survive a core restart.
 
 ## The matcher (per position)
 

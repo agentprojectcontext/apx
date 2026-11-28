@@ -5,86 +5,82 @@ import android.os.Handler
 import android.os.Looper
 import org.json.JSONObject
 
-/**
- * No coordinates are read until the core confirms the current trip and its privacy controls. Only an answer that
- * says no (or a revoked key) stops the trip; no answer in time (offline, Tailscale reconnecting, a busy core) keeps
- * it and the next check tries again, since the owner's choice stands until they change it (DECISIONS.md#d-287).
- */
+/** See DECISIONS.md#d-287: no answer preserves consent; an explicit negative ends the trip. */
 object TripPrivacy {
   private val main = Handler(Looper.getMainLooper())
-  private var generation = 0L
-  private var pending = false
+  private val state = TripPrivacyChecks()
   private val checks = mutableListOf<Runnable>()
 
   @Synchronized
   fun validate(context: Context, beginning: Boolean = false, unreachable: () -> Unit = {}, allowed: () -> Unit) {
-    if (pending) return
-    pending = true
+    val check = state.begin() ?: return
     val app = context.applicationContext
-    val mine = generation
-    val id = CarPrefs(app).tripId
-    val deadline = Runnable { noAnswer(mine, unreachable) }
+    val prefs = CarPrefs(app)
+    val id = prefs.tripId
+    val previous = prefs.tripPrivacyRevision
+    fun sameTrip(): Boolean {
+      val current = CarPrefs(app)
+      return state.current(check) && current.tripId == id && current.tripPrivacyRevision == previous && current.active
+    }
+    fun negative() {
+      main.post {
+        synchronized(this) {
+          if (sameTrip()) {
+            cancel()
+            TripController.revokePrivacy(app)
+          }
+        }
+      }
+    }
+    val deadline = Runnable {
+      synchronized(this) {
+        if (state.finish(check) && sameTrip()) unreachable()
+      }
+    }
     checks.add(deadline)
     main.postDelayed(deadline, 12_000L)
     CoreClient.io.execute {
-      var silent = false
-      val confirmed = try {
+      var confirmed = false
+      try {
         val privacy = CoreClient.call(app, "phone.privacy", JSONObject())
-        val settings = CoreClient.call(app, "car.settings", JSONObject())
         val revision = privacy.optString("trip_revision", "")
-        val previous = CarPrefs(app).tripPrivacyRevision
-        if (TripPrivacyLease.accepts(privacy.optBoolean("trips", false),
-          settings.optJSONObject("settings")?.optBoolean("enabled", false) == true,
-          revision, previous, if (beginning) id else settings.optJSONObject("trip")?.optString("id"), id)) {
-          CarPrefs(app).setTripPrivacyRevision(revision)
-          if (!beginning || TripController.announce(app, revision).optJSONObject("trip")?.optString("id") == id) revision else null
-        } else null
+        if (!TripPrivacyLease.privacyAllows(privacy.optBoolean("trips", false), revision, previous)) {
+          negative()
+        } else {
+          val settings = CoreClient.call(app, "car.settings", JSONObject())
+          if (settings.optJSONObject("settings")?.optBoolean("enabled", false) != true ||
+            (settings.has("this_phone") && !settings.optBoolean("this_phone", false))) {
+            negative()
+          } else {
+            val trip = settings.optJSONObject("trip")?.optString("id")
+            // Idle expiry is not revocation: reannounce only this still-authorized trip, never another trip.
+            val current = if (beginning || trip == null) {
+              if (synchronized(this) { sameTrip() }) TripController.announce(app, revision, id).optJSONObject("trip")?.optString("id") else null
+            } else trip
+            confirmed = TripPrivacyLease.accepts(true, true, revision, previous, current, id)
+            if (!confirmed) negative()
+          }
+        }
       } catch (error: CoreError) {
-        silent = TripPositionReply.unreachable(error.code)
-        null
+        if (!TripPositionReply.unreachable(error.code)) negative()
       } catch (_: Exception) {
-        null
+        // Transport failures preserve an authorized trip, but never grant the first location read.
       }
       main.post {
-        main.removeCallbacks(deadline)
-        checks.remove(deadline)
         synchronized(this) {
-          if (mine != generation) return@post
-          pending = false
-          val prefs = CarPrefs(app)
-          if (silent && prefs.tripId == id && prefs.active) {
-            unreachable()
-          } else if (confirmed == null || prefs.tripId != id || !prefs.active) {
-            revoke(app, mine)
-          } else {
-            prefs.setTripPrivacyRevision(confirmed)
-            allowed()
+          main.removeCallbacks(deadline)
+          checks.remove(deadline)
+          if (state.finish(check) && sameTrip()) {
+            if (confirmed) allowed() else unreachable()
           }
         }
       }
     }
   }
 
-  /** The check ran out of time: the trip stays and the caller tries again later. */
-  @Synchronized
-  private fun noAnswer(mine: Long, unreachable: () -> Unit) {
-    if (mine != generation) return
-    generation++
-    pending = false
-    unreachable()
-  }
-
-  @Synchronized
-  private fun revoke(context: Context, mine: Long) {
-    if (mine != generation) return
-    cancel()
-    TripController.revokePrivacy(context)
-  }
-
   @Synchronized
   fun cancel() {
-    generation++
-    pending = false
+    state.cancel()
     for (check in checks) main.removeCallbacks(check)
     checks.clear()
   }

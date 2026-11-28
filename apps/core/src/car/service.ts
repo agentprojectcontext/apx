@@ -202,19 +202,35 @@ export function createCar(d: CarDeps) {
   }
 
   function positionAt(p: PositionIn): { alerts: CarAlert[]; active: boolean } {
-    const trip = store.carTrips.get(p.trip_id);
+    let trip = store.carTrips.get(p.trip_id);
     const revision = tripPrivacyRevision(store);
+    const renewable =
+      trip?.ended_at &&
+      trip.device_id &&
+      !store.carTrips.active() &&
+      store.settings.get(`car_idle:${trip.id}`) === "1" &&
+      store.settings.get(`car_revoked:${trip.id}`) !== "1";
     if (
       !settings().enabled ||
       !phonePrivacy(store).trips ||
       !trip ||
-      trip.ended_at ||
+      (trip.ended_at && !renewable) ||
       (p.consent_revision ?? "initial") !== revision ||
       (store.settings.get(`car_consent:${trip.id}`) ?? "initial") !== revision ||
-      !phones.allows(trip.device_id)
+      !phones.allows(trip.device_id) ||
+      (store.settings.get(`car_trip_phone_consent:${trip.id}`) ?? "initial") !== phones.revision(trip.device_id)
     )
       return { alerts: [], active: false };
     const at = now().toISOString();
+    if (renewable) {
+      trip = store.carTrips.start({
+        id: trip.id,
+        source: trip.source,
+        at,
+        ...(trip.device_id ? { device_id: trip.device_id } : {}),
+      });
+      store.settings.set(`car_idle:${trip.id}`, "0");
+    }
     // A bad fix is neither kept nor searched around; offers already made still reach the phone.
     if ((p.accuracy_m ?? 0) <= WORST_ACCURACY_M) {
       store.carTrips.position(trip.id, {
@@ -281,16 +297,22 @@ export function createCar(d: CarDeps) {
     }): CarTripView {
       const revision = tripPrivacyRevision(store);
       const previous = store.carTrips.get(p.trip_id);
+      const active = store.carTrips.active();
       if (
         !settings().enabled ||
         !phonePrivacy(store).trips ||
         (p.consent_revision ?? "initial") !== revision ||
         (previous && (store.settings.get(`car_consent:${p.trip_id}`) ?? "initial") !== revision) ||
         store.settings.get(`car_revoked:${p.trip_id}`) === "1" ||
+        (previous?.ended_at && (store.settings.get(`car_idle:${p.trip_id}`) !== "1" || active !== undefined)) ||
+        (previous && previous.device_id !== p.device_id) ||
+        (previous &&
+          (store.settings.get(`car_trip_phone_consent:${p.trip_id}`) ?? "initial") !== phones.revision(p.device_id)) ||
         !phones.allows(p.device_id)
       )
         return { alerts: [], errands: [] };
       store.settings.set(`car_consent:${p.trip_id}`, revision);
+      store.settings.set(`car_trip_phone_consent:${p.trip_id}`, phones.revision(p.device_id));
       const trip = store.carTrips.start({
         id: p.trip_id,
         source: p.source,
@@ -298,6 +320,7 @@ export function createCar(d: CarDeps) {
         ...(p.destination ? { destination: p.destination } : {}),
         ...(p.device_id ? { device_id: p.device_id } : {}),
       });
+      store.settings.set(`car_idle:${trip.id}`, "0");
       plans.keep(new Set([trip.id]));
       // A trip opened again (a restart, the phone back from a tunnel) warms where it last was.
       warmAhead(trip.id);
@@ -306,6 +329,7 @@ export function createCar(d: CarDeps) {
     },
     position: positionAt,
     tripEnd(trip_id: string, at: string): { ended: boolean } {
+      store.settings.set(`car_idle:${trip_id}`, "0");
       const ended = store.carTrips.end(trip_id, at);
       plans.drop(trip_id);
       if (ended) changed();
@@ -356,6 +380,7 @@ export function createCar(d: CarDeps) {
         if (!settings().enabled || !phonePrivacy(store).trips) return;
         const idle = store.carTrips.idle(new Date(at.getTime() - IDLE_TRIP_MS).toISOString());
         for (const t of idle) {
+          store.settings.set(`car_idle:${t.id}`, "1");
           store.carTrips.end(t.id, at.toISOString());
           plans.drop(t.id);
         }
