@@ -36,8 +36,9 @@ object CarAnswers {
     CarNotifications.cancelAlert(app, alert.id)
     CarCore.answer(app, alert.id, action) { result ->
       val next = result?.optJSONObject("next")?.let(CarAlert::from)
-      if (next != null) deliver(app, listOf(next))
+      // The acknowledgement first, then the next place: read aloud in that order.
       done(result != null)
+      if (next != null) deliver(app, listOf(next))
     }
   }
 
