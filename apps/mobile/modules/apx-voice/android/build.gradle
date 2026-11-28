@@ -17,4 +17,6 @@ android {
 dependencies {
   // The same OkHttp React Native already ships: the call's socket.
   implementation 'com.squareup.okhttp3:okhttp:4.9.2'
+  // Exercise the Android-free cancellation gate without an emulator.
+  testImplementation 'junit:junit:4.13.2'
 }

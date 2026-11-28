@@ -29,10 +29,13 @@ class VoiceService : Service() {
   private val work = Executors.newSingleThreadExecutor()
   private lateinit var settings: Settings
   private var wake: WakeListener? = null
-  private var call: CallSession? = null
+  @Volatile private var call: CallSession? = null
+  @Volatile private var callFromWake = false
   private var lock: PowerManager.WakeLock? = null
   @Volatile private var checking = false
   private var lastCheck = 0L
+  private val starts = VoiceStartGate()
+  private var pending: VoiceStartGate.Ticket? = null
 
   override fun onBind(intent: Intent?): IBinder? = null
 
@@ -44,6 +47,8 @@ class VoiceService : Service() {
   }
 
   override fun onDestroy() {
+    starts.close()
+    main.removeCallbacksAndMessages(null)
     current = null
     wake?.stop()
     call?.hangUp()
@@ -61,10 +66,10 @@ class VoiceService : Service() {
     when (intent?.action) {
       ACTION_CALL -> startCall(intent.getStringExtra("mode") ?: "call", intent.getStringExtra("agent"),
         intent.getStringExtra("thread"), intent.getBooleanExtra("full", true))
-      ACTION_HANGUP -> call?.hangUp()
+      ACTION_HANGUP -> hangUp()
       ACTION_STOP_WAKE -> {
         settings.wake = false
-        settle()
+        stopWake()
       }
       else -> settle()
     }
@@ -73,11 +78,18 @@ class VoiceService : Service() {
 
   /** Listening for its name when it should, between calls; nothing to do and the service goes. */
   private fun settle() {
-    if (call != null) return
+    if (!starts.valid(starts.ticket())) return
+    if (!settings.paired()) {
+      starts.cancel()
+      call?.hangUp()
+    }
+    if (call != null || pending?.let { starts.valid(it) } == true) return
     if (settings.wake && settings.paired()) {
       listen()
       notify(notification(false))
     } else {
+      starts.cancelWake()
+      main.removeCallbacks(warm)
       wake?.stop()
       wake = null
       VoiceState.set(phase = "off")
@@ -103,15 +115,17 @@ class VoiceService : Service() {
   private val warm: Runnable = object : Runnable {
     override fun run() {
       if (wake?.running() != true) return
+      val ticket = starts.ticket(wake = true)
       val quiet = WakeListener.wav(ByteArray(WakeListener.RATE)) // half a second of silence
       work.execute {
+        if (!starts.valid(ticket) || !settings.wake || !settings.paired()) return@execute
         val core = Core(settings.url, settings.token)
         try {
           core.call("voice.wake",
             JSONObject().put("data", Base64.encodeToString(quiet, Base64.NO_WRAP)).put("mime", "audio/wav"), timeoutS = 30)
         } catch (_: Exception) {}
-        // The greeting played the moment the name is heard follows the owner's voice and language.
-        Greeting.refresh(this@VoiceService, core)
+        // Keep the cached greeting in the owner's voice and language.
+        if (starts.valid(ticket) && settings.wake && settings.paired()) Greeting.refresh(this@VoiceService, core)
       }
       main.postDelayed(this, 7 * 60 * 1000L)
     }
@@ -120,16 +134,22 @@ class VoiceService : Service() {
   /** Asks the core whether a short clip was the voice's name; one at a time, not more than one every 1.2 s. */
   private fun check(clip: ByteArray, ms: Int) {
     val now = System.currentTimeMillis()
-    if (checking || now - lastCheck < 1200 || call != null) return
+    if (checking || now - lastCheck < 1200 || call != null || !settings.wake || !settings.paired()) return
+    val ticket = starts.ticket(wake = true)
     checking = true
     lastCheck = now
     work.execute {
       try {
+        if (!starts.valid(ticket) || !settings.wake || !settings.paired()) return@execute
         val core = Core(settings.url, settings.token)
         val r = core.call("voice.wake",
           JSONObject().put("data", Base64.encodeToString(clip, Base64.NO_WRAP)).put("mime", "audio/wav"), timeoutS = 30)
-        Log.d(TAG, "wake check ${ms}ms: ${r.optBoolean("awake")} \"${r.optString("text")}\"")
-        if (r.optBoolean("awake")) main.post { startCall("quick", null, null, false, greet = true) }
+        Log.d(TAG, "wake check ${ms}ms: ${r.optBoolean("awake")}")
+        if (r.optBoolean("awake")) main.post {
+          starts.run(ticket) {
+            if (settings.wake && settings.paired()) startCall("quick", null, null, false, greet = true)
+          }
+        }
       } catch (e: Exception) {
         Log.d(TAG, "wake check failed: $e")
       } finally {
@@ -143,7 +163,10 @@ class VoiceService : Service() {
       show(full)
       return
     }
-    if (!settings.paired()) return settle()
+    if (!settings.paired() || (greet && !settings.wake)) return settle()
+    starts.cancel()
+    val ticket = starts.ticket(wake = greet)
+    pending = ticket
     wake?.stop()
     wake = null
     main.removeCallbacks(warm)
@@ -151,14 +174,19 @@ class VoiceService : Service() {
     show(full)
     // The wake listener lets go of the microphone before the call takes it.
     main.postDelayed({
-      val greeting = if (greet) Greeting.load(this) else null
-      call = CallSession(this, Core(settings.url, settings.token), mode, agent, thread, greeting) { reason ->
-        main.post {
-          call = null
-          Log.i(TAG, "back from the call: $reason")
-          main.postDelayed({ if (call == null) settle() }, 700)
-        }
-      }.also { it.start() }
+      starts.run(ticket) {
+        pending = null
+        if (!settings.paired() || (greet && !settings.wake)) return@run
+        val greeting = if (greet) Greeting.load(this) else null
+        callFromWake = greet
+        call = CallSession(this, Core(settings.url, settings.token), mode, agent, thread, greeting) { reason ->
+          main.post {
+            call = null
+            Log.i(TAG, "back from the call: $reason")
+            main.postDelayed({ if (call == null) settle() }, 700)
+          }
+        }.also { it.start() }
+      }
     }, 250)
   }
 
@@ -231,7 +259,35 @@ class VoiceService : Service() {
       NotificationManager.IMPORTANCE_HIGH))
   }
 
-  fun hangUp() = call?.hangUp()
+  fun stopWake() {
+    starts.cancelWake()
+    if (callFromWake) call?.cancelPendingStart()
+    main.post {
+      wake?.stop()
+      wake = null
+      main.removeCallbacks(warm)
+      settle()
+    }
+  }
+
+  fun hangUp() {
+    starts.cancel()
+    call?.hangUp()
+    main.post {
+      settle()
+    }
+  }
+
+  fun forget() {
+    starts.close()
+    call?.hangUp()
+    main.post {
+      main.removeCallbacksAndMessages(null)
+      wake?.stop()
+      call?.hangUp()
+      stopSelf()
+    }
+  }
   fun mute(on: Boolean) = call?.setMuted(on)
 
   companion object {

@@ -41,7 +41,8 @@ class ApxVoiceModule : Module() {
     Function("setWake") { on: Boolean ->
       val s = Settings(context)
       s.wake = on
-      VoiceService.start(context)
+      if (on) VoiceService.start(context)
+      else VoiceService.current?.stopWake()
     }
 
     Function("wake") { Settings(context).wake }
@@ -76,10 +77,9 @@ class ApxVoiceModule : Module() {
     Function("forget") {
       val s = Settings(context)
       s.wake = false
-      VoiceService.current?.hangUp()
+      VoiceService.current?.forget()
       Greeting.forget(context)
       s.clear()
-      VoiceService.current?.stopSelf()
     }
   }
 

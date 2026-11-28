@@ -36,13 +36,16 @@ class CallSession(
   private val mode: String,
   private val agentId: String?,
   private val thread: String?,
-  /** The greeting recorded ahead (24 kHz PCM16): it plays at once, and the call listens while the voice loads. */
+  /** The greeting recorded ahead (24 kHz PCM16): it plays after authorization, while the voice loads. */
   private val greeting: ByteArray?,
   private val onEnd: (reason: String) -> Unit,
 ) {
+  private val lifetime = VoiceStartGate()
+  private val ticket = lifetime.ticket()
   @Volatile private var ended = false
   @Volatile private var muted = false
   private var ws: WebSocket? = null
+  private var startRequest: okhttp3.Call? = null
   private var recorder: Thread? = null
   private var player: Thread? = null
   private val down = LinkedBlockingQueue<ByteArray>()
@@ -58,10 +61,37 @@ class CallSession(
   @Volatile private var greetingUntil = 0L
 
   fun start() {
-    VoiceState.set(phase = "connecting", heard = "", mode = mode, clearProblem = true)
+    lifetime.run(ticket) {
+      VoiceState.set(phase = "connecting", heard = "", mode = mode, clearProblem = true)
+      val p = JSONObject().put("mode", mode)
+      if (greeting != null) p.put("greeted", true)
+      if (agentId != null) p.put("agent_id", agentId)
+      if (thread != null) p.put("thread", thread)
+      try {
+        startRequest = core.callAsync("calls.start", p, effect = true) { result ->
+          lifetime.run(ticket) {
+            result.fold(onSuccess = { r ->
+              try {
+                val socketTicket = r.getString("ticket")
+                VoiceState.set(thread = r.optString("thread_id"))
+                playGreeting()
+                open(socketTicket)
+              } catch (e: Exception) {
+                finish("failed", e.message ?: "")
+              }
+            }, onFailure = { finish("failed", it.message ?: "") })
+          }
+        }
+      } catch (e: Exception) {
+        finish("failed", e.message ?: "")
+      }
+    }
+  }
+
+  private fun playGreeting() {
     if (greeting != null) {
-      startAudio()
       greetingUntil = android.os.SystemClock.uptimeMillis() + greeting.size * 1000L / 2 / DOWN_RATE + 400
+      startAudio()
       var at = 0
       while (at < greeting.size) {
         val n = minOf(DOWN_RATE / 5 * 2, greeting.size - at) // 200 ms pieces, like the voice's own
@@ -69,61 +99,50 @@ class CallSession(
         at += n
       }
     }
-    Thread({
-      try {
-        val p = JSONObject().put("mode", mode)
-        if (greeting != null) p.put("greeted", true)
-        if (agentId != null) p.put("agent_id", agentId)
-        if (thread != null) p.put("thread", thread)
-        val r = core.call("calls.start", p, effect = true)
-        if (ended) return@Thread
-        VoiceState.set(thread = r.optString("thread_id"))
-        open(r.getString("ticket"))
-      } catch (e: Exception) {
-        Log.w(TAG, "call did not start: $e")
-        finish("failed", e.message ?: "")
-      }
-    }, "apx-call-start").start()
+  }
+
+  fun cancelPendingStart() {
+    synchronized(lifetime) { if (!opened) finish("hangup") }
   }
 
   fun setMuted(on: Boolean) { muted = on }
 
-  fun hangUp() {
-    try { ws?.send("{\"type\":\"hangup\"}") } catch (_: Exception) {}
-    ws?.close(1000, "hangup")
-    finish("hangup")
-  }
+  fun hangUp() = finish("hangup")
 
-  private fun open(ticket: String) {
-    val req = Request.Builder().url(core.socket("/voice-call?ticket=${java.net.URLEncoder.encode(ticket, "UTF-8")}")).build()
+  private fun open(socketTicket: String) {
+    val req = Request.Builder().url(core.socket("/voice-call?ticket=${java.net.URLEncoder.encode(socketTicket, "UTF-8")}")).build()
     ws = Core.http.newWebSocket(req, object : WebSocketListener() {
       override fun onOpen(webSocket: WebSocket, response: Response) {
-        synchronized(early) {
-          for (b in early) webSocket.send(b.toByteString())
-          early.clear()
-          earlyBytes = 0
-          opened = true
-        }
-        startAudio()
+        if (!lifetime.run(ticket) {
+          synchronized(early) {
+            for (b in early) webSocket.send(b.toByteString())
+            early.clear()
+            earlyBytes = 0
+            opened = true
+          }
+          startAudio()
+        }) webSocket.close(1000, "cancelled")
       }
 
       override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
-        down.offer(bytes.toByteArray())
+        lifetime.run(ticket) { down.offer(bytes.toByteArray()) }
       }
 
       override fun onMessage(webSocket: WebSocket, text: String) {
-        val f = try { JSONObject(text) } catch (_: Exception) { return }
-        when (f.optString("type")) {
-          "preparing" -> VoiceState.set(phase = "preparing")
-          "ready" -> VoiceState.set(phase = "listening")
-          // What the owner said stays on screen while the voice thinks and answers; an empty one is not words.
-          "partial" -> f.optString("text").takeIf { it.isNotBlank() }?.let { VoiceState.set(heard = it) }
-          "interrupted" -> flush()
-          "state" -> VoiceState.set(phase = f.optString("state").ifEmpty { "listening" })
-          "end" -> {
-            // The voice's last words still in the queue play out before the line closes.
-            val reason = f.optString("reason")
-            Thread({ drain(); finish(reason) }, "apx-call-end").start()
+        lifetime.run(ticket) {
+          val f = try { JSONObject(text) } catch (_: Exception) { return@run }
+          when (f.optString("type")) {
+            "preparing" -> VoiceState.set(phase = "preparing")
+            "ready" -> VoiceState.set(phase = "listening")
+            // What the owner said stays on screen while the voice thinks and answers; an empty one is not words.
+            "partial" -> f.optString("text").takeIf { it.isNotBlank() }?.let { VoiceState.set(heard = it) }
+            "interrupted" -> flush()
+            "state" -> VoiceState.set(phase = f.optString("state").ifEmpty { "listening" })
+            "end" -> {
+              // The voice's last words still in the queue play out before the line closes.
+              val reason = f.optString("reason")
+              Thread({ drain(); finish(reason) }, "apx-call-end").start()
+            }
           }
         }
       }
@@ -140,8 +159,8 @@ class CallSession(
   }
 
   /** The microphone's 100 ms up the line, kept while the line is not open yet. */
-  private fun up(b: ByteArray) {
-    if (android.os.SystemClock.uptimeMillis() < greetingUntil) return
+  private fun up(b: ByteArray) = lifetime.run(ticket) {
+    if (android.os.SystemClock.uptimeMillis() < greetingUntil) return@run
     synchronized(early) {
       if (opened) ws?.send(b.toByteString())
       else if (earlyBytes < EARLY_MAX) {
@@ -152,9 +171,8 @@ class CallSession(
   }
 
   @SuppressLint("MissingPermission")
-  @Synchronized
-  private fun startAudio() {
-    if (audioStarted || ended) return
+  private fun startAudio() = lifetime.run(ticket) {
+    if (audioStarted) return@run
     audioStarted = true
     audio.mode = AudioManager.MODE_IN_COMMUNICATION
     speaker(true)
@@ -186,8 +204,10 @@ class CallSession(
             continue
           }
           VoiceState.level = max(VoiceState.level * 0.5f, level(b))
-          t.write(b, 0, b.size)
-          VoiceState.lastAudio = android.os.SystemClock.uptimeMillis()
+          lifetime.run(ticket) {
+            t.write(b, 0, b.size)
+            VoiceState.lastAudio = android.os.SystemClock.uptimeMillis()
+          }
         }
       } catch (_: InterruptedException) {
       } catch (e: Exception) {
@@ -200,16 +220,20 @@ class CallSession(
       var rec: AudioRecord? = null
       try {
         for (attempt in 0 until 10) {
-          rec = AudioRecord(MediaRecorder.AudioSource.VOICE_COMMUNICATION, UP_RATE, AudioFormat.CHANNEL_IN_MONO,
-            AudioFormat.ENCODING_PCM_16BIT, max(inMin * 2, UP_RATE / 5 * 2))
-          if (rec.state == AudioRecord.STATE_INITIALIZED) {
-            try { rec.startRecording() } catch (_: IllegalStateException) {}
-            if (rec.recordingState == AudioRecord.RECORDSTATE_RECORDING) break
-          }
-          rec.release()
+          if (!lifetime.run(ticket) {
+            val candidate = AudioRecord(MediaRecorder.AudioSource.VOICE_COMMUNICATION, UP_RATE, AudioFormat.CHANNEL_IN_MONO,
+              AudioFormat.ENCODING_PCM_16BIT, max(inMin * 2, UP_RATE / 5 * 2))
+            rec = candidate
+            if (candidate.state == AudioRecord.STATE_INITIALIZED) {
+              try { candidate.startRecording() } catch (_: IllegalStateException) {}
+            }
+          }) return@Thread
+          if (rec?.recordingState == AudioRecord.RECORDSTATE_RECORDING) break
+          rec?.release()
           rec = null
           Thread.sleep(120)
         }
+        if (ended) return@Thread
         val r = rec ?: return@Thread finish("microphone")
         if (AcousticEchoCanceler.isAvailable()) AcousticEchoCanceler.create(r.audioSessionId)?.enabled = true
         if (NoiseSuppressor.isAvailable()) NoiseSuppressor.create(r.audioSessionId)?.enabled = true
@@ -263,11 +287,13 @@ class CallSession(
     }
   }
 
-  @Synchronized
-  private fun finish(reason: String, detail: String = "") {
-    if (ended) return
+  private fun finish(reason: String, detail: String = "") = synchronized(lifetime) {
+    if (ended) return@synchronized
     ended = true
+    lifetime.close()
+    startRequest?.cancel()
     Log.i(TAG, "call ended: $reason $detail")
+    try { ws?.send("{\"type\":\"hangup\"}") } catch (_: Exception) {}
     try { ws?.close(1000, reason) } catch (_: Exception) {}
     recorder?.interrupt()
     player?.interrupt()
@@ -275,6 +301,7 @@ class CallSession(
     track?.release()
     track = null
     down.clear()
+    synchronized(early) { early.clear(); earlyBytes = 0; opened = false }
     speaker(false)
     focus?.let { audio.abandonAudioFocusRequest(it) }
     audio.mode = AudioManager.MODE_NORMAL
