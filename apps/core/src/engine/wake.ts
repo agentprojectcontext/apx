@@ -8,7 +8,7 @@ const CALLS = ["ok", "oka", "okey", "okay", "okei", "oc", "o", "hey", "ey", "eh"
 /** The phrases that wake the voice when the owner set none: a call word and the super-agent's name. */
 export function defaultWakeWords(name: string): string[] {
   const n = name.trim();
-  return n ? [`ok ${n}`, `che ${n}`, `hey ${n}`] : [];
+  return n ? [`Ok ${n}`, `Che ${n}`, `Hey ${n}`] : [];
 }
 
 /** Lower case, no accents or punctuation. */

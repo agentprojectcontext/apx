@@ -52,7 +52,5 @@ export const esCall: Record<keyof typeof enCall, string> = {
   "callBar.onDevice": "Por voz en {device}",
   "callBar.elsewhere": "En otra pantalla",
   "callBar.failed": "No se pudo cortar. Probá de nuevo en un momento.",
-  "callChip.quick": "Pedido por voz",
-  "callChip.quickFrom": "Pedido por voz desde {device}",
   "callChip.fromDevice": "Desde {device}",
 };
