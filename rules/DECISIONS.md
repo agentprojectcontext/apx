@@ -6773,3 +6773,24 @@ signal the free sources give, answers on the car, and the places they use rememb
 Design and v1 lessons: [ERRANDS_ON_THE_WAY.md](ERRANDS_ON_THE_WAY.md).
 
 Docs impact: updated guides for errands on the way and the phone in English and Spanish.
+
+<a id="d-287"></a>
+## D-287 — 2026-11-28 — A device greets from a recording and listens while the voice loads
+
+Waking the voice by name started a call that waited for the voice engine to load (seconds when warm, up to a minute
+cold) before its greeting, so the owner heard nothing after saying the name.
+
+- **The core records the greeting ahead.** `services/greetings.ts` keeps one recording per kind of call a device asked
+  for, in the current voice, language, engine and owner's first name (`<home>/voice/greetings`). A change in any of
+  them records the kinds in use again, in the background; `VoiceStatus.greeting` says `preparing` meanwhile, and the
+  settings on the panel and the phone show it. Nothing is recorded until a device asks, so a core whose owner never
+  wakes it by voice never loads the voice for this.
+- **The words come from the core.** The greeting's line moved from the engine to the core (`greetingLine`) and reaches
+  the engine in the call's setup, so the recording and the voice say the same thing.
+- **The device plays it, the core keeps what follows.** `voice.greeting` hands the recording to a device as a 24 kHz
+  WAV (only the key when it holds the current one). The phone keeps it in its files and refreshes it with its other
+  periodic check; on its name it plays it at once and starts the call with `greeted: true`. The engine then does not
+  greet again, and the core keeps up to 30 s of the device's audio until the voice is ready, then sends it: the request
+  said over the loading is heard. The device does not send what its microphone hears while the greeting plays.
+- **Only by name.** A call from a button still greets from the engine as before: the owner is looking at the screen,
+  which says the voice is getting ready.

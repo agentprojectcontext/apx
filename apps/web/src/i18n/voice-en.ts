@@ -39,6 +39,7 @@ export const enVoice = {
   "voice.accent.es-AR": "Argentine",
   "voice.accent.en-US": "United States",
   "voice.try": "Try",
+  "voice.greetingPreparing": "Getting the greeting ready in the new voice…",
   "voice.error": "Couldn't change APX's voice: {error}",
   "calls.lead": "Call any of your agents and talk with it while it works.",
   "calls.allow": "Allow calls",

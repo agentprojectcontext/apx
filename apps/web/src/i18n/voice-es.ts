@@ -40,6 +40,7 @@ export const esVoice: Record<keyof typeof enVoice, string> = {
   "voice.accent.es-AR": "Argentino",
   "voice.accent.en-US": "Estados Unidos",
   "voice.try": "Probar",
+  "voice.greetingPreparing": "Preparando el saludo con la voz nueva…",
   "voice.error": "No se pudo cambiar la voz de APX: {error}",
   "calls.lead": "Llamá a cualquiera de tus agentes y hablá con él mientras trabaja.",
   "calls.allow": "Permitir llamadas",

@@ -286,6 +286,8 @@
                       "**/CallVoiceTag.tsx",
                       "**/LiveCallBar.tsx",
                       "**/WakeListener.tsx",
+                      "**/call/greeting.ts",
+                      "**/GreetingNote.tsx",
                       "**/osNotices.ts"
                     ],
                     "message": "Loaded late: import it from apps/web/src/lazy.ts, never statically from the first screen (AGENTS.md rule 27)."

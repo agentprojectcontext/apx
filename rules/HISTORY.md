@@ -603,3 +603,18 @@ one new turn when the task stops waiting, as after a restart. Nothing the answer
 
 **Where:** `engine/input-delivery.ts` (`deliver`), `engine/inputs.ts` (`ask`), `domain/inputs.ts` (`Asked`,
 `HELD_ANSWER`); tests in `engine/task-owner-input.test.ts`.
+
+<a id="voice-module-sources"></a>
+### The phone's release shipped without the voice it advertised
+
+2.18.0 announced waking the super-agent by voice on the phone, and its APK had none of it: no listening service, no
+call screen. The module's Kotlin sources lived under `apps/mobile/modules/apx-voice/android/`, which the phone app's
+`.gitignore` hid at the time (its `android/` rule caught every folder of that name, not only the generated project).
+Local builds used the files on disk and worked; the commit, and so CI's release build, never had them. Removing the
+worktree then deleted the only copy, and the files were rebuilt from the session that wrote them.
+
+**Rule:** every file of a local native module is in git. `pnpm check:native` (in preflight) fails when a module's
+source under `android/` is untracked or ignored, or when a module `expo-module.config.json` declares has no tracked
+source.
+
+**Where:** `scripts/check-native-modules.ts`; tests in `scripts/check-native-modules.test.ts`.
