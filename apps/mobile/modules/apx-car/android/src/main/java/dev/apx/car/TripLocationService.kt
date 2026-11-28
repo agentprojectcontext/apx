@@ -189,6 +189,7 @@ class TripLocationService : Service() {
           revoke = { TripController.revokePrivacy(app) },
           deliver = {
             current.markSent()
+            ApxCarWidget.afterPoint(app)
             CarAnswers.deliver(app, CarAlert.list(result?.optJSONArray("alerts")))
           })
       }

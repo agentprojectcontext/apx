@@ -82,4 +82,4 @@ Your position goes only to your APX: one point at a time while a trip lasts, nev
 
 ## On the phone's home screen
 
-Add the **Errands on the way** widget from your launcher's widget list: it shows the errand APX offers with its place and distance, and **Go now** and **Another place** buttons. Android Auto shows phone widgets once Google turns them on for your car.
+Add the **Errands on the way** widget from your launcher's widget list: it lists up to four errands near your way, each with its closest place and distance; tap one to open its route. Android Auto shows phone widgets once Google turns them on for your car.
