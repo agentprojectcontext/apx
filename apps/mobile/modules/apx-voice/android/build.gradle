@@ -1,0 +1,20 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'dev.apx.voice'
+version = '0.1.0'
+
+android {
+  namespace "dev.apx.voice"
+  defaultConfig {
+    versionCode 1
+    versionName '0.1.0'
+  }
+}
+
+dependencies {
+  // The same OkHttp React Native already ships: the call's socket.
+  implementation 'com.squareup.okhttp3:okhttp:4.9.2'
+}
