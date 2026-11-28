@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { expect, open, rpc, test } from "./kit.ts";
 
-type Agent = { id: string; name: string; kind: string; project_id?: string };
+type Agent = { id: string; name: string; role: string; kind: string; project_id?: string };
 
 function repoWith(...agents: Array<[string, string]>): string {
   const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-e2e-import-")));
@@ -32,11 +32,14 @@ async function projectWithEarlierChat(...agents: Array<[string, string]>): Promi
 }
 
 async function newChatWith(page: import("@playwright/test").Page, project: string, name: string, id: string) {
+  const agent = (await rpc<{ agents: Agent[] }>("agents.list")).agents.find((a) => a.id === id);
+  if (!agent) throw new Error("Missing imported agent");
   await open(page, `#project=${project}&tab=chats`);
   // The project's own menu: the sidebar's lists every project's agents, and earlier runs left more than one Zeta.
   await page.getByRole("main").getByRole("combobox", { name: "Nuevo chat" }).first().click();
   await page
     .getByRole("option", { name: new RegExp(name) })
+    .filter({ hasText: agent.role })
     .first()
     .click();
   const box = page.getByRole("textbox", { name: `Escribile a ${name}…` });
@@ -61,17 +64,27 @@ test("a new chat with an agent copied from another project opens and is made wit
   page,
 }) => {
   await rpc("setup.finish", {});
-  await projectWithEarlierChat(["zeta", "Zeta"]);
-  const target = await projectWithEarlierChat(["boss", "Boss"]);
-  const zeta = (await rpc<{ agents: Agent[] }>("agents.list")).agents.find((a) => a.name === "Zeta");
-  const copy = await rpc<{ cloned: Agent[] }>("agents.clone", {
-    agents: [zeta?.id],
-    project_id: target,
-    rename: false,
-  });
-  expect(copy.cloned.map((a) => a.project_id)).toEqual([target]);
+  const secretary = (await rpc<{ agents: Agent[] }>("agents.list")).agents.find((a) => a.kind === "secretary");
+  if (!secretary) throw new Error("Missing secretary");
+  try {
+    await rpc("agents.update", { agent: secretary.id, name: "Zeta" });
+    const source = await projectWithEarlierChat(["zeta", "Zeta"]);
+    const target = await projectWithEarlierChat(["boss", "Boss"]);
+    const zeta = (await rpc<{ agents: Agent[] }>("agents.list")).agents.find(
+      (a) => a.project_id === source && a.name === "Zeta",
+    );
+    expect(zeta).toBeTruthy();
+    const copy = await rpc<{ cloned: Agent[] }>("agents.clone", {
+      agents: [zeta?.id],
+      project_id: target,
+      rename: false,
+    });
+    expect(copy.cloned.map((a) => a.project_id)).toEqual([target]);
 
-  await newChatWith(page, target, "Zeta", copy.cloned[0]?.id ?? "");
+    await newChatWith(page, target, "Zeta", copy.cloned[0]?.id ?? "");
+  } finally {
+    await rpc("agents.update", { agent: secretary.id, name: secretary.name });
+  }
 });
 
 test("a new chat with an agent installed from a template opens and is made with its first message", async ({
