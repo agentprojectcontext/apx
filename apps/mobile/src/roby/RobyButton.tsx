@@ -166,7 +166,7 @@ const useStyles = makeStyles((theme) => ({
   },
   buttonLive: { transform: [{ scale: 1.12 }] },
   buttonCancel: { backgroundColor: theme.danger },
-  name: { marginTop: 2, maxWidth: 88, color: theme.fg, fontSize: 12, fontWeight: "600" },
+  name: { marginTop: 13, maxWidth: 88, color: theme.fg, fontSize: 12, fontWeight: "600" },
   hint: {
     position: "absolute",
     bottom: SIZE + 26,

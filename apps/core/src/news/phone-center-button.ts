@@ -9,7 +9,7 @@ export const PHONE_CENTER_BUTTON_NEWS: NewsEntry = {
     es: "La app de Android tiene el botón de tu superagente en el medio de la barra de abajo: un toque lo llama, o mantenelo apretado para mandarle una nota de voz cuando las llamadas no están listas.",
   },
   applies: (facts) => facts.androidPhone === true,
-  text: "The APX app for Android now has the super-agent's own button, with its name, in the middle of the bottom bar. When calls are ready on this computer, a tap starts a call. When they are not, holding it records a voice note, letting go sends it and sliding the finger away drops it; the note goes to the owner's pinned chat with the super-agent, else the last of its chats the owner opened, else a new one. Pinning a chat with the super-agent makes it the one notes go to. Sessions with Claude Code or Codex moved from the bottom bar to a fourth tab at the top of Chats.",
+  text: "The APX app for Android now has the super-agent's own button, with its name, in the middle of the bottom bar. When calls are ready on this computer, a tap starts a call. When they are not, holding it records a voice note, letting go sends it and sliding the finger away drops it; the note goes to the owner's pinned chat with the super-agent, else its Home chat. Pinning a chat with the super-agent makes it the one notes go to. Sessions with Claude Code or Codex moved from the bottom bar to a fourth tab at the top of Chats.",
   actions: [
     {
       label: { en: "Pick where my voice notes go", es: "Elegir adónde van mis notas de voz" },

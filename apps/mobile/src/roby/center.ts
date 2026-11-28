@@ -28,10 +28,16 @@ export function isOwnChat(thread: Thread, agentId: string): boolean {
 const newest = (a: Thread, b: Thread) => textOrder(b.updated_at, a.updated_at);
 
 /**
- * Where a voice note from the button goes: the super-agent's chat the owner pinned, else the last of its chats the
- * owner opened, else its latest chat. Undefined: there is none yet, and a new one is made with the note.
+ * Where a voice note from the button goes: the super-agent's chat the owner pinned, else its Home chat (the one the
+ * core makes for it), else the last of its chats the owner opened, else its latest. Undefined: there is none, and a
+ * new one is made with the note.
  */
 export function voiceNoteTarget(threads: readonly Thread[], agentId: string, lastOpened?: string): Thread | undefined {
   const own = threads.filter((thread) => isOwnChat(thread, agentId)).sort(newest);
-  return own.find((thread) => thread.pinned) ?? own.find((thread) => thread.id === lastOpened) ?? own[0];
+  return (
+    own.find((thread) => thread.pinned) ??
+    own.find((thread) => thread.kind === "home") ??
+    own.find((thread) => thread.id === lastOpened) ??
+    own[0]
+  );
 }

@@ -190,64 +190,66 @@ export function ChatsPage({
       {onSessions && sessions ? (
         <SessionsPage data={data} open={open} create={sessions.create} resume={sessions.resume} embedded />
       ) : null}
-      <FlatList
-        style={onSessions ? s.hidden : undefined}
-        testID="chats-list"
-        data={rows}
-        keyExtractor={(node) => node.key}
-        renderItem={({ item }) => (
-          <InboxRow
-            node={item}
-            data={data}
-            open={open}
-            {...(menu ? { menu } : {})}
-            {...(taskMenu ? { taskMenu } : {})}
-            searching={searching}
-          />
-        )}
-        initialNumToRender={14}
-        windowSize={7}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingBottom: 24 }}
-        ListEmptyComponent={
-          filtered || searching ? (
-            <EmptyState title={t("filterNone")} icon="ListFilter" />
-          ) : listTab === "tasks" ? (
-            <EmptyState title={t("emptyTaskChats")} icon="ListChecks" />
-          ) : listTab === "routines" ? (
-            <EmptyState title={t("emptyRoutineChats")} icon="Clock" />
-          ) : (
-            <EmptyState title={t("noChats")} body={t("noChatsBody")} icon="MessageCircle" />
-          )
-        }
-        ListHeaderComponent={
-          working.length > 0 ? (
-            <>
-              <Text style={[type.meta, s.workingLabel]}>{t("workingNow", { n: working.length })}</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.strip}>
-                {working.map(({ thread, job }) => (
-                  <WorkChip key={thread.id} thread={thread} job={job} data={data} onPress={() => open(thread)} />
-                ))}
-              </ScrollView>
-            </>
-          ) : null
-        }
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            tintColor={theme.fgMuted}
-            colors={[theme.fg]}
-            progressBackgroundColor={theme.surfaceRaised}
-            onRefresh={() => {
-              setRefreshing(true);
-              void refresh()
-                .catch(() => undefined)
-                .finally(() => setRefreshing(false));
-            }}
-          />
-        }
-      />
+      {/* Kept mounted under Sessions, so the list keeps its place. */}
+      <View style={[s.list, onSessions && s.hidden]}>
+        <FlatList
+          testID="chats-list"
+          data={rows}
+          keyExtractor={(node) => node.key}
+          renderItem={({ item }) => (
+            <InboxRow
+              node={item}
+              data={data}
+              open={open}
+              {...(menu ? { menu } : {})}
+              {...(taskMenu ? { taskMenu } : {})}
+              searching={searching}
+            />
+          )}
+          initialNumToRender={14}
+          windowSize={7}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingBottom: 24 }}
+          ListEmptyComponent={
+            filtered || searching ? (
+              <EmptyState title={t("filterNone")} icon="ListFilter" />
+            ) : listTab === "tasks" ? (
+              <EmptyState title={t("emptyTaskChats")} icon="ListChecks" />
+            ) : listTab === "routines" ? (
+              <EmptyState title={t("emptyRoutineChats")} icon="Clock" />
+            ) : (
+              <EmptyState title={t("noChats")} body={t("noChatsBody")} icon="MessageCircle" />
+            )
+          }
+          ListHeaderComponent={
+            working.length > 0 ? (
+              <>
+                <Text style={[type.meta, s.workingLabel]}>{t("workingNow", { n: working.length })}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.strip}>
+                  {working.map(({ thread, job }) => (
+                    <WorkChip key={thread.id} thread={thread} job={job} data={data} onPress={() => open(thread)} />
+                  ))}
+                </ScrollView>
+              </>
+            ) : null
+          }
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              tintColor={theme.fgMuted}
+              colors={[theme.fg]}
+              progressBackgroundColor={theme.surfaceRaised}
+              onRefresh={() => {
+                setRefreshing(true);
+                void refresh()
+                  .catch(() => undefined)
+                  .finally(() => setRefreshing(false));
+              }}
+            />
+          }
+        />
+      </View>
       {held ? (
         <BottomSheet title={t(TAB_TITLE[held])} onClose={() => setHeld(undefined)}>
           {(dismiss) => [
@@ -360,6 +362,7 @@ const useStyles = makeStyles((theme) => ({
   },
   workTitle: { color: theme.fg, fontSize: 13, fontWeight: "500" },
   tabs: { marginHorizontal: 16 },
+  list: { flex: 1 },
   hidden: { display: "none" },
   filterDot: { position: "absolute", top: 11, right: 11, backgroundColor: theme.brand },
 }));

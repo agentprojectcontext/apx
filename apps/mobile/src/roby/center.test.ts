@@ -32,7 +32,16 @@ test("a voice note goes to the pinned chat with the super-agent before any other
   assert.equal(voiceNoteTarget(threads, "boss", "opened")?.id, "pinned");
 });
 
-test("without a pinned chat it goes to the last one opened, else the latest", () => {
+test("without a pinned chat it goes to the super-agent's Home chat", () => {
+  const threads = [
+    chat("recent", { updated_at: "2026-11-03T10:00:00Z" }),
+    chat("home", { kind: "home", updated_at: "2026-10-01T10:00:00Z" }),
+  ];
+  assert.equal(voiceNoteTarget(threads, "boss", "recent")?.id, "home");
+  assert.equal(voiceNoteTarget([...threads, chat("pinned", { pinned: true })], "boss")?.id, "pinned");
+});
+
+test("without a pinned or Home chat it goes to the last one opened, else the latest", () => {
   const threads = [
     chat("older", { updated_at: "2026-11-01T10:00:00Z" }),
     chat("recent", { updated_at: "2026-11-03T10:00:00Z" }),
