@@ -110,6 +110,8 @@ test("the phone holds only its own switch: it tells the core, waits for APX to b
   const ui = await mount(<CarModePage creds={credentials} call={call} back={jest.fn()} />);
   await act(async () => undefined);
   expect(ui.getAllByRole("switch")).toHaveLength(1);
+  expect(ui.getByText(t("carSwitch")).props.numberOfLines).toBeUndefined();
+  expect(ui.getByText(t("carSwitchHelp")).props.numberOfLines).toBeUndefined();
   expect(ui.queryByText(t("carNeedListener"))).toBeNull();
   await fireEvent.press(ui.getByRole("switch", { name: t("carSwitch") }));
   await act(async () => undefined);
