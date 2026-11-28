@@ -154,7 +154,16 @@ starts sharing that phone's location. The super-agent may turn a phone off throu
   the address and key to the native side when car mode is turned on and clears them when unpaired.
 - Sideloaded builds: Android Auto shows a car app that is not from Play only with *Unknown sources* on in Android
   Auto's developer settings. The phone's car mode screen says how.
-- Testing: the Desktop Head Unit (DHU) over `adb forward tcp:5277 tcp:5277`.
+- Car screens: the trip is a `PlaceListMapTemplate` (needs `androidx.car.app.MAP_TEMPLATES`): every row has a distance
+  span or is browsable, a tinted pin image (a row takes an image or a marker, not both), and "Talk to <agent>" is
+  in the action strip. Answer screens are plain lists. A screen that fails to build shows a message: the car app
+  shares the phone app's process, so a thrown template stops both. An errand with no place runs `car.preview` at the
+  phone's last fix when opened. The phone's offers follow `car.trip` (`CarAlertStore.sync`), so one answered
+  elsewhere or deleted leaves.
+- An app update can leave the notification listener unbound; opening the app or the car app asks Android to rebind
+  it, and the car app open counts as the car connected.
+- Testing: the Desktop Head Unit (DHU) over `adb forward tcp:5277 tcp:5277`. The 2022 DHU draws neither the map's
+  camera nor its markers; a real head unit centres the map on the car.
 
 ## Widget
 

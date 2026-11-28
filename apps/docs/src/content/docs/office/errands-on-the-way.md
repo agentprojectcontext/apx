@@ -57,7 +57,7 @@ When a place for an errand is ahead of you, close enough, APX offers it once for
 | **No more this trip** | No more offers until the car connects again. |
 | **Done** | The errand is closed. |
 
-On the car, the APX app lists the offers and your open errands, and has a row to talk to your super-agent. Without
+On the car, the APX app shows a map with the offers and your open errands beside it, each with a pin, its distance and its place, and a button to talk to your super-agent. An errand with no place yet looks for one where you are when you open it. Without
 opening it, offers also arrive as messages that Android Auto reads aloud; answer by voice: "voy", "otro",
 "después", "no", "ya está", "no me avises más". Anything else you say goes to your super-agent, and its answer is
 read back to you.

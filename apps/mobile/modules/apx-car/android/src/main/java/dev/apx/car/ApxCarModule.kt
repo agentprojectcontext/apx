@@ -38,6 +38,7 @@ class ApxCarModule : Module() {
 
     AsyncFunction("configure") { config: CarConfig ->
       TripController.configure(context, config.url, config.token, config.enabled, config.lang, config.agentName)
+      ApxCarListener.rebindIfNeeded(context)
     }
 
     AsyncFunction("allowTrips") {

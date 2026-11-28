@@ -10,6 +10,8 @@ const PERMISSIONS = [
   "android.permission.POST_NOTIFICATIONS",
   "android.permission.ACCESS_FINE_LOCATION",
   "android.permission.ACCESS_COARSE_LOCATION",
+  // The car app's screens with a map of the errands' places (PlaceListMapTemplate).
+  "androidx.car.app.MAP_TEMPLATES",
 ];
 
 /** Replaces an element of `list` with the same android:name, or adds it. */

@@ -1,6 +1,8 @@
 package dev.apx.car
 
 import android.app.Notification
+import android.content.ComponentName
+import android.content.Context
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -154,6 +156,19 @@ class ApxCarListener : NotificationListenerService() {
     private var instance: ApxCarListener? = null
 
     val connected: Boolean get() = instance != null
+
+    /**
+     * Asks Android to connect the listener again when it is allowed but not running: an app update can leave it
+     * unbound until the next reboot, and then a car already connected is never seen.
+     */
+    fun rebindIfNeeded(context: Context) {
+      if (instance != null || !CarPrefs(context).active) return
+      try {
+        requestRebind(ComponentName(context, ApxCarListener::class.java))
+      } catch (error: RuntimeException) {
+        Log.w(TAG, "listener rebind refused: ${error.javaClass.simpleName}")
+      }
+    }
 
     /** Car mode was just turned on: read what is on screen now. */
     fun refreshNow() {
