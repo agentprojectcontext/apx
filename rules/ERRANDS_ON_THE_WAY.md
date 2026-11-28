@@ -156,6 +156,16 @@ starts sharing that phone's location. The super-agent may turn a phone off throu
   Auto's developer settings. The phone's car mode screen says how.
 - Testing: the Desktop Head Unit (DHU) over `adb forward tcp:5277 tcp:5277`.
 
+## Widget
+
+Android Auto gives no dashboard card to a points-of-interest app: the home screen holds navigation, media and
+calls, and a message-style notification is the only thing that floats over it. The phone app therefore has a plain
+home-screen widget (`ApxCarWidget`, RemoteViews): the offer waiting for an answer with its place, distance, Go now
+and Another place (the same answer path as the notification), or a line saying nothing is near. It is redrawn when
+offers change or a trip starts or ends, never on a timer. Google announced in May 2026 that phone widgets reach
+Android Auto during the year; this widget needs no change for that. A media session to borrow the media card was
+ruled out: it would take the place of the owner's music and Play admits only audio apps as media.
+
 ## Out of scope (for now)
 
 - iOS / CarPlay.

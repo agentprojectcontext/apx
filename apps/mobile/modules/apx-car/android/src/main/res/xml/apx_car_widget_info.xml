@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Updated by the app when an offer arrives or a trip ends, never on a timer. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/apx_car_widget_description"
+    android:initialLayout="@layout/apx_car_widget"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:previewLayout="@layout/apx_car_widget"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen" />

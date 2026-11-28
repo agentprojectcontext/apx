@@ -56,4 +56,7 @@
     <string name="apx_car_error_other">APX no pudo guardar el viaje</string>
     <string name="apx_car_error_location">APX no puede usar tu ubicación</string>
     <string name="apx_car_error_background">Abrí APX para seguir este viaje</string>
+    <string name="apx_car_widget_description">El recado que APX te ofrece en el camino, con Ir ahora y Otro lugar</string>
+    <string name="apx_car_widget_driving">Nada cerca por ahora</string>
+    <string name="apx_car_widget_idle">Mientras manejás, acá aparecen los recados cerca de tu camino</string>
 </resources>

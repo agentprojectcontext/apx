@@ -55,6 +55,8 @@ object TripController {
     prefs.startTrip(id, source, destination)
     Log.i(TAG, "trip started ($source)")
     TripLocationService.start(context)
+    ApxCarWidget.watch(context)
+    ApxCarWidget.refresh(context)
   }
 
   private fun end(context: Context) {
@@ -64,6 +66,7 @@ object TripController {
     TripLocationService.stop(context)
     CarNotifications.cancelAll(context)
     CarAlertStore.clear()
+    ApxCarWidget.refresh(context)
     Log.i(TAG, "trip ended")
     if (id.isNotEmpty() && prefs.url.isNotEmpty() && prefs.token.isNotEmpty()) {
       CoreClient.send(context, "car.trip_end", JSONObject().put("trip_id", id).put("at", isoNow()))

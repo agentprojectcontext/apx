@@ -81,3 +81,7 @@ Cada respuesta le enseña a APX sobre el lugar: los que elegís salen primero la
   las cantidades gratis del mes, y podés poner un tope diario en la consola de Google para que nunca se cobre nada.
 
 Tu posición va solo a tu APX: un punto por vez mientras dura el viaje, nunca un historial.
+
+## En la pantalla de inicio del teléfono
+
+Agregá el widget **Recados en el camino** desde la lista de widgets de tu pantalla de inicio: muestra el recado que APX te ofrece con el lugar y la distancia, y los botones **Ir ahora** y **Otro lugar**. Android Auto muestra los widgets del teléfono cuando Google los habilite para tu auto.

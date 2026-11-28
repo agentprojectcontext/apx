@@ -68,6 +68,18 @@ function withCarMode(config) {
     app.receiver = put(app.receiver ?? [], {
       $: { "android:name": `${PKG}.CarActionReceiver`, "android:exported": "false" },
     });
+    // The home-screen widget; exported because the launcher (and Android Auto, once it shows phone widgets) binds it.
+    app.receiver = put(app.receiver, {
+      $: {
+        "android:name": `${PKG}.ApxCarWidget`,
+        "android:exported": "true",
+        "android:label": "@string/apx_car_screen_title",
+      },
+      "intent-filter": [{ action: [{ $: { "android:name": "android.appwidget.action.APPWIDGET_UPDATE" } }] }],
+      "meta-data": [
+        { $: { "android:name": "android.appwidget.provider", "android:resource": "@xml/apx_car_widget_info" } },
+      ],
+    });
     app.activity = put(app.activity ?? [], {
       $: {
         "android:name": `${PKG}.CarAnswerActivity`,

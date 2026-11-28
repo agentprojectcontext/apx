@@ -79,3 +79,7 @@ Every answer teaches APX about the place: the ones you go to rank first next tim
   cap the daily use in Google's console so nothing is ever charged.
 
 Your position goes only to your APX: one point at a time while a trip lasts, never a history.
+
+## On the phone's home screen
+
+Add the **Errands on the way** widget from your launcher's widget list: it shows the errand APX offers with its place and distance, and **Go now** and **Another place** buttons. Android Auto shows phone widgets once Google turns them on for your car.
