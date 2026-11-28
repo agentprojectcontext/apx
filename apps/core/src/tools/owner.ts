@@ -41,7 +41,13 @@ export function ownerTools(store: Store): Tool[] {
       args: z
         .object({
           question: z.string().min(1).max(1000).optional(),
-          options: z.array(z.string().min(1).max(80)).max(6).optional(),
+          options: z
+            .array(z.string().min(1).max(80))
+            .max(6)
+            .optional()
+            .describe(
+              "For a confirmation or readiness check, include short answers in the question's language (Yes / No, Done / Not yet). Keep open questions free-form; never use a generic OK to authorize an action: use action instead. multi means select several before sending.",
+            ),
           multi: z.boolean().optional(),
           can_continue: z
             .boolean()
