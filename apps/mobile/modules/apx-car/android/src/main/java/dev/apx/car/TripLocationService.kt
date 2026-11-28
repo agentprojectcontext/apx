@@ -167,14 +167,16 @@ class TripLocationService : Service() {
     if (location.hasBearing()) params.put("heading_deg", location.bearing.toDouble().coerceIn(0.0, 360.0))
     val app = applicationContext
     CoreClient.send(app, "car.position", params) { result ->
-      val current = CarPrefs(app)
-      if (result == null || !result.optBoolean("active", false)) {
-        beat.post { TripController.revokePrivacy(app) }
-        return@send
+      beat.post {
+        val current = CarPrefs(app)
+        TripPositionReply.handle(current.active, current.tripActive, current.tripId, current.tripPrivacyRevision,
+          params.optString("trip_id"), params.optString("consent_revision"), result?.optBoolean("active", false) == true,
+          revoke = { TripController.revokePrivacy(app) },
+          deliver = {
+            current.markSent()
+            CarAnswers.deliver(app, CarAlert.list(result?.optJSONArray("alerts")))
+          })
       }
-      if (!current.active || current.tripId != params.optString("trip_id")) return@send
-      current.markSent()
-      CarAnswers.deliver(app, CarAlert.list(result.optJSONArray("alerts")))
     }
   }
 
