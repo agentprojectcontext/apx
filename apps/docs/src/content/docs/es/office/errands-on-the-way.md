@@ -58,7 +58,7 @@ Cuando adelante tuyo, lo bastante cerca, hay un lugar para un recado, APX te lo 
 | **No me avises más** | No hay más avisos hasta que el auto se vuelva a conectar. |
 | **Ya lo hice** | El recado se cierra. |
 
-En el auto, la app de APX lista los avisos y tus recados abiertos, y tiene una fila para hablar con tu superagente.
+En el auto, la app de APX muestra un mapa con los avisos y tus recados abiertos al costado, cada uno con un pin, la distancia y el lugar, y un botón para hablar con tu superagente. Un recado que todavía no tiene lugar busca uno donde estás cuando lo abrís.
 Sin abrirla, los avisos también llegan como mensajes que Android Auto lee en voz alta; contestá con la voz: "voy",
 "otro", "después", "no", "ya está", "no me avises más". Cualquier otra cosa que digas le llega a tu superagente, y su
 respuesta te la lee.

@@ -80,7 +80,10 @@ class ApxCarWidget : AppWidgetProvider() {
         } catch (_: Exception) {
           null
         }
-        if (view != null) trip = view
+        if (view != null) {
+          trip = view
+          CarAlertStore.sync(view.alerts)
+        }
         main.post { refresh(app) }
       }
     }

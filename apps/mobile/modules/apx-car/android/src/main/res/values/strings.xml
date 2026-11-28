@@ -29,7 +29,6 @@
     <string name="apx_car_ack_failed">APX did not get that. Try again on the phone.</string>
 
     <string name="apx_car_screen_title">Errands on the way</string>
-    <string name="apx_car_loading">Loading</string>
     <string name="apx_car_no_errands">No open errands</string>
     <string name="apx_car_off">Car mode is off. Turn it on in APX on your phone.</string>
     <string name="apx_car_unreachable">APX did not answer. Showing what this phone knows.</string>
@@ -61,4 +60,8 @@
     <string name="apx_car_widget_driving">Nothing near for now</string>
     <string name="apx_car_widget_idle">Errands near your way show here while you drive</string>
     <string name="apx_car_widget_none">No open errands</string>
+    <string name="apx_car_screen_failed">Could not show this screen. Try again.</string>
+    <string name="apx_car_errand_searching">Looking for a place near you…</string>
+    <string name="apx_car_errand_none_near">No place near you for this</string>
+    <string name="apx_car_errand_no_location">Could not tell where you are</string>
 </resources>

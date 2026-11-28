@@ -39,6 +39,7 @@ data class CarAlert(
   val navigateUrl: String,
   val addStopUrl: String?,
   val answered: Boolean,
+  val distanceM: Int? = null,
 ) {
   companion object {
     fun from(json: JSONObject): CarAlert? {
@@ -57,6 +58,7 @@ data class CarAlert(
         navigateUrl = json.optString("navigate_url"),
         addStopUrl = json.optString("add_stop_url").ifBlank { null },
         answered = json.optString("answer").isNotBlank(),
+        distanceM = if (json.has("distance_m")) json.optInt("distance_m") else null,
       )
     }
 

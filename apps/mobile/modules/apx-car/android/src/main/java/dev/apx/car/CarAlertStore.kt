@@ -25,6 +25,18 @@ object CarAlertStore {
     return added
   }
 
+  /** The core's list of waiting offers (car.trip): one it no longer has (answered elsewhere, its errand deleted) goes. */
+  fun sync(current: List<CarAlert>) {
+    val keep = current.filter { !it.answered }.map { it.id }.toSet()
+    val dropped = synchronized(this) {
+      val gone = alerts.keys.filter { it !in keep }
+      gone.forEach { alerts.remove(it) }
+      gone.isNotEmpty()
+    }
+    if (dropped) notifyListeners(emptyList())
+    put(current, quiet = true)
+  }
+
   fun remove(id: String) {
     val removed = synchronized(this) { alerts.remove(id) != null }
     if (removed) notifyListeners(emptyList())
