@@ -65,6 +65,7 @@ for (const width of [1280, 390]) {
     const { core, token } = await world.info();
     const node = await new ApxClient({ url: core, token }).connect("node", ["browser"]);
     const shown: Edit[][] = [];
+    const screenshots = new Set<Promise<Buffer>>();
     node.onRequest(async (method, params) => {
       const p = params as { edits: Edit[] };
       if (method === "browser.tabs")
@@ -81,8 +82,14 @@ for (const width of [1280, 390]) {
         };
       if (method === "browser.hold") return { ok: true };
       if (method === "browser.screenshot") {
-        const data = (await landing.screenshot({ type: "jpeg", quality: 70 })).toString("base64");
-        return { mime: "image/jpeg", data, bytes: data.length };
+        const capture = landing.screenshot({ type: "jpeg", quality: 70 });
+        screenshots.add(capture);
+        try {
+          const data = (await capture).toString("base64");
+          return { mime: "image/jpeg", data, bytes: data.length };
+        } finally {
+          screenshots.delete(capture);
+        }
       }
       if (method === "browser.edit_elements") return { elements: await elements(landing) };
       if (method === "browser.preview_edits") {
@@ -127,6 +134,9 @@ for (const width of [1280, 390]) {
       await expect(panel.getByRole("region", { name: "Tus cambios" }).locator(".bedit__row")).toHaveCount(1);
       await page.screenshot({ path: info.outputPath(`elements-changed-${width}.png`) });
     } finally {
+      // Stop the panel's screenshot polling before closing the browser capability it is using.
+      await page.goto("about:blank");
+      await Promise.all(screenshots);
       node.close();
       await node.closed;
       await landing.close();
