@@ -10,7 +10,7 @@ import type { FoundPlace, PlaceProvider } from "./provider.ts";
 const WARM_MOVE_M = 1500;
 /** How long one warm's searches may take, all together (AGENTS.md rule 9). */
 /** One warm's whole budget, and one Overpass request's: a busy instance gets cut and the next one tried. */
-export const SEARCH_DEADLINE_MS = 60_000;
+const SEARCH_DEADLINE_MS = 60_000;
 export const REQUEST_DEADLINE_MS = 25_000;
 
 export type OpenErrand = { task_id: string; title: string; place: ErrandPlace | undefined };
