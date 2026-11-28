@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "registry": "apx-official",
-  "generated_at": "2026-11-27T12:02:52.378Z",
+  "generated_at": "2026-11-27T20:26:39.872Z",
   "publishers": [
     {
       "id": "apx",
@@ -12399,6 +12399,120 @@
     },
     {
       "kind": "extension",
+      "id": "odoo-readonly",
+      "publisher": "apx",
+      "name": "Odoo Community 19",
+      "description": "Read contacts, opportunities, quotes and sales orders in one self-hosted Odoo Community 19 database.",
+      "categories": [
+        "productivity"
+      ],
+      "tags": [
+        "optional"
+      ],
+      "icon": "https://marketplace.apxagent.app/listings/odoo-readonly/0.1.0/9c0eea96d26f778427a573b362b3fccbc88f029256f41ef63a8e459de969ac6a/assets/icon.svg",
+      "license": "MIT",
+      "tagline": "Read only · Odoo on your own server",
+      "category": "business-systems",
+      "listing": "https://marketplace.apxagent.app/listings/odoo-readonly/0.1.0/9c0eea96d26f778427a573b362b3fccbc88f029256f41ef63a8e459de969ac6a/apx-listing.json",
+      "versions": [
+        {
+          "version": "0.1.0",
+          "source": {
+            "type": "archive",
+            "url": "https://marketplace.apxagent.app/packages/odoo-readonly/0.1.0/9c0eea96d26f778427a573b362b3fccbc88f029256f41ef63a8e459de969ac6a.apxext"
+          },
+          "integrity": "sha256-9c0eea96d26f778427a573b362b3fccbc88f029256f41ef63a8e459de969ac6a",
+          "archive": {
+            "url": "https://marketplace.apxagent.app/packages/odoo-readonly/0.1.0/9c0eea96d26f778427a573b362b3fccbc88f029256f41ef63a8e459de969ac6a.apxext",
+            "sha256": "9c0eea96d26f778427a573b362b3fccbc88f029256f41ef63a8e459de969ac6a"
+          },
+          "content_hash": "1df84368aef7f006",
+          "apx": "2.17.5",
+          "published_at": "2026-11-27T20:15:52.000Z",
+          "card": {
+            "summary": "Read contacts, opportunities, quotes and sales orders in one self-hosted Odoo Community 19 database.",
+            "features": [
+              "See contact names and whether they’re companies",
+              "See opportunity names and whether they’re active",
+              "See sales references, statuses and dates"
+            ],
+            "requirements": [
+              "One Odoo database with JSON-2 enabled",
+              "A dedicated internal Odoo user with only the access it needs (not a portal account)",
+              "Install CRM to see opportunities and Sales to see quotes and orders",
+              "Node.js 24 on the computer running APX"
+            ],
+            "limits": [
+              "Opportunities only: CRM leads are not included",
+              "No support for Odoo Online, Odoo Custom or other Odoo versions through this connector",
+              "Custom models and fields aren’t included"
+            ],
+            "pricing": "No connector fee. You provide the Odoo server.",
+            "privacy": "APX sends the key to the Odoo server you enter. Data returned by Odoo may appear in your chat.",
+            "id": "odoo-readonly",
+            "authentication": "secret",
+            "billing": "free",
+            "docs": "README.md",
+            "schema": 2,
+            "tagline": "Read only · Odoo on your own server",
+            "description": "Ask APX for contacts, opportunities, quotes and sales orders. APX shows only the records the Odoo user you connect can see.",
+            "prompts": [
+              "Show me the contacts I can see in Odoo and mark which ones are companies.",
+              "List my Odoo opportunities by name.",
+              "Show me my Odoo quotes and sales orders with their status."
+            ],
+            "category": "business-systems",
+            "icon": "assets/icon.svg",
+            "screenshots": [],
+            "connection": "key",
+            "links": {
+              "website": "https://www.odoo.com/page/community",
+              "privacy": "https://www.odoo.com/privacy",
+              "terms": "https://www.odoo.com/documentation/19.0/legal/licenses.html",
+              "docs": "https://www.odoo.com/documentation/19.0/developer/reference/external_api.html"
+            },
+            "publisher": {
+              "name": "APX",
+              "verified": true
+            },
+            "locales": {
+              "es": {
+                "summary": "Consultá contactos, oportunidades, presupuestos y pedidos en una base de Odoo Community 19 autohospedado.",
+                "features": [
+                  "Mirá los nombres de los contactos y cuáles son empresas",
+                  "Mirá los nombres de las oportunidades y si están activas",
+                  "Consultá la referencia, el estado y la fecha de cada venta"
+                ],
+                "requirements": [
+                  "Una base de Odoo con JSON-2 habilitado",
+                  "Un usuario interno de Odoo dedicado a APX, con acceso mínimo (no una cuenta de portal)",
+                  "Instalá CRM para ver oportunidades y Ventas para ver presupuestos y pedidos",
+                  "Node.js 24 en el equipo donde corre APX"
+                ],
+                "limits": [
+                  "Solo oportunidades: no incluye leads del CRM",
+                  "Este conector no admite Odoo Online, Odoo Custom ni otras versiones de Odoo",
+                  "No incluye modelos ni campos personalizados"
+                ],
+                "pricing": "El conector no tiene costo. Necesitás tu propio servidor de Odoo.",
+                "privacy": "APX le envía la clave al servidor de Odoo que indiques. Los datos que devuelve Odoo pueden aparecer en tu chat.",
+                "tagline": "Solo lectura · Odoo en tu propio servidor",
+                "description": "Pedile a APX contactos, oportunidades, presupuestos y pedidos. APX solo muestra los registros que puede ver el usuario de Odoo que conectes.",
+                "prompts": [
+                  "Mostrame los contactos que puedo ver en Odoo y marcá cuáles son empresas.",
+                  "Listá mis oportunidades de Odoo por nombre.",
+                  "Mostrame mis presupuestos y pedidos de Odoo con su estado."
+                ],
+                "screenshots": []
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
       "id": "paper",
       "publisher": "apx",
       "name": "Paper",
@@ -19068,6 +19182,114 @@
                   "Calculá 2 más 2 y mostrame la expresión usada.",
                   "Convertí 10 kilómetros a millas e indicá las unidades.",
                   "Evaluá la expresión que te pase y explicame los supuestos necesarios para interpretar el resultado."
+                ],
+                "screenshots": []
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
+      "id": "woocommerce",
+      "publisher": "apx",
+      "name": "WooCommerce",
+      "description": "Connect APX to the WooCommerce tools your WordPress site makes available.",
+      "categories": [
+        "productivity"
+      ],
+      "tags": [
+        "optional"
+      ],
+      "icon": "https://marketplace.apxagent.app/listings/woocommerce/1.1.1/e03b56cf4ee76bd10c393aa48e7f220700f71fd2e1336c0002528d667b58395e/assets/icon.png",
+      "license": "MIT",
+      "tagline": "View your store and make changes with the right permissions",
+      "category": "business-systems",
+      "listing": "https://marketplace.apxagent.app/listings/woocommerce/1.1.1/e03b56cf4ee76bd10c393aa48e7f220700f71fd2e1336c0002528d667b58395e/apx-listing.json",
+      "versions": [
+        {
+          "version": "1.1.1",
+          "source": {
+            "type": "archive",
+            "url": "https://marketplace.apxagent.app/packages/woocommerce/1.1.1/e03b56cf4ee76bd10c393aa48e7f220700f71fd2e1336c0002528d667b58395e.apxext"
+          },
+          "integrity": "sha256-e03b56cf4ee76bd10c393aa48e7f220700f71fd2e1336c0002528d667b58395e",
+          "archive": {
+            "url": "https://marketplace.apxagent.app/packages/woocommerce/1.1.1/e03b56cf4ee76bd10c393aa48e7f220700f71fd2e1336c0002528d667b58395e.apxext",
+            "sha256": "e03b56cf4ee76bd10c393aa48e7f220700f71fd2e1336c0002528d667b58395e"
+          },
+          "content_hash": "f2633079c96413d3",
+          "apx": "2.17.5",
+          "published_at": "2026-11-27T11:49:08.000Z",
+          "card": {
+            "summary": "Connect APX to the WooCommerce tools your WordPress site makes available.",
+            "features": [
+              "Discover available store abilities",
+              "Query products when your WordPress role allows it",
+              "Use a separate revocable application password"
+            ],
+            "requirements": [
+              "WooCommerce 11.3 or newer on a WordPress HTTPS site",
+              "WordPress MCP Adapter active with its default endpoint",
+              "A dedicated WordPress user with minimal permissions and an application password"
+            ],
+            "limits": [
+              "If you use WordPress.com or Jetpack, use the WordPress.com listing instead"
+            ],
+            "pricing": "No connector fee. Your WordPress hosting and paid WooCommerce services are separate.",
+            "privacy": "Connect only to your HTTPS site. APX sends the connection credential to that site, and returned data may enter chat context.",
+            "id": "woocommerce",
+            "authentication": "secret",
+            "billing": "free",
+            "docs": "README.md",
+            "schema": 2,
+            "tagline": "View your store and make changes with the right permissions",
+            "description": "Connect to your WooCommerce store with a dedicated WordPress user and a WordPress application password. The tools and changes available to APX depend on what your site enables and what your user can do.",
+            "prompts": [
+              "Tell me which WooCommerce abilities my site exposes, without changing anything.",
+              "Check if my store account can read products, without listing customer data.",
+              "Show me the exact proposed change and wait for confirmation before applying it."
+            ],
+            "category": "business-systems",
+            "icon": "assets/icon.png",
+            "screenshots": [],
+            "connection": "key",
+            "links": {
+              "website": "https://woocommerce.com/",
+              "privacy": "https://automattic.com/privacy/",
+              "terms": "https://woocommerce.com/terms-conditions/",
+              "docs": "https://developer.woocommerce.com/docs/features/mcp/"
+            },
+            "publisher": {
+              "name": "APX",
+              "verified": true
+            },
+            "locales": {
+              "es": {
+                "summary": "Conectá APX a las herramientas de WooCommerce que ofrece tu sitio WordPress.",
+                "features": [
+                  "Descubrí las funciones disponibles en tu tienda",
+                  "Consultá productos si tu rol de WordPress lo permite",
+                  "Usá una contraseña de aplicación independiente y revocable"
+                ],
+                "requirements": [
+                  "WooCommerce 11.3 o posterior en un sitio WordPress con HTTPS",
+                  "WordPress MCP Adapter activo con su dirección predeterminada",
+                  "Un usuario dedicado de WordPress con permisos mínimos y una contraseña de aplicación"
+                ],
+                "limits": [
+                  "Si usás WordPress.com o Jetpack, elegí la ficha de WordPress.com"
+                ],
+                "pricing": "El conector no tiene costo. El alojamiento y los servicios pagos de WooCommerce se contratan aparte.",
+                "privacy": "Conectá solo tu sitio HTTPS. APX le envía la credencial de conexión. Los datos que devuelva la tienda pueden entrar en el contexto del chat.",
+                "tagline": "Consultá tu tienda y hacé cambios según tus permisos",
+                "description": "Conectá tu tienda WooCommerce con un usuario dedicado y una contraseña de aplicación de WordPress. Las herramientas y los cambios disponibles dependen de lo que habilite tu sitio y de los permisos de ese usuario.",
+                "prompts": [
+                  "Mostrame qué funciones de WooCommerce ofrece mi sitio, sin cambiar nada.",
+                  "Revisá si mi cuenta puede consultar productos, sin listar datos de clientes.",
+                  "Mostrame qué se cambiaría y esperá mi confirmación antes de aplicarlo."
                 ],
                 "screenshots": []
               }
