@@ -45,6 +45,7 @@ import { MCP_REACH_NEWS } from "./mcp-reach.ts";
 import { MEMORY_REVIEW_NEWS } from "./memory-review.ts";
 import { MOVE_BACKUP_NEWS } from "./move-backup.ts";
 import { OLDER_NEWS } from "./older-entries.ts";
+import { PHONE_CENTER_BUTTON_NEWS } from "./phone-center-button.ts";
 import { PHONE_NODE_NEWS } from "./phone-node.ts";
 import { PHONE_PRIVACY_NEWS } from "./phone-privacy.ts";
 import { PUBLIC_ARTIFACTS_NEWS } from "./public-artifacts.ts";
@@ -164,6 +165,7 @@ export type NewsEntry = {
 };
 
 export const NEWS: readonly NewsEntry[] = [
+  PHONE_CENTER_BUTTON_NEWS,
   PHONE_PRIVACY_NEWS,
   CAR_WIDGET_NEWS,
   VOICE_GREETING_NEWS,

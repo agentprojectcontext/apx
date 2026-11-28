@@ -19,11 +19,14 @@ export function SessionsPage({
   open,
   create,
   resume,
+  embedded = false,
 }: {
   data: Workspace;
   open: (thread: Thread) => void;
   create: (engine: string, project: string) => Promise<Thread>;
   resume: (engine: string, id: string) => Promise<Thread>;
+  /** Shown as a tab of Chats, under that page's own title: only the lead line stays. */
+  embedded?: boolean;
 }) {
   const type = useType();
   const theme = useTheme();
@@ -36,7 +39,11 @@ export function SessionsPage({
   const fail = (error: unknown) =>
     Alert.alert(t("couldNotStart"), error instanceof Error ? error.message : String(error));
   return (
-    <Screen gap={14} header={<PageTitle title={t("navSessions")} subtitle={t("sessionsLead")} />}>
+    <Screen
+      gap={14}
+      {...(embedded ? {} : { header: <PageTitle title={t("navSessions")} subtitle={t("sessionsLead")} /> })}
+    >
+      {embedded ? <Text style={[type.meta, s.lead]}>{t("sessionsLead")}</Text> : null}
       {engines.map((engine) => (
         <EngineCard
           key={engine.id}
@@ -204,6 +211,7 @@ function NativeRow({ session, onPress }: { session: NativeSession; onPress: () =
 }
 
 const useStyles = makeStyles((theme) => ({
+  lead: { paddingTop: 8, paddingHorizontal: 4 },
   card: {
     borderRadius: theme.radiusLg,
     backgroundColor: theme.surface,

@@ -17,6 +17,7 @@ import { PrivacySettings } from "../ui/PrivacySettings";
 import { makeStyles, useTheme } from "../ui/theme";
 import { VoiceSettings } from "../ui/VoiceSettings";
 import { boss } from "../voice";
+import type { VoiceRead } from "../wakeWords";
 
 const SOUND_MODES: Array<[NoticeSound, "soundAll" | "soundMessages" | "soundRequests" | "soundOff"]> = [
   ["all", "soundAll"],
@@ -43,6 +44,7 @@ export function SettingsPage({
   voice,
   saveWakeWords,
   call,
+  online = true,
 }: {
   creds: Creds;
   call?: (method: string, params: Record<string, unknown>) => Promise<unknown>;
@@ -54,7 +56,9 @@ export function SettingsPage({
   save: (prefs: NoticePrefs) => Promise<NoticePrefs>;
   /** Car mode's page (errands on the way). */
   openCar?: () => void;
-  voice?: () => Promise<{ wake_words: string[]; ready: boolean }>;
+  voice?: () => Promise<VoiceRead>;
+  /** The core answers; Voice reads it again when it comes back. */
+  online?: boolean;
   saveWakeWords?: (words: string[]) => Promise<{ wake_words: string[] }>;
 }) {
   const type = useType();
@@ -111,7 +115,12 @@ export function SettingsPage({
           <NoticePreferences prefs={prefs} change={change} data={data} status={notifications.status.state} />
         ) : null}
         {voice && saveWakeWords ? (
-          <VoiceSettings name={boss(data.agents)?.name ?? "APX"} load={voice} saveWords={saveWakeWords} />
+          <VoiceSettings
+            name={boss(data.agents)?.name ?? "APX"}
+            load={voice}
+            saveWords={saveWakeWords}
+            online={online}
+          />
         ) : null}
         <Text style={s.label}>{t("setLook")}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>

@@ -25,38 +25,53 @@ export function useVoiceNote({
   /** Undefined for a new chat not made yet: the audio goes with its first message. */
   threadId: string | undefined;
   upload: (uri: string, name: string, mime: string) => Promise<Attachment | undefined>;
-  onWords: (words: string) => void;
+  /** The transcript, for the composer to put in its field. */
+  onWords?: (words: string) => void;
 }) {
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const status = useAudioRecorderState(recorder, 250);
   const [state, setState] = useState<"idle" | "recording" | "transcribing">("idle");
-  const start = useCallback(async () => {
+  /** False when the microphone was refused: nothing records. */
+  const start = useCallback(async (): Promise<boolean> => {
     const permission = await requestRecordingPermissionsAsync();
     if (!permission.granted) {
       Alert.alert(t("voiceNote"), t("micDenied"));
-      return;
+      return false;
     }
     await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
     await recorder.prepareToRecordAsync();
     recorder.record();
     setState("recording");
+    return true;
   }, [recorder]);
-  const stop = useCallback(async () => {
+  /** The uploaded audio and what was heard in it; nothing when the recording or its upload failed. */
+  const stop = useCallback(async (): Promise<{ audio: string; words?: string } | undefined> => {
     await recorder.stop();
     await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
     const uri = recorder.uri;
-    if (!uri) return setState("idle");
+    if (!uri) {
+      setState("idle");
+      return undefined;
+    }
     setState("transcribing");
     try {
       const audio = await upload(uri, `${t("voiceNote")}.m4a`, "audio/mp4");
-      if (!audio?.id) return;
+      if (!audio?.id) return undefined;
       const heard = await client
         .call("media.transcribe", { media_id: audio.id, ...(threadId ? { thread: threadId } : {}) })
         .catch(() => undefined);
-      if (heard?.text.trim()) onWords(heard.text.trim());
+      const words = heard?.text.trim();
+      if (words) onWords?.(words);
+      return { audio: audio.id, ...(words ? { words } : {}) };
     } finally {
       setState("idle");
     }
   }, [recorder, upload, client, threadId, onWords]);
-  return { state, seconds: Math.floor((status.durationMillis ?? 0) / 1000), start, stop };
+  /** Drops the recording: nothing is uploaded. */
+  const cancel = useCallback(async () => {
+    await recorder.stop().catch(() => undefined);
+    await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
+    setState("idle");
+  }, [recorder]);
+  return { state, seconds: Math.floor((status.durationMillis ?? 0) / 1000), start, stop, cancel };
 }

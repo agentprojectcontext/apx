@@ -22,6 +22,7 @@ import {
 } from "../protocol";
 import { taskComments } from "../tasks/comments";
 import { DEFAULT_COLUMNS, type TaskColumn, type TaskPatch } from "../tasks/fields";
+import { readVoice } from "../wakeWords";
 import { continueSession } from "./continueSession";
 import { keepSame, RELOADS } from "./keepSame";
 import { reloadGate } from "./reloadGate";
@@ -672,17 +673,13 @@ export function useWorkspace(creds: Creds) {
     [client],
   );
 
-  /** APX's voice on the computer: whether calls can run, and the phrases that wake it by name. */
+  /** APX's voice on the computer: the phrases that wake it by name, and whether calls can run. Never throws. */
   const voiceStatus = useCallback(
     async () =>
-      Promise.all([
+      Promise.allSettled([
         rpc<{ wake_words: string[]; greeting?: "ready" | "preparing" }>(client, "voice.status", {}),
         rpc<{ ready: boolean }>(client, "calls.status", {}),
-      ]).then(([v, c]) => ({
-        wake_words: v.wake_words ?? [],
-        ready: c.ready,
-        preparing: v.greeting === "preparing",
-      })),
+      ]).then(([v, c]) => readVoice(v, c)),
     [client],
   );
   const setWakeWords = useCallback(
