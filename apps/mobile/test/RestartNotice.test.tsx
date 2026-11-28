@@ -2,6 +2,9 @@ import { render } from "@testing-library/react-native";
 import type { Message } from "../src/protocol";
 import { ChatMessage } from "../src/ui/ChatMessage";
 
+jest.mock("../src/chat/mediaFiles", () => ({ mediaFile: jest.fn() }));
+jest.mock("../src/ui/media/VideoCarousel", () => ({ VideoCarousel: () => null }));
+
 const agents = [{ id: "agt_roby", name: "Roby" }] as never;
 
 const cut = (code: "run.interrupted" | "run.resumed", text: string): Message =>
