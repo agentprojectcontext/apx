@@ -91,6 +91,9 @@ If a decision is still needed, the assigned agent can ask again in the current t
 
 For agents: use `ask_owner` in the assigned task chat for a blocking question or action; do not also set
 `task_update awaits_owner=true` for that same card. Reserve that flag and its `why` for a separate manual blocker.
+For a confirmation or readiness check, include short `options` in the question's language, such as “Done” / “Not yet”.
+A single choice sends with one tap; the owner can still write an answer or skip. Keep open questions free-form and
+use an action card, not a generic “OK”, when the owner must authorize an action.
 
 ### Group existing tasks as subtasks
 
