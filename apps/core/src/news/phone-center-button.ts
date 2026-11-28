@@ -2,7 +2,7 @@ import type { NewsEntry } from "./entries.ts";
 
 export const PHONE_CENTER_BUTTON_NEWS: NewsEntry = {
   id: "phone-center-button",
-  since: "2.19.0",
+  since: "2.18.1",
   title: { en: "Your agent in the middle of the phone app", es: "Tu agente en el medio de la app del teléfono" },
   about: {
     en: "The Android app has your super-agent's button in the middle of the bottom bar: a tap calls it, or hold it to send a voice note when calls aren't ready.",
