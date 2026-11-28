@@ -31,6 +31,7 @@ import { CONTACT_BOOKING_NEWS } from "./contact-booking.ts";
 import { CONTACT_CONSULT_REFERENCE_NEWS } from "./contact-consult-reference.ts";
 import { CONTACT_NOTES_NEWS, CONTACT_PROJECT_READING_NEWS } from "./contact-notes.ts";
 import { CONTEXTUAL_RESEARCH_NEWS } from "./contextual-research.ts";
+import { ERRANDS_ON_THE_WAY_NEWS } from "./errands-on-the-way.ts";
 import { EVENT_MUTE_NEWS } from "./event-mute.ts";
 import { EXTENSION_EVENTS_NEWS } from "./extension-events.ts";
 import { EXTERNAL_SESSIONS_NEWS } from "./external-sessions.ts";
@@ -159,6 +160,7 @@ export type NewsEntry = {
 };
 
 export const NEWS: readonly NewsEntry[] = [
+  ERRANDS_ON_THE_WAY_NEWS,
   PHONE_NODE_NEWS,
   SERVER_BROWSER_CONTROL_NEWS,
   AUTO_JUDGE_NEWS,

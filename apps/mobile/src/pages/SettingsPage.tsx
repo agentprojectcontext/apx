@@ -38,6 +38,7 @@ export function SettingsPage({
   disconnect,
   load,
   save,
+  openCar,
   voice,
   saveWakeWords,
 }: {
@@ -48,6 +49,8 @@ export function SettingsPage({
   disconnect: () => void;
   load: () => Promise<NoticePrefs>;
   save: (prefs: NoticePrefs) => Promise<NoticePrefs>;
+  /** Car mode's page (errands on the way). */
+  openCar?: () => void;
   voice?: () => Promise<{ wake_words: string[]; ready: boolean }>;
   saveWakeWords?: (words: string[]) => Promise<{ wake_words: string[] }>;
 }) {
@@ -113,6 +116,11 @@ export function SettingsPage({
             <Chip key={pref} label={t(label)} selected={look === pref} onPress={() => pickLook(pref)} />
           ))}
         </ScrollView>
+        {openCar ? (
+          <ListGroup>
+            <ListRow label={t("carMode")} sub={t("carModeSub")} leading={<IconTile icon="Car" />} onPress={openCar} />
+          </ListGroup>
+        ) : null}
         <Text style={s.label}>{t("setConnection")}</Text>
         <ListGroup>
           <ListRow

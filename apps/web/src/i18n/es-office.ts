@@ -28,6 +28,9 @@ export const esOffice: Partial<Record<MessageKey, string>> = {
   "tasks.type.taskHint": "Trabajo de un proyecto: la puede hacer un agente o vos.",
   "tasks.type.commitmentHint": "Algo prometido con alguien: quién lo debe y para cuándo.",
   "tasks.type.errandHint": "Algo chico para hacer al pasar: comprar, llamar, retirar.",
+  "tasks.errandWhere": "Dónde",
+  "tasks.errandWhereHint":
+    "Los tipos de comercio donde se puede hacer, el mejor primero. APX te avisa cuando pasás cerca de uno.",
   "tasks.assignee": "Quién la hace",
   "tasks.assigneeHint": "Elegir un agente de un proyecto pone la tarea en ese proyecto.",
   "tasks.reminder": "Recordatorio",

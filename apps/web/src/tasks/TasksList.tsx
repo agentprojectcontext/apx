@@ -12,7 +12,8 @@ import {
   Spinner,
   Tooltip,
 } from "@apx/ui";
-import { type CSSProperties, type ReactNode, useEffect, useMemo, useState } from "react";
+import { type CSSProperties, type ReactNode, Suspense, useEffect, useMemo, useState } from "react";
+import { ErrandChips } from "../car/ErrandPlaceField.tsx";
 import { aheadLabel, dueLabel, shortWhen } from "../common/format.ts";
 import { ProjectSelect } from "../common/ProjectSelect.tsx";
 import { useLongPressDrag } from "../common/useLongPressDrag.ts";
@@ -22,6 +23,7 @@ import { useData } from "../data/state.ts";
 import { taskChatIds } from "../data/taskChats.ts";
 import { loadTasks, useTasks } from "../data/tasks.ts";
 import { type MessageKey, type T, useT } from "../i18n/index.ts";
+import { CarTripCard } from "../lazy.ts";
 import { ProjectEmpty } from "../project/ProjectEmpty.tsx";
 import { nav, useNav } from "../shell/nav.ts";
 import { AcceptProposals } from "./AcceptProposals.tsx";
@@ -229,6 +231,9 @@ export function TasksList({
             </Button>
           )}
         </div>
+        <Suspense fallback={null}>
+          <CarTripCard />
+        </Suspense>
         {ready && !scoped.length && projectId ? (
           <ProjectEmpty name={projectName(projects, projectId)} />
         ) : ready && !shown.length ? (
@@ -443,6 +448,7 @@ function TaskRow(props: {
                     {kindLabel(task.kind, t)}
                   </span>
                 )}
+                {task.kind === "errand" && <ErrandChips place={task.place} />}
                 {task.person_id && <CommitmentMeta task={task} />}
                 {task.tags.slice(0, 3).map((tag) => (
                   <span key={tag} className="taskrow__tag">

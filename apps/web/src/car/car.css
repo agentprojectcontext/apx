@@ -1,0 +1,162 @@
+/* Errands on the way: Settings › In the car, the trip card over the tasks list and an errand's "Where". */
+.car__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.car__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--apx-border);
+  min-width: 0;
+}
+.car__row:first-child {
+  border-top: 0;
+}
+.car__rowmain {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.car__rowtitle {
+  font-size: var(--apx-text-sm);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.car__rowmeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}
+.car__rowactions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+.car__inline,
+.car__keyform {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.car__keyform .apx-input {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.car__preview {
+  margin-top: -4px;
+}
+.car__credit {
+  margin: 4px 0 0;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}
+/* On a phone a place's choice goes under its name. */
+@media (max-width: 640px) {
+  .car__place {
+    flex-wrap: wrap;
+  }
+  .car__place .car__rowactions {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+.cartrip {
+  margin-bottom: 16px;
+}
+.cartrip__head {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.cartrip__offers {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cartrip__offer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-group-bg);
+}
+.cartrip__errand {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.cartrip__place {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--apx-text-sm);
+}
+.cartrip__placename {
+  overflow-wrap: anywhere;
+}
+.cartrip__answers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+.cartrip__silence {
+  align-self: flex-start;
+}
+.cartrip__muted {
+  margin: 0;
+  font-size: var(--apx-text-sm);
+  color: var(--apx-fg-muted);
+}
+.cartrip__errands {
+  margin-top: 12px;
+}
+.cartrip__sub {
+  margin: 0 0 4px;
+  font-size: var(--apx-text-xs);
+  font-weight: 600;
+  color: var(--apx-fg-muted);
+}
+
+.errandplace {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.errandplace__cats,
+.errandplace__fixed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.errandplace__cat {
+  gap: 4px;
+}
+.errandplace__add {
+  min-width: 180px;
+}
+.errandplace__fixform {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.errandplace__fixadd {
+  align-self: flex-start;
+}

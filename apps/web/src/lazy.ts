@@ -83,6 +83,13 @@ export const DiscoverySection = lazy(
     import("./config/DiscoverySection.tsx").then((m) => ({ default: m.DiscoverySection })),
   ),
 );
+export const CarSection = lazy(
+  withPacks(["car"], () => import("./car/CarSection.tsx").then((m) => ({ default: m.CarSection }))),
+);
+// The trip card over the tasks list: loaded with the car's strings, only once a list is shown.
+export const CarTripCard = lazy(
+  withPacks(["car"], () => import("./car/TripCard.tsx").then((m) => ({ default: m.CarTripCard }))),
+);
 export const ConfigModal = lazy(
   withPacks(["team", "cloudAccount", "publicCopies", "telemetrySettings"], () =>
     import("./config/ConfigModal.tsx").then((m) => ({ default: m.ConfigModal })),

@@ -26,6 +26,8 @@ export const enOffice = {
   "tasks.type.taskHint": "Work in a project: an agent or you can do it.",
   "tasks.type.commitmentHint": "Something promised with someone: who owes it and by when.",
   "tasks.type.errandHint": "Something small to do on the way: buy, call, pick up.",
+  "tasks.errandWhere": "Where",
+  "tasks.errandWhereHint": "The kinds of shop where it can be done, best first. APX tells you when you drive past one.",
   "tasks.assignee": "Who does it",
   "tasks.assigneeHint": "Picking a project's agent puts the task in that project.",
   "tasks.reminder": "Reminder",

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<automotiveApp>
+    <!-- The APX car app (ApxCarAppService). -->
+    <uses name="template" />
+    <!-- The "APX" conversation Android Auto reads aloud and answers by voice. -->
+    <uses name="notification" />
+</automotiveApp>

@@ -6,6 +6,7 @@
 
 import { type ChannelInfo, type CoreEvent, noticeText, type Part } from "@apx/protocol";
 import type { Bus } from "../bus.ts";
+import { voiceWhileDriving } from "../car/driving.ts";
 import type { AuxAbout } from "../domain/aux-calls.ts";
 import type { Presentation } from "../domain/channels.ts";
 import { bookingDone, bookingRef, contactBookings } from "../domain/contact-bookings.ts";
@@ -457,7 +458,10 @@ export function createChannels(deps: {
 
   /** When the chat asked for spoken answers: the first part as a voice note (shown in the app too), and the rest. */
   async function voiceFor(threadId: string, text: string) {
-    if (!store.threads.context(threadId).voice_replies || !deps.services.hasKind("speech")) return undefined;
+    const spokenChat =
+      store.threads.context(threadId).voice_replies ||
+      (store.threads.get(threadId)?.kind === "home" && voiceWhileDriving(store));
+    if (!spokenChat || !deps.services.hasKind("speech")) return undefined;
     const { spoken, rest } = splitSpoken(text);
     if (!spoken) return undefined;
     try {

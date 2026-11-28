@@ -7,6 +7,7 @@ import {
   AgentLimits,
   BaseProject,
   CALENDAR_LEAD,
+  CarSettings,
   CHECK_EVERY,
   ChannelInfo,
   ContactBooking,
@@ -96,6 +97,14 @@ export const SETTINGS = {
     max_pages: 12,
     max_seconds: 180,
     cooldown_days: 14,
+  }),
+  /** Errands on the way (DECISIONS.md#d-286): off until the owner turns it on. */
+  car: entry(CarSettings, {
+    enabled: false,
+    reach: "normal",
+    source: "osm",
+    tell_in_chat: false,
+    voice_while_driving: true,
   }),
   activity_review: entry(ActivityReviewSettings, { enabled: true, frequency: "daily", extra_details: "" }),
   email_signatures: entry(EmailSignatures, []),

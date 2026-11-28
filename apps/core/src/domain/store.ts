@@ -12,6 +12,10 @@ import { agentsRepo } from "./agents.ts";
 import { approvalsRepo } from "./approvals.ts";
 import { autoDecisionsRepo } from "./auto-decisions.ts";
 import { auxCallsRepo } from "./aux-calls.ts";
+import { carAlertsRepo } from "./car-alerts.ts";
+import { carPlacesRepo } from "./car-places.ts";
+import { carPrefsRepo } from "./car-prefs.ts";
+import { carTripsRepo } from "./car-trips.ts";
 import { channelsRepo } from "./channels.ts";
 import { clientsRepo } from "./clients.ts";
 import { continuationsRepo } from "./continuations.ts";
@@ -121,6 +125,10 @@ export function createStore(db: Db, bus: Bus) {
     suggestions: suggestionsRepo(q),
     activityReviewRuns: activityReviewRunsRepo(q),
     autoDecisions: autoDecisionsRepo(q),
+    carTrips: carTripsRepo(q),
+    carAlerts: carAlertsRepo(q),
+    carPlaces: carPlacesRepo(q),
+    carPrefs: carPrefsRepo(q),
     channels: channelsRepo(q),
     stickers: stickersRepo(q),
     surfaces: surfacesRepo(q, bus),

@@ -3,6 +3,7 @@
 
 import { CHANNEL_DEFAULTS, channelKindRules, type Thread } from "@apx/protocol";
 import type { Bus } from "../bus.ts";
+import { chatAnswered } from "../car/wording.ts";
 import type { AuxAbout } from "../domain/aux-calls.ts";
 import {
   type Inbound,
@@ -638,6 +639,20 @@ export function createInbound(deps: {
       }
       if (button.kind === "news") {
         await newsButton(channel, a, button);
+        return;
+      }
+      if (button.kind === "car") {
+        // The same answer as on the car or the phone; a second press of the same button replays the first.
+        const r = await call(
+          "car.answer",
+          { alert_id: button.alert, action: button.action },
+          { actor: "human" },
+          `channel:${button.alert}:${button.action}`,
+        );
+        const lang = store.settings.get("owner_language") === "en" ? "en" : "es";
+        const url =
+          button.action === "add_stop" ? (r.alert.add_stop_url ?? r.alert.navigate_url) : r.alert.navigate_url;
+        reply(chatAnswered(button.action, lang, url, r.next));
         return;
       }
       await inputButton(channel, a, button, reply);

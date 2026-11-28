@@ -16,6 +16,6 @@ module.exports = ({ config: base }) => {
       ...(googleServices ? { googleServicesFile: googleServices } : {}),
     },
     extra: { ...config.extra, ...(projectId ? { eas: { ...config.extra?.eas, projectId } } : {}) },
-    plugins: [...(config.plugins ?? []), "./plugins/with-android-abis.js"],
+    plugins: [...(config.plugins ?? []), "./plugins/with-android-abis.js", "./plugins/with-car-mode.js"],
   };
 };

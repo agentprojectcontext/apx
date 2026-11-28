@@ -115,6 +115,23 @@ Owner steps, once:
 
 Set both or neither: a project id without the Firebase file makes Android refuse the token (Settings shows the error).
 
+## Car mode (Android)
+
+Errands on the way ([design](../../rules/ERRANDS_ON_THE_WAY.md)) has a native side in `modules/apx-car`, an Expo
+local module that autolinking picks up from `./modules`; `plugins/with-car-mode.js` declares its services, receiver
+and permissions in the manifest. The JS app only hands it the core's address, this phone's key and whether car mode
+is on (`src/car/native.ts`); the native side calls the core's `car.*` methods over `/rpc` itself, so it works with the
+app closed. Its pure parts (Android Auto and Maps detection, spoken replies) have JVM tests:
+
+```bash
+npx expo prebuild --platform android --no-install
+(cd android && ./gradlew :apx-car:testDebugUnitTest)
+```
+
+On a car, a sideloaded APK's car app shows only with Android Auto's developer setting *Unknown sources* on. Without a
+car: Android Auto › developer settings › Start head unit server, then
+`adb forward tcp:5277 tcp:5277` and run the Desktop Head Unit (`$ANDROID_HOME/extras/google/auto/desktop-head-unit`).
+
 ## Release build
 
 CI (`release.yml`, job `android`) runs `expo prebuild` and `./gradlew assembleRelease`, signed with the repo's key.

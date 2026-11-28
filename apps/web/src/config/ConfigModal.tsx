@@ -2,7 +2,7 @@ import "../styles/screens.css";
 import { Dialog, Icons, NavItem, SearchField, Skeleton } from "@apx/ui";
 import { type CSSProperties, type ReactNode, Suspense, useEffect, useState } from "react";
 import { type MessageKey, useT } from "../i18n/index.ts";
-import { DiscoverySection, MoveSection } from "../lazy.ts";
+import { CarSection, DiscoverySection, MoveSection } from "../lazy.ts";
 import { LAYOUT } from "../shell/layout.ts";
 import { type ConfigSection, go, useNav } from "../shell/nav.ts";
 import { configShows, usePanelMode } from "../shell/panelMode.ts";
@@ -62,6 +62,7 @@ const GROUPS: { label: MessageKey; items: NavEntry[] }[] = [
     label: "config.group.connections",
     items: [
       { id: "devices", label: "config.devices", icon: <Icons.Smartphone /> },
+      { id: "car", label: "config.car", icon: <Icons.MapPin /> },
       { id: "api", label: "clients.title", icon: <Icons.KeyRound /> },
     ],
   },
@@ -184,6 +185,12 @@ function Body({ section }: { section: ConfigSection }) {
       );
     case "activity-review":
       return <ActivityReviewSection />;
+    case "car":
+      return (
+        <Suspense fallback={<Skeleton height={240} shape="block" />}>
+          <CarSection />
+        </Suspense>
+      );
     case "interruptions":
       return <InterruptionsSection />;
     case "browser":

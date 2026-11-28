@@ -1,14 +1,15 @@
 // Tasks: the row is the task as it is now; every change is also an event, so its history can be told. The board's
 // columns are a setting; "done" and "dropped" are states, never columns.
-import type {
-  CommitmentOutcome,
-  Task,
-  TaskAsked,
-  TaskColumn,
-  TaskEvent,
-  TaskKind,
-  TaskPriority,
-  TaskState,
+import {
+  type CommitmentOutcome,
+  ErrandPlace,
+  type Task,
+  type TaskAsked,
+  type TaskColumn,
+  type TaskEvent,
+  type TaskKind,
+  type TaskPriority,
+  type TaskState,
 } from "@apx/protocol";
 import type { Selectable } from "kysely";
 import { sql as raw } from "kysely";
@@ -37,6 +38,25 @@ const askedField = (json: string | null) => {
   const asked = askedOf(json);
   return asked.length ? { asked } : {};
 };
+/** A stored place that no longer fits the contract is dropped, never shown half-read. */
+const placeOf = (json: string | null): ErrandPlace | undefined => {
+  if (!json) return undefined;
+  try {
+    const r = ErrandPlace.safeParse(JSON.parse(json));
+    return r.success ? r.data : undefined;
+  } catch {
+    return undefined;
+  }
+};
+const placeField = (json: string | null) => {
+  const place = placeOf(json);
+  return place ? { place } : {};
+};
+const placeJson = (place: ErrandPlace | null | undefined) => {
+  const r = place ? ErrandPlace.safeParse(place) : undefined;
+  return r?.success ? JSON.stringify(r.data) : null;
+};
+
 const keptAsked = (words: TaskAsked[]) =>
   words
     .map((w) => ({ ...w, text: w.text.slice(0, ASKED_CHARS) }))
@@ -262,6 +282,7 @@ const toTask = (
   status: r.status,
   state: r.state as TaskState,
   kind: r.kind as TaskKind,
+  ...placeField(r.place),
   priority: r.priority as TaskPriority,
   tags: JSON.parse(r.tags) as string[],
   ...opt("assignee", r.assignee),
@@ -321,6 +342,7 @@ export type TaskChange = Partial<{
   project_id: string | null;
   parent_id: string | null;
   kind: TaskKind;
+  place: ErrandPlace | null;
   priority: TaskPriority;
   tags: string[];
   due_at: string | null;
@@ -436,6 +458,7 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
       /** Already reminded (an import: what was due before it arrived is not news). */
       reminded_at?: string | undefined;
       kind?: TaskKind | undefined;
+      place?: ErrandPlace | undefined;
       priority?: TaskPriority | undefined;
       tags?: string[] | undefined;
       person_id?: string | undefined;
@@ -465,6 +488,7 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
           proposed: t.proposed ? 1 : 0,
           reminded_at: t.reminded_at ?? null,
           kind: t.kind ?? (t.person_id ? "commitment" : "task"),
+          place: placeJson(t.place),
           priority: t.priority ?? "normal",
           tags: JSON.stringify(t.tags ?? []),
           person_id: t.person_id ?? null,
@@ -512,6 +536,7 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
             ...(c.project_id !== undefined ? { project_id: c.project_id } : {}),
             ...(c.parent_id !== undefined ? { parent_id: c.parent_id } : {}),
             ...(c.kind !== undefined ? { kind: c.kind } : {}),
+            ...(c.place !== undefined ? { place: placeJson(c.place) } : {}),
             ...(c.priority !== undefined ? { priority: c.priority } : {}),
             ...(c.tags !== undefined ? { tags: JSON.stringify(c.tags) } : {}),
             // A new date or reminder time is reminded again.

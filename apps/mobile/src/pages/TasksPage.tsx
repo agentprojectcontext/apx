@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
+import { CATEGORY_KEY } from "../car/model";
+import { TripBanner } from "../car/TripBanner";
 import { dueWhen } from "../format";
 import { closedTasks, runningThreads, type TaskFilter, type TaskGroup, taskGroups } from "../hooks/taskGroups";
 import type { Task, Workspace } from "../hooks/useWorkspace";
@@ -27,12 +29,15 @@ export function TasksPage({
   open,
   create,
   openThread,
+  trip,
 }: {
   data: Workspace;
   actions: TaskActions;
   open: (task: Task) => void;
   create: () => void;
   openThread: (id: string) => void;
+  /** A trip in course: its banner, with how many errands wait for an answer. */
+  trip?: { waiting: number; open: () => void };
 }) {
   const theme = useTheme();
   const s = useStyles();
@@ -53,6 +58,7 @@ export function TasksPage({
         header={
           <>
             <PageTitle title={t("navTasks")} inset />
+            {trip ? <TripBanner waiting={trip.waiting} onPress={trip.open} /> : null}
             <Segmented
               value={filter}
               onChange={setFilter}
@@ -141,6 +147,9 @@ function TaskRow({
   const agent = data.agents.find((item) => item.id === task.assignee);
   const project = data.projects.find((item) => item.id === task.project_id)?.name ?? t("defaultProject");
   const who = agent?.name ?? task.assignee ?? "APX";
+  // An errand's best kind of shop, and how many more it has.
+  const [first, ...rest] = task.place?.categories ?? [];
+  const more = rest.length;
   return (
     <Pressable
       accessibilityRole="button"
@@ -160,6 +169,9 @@ function TaskRow({
         {task.awaits_owner ? <Text style={s.note}>{t("waitsForYourAnswer")}</Text> : null}
       </View>
       {task.kind === "commitment" ? <Tag tone="violet">{t("commitment")}</Tag> : null}
+      {task.kind === "errand" && first ? (
+        <Tag tone="info">{more ? `${t(CATEGORY_KEY[first])} +${more}` : t(CATEGORY_KEY[first])}</Tag>
+      ) : null}
     </Pressable>
   );
 }

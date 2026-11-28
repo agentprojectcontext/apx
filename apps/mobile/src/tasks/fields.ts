@@ -1,5 +1,6 @@
 // What a task's properties can be on the phone: the board's columns, priorities, kinds and who may do it.
 
+import type { ErrandPlace } from "../../../../packages/protocol/src/car.ts";
 import type { Agent, Task } from "../hooks/useWorkspace";
 import type { Key } from "../i18n/index.ts";
 import { pickerValue } from "./when.ts";
@@ -65,6 +66,8 @@ export type TaskPatch = {
   assignee?: string | null;
   due_at?: string | null;
   awaits_owner?: boolean;
+  /** An errand's place; `null` clears it. */
+  place?: ErrandPlace | null;
 };
 
 /** The properties the rows show and change; `due` is a picker value ("2026-10-05" or "2026-10-05T18:00"). */
