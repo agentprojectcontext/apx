@@ -21,9 +21,6 @@ export const es: Record<Key, string> = {
     "Compartí cantidades anónimas de uso, no mensajes ni ubicación. Es la misma opción que en tu computadora.",
   privacyUnavailable: "No se pudo consultar el estado. Revisá la conexión y volvé a intentar.",
   privacyReload: "Volver a intentar",
-  carGlobal: "Recados en todos los teléfonos",
-  carGlobalHelp:
-    "Al apagarlos se detienen los viajes en los teléfonos conectados. Cada teléfono también tiene su propio interruptor.",
   artifactReviewOnComputer: "Abrí APX en la compu para revisar esta copia.",
   browserTechnical: "Detalles técnicos",
   browserDocument: "Documento",
@@ -875,8 +872,8 @@ export const es: Record<Key, string> = {
   carUnavailable: "El modo auto necesita la app de Android más nueva.",
   carSwitch: "Usar este teléfono para recados",
   carSwitchHelp: "Mientras manejás, APX te avisa cuando pasás cerca de un lugar para un recado pendiente.",
-  carCoreOff: "Los recados en el camino están apagados en APX.",
-  carCoreTurnOn: "Activar",
+  carCoreOff:
+    "Los recados en el camino están apagados en APX. Encendelos en APX en tu computadora, en Ajustes › En el auto.",
   carNeeds: "Qué necesita",
   carNeedListener: "Leer notificaciones",
   carNeedListenerHelp: "Así APX sabe que el auto se conectó o que Maps empezó una ruta.",

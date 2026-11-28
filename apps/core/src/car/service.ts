@@ -25,6 +25,7 @@ import { placeOfTask } from "./errands.ts";
 import { googleProvider } from "./google.ts";
 import { type MatchContext, pick, quiet, WORST_ACCURACY_M } from "./matcher.ts";
 import { osmProvider } from "./osm.ts";
+import { createPhones } from "./phones.ts";
 import { createPlans, type OpenErrand, REQUEST_DEADLINE_MS } from "./plan.ts";
 import type { Fetch, PlaceProvider } from "./provider.ts";
 import { alertView, errandViews, lockedPlaces, publicTrip, shownPlace } from "./view.ts";
@@ -102,6 +103,7 @@ export function createCar(d: CarDeps) {
 
   const view = (a: AlertRow) => alertView(a, store.carTrips.get(a.trip_id), lang());
   const changed = (alert?: CarAlert) => bus.emit({ type: "car.updated", ...(alert ? { alert } : {}) });
+  const phones = createPhones(store, now, () => changed());
 
   const tripView = (): CarTripView => {
     const trip = store.carTrips.active();
@@ -208,7 +210,8 @@ export function createCar(d: CarDeps) {
       !trip ||
       trip.ended_at ||
       (p.consent_revision ?? "initial") !== revision ||
-      (store.settings.get(`car_consent:${trip.id}`) ?? "initial") !== revision
+      (store.settings.get(`car_consent:${trip.id}`) ?? "initial") !== revision ||
+      !phones.allows(trip.device_id)
     )
       return { alerts: [], active: false };
     const at = now().toISOString();
@@ -231,13 +234,15 @@ export function createCar(d: CarDeps) {
     return { alerts, active: true };
   }
 
-  const status = (): CarStatus => {
+  const status = (deviceId?: string): CarStatus => {
     const trip = store.carTrips.active();
+    const thisPhone = phones.thisPhone(deviceId);
     return {
       settings: settings(),
       google_key: d.secrets.has(GOOGLE_REF),
       phone: store.carTrips.any(),
       ...(trip ? { trip: publicTrip(trip) } : {}),
+      ...(thisPhone !== undefined ? { this_phone: thisPhone } : {}),
     };
   };
 
@@ -281,7 +286,8 @@ export function createCar(d: CarDeps) {
         !phonePrivacy(store).trips ||
         (p.consent_revision ?? "initial") !== revision ||
         (previous && (store.settings.get(`car_consent:${p.trip_id}`) ?? "initial") !== revision) ||
-        store.settings.get(`car_revoked:${p.trip_id}`) === "1"
+        store.settings.get(`car_revoked:${p.trip_id}`) === "1" ||
+        !phones.allows(p.device_id)
       )
         return { alerts: [], errands: [] };
       store.settings.set(`car_consent:${p.trip_id}`, revision);
@@ -306,6 +312,8 @@ export function createCar(d: CarDeps) {
       return { ended };
     },
     trip: tripView,
+    phones: () => phones.list(),
+    phone: phones.set,
     answer: (alert_id: string, action: CarAction) => answerAlert(env, alert_id, action),
     errand: (task_id: string, action: "navigate" | "skip" | "done") =>
       errandAction(env, store.carTrips.active(), task_id, action, bestFor),

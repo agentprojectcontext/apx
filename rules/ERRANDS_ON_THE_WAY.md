@@ -48,6 +48,16 @@ MessagingStyle "APX" conversation    ◀────── offer text; voice rep
   agent's choice always wins over the keywords.
 - The panel and the phone show the place on the errand form: category chips, a brand field, "a fixed place".
 
+## Phones
+
+Each paired phone turns errands on for itself (**Use this phone for errands**, on the phone); APX on the computer
+holds the one switch for every phone (`car.configure`) and lists the phones taking part (`car.phones`, table
+`car_phones`, one row per device that ever turned errands on or started a trip). From that list the owner turns a
+phone off (`car.phone` with its `device_id`): the core ends its trip and refuses its trip starts and points, so the
+phone switches itself off on its next point or when its car page reads `car.settings` (`this_phone: false`), as if
+its switch had been tapped. Only the phone turns itself back on (`car.phone` without `device_id`), since turning on
+starts sharing that phone's location. The super-agent may turn a phone off through `apx_settings`, never on.
+
 ## Trips
 
 - A trip starts when the phone reports an Android Auto session or a Maps route (**v1**: the trip ends only when both

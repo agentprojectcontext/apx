@@ -95,6 +95,8 @@ export const CarStatus = z.object(
     /** A phone in car mode has talked to the core. */
     phone: () => z.boolean(),
     trip: () => CarTrip.optional(),
+    /** Asked by a phone: whether that phone takes part (false once the owner turned it off from APX). */
+    this_phone: () => z.boolean().optional(),
   }),
 );
 export type CarStatus = z.infer<typeof CarStatus>;
@@ -193,6 +195,21 @@ export const CarTrip = z.object(
   }),
 );
 export type CarTrip = z.infer<typeof CarTrip>;
+
+/** A paired phone that turned errands on: whether it still takes part and its trip now, if any. */
+export const CarPhone = z.object(
+  schemaFields({
+    device_id: () => z.string(),
+    name: () => z.string(),
+    enabled: () => z.boolean(),
+    changed_at: () => z.string(),
+    /** Who changed it last: the phone itself or the owner from APX. */
+    changed_by: () => z.enum(["phone", "owner"]),
+    last_seen_at: () => z.string().optional(),
+    trip: () => CarTrip.pick({ id: true, source: true, started_at: true }).optional(),
+  }),
+);
+export type CarPhone = z.infer<typeof CarPhone>;
 
 export const CarTripView = z.object(
   schemaFields({
@@ -301,6 +318,23 @@ export const carMethods = {
   "car.errand": deferMethod({
     params: () => z.object({ task_id: z.string(), action: z.enum(["navigate", "skip", "done"]) }).strict(),
     result: () => z.object({ errand: CarErrand.optional(), navigate_url: z.string().optional() }),
+    effect: true,
+    access: "human",
+  }),
+  /** The phones that use errands on the way, for the owner to see and turn off. */
+  "car.phones": deferMethod({
+    params: () => z.object({}).strict(),
+    result: () => z.object({ phones: z.array(CarPhone) }),
+    effect: false,
+    access: "human",
+  }),
+  /**
+   * Turns a phone on or off for errands. A phone sets its own (no `device_id`); the owner turns one off from APX by
+   * its id, which ends its trip and switches the phone off on its next point. Only the phone turns itself on.
+   */
+  "car.phone": deferMethod({
+    params: () => z.object({ enabled: z.boolean(), device_id: z.string().max(80).optional() }).strict(),
+    result: () => CarPhone,
     effect: true,
     access: "human",
   }),

@@ -3,7 +3,7 @@ import type { Handlers } from "./router.ts";
 
 export function carHandlers(car: Car) {
   return {
-    "car.settings": () => car.status(),
+    "car.settings": (_p, ctx) => car.status(ctx.device?.id),
     "car.configure": (patch) => car.configure(patch),
     "car.trip_start": ({ trip_id, source, destination, at, consent_revision }, ctx) =>
       car.tripStart({
@@ -19,6 +19,8 @@ export function carHandlers(car: Car) {
     "car.trip": () => car.trip(),
     "car.answer": ({ alert_id, action }) => car.answer(alert_id, action),
     "car.errand": ({ task_id, action }) => car.errand(task_id, action),
+    "car.phones": () => ({ phones: car.phones() }),
+    "car.phone": (p, ctx) => car.phone(p, ctx.device?.id),
     "car.places": ({ limit }) => ({ places: car.places(limit) }),
     "car.place_choice": ({ key, choice }) => car.placeChoice(key, choice),
     "car.preview": async (p) => ({ errands: await car.preview(p) }),

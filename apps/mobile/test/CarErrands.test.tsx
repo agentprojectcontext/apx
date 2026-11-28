@@ -1,5 +1,6 @@
 import { act, fireEvent, render } from "@testing-library/react-native";
 import * as SecureStore from "expo-secure-store";
+import { Alert } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import type { CarAlert, CarStatus, CarTripView } from "../../../packages/protocol/src/car";
 import type { CarNativeStatus } from "../src/car/native";
@@ -98,23 +99,27 @@ test("without the native side, car mode says only that it needs the newer Androi
   mockNative.available = true;
 });
 
-test("global errands and this phone require separate explicit choices, then list what the phone must allow", async () => {
+test("the phone holds only its own switch: it tells the core, waits for APX to be on, then lists what to allow", async () => {
   jest.spyOn(SecureStore, "getItemAsync").mockResolvedValue(null);
   const stored = jest.spyOn(SecureStore, "setItemAsync").mockResolvedValue(undefined);
+  const alert = jest.spyOn(Alert, "alert").mockImplementation(() => undefined);
   let globalOn = false;
-  const call = jest.fn(async (method: string, params: Record<string, unknown>) => {
-    if (method === "car.configure") globalOn = params.enabled === true;
-    return coreStatus(globalOn);
-  });
+  const call = jest.fn(async (method: string, _params: Record<string, unknown>) =>
+    method === "car.phone" ? {} : coreStatus(globalOn),
+  );
   const ui = await mount(<CarModePage creds={credentials} call={call} back={jest.fn()} />);
   await act(async () => undefined);
+  expect(ui.getAllByRole("switch")).toHaveLength(1);
   expect(ui.queryByText(t("carNeedListener"))).toBeNull();
-  await fireEvent.press(ui.getByRole("switch", { name: t("carGlobal") }));
-  expect(ui.getByRole("switch", { name: t("carSwitch") })).not.toBeChecked();
-  expect(stored).not.toHaveBeenCalledWith("apx.car.enabled", "on");
   await fireEvent.press(ui.getByRole("switch", { name: t("carSwitch") }));
   await act(async () => undefined);
-  expect(call).toHaveBeenCalledWith("car.configure", { enabled: true });
+  expect(alert).toHaveBeenCalledWith(t("carMode"), t("carCoreOff"));
+  expect(stored).not.toHaveBeenCalledWith("apx.car.enabled", "on");
+  globalOn = true;
+  await fireEvent.press(ui.getByRole("switch", { name: t("carSwitch") }));
+  await act(async () => undefined);
+  expect(call).toHaveBeenCalledWith("car.phone", { enabled: true });
+  expect(call).not.toHaveBeenCalledWith("car.configure", expect.anything());
   expect(stored).toHaveBeenCalledWith("apx.car.enabled", "on");
   expect(ui.getByText(t("carNeedListener"))).toBeVisible();
   expect(ui.getByText(t("carNeedsSetup"))).toBeVisible();
@@ -122,6 +127,26 @@ test("global errands and this phone require separate explicit choices, then list
   expect(mockNative.openListenerSettings).toHaveBeenCalledTimes(1);
   await fireEvent.press(ui.getByRole("button", { name: t("carTest") }));
   expect(mockNative.startTestTrip).toHaveBeenCalledTimes(1);
+  await ui.unmount();
+});
+
+test("a phone turned off from APX on the computer switches itself off, and only the phone turns it on again", async () => {
+  jest.spyOn(SecureStore, "getItemAsync").mockResolvedValue("on");
+  const stored = jest.spyOn(SecureStore, "setItemAsync").mockResolvedValue(undefined);
+  const call = jest.fn(async (_method: string, _params: Record<string, unknown>) => ({
+    ...coreStatus(true),
+    this_phone: false,
+  }));
+  const ui = await mount(<CarModePage creds={credentials} call={call} back={jest.fn()} />);
+  await act(async () => undefined);
+  expect(stored).toHaveBeenCalledWith("apx.car.enabled", "off");
+  expect(ui.getByRole("switch", { name: t("carSwitch") })).not.toBeChecked();
+  stored.mockClear();
+  await fireEvent.press(ui.getByRole("switch", { name: t("carSwitch") }));
+  await act(async () => undefined);
+  expect(call).toHaveBeenCalledWith("car.phone", { enabled: true });
+  expect(ui.getByRole("switch", { name: t("carSwitch") })).toBeChecked();
+  expect(stored).not.toHaveBeenCalledWith("apx.car.enabled", "off");
   await ui.unmount();
 });
 
