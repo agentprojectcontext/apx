@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 
 /** Config section title (16/600) + one muted line, with optional actions on the right. */
 export function SectionHead({ title, lead, actions }: { title: string; lead?: ReactNode; actions?: ReactNode }) {
@@ -13,7 +13,11 @@ export function SectionHead({ title, lead, actions }: { title: string; lead?: Re
   );
 }
 
-/** Sub-heading inside a section ("Engines", "External sessions"). */
-export function SubHead({ children }: { children: ReactNode }) {
-  return <h3 className="config__sub">{children}</h3>;
+/** Sub-heading inside a section ("Engines", "External sessions"); `ref`: a place the page scrolls or moves focus to. */
+export function SubHead({ children, ref }: { children: ReactNode; ref?: Ref<HTMLHeadingElement> }) {
+  return (
+    <h3 className="config__sub" ref={ref} tabIndex={ref ? -1 : undefined}>
+      {children}
+    </h3>
+  );
 }
