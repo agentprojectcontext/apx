@@ -268,6 +268,8 @@
                       "**/TaskPeek.tsx",
                       "**/McpPeek.tsx",
                       "**/TasksScreen.tsx",
+                      "**/CarSection.tsx",
+                      "**/TripCard.tsx",
                       "**/TerminalPanel.tsx",
                       "**/TerminalView.tsx",
                       "**/ThreadDialogs.tsx",
@@ -280,6 +282,10 @@
                       "**/WidgetChat.tsx",
                       "**/WidgetPanel.tsx",
                       "**/Wizard.tsx",
+                      "**/CallCompanion.tsx",
+                      "**/CallVoiceTag.tsx",
+                      "**/LiveCallBar.tsx",
+                      "**/WakeListener.tsx",
                       "**/osNotices.ts"
                     ],
                     "message": "Loaded late: import it from apps/web/src/lazy.ts, never statically from the first screen (AGENTS.md rule 27)."

@@ -1,5 +1,6 @@
 // The office: tasks and commitments, routines and the attention tray (extensions: extensions.ts).
 import { z } from "zod";
+import { ErrandPlace } from "./car.ts";
 import { Id, RunState } from "./domain.ts";
 import { schemaFields } from "./schema-fields.ts";
 
@@ -45,6 +46,8 @@ export const Task = z.object(
     status: () => z.string(),
     state: () => TaskState,
     kind: () => TaskKind,
+    /** An errand: where it can be done (the kinds of shop, a brand, or one fixed place). */
+    place: () => ErrandPlace.optional(),
     priority: () => TaskPriority,
     tags: () => z.array(z.string()),
     /** The agent working on it. */

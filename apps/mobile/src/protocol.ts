@@ -39,6 +39,7 @@ export {
 } from "../../../packages/protocol/src/inline-ui.ts";
 export type { MailRoute, SentDraft } from "../../../packages/protocol/src/mail-methods.ts";
 export { noticeChannelChoice, noticeText } from "../../../packages/protocol/src/notices.ts";
+export { isRestartNotice, supersededRestarts } from "../../../packages/protocol/src/restart-notice.ts";
 export { type PlanStep, planSteps } from "../../../packages/protocol/src/task-plan.ts";
 
 /** The owner's answer to a pending input: a decision (with how long it lasts) or a text. */

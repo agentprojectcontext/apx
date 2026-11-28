@@ -72,7 +72,9 @@ test("accept all proposals requires confirmation and preserves the reviewed sele
 for (const language of ["en", "es"] as const) {
   test(`the ${language} task context menu accepts only its open proposal`, async ({ page }, info) => {
     const { project } = await rpc<{ project: { id: string } }>("projects.create", { name: `Accept one ${language}` });
-    const first = await rpc<Task>("tasks.create", { title: "Review the draft", project: project.id, propose: true });
+    // Other specs in the same world propose a task with this title too: each language keeps its own.
+    const name = `Review the draft (${language})`;
+    const first = await rpc<Task>("tasks.create", { title: name, project: project.id, propose: true });
     const second = await rpc<Task>("tasks.create", { title: "Check the figures", project: project.id, propose: true });
     await page.addInitScript(
       ({ language, project }) => {
@@ -85,7 +87,7 @@ for (const language of ["en", "es"] as const) {
       if (request.url().endsWith("/rpc/tasks.update")) writes.push(request.postData() ?? "");
     });
     await open(page, "#view=tasks");
-    const title = page.getByText("Review the draft", { exact: true });
+    const title = page.getByText(name, { exact: true });
     await title.click({ button: "right" });
     const accept = page.getByRole("menuitem", { name: language === "es" ? "Aceptar" : "Accept", exact: true });
     await expect(accept).toBeVisible();

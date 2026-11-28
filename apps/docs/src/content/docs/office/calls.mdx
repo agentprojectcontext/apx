@@ -102,6 +102,35 @@ each one runs on its own; you hear each answer as soon as it is ready, never ove
 To end, say goodbye ("chau", "bye", "I have to go"): the voice says goodbye back and hangs up. **Hang up** ends it at any
 time.
 
+## Wake by voice
+
+Say "ok" or "che" followed by your super-agent's name, and a short voice request opens with no hands, even with the
+phone locked or the app closed. The voice answers "¿Sí?", you ask, it answers in one short sentence and hangs up on its
+own, unless it needs to ask you something.
+
+- **On your Android phone.** In the APX app, open **Settings** and turn on **Despertar por voz**. It is per phone.
+  While it is on the phone listens in the background: a notification says so and Android shows the microphone in use.
+  The phone only picks out speech by loudness and sends short clips (under 3 seconds) to your computer, which transcribes
+  them with its own voice (APX's voice or whisper.cpp) and checks for the name. Nothing is kept.
+- **The panel on the screen.** When the name is heard, a small floating panel appears over whatever you are doing, or
+  over the lock screen, with a hang-up button. Expand it for a phone-call screen: your agent's picture at the top, waves
+  that follow its voice, and the hang-up button. The same screen opens when you call from the app's call button.
+- **On your computer (optional).** In **Settings › Voice and calls › Wake by voice**, choose the phrases (they are the
+  same for every device; empty means "ok", "che" or "hey" plus the name) and turn on **Listen on this computer** for
+  this computer only.
+- **Hang up by voice.** In any call, "cortá", "listo, nada más", "eso es todo", "hang up" or "that's all" ends it, and
+  the voice can end it itself. You can also hang up from the phone or, when the call is on the phone, from the live-call
+  bar in the panel.
+- **In the chat.** The call's chat shows it as a quick voice request and the phone it came from.
+
+The call's voice, model and services are the ones set on your computer: the phone only carries the audio.
+
+<Aside type="caution">
+To open over other apps, Android needs the **Display over other apps** permission for APX; the app asks when you turn
+the switch on. Some phones also stop background apps to save battery: if listening stops by itself, exclude APX from
+battery optimization in Android's settings.
+</Aside>
+
 ## Where calls go
 
 Each call is one chat in the **Calls** group of the Inbox, with what you said and what the voice answered. Each thing it

@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState } from "react-native";
+import type { ErrandPlace } from "../../../../packages/protocol/src/car.ts";
 import { APP_CLIENT } from "../appInfo";
 import { newChatThread, parseNewChat } from "../chat/newChat";
 import type { Creds } from "../creds";
@@ -82,6 +83,8 @@ export type Task = {
   status: string;
   state: string;
   kind: "task" | "commitment" | "errand";
+  /** An errand: where it can be done. */
+  place?: ErrandPlace;
   priority: string;
   assignee?: string;
   project_id?: string;
@@ -99,8 +102,9 @@ export type Task = {
   activity_at: string;
 };
 /** A new task as the owner fills it in. */
-export type NewTask = Omit<TaskPatch, "awaits_owner" | "project" | "assignee" | "due_at"> & {
+export type NewTask = Omit<TaskPatch, "awaits_owner" | "project" | "assignee" | "due_at" | "place"> & {
   title: string;
+  place?: ErrandPlace;
   project?: string;
   assignee?: string;
   due_at?: string;
@@ -252,6 +256,16 @@ export function useWorkspace(creds: Creds) {
   const [loading, setLoading] = useState(true);
   const [online, setOnline] = useState(false);
   const [error, setError] = useState("");
+  /** Pages that follow a core event of their own (car mode's trip). */
+  const listeners = useRef(new Set<(event: CoreEvent) => void>());
+  const listen = useCallback((cb: (event: CoreEvent) => void) => {
+    listeners.current.add(cb);
+    return () => void listeners.current.delete(cb);
+  }, []);
+  const call = useCallback(
+    (method: string, params: Record<string, unknown>) => rpc<unknown>(client, method, params),
+    [client],
+  );
 
   const loadPrimary = useCallback(async () => {
     try {
@@ -317,6 +331,7 @@ export function useWorkspace(creds: Creds) {
         socket.onEvent((frame) => {
           if (stopped || frame.stream !== "core") return;
           const event = frame.payload as CoreEvent;
+          for (const listener of listeners.current) listener(event);
           if (event.type === "storage.changed") {
             void rpc<Workspace["disk"]>(client, "storage.status", {})
               .then((disk) => setData((current) => ({ ...current, disk })))
@@ -657,6 +672,20 @@ export function useWorkspace(creds: Creds) {
     [client],
   );
 
+  /** APX's voice on the computer: whether calls can run, and the phrases that wake it by name. */
+  const voiceStatus = useCallback(
+    async () =>
+      Promise.all([
+        rpc<{ wake_words: string[] }>(client, "voice.status", {}),
+        rpc<{ ready: boolean }>(client, "calls.status", {}),
+      ]).then(([v, c]) => ({ wake_words: v.wake_words ?? [], ready: c.ready })),
+    [client],
+  );
+  const setWakeWords = useCallback(
+    async (words: string[]) => rpc<{ wake_words: string[] }>(client, "voice.set", { wake_words: words }),
+    [client],
+  );
+
   /** A new session to open: checked here, made in the core with its first message (see chat/newChat.ts). */
   const newSession = useCallback(
     (engineId: string, projectId: string): Thread => {
@@ -724,6 +753,8 @@ export function useWorkspace(creds: Creds) {
     online,
     error,
     client,
+    call,
+    listen,
     refresh,
     refreshInputs: loadSecondary,
     openThread,
@@ -750,6 +781,8 @@ export function useWorkspace(creds: Creds) {
     removeMemory,
     noticePrefs,
     setNoticePrefs,
+    voiceStatus,
+    setWakeWords,
     serverInfo,
     fileTree,
     readFile,

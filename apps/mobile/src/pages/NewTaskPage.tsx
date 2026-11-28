@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Alert, TextInput, View } from "react-native";
+import { placeForm, placeFromForm } from "../car/model";
 import type { NewTask, Task, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
+import { ErrandPlaceFields } from "../tasks/ErrandPlaceFields";
 import { applyPatch, type TaskPatch, type TaskValues } from "../tasks/fields";
 import { TaskFields } from "../tasks/TaskFields";
 import { momentOf } from "../tasks/when";
@@ -30,12 +32,14 @@ export function NewTaskPage({
     kind: "task",
     priority: "normal",
   });
+  const [place, setPlace] = useState(() => placeForm(undefined));
   const [busy, setBusy] = useState(false);
   const change = (patch: TaskPatch) => setValues((v) => applyPatch(v, patch));
   const submit = () => {
     const name = title.trim();
     if (!name) return;
     setBusy(true);
+    const errandPlace = values.kind === "errand" ? placeFromForm(place) : null;
     create({
       title: name,
       description: description.trim() || undefined,
@@ -45,6 +49,7 @@ export function NewTaskPage({
       project: values.project,
       assignee: values.assignee,
       due_at: values.due ? momentOf(values.due).toISOString() : undefined,
+      ...(errandPlace ? { place: errandPlace } : {}),
     })
       .then(created)
       .catch((error) => {
@@ -85,6 +90,7 @@ export function NewTaskPage({
           />
         </Card>
         <TaskFields data={data} value={values} onChange={change} />
+        {values.kind === "errand" ? <ErrandPlaceFields value={place} onChange={setPlace} /> : null}
       </Screen>
     </View>
   );

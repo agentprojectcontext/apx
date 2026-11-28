@@ -6,6 +6,10 @@ import { Id, ModelRef } from "./domain.ts";
 import { schemaFields } from "./schema-fields.ts";
 
 export const CallVoice = z.enum(["female", "male"]);
+
+/** `call`: a conversation; `quick`: one request said by name, hands-free, answered in a few words, then it hangs up. */
+export const CallMode = z.enum(["call", "quick"]);
+export type CallMode = z.infer<typeof CallMode>;
 export type CallVoice = z.infer<typeof CallVoice>;
 
 /** The accents APX's own voice speaks: Argentine Spanish, neutral Spanish, American English. */
@@ -79,6 +83,8 @@ export const VoiceStatus = z.object(
     call_engine: () => z.enum(["native", "services"]).optional(),
     call_speech: () => Id.optional(),
     call_transcription: () => Id.optional(),
+    /** What wakes the voice by name on a phone or computer that listens for it ("ok Roby", "che Roby"). */
+    wake_words: () => z.array(z.string()),
     /** What this Mac's voice is made of and where it is kept (absent where it cannot run). */
     models: () =>
       z
@@ -117,6 +123,10 @@ export const CallStatus = z.object(
       z.enum(["platform", "memory", "uv", "off", "model", "disabled", "speech", "transcription"]).optional(),
     /** The call going on now, if any. */
     live: () => Id.optional(),
+    /** The paired device the call going on talks through (absent: this computer's panel). */
+    live_device: () => z.string().optional(),
+    /** `quick`: the call going on is a request said by name, hands-free; it hangs up once answered. */
+    live_mode: () => CallMode.optional(),
     /** The voice a call starts with. */
     voice: () => NativeVoice.optional(),
   }),
@@ -160,6 +170,8 @@ export const callMethods = {
           call_engine: z.enum(["native", "services"]).optional(),
           call_speech: Id.nullable().optional(),
           call_transcription: Id.nullable().optional(),
+          /** Empty goes back to the usual ones. */
+          wake_words: z.array(z.string().trim().min(2).max(60)).max(12).optional(),
         })
         .strict(),
     result: () => VoiceStatus,
@@ -186,6 +198,7 @@ export const callMethods = {
           locale: VoiceLocale.optional(),
           /** Calling again from a call's chat goes on in that thread. */
           thread: Id.optional(),
+          mode: CallMode.optional(),
         })
         .strict(),
     result: () =>
@@ -197,6 +210,26 @@ export const callMethods = {
     effect: true,
     access: "human",
     replay: false,
+  }),
+  /**
+   * A short clip a listening phone or computer heard (16 kHz mono WAV, under 3 s): whether it is the voice's name
+   * ("ok Roby"). Transcribed on this machine; nothing is kept.
+   */
+  "voice.wake": deferMethod({
+    params: () =>
+      z
+        .object({
+          data: z.string().max(400_000),
+          mime: z.string().max(100),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        awake: z.boolean(),
+        text: z.string(),
+      }),
+    effect: false,
+    access: "human",
   }),
   /** The call card is open: the voice starts loading what a call needs, so the call begins without a wait. */
   "calls.prepare": deferMethod({

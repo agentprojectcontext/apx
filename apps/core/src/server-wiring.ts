@@ -48,6 +48,7 @@ import { autoDecisionHandlers } from "./rpc/auto-decisions.ts";
 import { bookingHandlers } from "./rpc/bookings.ts";
 import { browserHandlers, type OwnersChrome } from "./rpc/browser.ts";
 import { callHandlers } from "./rpc/calls.ts";
+import { carHandlers } from "./rpc/car.ts";
 import { channelHandlers } from "./rpc/channels.ts";
 import { clientHandlers } from "./rpc/clients.ts";
 import { composerHandlers } from "./rpc/composer.ts";
@@ -364,6 +365,7 @@ type HandlerDeps = {
   storage: Parameters<typeof storageHandlers>[0];
   activityReview: Parameters<typeof activityReviewHandlers>[0];
   discovery: Parameters<typeof discoveryHandlers>[0];
+  car: Parameters<typeof carHandlers>[0];
 };
 
 /** The handler table the router serves: one entry per protocol method. */
@@ -402,6 +404,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...activityReviewHandlers(d.activityReview),
     ...autoDecisionHandlers(d.store),
     ...discoveryHandlers(d.discovery),
+    ...carHandlers(d.car),
     ...systemHandlers(d.identity, d.app.home, d.panel, () => ({
       protocol: { status: "ok" },
       browser: d.broker.withCap(BROWSER_CAP)

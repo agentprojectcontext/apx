@@ -14,6 +14,8 @@ import { Button, Chip, IconTile, ListGroup, ListRow, OwnerAvatar, Screen, SubHea
 import { NoticePreferences } from "../ui/NoticePreferences";
 import { NotificationCard } from "../ui/NotificationCard";
 import { makeStyles, useTheme } from "../ui/theme";
+import { VoiceSettings } from "../ui/VoiceSettings";
+import { boss } from "../voice";
 
 const SOUND_MODES: Array<[NoticeSound, "soundAll" | "soundMessages" | "soundRequests" | "soundOff"]> = [
   ["all", "soundAll"],
@@ -36,6 +38,9 @@ export function SettingsPage({
   disconnect,
   load,
   save,
+  openCar,
+  voice,
+  saveWakeWords,
 }: {
   creds: Creds;
   data: Workspace;
@@ -44,6 +49,10 @@ export function SettingsPage({
   disconnect: () => void;
   load: () => Promise<NoticePrefs>;
   save: (prefs: NoticePrefs) => Promise<NoticePrefs>;
+  /** Car mode's page (errands on the way). */
+  openCar?: () => void;
+  voice?: () => Promise<{ wake_words: string[]; ready: boolean }>;
+  saveWakeWords?: (words: string[]) => Promise<{ wake_words: string[] }>;
 }) {
   const type = useType();
   const theme = useTheme();
@@ -98,12 +107,20 @@ export function SettingsPage({
         {prefs ? (
           <NoticePreferences prefs={prefs} change={change} data={data} status={notifications.status.state} />
         ) : null}
+        {voice && saveWakeWords ? (
+          <VoiceSettings name={boss(data.agents)?.name ?? "APX"} load={voice} saveWords={saveWakeWords} />
+        ) : null}
         <Text style={s.label}>{t("setLook")}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>
           {LOOKS.map(([pref, label]) => (
             <Chip key={pref} label={t(label)} selected={look === pref} onPress={() => pickLook(pref)} />
           ))}
         </ScrollView>
+        {openCar ? (
+          <ListGroup>
+            <ListRow label={t("carMode")} sub={t("carModeSub")} leading={<IconTile icon="Car" />} onPress={openCar} />
+          </ListGroup>
+        ) : null}
         <Text style={s.label}>{t("setConnection")}</Text>
         <ListGroup>
           <ListRow

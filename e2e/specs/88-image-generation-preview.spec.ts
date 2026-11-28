@@ -115,8 +115,13 @@ for (const language of ["es", "en"] as const) {
       for (const scenario of ["one", "two", "portrait", "media-error", "failure", "cancel"]) {
         await page.emulateMedia({ reducedMotion: scenario === "two" ? "reduce" : "no-preference" });
         if (scenario === "two") await page.setViewportSize({ width: 390, height: 844 });
-        await input.fill(scenario);
-        await page.getByRole("button", { name: language === "es" ? "Enviar" : "Send", exact: true }).click();
+        // At phone width the composer lays out again: fill until the text sticks and Send turns on.
+        const send = page.getByRole("button", { name: language === "es" ? "Enviar" : "Send", exact: true });
+        await expect(async () => {
+          await input.fill(scenario);
+          await expect(send).toBeEnabled({ timeout: 1000 });
+        }).toPass({ timeout: 10_000 });
+        await send.click();
         await expect(preview).toBeVisible();
         await expect(preview.locator("i")).toHaveCount(25);
         await expect(preview.locator("svg")).toBeVisible();

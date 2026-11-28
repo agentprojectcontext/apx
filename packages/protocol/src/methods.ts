@@ -10,6 +10,7 @@ import { asanaMethods } from "./asana-methods.ts";
 import { autoDecisionMethods } from "./auto-decisions.ts";
 import { browserMethods } from "./browser.ts";
 import { callMethods } from "./call-methods.ts";
+import { carMethods } from "./car.ts";
 import { channelMethods } from "./channel-methods.ts";
 import { contactSourceMethods } from "./contact-sources.ts";
 import { continuationMethods } from "./continuations.ts";
@@ -156,6 +157,7 @@ export const methods = {
   ...activityReviewMethods,
   ...autoDecisionMethods,
   ...discoveryMethods,
+  ...carMethods,
   ...agentMigrationMethods,
   ...instanceMethods,
   ...engineUsageMethods,

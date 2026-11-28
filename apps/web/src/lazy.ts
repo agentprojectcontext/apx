@@ -83,6 +83,13 @@ export const DiscoverySection = lazy(
     import("./config/DiscoverySection.tsx").then((m) => ({ default: m.DiscoverySection })),
   ),
 );
+export const CarSection = lazy(
+  withPacks(["car"], () => import("./car/CarSection.tsx").then((m) => ({ default: m.CarSection }))),
+);
+// The trip card over the tasks list: loaded with the car's strings, only once a list is shown.
+export const CarTripCard = lazy(
+  withPacks(["car"], () => import("./car/TripCard.tsx").then((m) => ({ default: m.CarTripCard }))),
+);
 export const ConfigModal = lazy(
   withPacks(["team", "cloudAccount", "publicCopies", "telemetrySettings"], () =>
     import("./config/ConfigModal.tsx").then((m) => ({ default: m.ConfigModal })),
@@ -158,6 +165,14 @@ export const CallButton = lazy(() => import("./shell/CallButton.tsx").then((m) =
 export const CallAgain = lazy(() => import("./shell/CallButton.tsx").then((m) => ({ default: m.CallAgain })));
 export const CallCard = lazy(
   withPacks(["call"], () => import("./call/CallCard.tsx").then((m) => ({ default: m.CallCard }))),
+);
+// A call going on on the phone or in another window, with its hang up; or, where the owner turned it on, this computer
+// listening for the voice's name. A call's header says when it came by voice.
+export const CallCompanion = lazy(
+  withPacks(["call"], () => import("./call/CallCompanion.tsx").then((m) => ({ default: m.CallCompanion }))),
+);
+export const CallVoiceTag = lazy(
+  withPacks(["call"], () => import("./call/CallVoiceTag.tsx").then((m) => ({ default: m.CallVoiceTag }))),
 );
 export const SubthreadPart = lazy(() =>
   import("./chat/parts/SubthreadPart.tsx").then((m) => ({ default: m.SubthreadPart })),

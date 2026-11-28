@@ -41,6 +41,8 @@ export type PushTarget = z.infer<typeof PushTarget>;
 /** What a phone lends the core as a node: where it is, and its camera (the owner takes the picture). */
 export const PHONE_LOCATION_CAP = "location";
 export const PHONE_CAMERA_CAP = "camera";
+/** All a paired phone may lend: a phone node asking for more is refused (D-284). */
+export const PHONE_CAPS: readonly string[] = [PHONE_LOCATION_CAP, PHONE_CAMERA_CAP];
 /**
  * What the desktop lends when the owner turned computer use on there: looking at the screen and acting on the window
  * in front. Off unless the owner opts in on that computer.

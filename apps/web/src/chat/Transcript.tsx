@@ -1,5 +1,6 @@
 import type { Message as Msg, Thread } from "@apx/protocol";
 import { receivedMail } from "@apx/protocol/email-block";
+import { supersededRestarts } from "@apx/protocol/restart-notice";
 import {
   ActivityPill,
   AgentAvatar,
@@ -109,6 +110,7 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
 
   const planAt = useMemo(() => latestPlan(messages), [messages]);
   const answered = useMemo(() => answerCards(messages), [messages]);
+  const restarted = useMemo(() => supersededRestarts(messages), [messages]);
   const working = isWorking(thread.state);
   const reactionsOf = (m: Msg) =>
     m.reactions?.length ? <ReactionList list={m.reactions} agentName={agent?.name ?? ""} /> : undefined;
@@ -228,6 +230,7 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
                     showTools={showTools}
                     showSkills={false}
                     showPlan={msg.id === planAt}
+                    hideRestart={restarted.has(msg.id)}
                   />
                 </AgentEvent>
               </Suspense>
@@ -241,6 +244,7 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
                 showTools={showTools}
                 showSkills={!comments}
                 showPlan={msg.id === planAt}
+                hideRestart={restarted.has(msg.id)}
                 // Only the engine's answers are its own: the task its caller sent is the caller's words.
                 engine={msg.run_id ? engine : undefined}
                 actions={<Regenerate thread={thread} message={msg} messages={messages} />}

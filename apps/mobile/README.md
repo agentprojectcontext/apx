@@ -25,6 +25,9 @@ While paired it also:
 - **Registers for push** with its Expo push token, when the build has an EAS project id (`APX_EAS_PROJECT_ID`, see
   [Push](#push)). Without one, the owner gives the phone an ntfy address in the panel. Then pick the phone in
   Config › Interruptions › Where notices go: the same budget decides what reaches it.
+- **Wakes by voice** (Settings › Despertar por voz, per phone, Android): listens in the background by loudness,
+  sends short clips to the core, which transcribes them and checks for the agent's name; then a quick voice request
+  opens in a floating panel (needs "display over other apps"). Nothing is kept.
 
 A core on a VPS or reached through Tailscale: choose Tailscale in Settings › Connections › Devices, or run
 `apx expose tailscale` on that server and restart the core. Tailscale Serve forwards the tailnet's HTTPS address to
@@ -111,6 +114,23 @@ Owner steps, once:
 5. The next tag builds an APK that registers for push; Settings on the phone says "Push service registered".
 
 Set both or neither: a project id without the Firebase file makes Android refuse the token (Settings shows the error).
+
+## Car mode (Android)
+
+Errands on the way ([design](../../rules/ERRANDS_ON_THE_WAY.md)) has a native side in `modules/apx-car`, an Expo
+local module that autolinking picks up from `./modules`; `plugins/with-car-mode.js` declares its services, receiver
+and permissions in the manifest. The JS app only hands it the core's address, this phone's key and whether car mode
+is on (`src/car/native.ts`); the native side calls the core's `car.*` methods over `/rpc` itself, so it works with the
+app closed. Its pure parts (Android Auto and Maps detection, spoken replies) have JVM tests:
+
+```bash
+npx expo prebuild --platform android --no-install
+(cd android && ./gradlew :apx-car:testDebugUnitTest)
+```
+
+On a car, a sideloaded APK's car app shows only with Android Auto's developer setting *Unknown sources* on. Without a
+car: Android Auto › developer settings › Start head unit server, then
+`adb forward tcp:5277 tcp:5277` and run the Desktop Head Unit (`$ANDROID_HOME/extras/google/auto/desktop-head-unit`).
 
 ## Release build
 

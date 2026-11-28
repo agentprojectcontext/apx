@@ -40,6 +40,10 @@ const PACKS = {
     en: () => import("./account-en.ts").then((m) => m.enAccount),
     es: () => import("./account-es.ts").then((m) => m.esAccount),
   },
+  car: {
+    en: () => import("./car-en.ts").then((m) => m.enCar),
+    es: () => import("./car-es.ts").then((m) => m.esCar),
+  },
   activityReview: {
     en: () => import("./activity-review-en.ts").then((m) => m.enActivityReview),
     es: () => import("./activity-review-es.ts").then((m) => m.esActivityReview),

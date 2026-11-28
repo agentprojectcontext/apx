@@ -82,6 +82,78 @@ export interface AuxCallsTable {
   cached: Generated<number>;
 }
 
+export interface CarAlertsTable {
+  id: string;
+  trip_id: string;
+  task_id: string;
+  errand: string;
+  place_key: string;
+  place: string;
+  distance_m: number;
+  at: string;
+  answer: string | null;
+  answered_at: string | null;
+  delivered_at: string | null;
+}
+
+export interface CarHoldsTable {
+  trip_id: string;
+  task_id: string;
+  kind: string;
+  place_key: string | null;
+  until_at: string | null;
+  until_lat: number | null;
+  until_lon: number | null;
+  at: string;
+}
+
+export interface CarPlacePrefsTable {
+  key: string;
+  name: string;
+  lat: number;
+  lon: number;
+  categories: Generated<string>;
+  accepted: Generated<number>;
+  declined: Generated<number>;
+  done: Generated<number>;
+  choice: string | null;
+  last_at: string;
+  source: string;
+}
+
+export interface CarPlaceTilesTable {
+  key: string;
+  fetched_at: string;
+}
+
+export interface CarPlacesTable {
+  key: string;
+  tile: string;
+  name: string;
+  lat: number;
+  lon: number;
+  categories: Generated<string>;
+  brand: string | null;
+  address: string | null;
+  opening_hours: string | null;
+}
+
+export interface CarTripsTable {
+  id: string;
+  device_id: string | null;
+  source: string;
+  started_at: string;
+  ended_at: string | null;
+  destination: string | null;
+  lat: number | null;
+  lon: number | null;
+  speed_mps: number | null;
+  heading_deg: number | null;
+  position_at: string | null;
+  silenced: Generated<number>;
+  last_alert_at: string | null;
+}
+
 export interface ChannelHeldTable {
   thread_id: string;
   channel: string;
@@ -793,6 +865,7 @@ export interface TasksTable {
   proposed: Generated<number>;
   goal: string | null;
   asked: string | null;
+  place: string | null;
 }
 
 export interface ThreadsTable {
@@ -855,6 +928,12 @@ export interface Database {
   api_clients: ApiClientsTable;
   auto_decisions: AutoDecisionsTable;
   aux_calls: AuxCallsTable;
+  car_alerts: CarAlertsTable;
+  car_holds: CarHoldsTable;
+  car_place_prefs: CarPlacePrefsTable;
+  car_place_tiles: CarPlaceTilesTable;
+  car_places: CarPlacesTable;
+  car_trips: CarTripsTable;
   channel_held: ChannelHeldTable;
   channel_inbox: ChannelInboxTable;
   chat_continuations: ChatContinuationsTable;

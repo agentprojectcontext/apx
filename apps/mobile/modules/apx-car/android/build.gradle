@@ -1,0 +1,24 @@
+// Car mode's native side (rules/ERRANDS_ON_THE_WAY.md): trip detection, the trip's location service and the APX car app.
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'dev.apx.car'
+version = '0.1.0'
+
+android {
+  namespace "dev.apx.car"
+  defaultConfig {
+    versionCode 1
+    versionName '0.1.0'
+  }
+}
+
+dependencies {
+  // The Car App Library draws the car screens; app-projected is the Android Auto (phone-projected) host side.
+  implementation "androidx.car.app:app:1.4.0"
+  implementation "androidx.car.app:app-projected:1.4.0"
+  implementation "androidx.core:core-ktx:1.17.0"
+  testImplementation "junit:junit:4.13.2"
+}

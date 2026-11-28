@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { hasNativeVoice } from "../modules/apx-voice";
 import { draftOf, keepDraft } from "./chat/drafts";
 import { latestPlan } from "./chat/media";
 import { type CatalogEngine, choiceLabel, type ModelChoice } from "./chat/models";
@@ -25,7 +26,7 @@ import { continueSession, sessionState } from "./hooks/continueSession";
 import { useThread } from "./hooks/useThread";
 import type { Thread, Workspace } from "./hooks/useWorkspace";
 import { t } from "./i18n";
-import type { Message, RoutineRun } from "./protocol";
+import { type Message, type RoutineRun, supersededRestarts } from "./protocol";
 import { BrowserConsents } from "./ui/BrowserConsents";
 import { ChatComposer } from "./ui/ChatComposer";
 import { ChatMenu } from "./ui/ChatMenu";
@@ -40,6 +41,7 @@ import { ModelSheet } from "./ui/ModelSheet";
 import { MediaClient } from "./ui/media/context";
 import { PersonAvatar } from "./ui/PersonAvatar";
 import { makeStyles, useTheme } from "./ui/theme";
+import { callAgent } from "./voice";
 
 export function ChatScreen({
   creds,
@@ -127,6 +129,7 @@ export function ChatScreen({
   const rows = useMemo(() => withDays(outOfLine(live.messages)).reverse(), [live.messages]);
   const queue = useMemo(() => ({ actions: live.waiting }), [live.waiting]);
   const planAt = useMemo(() => latestPlan(live.messages), [live.messages]);
+  const restarted = useMemo(() => supersededRestarts(live.messages), [live.messages]);
   const mailChannels = useMemo(
     () => new Set(data.channels.filter((c) => c.type === "email").map((c) => c.id)),
     [data.channels],
@@ -258,6 +261,16 @@ export function ChatScreen({
             </View>
           </View>
         </Pressable>
+        {hasNativeVoice && agent && !engine && !contact && !routineId ? (
+          <IconButton
+            icon="Phone"
+            label={t("voiceCall", { name })}
+            size={17}
+            color={theme.fgMuted}
+            style={s.headerButton}
+            onPress={() => void callAgent(agent.id, thread.kind === "call" ? thread.id : undefined)}
+          />
+        ) : null}
         {routineId ? (
           <IconButton
             icon="History"
@@ -348,6 +361,7 @@ export function ChatScreen({
                     channels={data.channels}
                     queue={queue}
                     showPlan={item.message.id === planAt}
+                    restartSuperseded={restarted.has(item.message.id)}
                   />
                 </View>
               )

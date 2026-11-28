@@ -7,16 +7,19 @@ const DOWN_RATE = 24_000;
 /** Lead before the first queued chunk plays, so the next one arrives before this one ends. */
 const LEAD_S = 0.05;
 
-// Averages the input over each 16 kHz sample's span and posts ~100 ms of PCM16 at a time.
-const WORKLET = `
-class ApxCallUp extends AudioWorkletProcessor {
+/**
+ * A worklet named `name` that averages the input over each 16 kHz sample's span and posts `samples` of PCM16 at a time
+ * (the call sends ~100 ms; the wake listener reads 20 ms frames).
+ */
+export const upWorklet = (name: string, samples: number): string => `
+class Up extends AudioWorkletProcessor {
   constructor() {
     super();
     this.ratio = sampleRate / ${UP_RATE};
     this.t = 0;
     this.acc = 0;
     this.n = 0;
-    this.out = new Int16Array(${UP_RATE / 10});
+    this.out = new Int16Array(${samples});
     this.at = 0;
   }
   process(inputs) {
@@ -34,15 +37,17 @@ class ApxCallUp extends AudioWorkletProcessor {
       this.out[this.at++] = v < 0 ? v * 0x8000 : v * 0x7fff;
       if (this.at === this.out.length) {
         this.port.postMessage(this.out.buffer, [this.out.buffer]);
-        this.out = new Int16Array(${UP_RATE / 10});
+        this.out = new Int16Array(${samples});
         this.at = 0;
       }
     }
     return true;
   }
 }
-registerProcessor("apx-call-up", ApxCallUp);
+registerProcessor(${JSON.stringify(name)}, Up);
 `;
+
+const WORKLET = upWorklet("apx-call-up", UP_RATE / 10);
 
 export type LineEvents = {
   frame(f: CallFrame): void;

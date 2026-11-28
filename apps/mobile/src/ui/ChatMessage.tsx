@@ -8,7 +8,7 @@ import { clock } from "../format";
 import { engineName } from "../hooks/chatSelectors";
 import type { Agent } from "../hooks/useWorkspace";
 import { t } from "../i18n";
-import { type ApxClient, type Message, receivedMail } from "../protocol";
+import { type ApxClient, isRestartNotice, type Message, receivedMail } from "../protocol";
 import { ActionGroup } from "./ActionGroup";
 import { AgentEventCard } from "./chat/AgentEventCard";
 import { BrowserCard } from "./chat/BrowserCard";
@@ -74,6 +74,7 @@ export function ChatMessage({
   channels = [],
   queue,
   showPlan = true,
+  restartSuperseded = false,
 }: {
   message: Message;
   agents: Agent[];
@@ -98,6 +99,8 @@ export function ChatMessage({
   mailChannels?: ReadonlySet<string>;
   /** Whether its plan shows: only the chat's newest one does. */
   showPlan?: boolean;
+  /** A later message says the restart again: its line replaces this one. */
+  restartSuperseded?: boolean;
   /** The office's chat apps: a message that came in or went out on one says so. */
   channels?: ReadonlyArray<{ id: string; type: string; label: string }>;
   /** What the owner can do with their own message while it waits; `line` when it waits in line for the next turn. */
@@ -142,6 +145,13 @@ export function ChatMessage({
           row.part.type === "subthread" ||
           (row.part.type === "input" && row.part.state !== "pending")),
     );
+  // What only says a restart cut the turn is the system's line: no name under it.
+  const restartOnly =
+    author.kind === "agent" &&
+    !event &&
+    tools.length === 0 &&
+    rows.length > 0 &&
+    rows.every((row) => row.kind === "part" && isRestartNotice(row.part));
   const skills = event ? undefined : message.parts.find((part) => part.type === "skills");
   const [open, setOpen] = useState<Open>();
   // A copy is the message's words as they read: the owner's as typed, an agent's without the markdown marks.
@@ -204,7 +214,7 @@ export function ChatMessage({
       case "input":
         return <InputCard key={key} part={part} respond={respond} />;
       case "notice":
-        if (folded.later.has(part)) return null;
+        if (folded.later.has(part) || (restartSuperseded && isRestartNotice(part))) return null;
         return (
           <NoticeCard
             key={key}
@@ -273,6 +283,7 @@ export function ChatMessage({
   const fellBack = message.parts.some((part) => part.type === "notice" && part.code === "engine.fallback");
   const via = viaOf(message, thread?.channel?.id, channels);
   const viaMark = via ? <ViaMark via={via} /> : null;
+  if (restartOnly && restartSuperseded) return null;
   return (
     <MailContext.Provider value={mailContext}>
       <View testID="chat-message" style={[s.wrap, activityOnly && s.activityWrap, mine ? s.mineWrap : s.theirsWrap]}>
@@ -305,7 +316,7 @@ export function ChatMessage({
               {taken ? <TakenMark /> : null}
             </View>
           </>
-        ) : hasText || message.model || message.delivery || via ? (
+        ) : !restartOnly && (hasText || message.model || message.delivery || via) ? (
           <View style={[s.metaRow, { marginLeft: author.kind === "person" ? 40 : 6 }]}>
             <Text numberOfLines={1} style={[s.meta, { flexShrink: 1 }]}>
               {[name, message.model, fellBack ? t("modelFallback") : undefined, clock(message.created_at)]

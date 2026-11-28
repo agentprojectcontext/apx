@@ -6,6 +6,7 @@ import { useTaskDetail } from "../hooks/useTaskDetail";
 import type { Task, Workspace } from "../hooks/useWorkspace";
 import { type Key, t } from "../i18n";
 import { planSteps, type TaskEvent } from "../protocol";
+import { ErrandPlaceEditor } from "../tasks/ErrandPlaceFields";
 import { columnName, KIND_KEY, PRIORITY_KEY, type TaskPatch, type TaskPriority, taskValues } from "../tasks/fields";
 import { type HistoryLine, historyLines } from "../tasks/history";
 import { TaskAsked } from "../tasks/TaskAsked";
@@ -191,6 +192,13 @@ export function TaskDetailPage({
         <Description key={`description-${task.id}`} task={task} save={(description) => update({ description })} />
         {task.plan?.trim() ? <Plan plan={task.plan} /> : null}
         <TaskFields data={data} value={taskValues(task)} onChange={update} closed={open ? undefined : task.state} />
+        {task.kind === "errand" ? (
+          <ErrandPlaceEditor
+            key={`place-${task.id}-${JSON.stringify(task.place ?? null)}`}
+            place={task.place}
+            save={(place) => update({ place })}
+          />
+        ) : null}
         <ListGroup>
           <ListRow
             label={t("tkWork")}

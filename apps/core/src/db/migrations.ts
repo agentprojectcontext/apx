@@ -1440,4 +1440,79 @@ export const MIGRATIONS: readonly string[] = [
   CREATE INDEX auto_decisions_at ON auto_decisions(at);
   CREATE INDEX auto_decisions_thread ON auto_decisions(thread_id);
   `,
+  `
+  -- Errands on the way (DECISIONS.md#d-286): an errand's place, the phone's trips (last point only), the offers made in
+  -- each and what the owner held, OpenStreetMap places cached by tile, and the owner's answers counted per place.
+  ALTER TABLE tasks ADD COLUMN place TEXT;
+  CREATE TABLE car_trips (
+    id TEXT PRIMARY KEY,
+    device_id TEXT,
+    source TEXT NOT NULL CHECK(source IN ('android_auto', 'maps', 'manual')),
+    started_at TEXT NOT NULL,
+    ended_at TEXT,
+    destination TEXT,
+    lat REAL,
+    lon REAL,
+    speed_mps REAL,
+    heading_deg REAL,
+    position_at TEXT,
+    silenced INTEGER NOT NULL DEFAULT 0,
+    last_alert_at TEXT
+  );
+  CREATE INDEX car_trips_open ON car_trips(ended_at, started_at);
+  CREATE TABLE car_alerts (
+    id TEXT PRIMARY KEY,
+    trip_id TEXT NOT NULL,
+    task_id TEXT NOT NULL,
+    errand TEXT NOT NULL,
+    place_key TEXT NOT NULL,
+    place TEXT NOT NULL,
+    distance_m INTEGER NOT NULL,
+    at TEXT NOT NULL,
+    answer TEXT CHECK(answer IN ('navigate', 'add_stop', 'next', 'later', 'skip', 'silence', 'done')),
+    answered_at TEXT,
+    delivered_at TEXT
+  );
+  CREATE INDEX car_alerts_trip ON car_alerts(trip_id, task_id);
+  CREATE TABLE car_holds (
+    trip_id TEXT NOT NULL,
+    task_id TEXT NOT NULL,
+    kind TEXT NOT NULL CHECK(kind IN ('skip', 'later', 'lock', 'declined_place')),
+    place_key TEXT,
+    until_at TEXT,
+    until_lat REAL,
+    until_lon REAL,
+    at TEXT NOT NULL
+  );
+  CREATE INDEX car_holds_trip ON car_holds(trip_id, task_id);
+  CREATE TABLE car_place_tiles (
+    key TEXT PRIMARY KEY,
+    fetched_at TEXT NOT NULL
+  );
+  CREATE TABLE car_places (
+    key TEXT PRIMARY KEY,
+    tile TEXT NOT NULL,
+    name TEXT NOT NULL,
+    lat REAL NOT NULL,
+    lon REAL NOT NULL,
+    categories TEXT NOT NULL DEFAULT '[]',
+    brand TEXT,
+    address TEXT,
+    opening_hours TEXT
+  );
+  CREATE INDEX car_places_tile ON car_places(tile);
+  CREATE TABLE car_place_prefs (
+    key TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    lat REAL NOT NULL,
+    lon REAL NOT NULL,
+    categories TEXT NOT NULL DEFAULT '[]',
+    accepted INTEGER NOT NULL DEFAULT 0,
+    declined INTEGER NOT NULL DEFAULT 0,
+    done INTEGER NOT NULL DEFAULT 0,
+    choice TEXT CHECK(choice IN ('prefer', 'avoid')),
+    last_at TEXT NOT NULL,
+    source TEXT NOT NULL CHECK(source IN ('osm', 'google', 'pinned'))
+  );
+  `,
 ];

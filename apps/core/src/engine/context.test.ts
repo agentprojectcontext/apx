@@ -447,3 +447,9 @@ test("every agent is told its reach for the owner, and a role picks a delegate, 
     /You are a specialist agent: take the work you are given to its end/,
   );
 });
+
+test("while the owner drives, the turn says so; otherwise nothing is added", () => {
+  const base = { origin: { kind: "user" as const }, text: "¿Qué tengo hoy?", now: new Date(0) };
+  assert.match(turnInput({ ...base, driving: true }), /\[driving\] The owner is driving/);
+  assert.doesNotMatch(turnInput(base), /\[driving\]/);
+});

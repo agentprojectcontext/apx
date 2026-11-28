@@ -1,5 +1,6 @@
 import type { Part } from "@apx/protocol";
 import { plainNotice } from "@apx/protocol/notices";
+import { isRestartNotice } from "@apx/protocol/restart-notice";
 import { ActionGroup, Button, Icons } from "@apx/ui";
 import { Suspense } from "react";
 import { isKey, type MessageKey, usePack, useT } from "../../i18n/index.ts";
@@ -92,12 +93,20 @@ export function NoticePart({ part, parts }: { part: NoticeData; parts?: readonly
           ))}
       </div>
     );
-  const Icon =
-    part.level === "warn" ? Icons.TriangleAlert : part.code === "thread.compacted" ? Icons.Archive : Icons.Info;
+  // A restart cutting a turn is a plain line of the system's (like a summarized chat), not a warning.
+  const restart = isRestartNotice(part);
+  const level = restart ? "info" : part.level;
+  const Icon = restart
+    ? Icons.RotateCcw
+    : part.level === "warn"
+      ? Icons.TriangleAlert
+      : part.code === "thread.compacted"
+        ? Icons.Archive
+        : Icons.Info;
   const titleKey = `notice.${part.code}.title`;
   if (!isKey(titleKey) && !part.detail)
     return (
-      <div className={`noticeline is-${part.level}`} role="status">
+      <div className={`noticeline is-${level}`} role="status">
         <Icon size={14} />
         <span className="noticeline__text">{text}</span>
         {link}
@@ -106,7 +115,7 @@ export function NoticePart({ part, parts }: { part: NoticeData; parts?: readonly
   const to = part.vars?.to;
   return (
     <ActionGroup
-      className={`turn__tools turn__notice is-${part.level}`}
+      className={`turn__tools turn__notice is-${level}`}
       icon={<Icon size={14} />}
       title={
         <>

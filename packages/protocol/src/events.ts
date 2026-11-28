@@ -1,6 +1,7 @@
 // What the core pushes to connected clients.
 import { z } from "zod";
 import { TabInfo } from "./browser.ts";
+import { CarAlert } from "./car.ts";
 import { Id, Job, Message, Part, Run, SurfaceState, SurfaceSummary, Thread } from "./domain.ts";
 import { Notification, Task } from "./office.ts";
 import { schemaFields } from "./schema-fields.ts";
@@ -187,6 +188,13 @@ export const CoreEvent = z.discriminatedUnion("type", [
   z.object(
     schemaFields({
       type: () => z.literal("storage.changed"),
+    }),
+  ),
+  /** A trip started or ended, or an offer was made or answered: read `car.trip` again. `alert` is a new offer. */
+  z.object(
+    schemaFields({
+      type: () => z.literal("car.updated"),
+      alert: () => CarAlert.optional(),
     }),
   ),
   /** The owner or the super-agent switched the panel between simple and advanced. */

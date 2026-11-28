@@ -1,3 +1,4 @@
+import { DRIVING_NOTE } from "../car/driving.ts";
 import type { LogEntry } from "../domain/model-log.ts";
 // The one context builder. Three pieces, each with a rule:
 // - system: byte-stable per agent and thread (no clock, no roster), so the provider's prompt cache keeps working;
@@ -617,6 +618,8 @@ export type TurnOpts = {
   channel?: string | undefined;
   /** The chat gets spoken answers: the first paragraph becomes a voice note. */
   voice?: boolean | undefined;
+  /** The owner is driving now (car mode): short answers, nothing to read on a screen. */
+  driving?: boolean | undefined;
   /** The owner turned emoji reactions off on this channel: the agent never answers REACT there. */
   noReactions?: boolean | undefined;
   /** A code thread's folder and what may change there, the project's read-only folders (workspaceBlock). */
@@ -685,6 +688,7 @@ export function turnBlocks(opts: TurnOpts): InputBlock[] {
       ownerOnChat && !told.ownerChats?.includes(channel) ? `[channel turn] ${ownerChannelNote(channel)}` : "",
     ],
     ["voice", opts.voice && !toldVoice ? `[voice] ${VOICE_STYLE}` : ""],
+    ["driving", opts.driving ? `[driving] ${DRIVING_NOTE}` : ""],
     ["mode", opts.mode && !toldMode ? `[mode] ${modeBlock(opts.mode)}` : ""],
     ["release notes", opts.release ? `[release notes] ${opts.release}` : ""],
     ["agents", opts.roster ? `[agents]\n${opts.roster}` : ""],

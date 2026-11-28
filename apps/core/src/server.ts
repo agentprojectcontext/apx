@@ -22,8 +22,11 @@ import { createProjectReader, type ReadProjectFiles } from "./apc/project-reader
 import { createApcSync } from "./apc/sync.ts";
 import type { TemplateRoot } from "./apc/templates.ts";
 import { createBus } from "./bus.ts";
+import { type CarDeps, createCar } from "./car/service.ts";
+import { actionLabel, CHAT_ACTIONS, chatText } from "./car/wording.ts";
 import { builtinFactories } from "./channels/builtin-factories.ts";
 import { createChannels } from "./channels/manager.ts";
+import { carPresentation } from "./channels/notices.ts";
 import type { AdapterFactory } from "./channels/types.ts";
 import { type CoreConfig, OAUTH_CHATGPT } from "./config.ts";
 import { coreLogSink } from "./core-log.ts";
@@ -177,6 +180,8 @@ export type CoreOptions = {
   quiet?: boolean;
   llm?: Llm;
   discoveryWeb?: DiscoveryWeb;
+  /** Where errands' places are searched; tests pass a fake instead of OpenStreetMap or Google. */
+  carPlaces?: CarDeps["provider"];
   harnesses?: Partial<Record<HarnessId, Harness>>;
   /** Tests add tools of their own next to the built-in ones. */
   extraTools?: Tool[];
@@ -727,6 +732,9 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const native = createNativeVoice({ store, services, engine: voiceEngine, log, auto: config.voice.auto });
   const voice = {
     ...createCallAudio({ store, home: config.home, log, native, engine: voiceEngine, services }),
+    listen: (bytes: Buffer, mime: string, signal: AbortSignal) =>
+      services.listen(bytes, mime, signal, native.voice().locale === "en-US" ? "en" : "es"),
+    bossName: () => store.agents.list().find((a) => a.kind === "secretary")?.name ?? "",
     engine: voiceEngine,
     native,
     calls: createCalls({
@@ -809,6 +817,23 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     onEnabled: () => void news.offer(RESEARCH_FROM_CHAT_NEWS.id).catch(() => {}),
     notifyOwner: (body, threadId, messageId) => channels.notifyOwner(body, "notice", threadId, { messageId }),
   });
+  const car = createCar({
+    store,
+    bus,
+    secrets,
+    ...(opts.clock ? { now: opts.clock } : {}),
+    ...(opts.carPlaces ? { provider: opts.carPlaces } : {}),
+    onError: (err) => log.warn({ err: errorMessage(err) }, "place search failed"),
+    tellOwner: (alert, lang) =>
+      void channels.notifyOwner(
+        carPresentation(alert, {
+          text: chatText(alert, lang),
+          label: (a) => actionLabel(a, lang),
+          actions: CHAT_ACTIONS,
+        }),
+        "notice",
+      ),
+  });
   const extensionEvents = createExtensionEvents({
     store,
     extensions,
@@ -826,6 +851,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     checks: (remind) => [
       { id: "extension-events", everyMs: 15000, run: () => extensionEvents.tick() },
       ...contextual.checks,
+      car.check,
       storage.check,
       retention.check,
       localApps.check,
@@ -899,6 +925,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       publications,
       activityReview: contextual.activityReview,
       discovery: contextual.discovery,
+      car,
       vm,
       internal,
       permissions,

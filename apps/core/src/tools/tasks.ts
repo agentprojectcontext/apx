@@ -1,8 +1,17 @@
 // task_*: agents work the office board through the tasks.* methods, like the owner does in the app.
 import { createHash } from "node:crypto";
-import { type Message, type Task, TaskKind, TaskPriority, TaskTag } from "@apx/protocol";
+import {
+  ErrandCategory,
+  type ErrandPlace,
+  type Message,
+  type Task,
+  TaskKind,
+  TaskPriority,
+  TaskTag,
+} from "@apx/protocol";
 import { planSteps } from "@apx/protocol/task-plan";
 import { z } from "zod";
+import { CATEGORY_GUIDE } from "../car/categories.ts";
 import { placeName } from "../domain/owner-work.ts";
 import type { Store } from "../domain/store.ts";
 import { ownerWordsOf } from "../domain/task-asked.ts";
@@ -193,8 +202,26 @@ const commitmentArgs = {
   due_at: z.string().max(40).optional(),
 };
 
+/** An errand's place as agents give it; categories are plain words checked here, the guide already lists them. */
+const placeArg = z
+  .object({
+    categories: z.array(z.string().max(20)).max(4).optional(),
+    brand: z.string().trim().min(1).max(60).optional(),
+  })
+  .strict()
+  .optional();
+const errandPlaceOf = (p: z.output<typeof placeArg>): ErrandPlace | undefined =>
+  p && {
+    categories: (p.categories ?? []).flatMap((c) => {
+      const r = ErrandCategory.safeParse(c);
+      return r.success ? [r.data] : [];
+    }),
+    ...(p.brand ? { brand: p.brand } : {}),
+  };
+
 const shapeArgs = {
   kind: TaskKind.optional(),
+  place: placeArg,
   priority: TaskPriority.optional(),
   tags: z.array(TaskTag).max(12).optional(),
 };
@@ -205,6 +232,7 @@ const ABOUT: Record<string, string> = {
   owed_by: 'who promised it: "owner" (default) or "person"',
   due_at: "2026-10-05 or an ISO moment",
   kind: '"commitment": owed to or by a person; "errand": small, on the way',
+  place: `errand: where. ${CATEGORY_GUIDE}`,
   priority: "default normal",
   tags: "short labels (client, area…)",
 };
@@ -515,7 +543,11 @@ export function taskTools(store: Store, home: string): Tool[] {
       deadlineMs: 5_000,
       title: (a) => `Created the task ${String(a.title ?? "").slice(0, 60)}`,
       async run(a, ctx) {
-        const t = await ctx.call("tasks.create", { ...a, attachments: await attachmentIds(a.attachments, ctx) });
+        const t = await ctx.call("tasks.create", {
+          ...a,
+          place: errandPlaceOf(a.place),
+          attachments: await attachmentIds(a.attachments, ctx),
+        });
         return `${createdText(t, ctx)}${placeOf(t, ctx)}${openedFor(t, ctx)}`;
       },
     }),
@@ -556,7 +588,7 @@ export function taskTools(store: Store, home: string): Tool[] {
       title: (a) => `Updated the task ${String(a.task ?? "")}`,
       async run({ task, why, ...c }, ctx) {
         const attachments = await attachmentIds(c.attachments, ctx);
-        const t = await ctx.call("tasks.update", { task, ...c, attachments });
+        const t = await ctx.call("tasks.update", { task, ...c, place: errandPlaceOf(c.place), attachments });
         // What the owner must decide shows with the files it is about, not only in the task's attachments.
         const files = attachments?.slice(0, 5);
         if (c.awaits_owner && why)

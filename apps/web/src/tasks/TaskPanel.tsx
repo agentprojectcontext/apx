@@ -1,6 +1,7 @@
 import type { Message, Task, TaskEvent } from "@apx/protocol";
 import { AgentAvatar, Badge, Button, IconButton, Icons, Menu, Select, Skeleton, Tabs, TagInput } from "@apx/ui";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { ErrandPlaceField } from "../car/ErrandPlaceField.tsx";
 import { QuoteContext, quoteBlock } from "../chat/quote.ts";
 import { Transcript } from "../chat/Transcript.tsx";
 import { Drawer } from "../common/Drawer.tsx";
@@ -363,6 +364,15 @@ function Properties({ task, detail }: { task: Task; detail: TaskDetail | undefin
               />
             )}
           </div>
+        </Prop>
+      )}
+      {task.kind === "errand" && (
+        <Prop label={t("tasks.errandWhere")} top>
+          <ErrandPlaceField
+            size="sm"
+            value={task.place}
+            onChange={(place) => void updateTask(task.id, { place: place ?? null })}
+          />
         </Prop>
       )}
       <Prop label={t("pickers.project")}>

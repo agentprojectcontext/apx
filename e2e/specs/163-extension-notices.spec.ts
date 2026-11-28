@@ -64,7 +64,8 @@ test("notices are opt-in, save quiet hours and a personal destination, and stay 
   await rpc("extensions.enable", { id: "northwind-events", enabled: true });
   await open(page);
   await page.getByRole("button", { name: "Marketplace", exact: true }).first().click();
-  await page.getByRole("button", { name: "Tus extensiones", exact: true }).click();
+  // The tab carries a count when an extension waits on the owner (another spec may leave one).
+  await page.getByRole("button", { name: /^Tus extensiones(\s+\d+)?$/ }).click();
   await page
     .getByRole("main")
     .getByRole("button", { name: /^Northwind Events/ })

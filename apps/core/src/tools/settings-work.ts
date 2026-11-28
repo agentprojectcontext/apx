@@ -166,6 +166,24 @@ export const WORK: Readonly<Record<string, Setting>> = {
     says: () => "Update feedback on a researched finding",
     asks: "untrusted",
   },
+  "car.settings": {
+    does: "errands on the way while the owner drives: on or off, reach, where places come from, chat copy, voice while driving",
+    read: (_p, { store }) => JSON.stringify(store.settings.read("car")),
+  },
+  "car.configure": {
+    does: "configure errands on the way (enabled, reach near|normal|far, source osm|google, tell_in_chat, voice_while_driving); the owner types a Google key in the panel",
+    says: () => "Change errands on the way",
+    whole: true,
+    now: (_p, { store }) => store.settings.read("car"),
+    keep: (p, { store }) => {
+      const { google_key: _key, ...rest } = merged(store.settings.read("car"), p) as Record<string, unknown>;
+      return rest;
+    },
+  },
+  "car.place_choice": {
+    does: "mark a place the owner uses for errands: prefer, avoid, none or forget (key from the car settings screen)",
+    says: () => "Change a place you use for errands",
+  },
   "activity_review.settings": {
     does: "whether APX reviews new activity and proposes improvements; daily or weekly, extra details",
     read: (_p, { store }) => JSON.stringify(store.settings.read("activity_review")),

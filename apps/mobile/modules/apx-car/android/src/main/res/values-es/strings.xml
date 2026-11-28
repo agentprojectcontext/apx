@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="apx_car_listener_label">Modo auto de APX</string>
+
+    <string name="apx_car_trip_channel">Viaje en curso</string>
+    <string name="apx_car_trip_channel_description">Se muestra mientras APX sigue un viaje para avisarte de recados en el camino.</string>
+    <string name="apx_car_trip_title">APX está atento a tus recados</string>
+    <string name="apx_car_trip_text">Te aviso si pasás cerca de algo que tenés pendiente.</string>
+    <string name="apx_car_trip_text_destination">En camino a %1$s. Te aviso de recados cerca.</string>
+
+    <string name="apx_car_alerts_channel">Recados en el camino</string>
+    <string name="apx_car_alerts_channel_description">Hay un lugar cerca para uno de tus recados, con lo que podés responder.</string>
+
+    <string name="apx_car_action_navigate">Ir ahora</string>
+    <string name="apx_car_action_add_stop">Sumar como parada</string>
+    <string name="apx_car_action_next">Otro lugar</string>
+    <string name="apx_car_action_later">Más tarde</string>
+    <string name="apx_car_action_skip">Ahora no</string>
+    <string name="apx_car_action_silence">No avisar más en este viaje</string>
+    <string name="apx_car_action_done">Ya lo hice</string>
+
+    <string name="apx_car_ack_navigate">Abriendo la ruta</string>
+    <string name="apx_car_ack_next">Busco otro lugar</string>
+    <string name="apx_car_ack_later">Te aviso más tarde</string>
+    <string name="apx_car_ack_skip">Queda para otro viaje</string>
+    <string name="apx_car_ack_silence">No te aviso más en este viaje</string>
+    <string name="apx_car_ack_done">Marcado como hecho</string>
+    <string name="apx_car_ack_failed">APX no lo recibió. Probá de nuevo en el teléfono.</string>
+
+    <string name="apx_car_screen_title">Recados en el camino</string>
+    <string name="apx_car_loading">Cargando</string>
+    <string name="apx_car_no_errands">No hay recados pendientes</string>
+    <string name="apx_car_off">El modo auto está apagado. Activalo en APX en el teléfono.</string>
+    <string name="apx_car_unreachable">APX no respondió. Muestro lo que sabe este teléfono.</string>
+    <string name="apx_car_talk">Hablar con %1$s</string>
+    <string name="apx_car_talk_hint">Respondé por voz el mensaje de APX</string>
+    <string name="apx_car_talk_prompt">¿Qué le digo a %1$s? Respondé este mensaje.</string>
+    <string name="apx_car_alert_gone">Ya respondiste este aviso</string>
+    <string name="apx_car_navigate_failed">No pude abrir la ruta</string>
+    <string name="apx_car_held_skip">No en este viaje</string>
+    <string name="apx_car_held_later">Más tarde</string>
+    <string name="apx_car_errand_navigate">Navegar</string>
+    <string name="apx_car_errand_done">Ya la hice</string>
+    <string name="apx_car_errand_skip">No en este viaje</string>
+
+    <string name="apx_car_me">Vos</string>
+    <string name="apx_car_reply">Responder</string>
+    <string name="apx_car_reply_label">Responder a APX</string>
+    <string name="apx_car_mark_read">Marcar como leído</string>
+    <string name="apx_car_agent_waiting">%1$s sigue con eso. La respuesta va a quedar en el chat.</string>
+    <string name="apx_car_agent_failed">Tu mensaje no le llegó a %1$s. Probá de nuevo en un momento.</string>
+
+    <string name="apx_car_error_offline">Tu servidor de APX no respondió</string>
+    <string name="apx_car_error_unpaired">Este teléfono ya no está vinculado con APX</string>
+    <string name="apx_car_error_other">APX no pudo guardar el viaje</string>
+    <string name="apx_car_error_location">APX no puede usar tu ubicación</string>
+    <string name="apx_car_error_background">Abrí APX para seguir este viaje</string>
+</resources>

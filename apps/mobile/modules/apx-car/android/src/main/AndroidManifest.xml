@@ -1,0 +1,2 @@
+<!-- Components are added to the app's manifest by plugins/with-car-mode.js. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" />
