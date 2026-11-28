@@ -83,12 +83,11 @@ function Tools({ c, item }: { c: Connector; item: Item }) {
   );
 }
 
-function ConnectorRow({ item, c, open }: { item: Item; c: Connector; open: boolean }) {
+function ConnectorRow({ item, c, showStatus }: { item: Item; c: Connector; showStatus: boolean }) {
   const t = useT();
-  const st = c.server ? STATUS[c.server.status] : undefined;
+  const st = showStatus && c.server ? STATUS[c.server.status] : undefined;
   return (
     <Disclosure
-      defaultOpen={open}
       icon={c.mark ? <IntegrationIcon id={c.mark} name={c.name} size={24} /> : undefined}
       className={c.mark ? undefined : "mkt-part__connector--unmarked"}
       title={c.name}
@@ -103,7 +102,7 @@ function ConnectorRow({ item, c, open }: { item: Item; c: Connector; open: boole
       <DisclosureFacts
         rows={[
           [t("mkt.conn.address"), <Address key="a" c={c} />],
-          [t("mkt.conn.auth"), c.auth ? t(AUTH_TEXT[c.auth]) : undefined],
+          [t("mkt.conn.auth"), c.auth && showStatus ? t(AUTH_TEXT[c.auth]) : undefined],
           [t("mkt.conn.tools"), <Tools key="t" c={c} item={item} />],
         ]}
       />
@@ -121,9 +120,7 @@ function Block({ title, children }: { title: string; children: ReactNode }) {
 }
 
 function Skills({ b }: { b: Brings }) {
-  const t = useT();
-  if (!b.skills) return <p className="mkt-part__note">{t("mkt.skills.later")}</p>;
-  if (!b.skills.length) return <p className="mkt-part__note">{t("mkt.skills.none")}</p>;
+  if (!b.skills?.length) return null;
   return (
     <SummaryCard variant="outline">
       {b.skills.map((s) => (
@@ -227,9 +224,11 @@ export function ItemBrings({
   item,
   servers,
   onChanged,
+  connectionShown,
 }: {
   item: Item;
   servers: McpServerStatus[];
+  connectionShown: boolean;
   /** Something changed (an agent added): read it again. */
   onChanged(): Promise<void>;
 }) {
@@ -238,8 +237,6 @@ export function ItemBrings({
   const addRoutine = useAddRoutine();
   const b = bringsOf(item, servers, lang);
   const e = item.ext;
-  // Skills are said for an extension even when it has none, as Claude's pages say it; an account or channel has none.
-  const extension = Boolean(e || item.entry);
   // What it asks for matters until it works.
   const asks =
     item.state === "available" || item.state === "off" || item.attention === "keys" || item.attention === "settings";
@@ -257,12 +254,12 @@ export function ItemBrings({
       <Block key="conn" title={t(b.connectors.length === 1 ? "mkt.sec.connector" : "mkt.sec.connectors")}>
         <div className="mkt-parts">
           {b.connectors.map((c) => (
-            <ConnectorRow key={c.key} item={item} c={c} open={b.connectors.length <= 3} />
+            <ConnectorRow key={c.key} item={item} c={c} showStatus={!connectionShown || b.connectors.length > 1} />
           ))}
         </div>
       </Block>,
     );
-  if (extension)
+  if (b.skills?.length)
     blocks.push(
       <Block key="skills" title={t("mkt.sec.skills")}>
         <Skills b={b} />

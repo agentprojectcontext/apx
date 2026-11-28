@@ -500,6 +500,10 @@ export const ExtensionInfo = z.object(
     version: () => z.string(),
     description: () => z.string(),
     enabled: () => z.boolean(),
+    /** Carry this snapshot through every server sign-in of one connection attempt; never refresh it mid-attempt. */
+    connection_generation: () => z.string().max(64).optional(),
+    /** APX can clear this extension's managed sign-in cache; live state comes from its MCP servers. */
+    session: () => z.object({ can_disconnect: z.literal(true), saved: z.boolean() }).optional(),
     /** Fingerprint of its files: turning it on approves exactly these. */
     hash: () => z.string(),
     /** The folder it was installed from. */

@@ -257,13 +257,21 @@ export function InstallBox({
   const shownLink: ConnectSignalState = phase === "review" && update?.keeps_on && link === "idle" ? "connected" : link;
 
   /** Starts each server as agents will use it: its tools once ready; a sign-in page waits for the owner. */
-  const startServers = async (names: string[]): Promise<string[]> => {
+  const startServers = async (names: string[], generation: string | undefined): Promise<string[]> => {
     const found: string[] = [];
     for (const server of names) {
       let s: McpServerStatus | undefined;
       try {
-        s = (await client.call("mcp.signIn", { scope: "global", server })).server;
-      } catch {}
+        s = (
+          await client.call("mcp.signIn", {
+            scope: "global",
+            server,
+            ...(generation ? { connection_generation: generation } : {}),
+          })
+        ).server;
+      } catch (error) {
+        if (generation) throw error;
+      }
       const until = Date.now() + SETTLE_MS;
       let lastStatus: McpServerStatus["status"] | undefined;
       while (alive.current && (!s || s.status === "starting" || s.status === "needs-sign-in") && Date.now() < until) {

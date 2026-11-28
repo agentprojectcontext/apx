@@ -82,6 +82,7 @@ export const signInMcp = (s: McpServerStatus) =>
         await client.call("mcp.signIn", {
           scope: s.scope,
           server: s.name,
+          ...(s.connection_generation ? { connection_generation: s.connection_generation } : {}),
           ...(s.project_id ? { project: s.project_id } : {}),
         })
       ).server,

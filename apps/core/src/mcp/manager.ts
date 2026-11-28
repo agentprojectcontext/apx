@@ -1,31 +1,35 @@
 // Connections to MCP servers, opened when an agent's turn needs them and closed when idle, and their tools as APX
 // tools: same argument check, same policy, results marked as outside data.
 
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import type { Thread } from "@apx/protocol";
-import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { z } from "zod";
 import { lineage, parentOf } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, conflict, errorMessage, unavailable } from "../errors.ts";
+import { checkConnectionGeneration, connectionGenerationFields } from "../extensions/connection-generation.ts";
 import { commandEnv, SECRET_NAME } from "../harness/env.ts";
 import type { Log } from "../log.ts";
 import { waitForExit } from "../process-exit.ts";
 import { onPath } from "../programs.ts";
 import { projectSecretName, type Secrets } from "../secrets.ts";
 import { cap, untrusted } from "../tools/result.ts";
-import { type Confirm, type Effect, invalidArguments, type ScopedThread, type Tool } from "../tools/types.ts";
+import { type Effect, invalidArguments, type ScopedThread, type Tool } from "../tools/types.ts";
 import { type McpTool, mcpApproval, mcpServerApproval, serverApprovalId } from "./approval.ts";
 import { ARGS_SECRET, type McpDef, mcpConfig } from "./config.ts";
-import { connectionErrors, MCP_SECRET_REF } from "./connection-errors.ts";
+import type { Conn, Connected } from "./connection.ts";
+import { connectionErrors } from "./connection-errors.ts";
+import { secretNames } from "./definition-secrets.ts";
 import { fileRefs, fillFileArgs, hasFileRefs, type OpenFile, refOf } from "./file-args.ts";
 import { createStderrLogs } from "./logs.ts";
 import { closePosixTree } from "./posix-process-tree.ts";
 import { createProcessExits } from "./process-exits.ts";
 import { watchSignIn } from "./sign-in.ts";
+import type { McpStatus } from "./status.ts";
 import { allowsAll, forgetOpened, type OpenedBy, openNew, setMcpToolMode } from "./tool-mode.ts";
+import { mcpConfirm, toolName } from "./tool-policy.ts";
 import { closeWindowsTree } from "./windows-process-tree.ts";
 
 const CONNECT_MS = 20_000;
@@ -33,25 +37,6 @@ const CALL_MS = 120_000;
 const IDLE_MS = 10 * 60_000;
 /** How long a server that asked the owner to sign in is kept running, so the browser's answer still finds it. */
 const SIGN_IN_MS = 5 * 60_000;
-
-type Connected = { client: Client; tools: McpTool[]; errorMessage: (error: unknown) => string };
-
-type Conn = {
-  key: string;
-  hash: string;
-  client?: Client;
-  tools: McpTool[];
-  status: "starting" | "ready" | "error" | "needs-sign-in";
-  error?: string;
-  errorMessage?: (error: unknown) => string;
-  /** The page the server asked the owner to open, while it waits for them. */
-  signInUrl?: string;
-  /** Ends a start still under way, its process with it (one waiting on a sign-in lives for minutes). */
-  stop?: () => Promise<void>;
-  used: number;
-  failedAt?: number;
-  ready?: Promise<void>;
-};
 
 /**
  * A server that failed is tried again after this, not on every turn: soon enough that fixing it outside its definition
@@ -62,49 +47,7 @@ const RETRY_MS = 30_000;
 const SIGN_IN_FIRST = "it waits for you to sign in: use Sign in";
 const SIGN_IN_ASKED = "it asked you to sign in: finish on the page it opened in your browser";
 
-export type McpStatus = {
-  name: string;
-  scope: "global" | "project";
-  project_id?: string;
-  values_of?: string;
-  credential_key?: string;
-  only: boolean;
-  transport: "stdio" | "http";
-  target: string;
-  enabled: boolean;
-  trusted: boolean;
-  status: "off" | "needs-approval" | "disabled" | "starting" | "ready" | "error" | "needs-sign-in";
-  sign_in_url?: string;
-  tools: number;
-  tool_names: string[];
-  tool_permission_mode: "unknown" | "ask" | "all" | "some";
-  vars: Array<{ name: string; set: boolean }>;
-  off_here: boolean;
-  /** A global server: the projects it is turned off in (it is on in every other one). */
-  off_in: string[];
-  error?: string;
-};
-
-/** The stored secrets a definition names, in order, once each. */
-const secretNames = (d: McpDef): string[] => [
-  ...new Set(
-    [...Object.values(d.env), ...Object.values(d.headers), ...d.args, d.url ?? ""].flatMap((v) =>
-      [...v.matchAll(MCP_SECRET_REF)].map((m) => m[1] as string),
-    ),
-  ),
-];
-
-/**
- * When an MCP tool waits for the owner. MCP's defaults: a tool may change things and may be destructive unless it
- * says otherwise; a project's server describes itself, so its "read-only" claim does not skip the policy.
- */
-function mcpConfirm(readOnly: boolean, destructive: boolean | undefined, scope: McpDef["scope"]): Confirm {
-  if (readOnly) return scope === "global" ? "never" : "untrusted";
-  return destructive === false ? "untrusted" : "ask";
-}
-
-/** MCP tool names become `mcp_<server>_<tool>`, within what every model accepts. */
-const toolName = (server: string, tool: string) => `mcp_${server}_${tool}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64);
+export type { McpStatus } from "./status.ts";
 
 /** Whether a failed check only trips on file references (`apx-file:…`, med_ ids), which are filled in at run. */
 function onlyRefs(error: z.ZodError, raw: Record<string, unknown>): boolean {
@@ -291,8 +234,11 @@ export function createMcp(deps: {
    * A server that asked the owner to sign in is not started again by itself, a restart included, until they sign in
    * from the panel (mcp.signIn) or its definition changes: every start would open their browser once more.
    */
-  const signInKey = (d: McpDef) => `mcp_sign_in:${keyOf(d)}`;
-  const waitsSignIn = (d: McpDef) => deps.store.settings.get(signInKey(d)) === d.hash;
+  const signInKey = (d: McpDef) => `mcp_sign_in:${d.extension_id ? `extension:${d.extension_id}:` : ""}${keyOf(d)}`;
+  const disconnectedKey = (d: Pick<McpDef, "scope" | "project_id" | "name" | "extension_id">) =>
+    `mcp_disconnected:${d.scope}:${d.project_id ?? ""}:${d.extension_id ? `extension:${d.extension_id}:` : ""}${d.name}`;
+  const waitsSignIn = (d: McpDef) =>
+    Boolean(deps.store.settings.get(disconnectedKey(d))) || deps.store.settings.get(signInKey(d)) === d.hash;
   const setWaitsSignIn = (d: McpDef, on: boolean) => {
     if (on || deps.store.settings.get(signInKey(d)) !== undefined)
       deps.store.settings.set(signInKey(d), on ? d.hash : "");
@@ -372,10 +318,12 @@ export function createMcp(deps: {
   }
 
   const blockKey = (d: Pick<McpDef, "scope" | "project_id" | "name">) => `${d.scope}:${d.project_id ?? ""}:${d.name}`;
+  const isBlocked = (d: McpDef) =>
+    blocked.has(blockKey(d)) || Boolean(d.extension_id && blocked.has(`extension:${d.extension_id}`));
 
   /** The live connection for a definition, (re)opened when missing, failed or its definition changed. */
   function ensure(d: McpDef): Conn {
-    if (blocked.has(blockKey(d))) throw conflict("This server is being updated; try again shortly");
+    if (isBlocked(d)) throw conflict("This server is being updated; try again shortly");
     const key = keyOf(d);
     let c = conns.get(key);
     if (c && c.hash !== d.hash) {
@@ -648,6 +596,7 @@ export function createMcp(deps: {
           : (seen(d) ?? []);
         return {
           name: d.name,
+          ...connectionGenerationFields(deps.store, d.extension_id),
           scope: d.scope,
           ...(d.project_id || d.only ? { project_id: d.project_id ?? d.only } : {}),
           ...(d.values_of ? { values_of: d.values_of } : {}),
@@ -696,7 +645,7 @@ export function createMcp(deps: {
      */
     async test(d: McpDef): Promise<{ ok: boolean; ms: number; tools: string[]; error?: string }> {
       if (!config.trusted(d)) return { ok: false, ms: 0, tools: [], error: "approve this server before testing it" };
-      if (blocked.has(blockKey(d)))
+      if (isBlocked(d))
         return { ok: false, ms: 0, tools: [], error: "This server is being updated; try again shortly" };
       const live = conns.get(keyOf(d));
       if ((live?.hash === d.hash && live.status === "needs-sign-in") || waitsSignIn(d))
@@ -720,7 +669,7 @@ export function createMcp(deps: {
       try {
         const first = await Promise.race([started, askedFor]);
         if (typeof first === "string") {
-          if (blocked.has(blockKey(d))) {
+          if (isBlocked(d)) {
             ac.abort();
             await started.then(
               ({ client }) => client.close(),
@@ -766,10 +715,16 @@ export function createMcp(deps: {
      */
     async signIn(d: McpDef): Promise<void> {
       if (!d.enabled || !config.trusted(d)) throw badRequest("approve and enable this server before signing in");
-      if (blocked.has(blockKey(d))) throw conflict("This server is being updated; try again shortly");
+      if (isBlocked(d)) throw conflict("This server is being updated; try again shortly");
+      const receipt = deps.store.settings.get(disconnectedKey(d));
+      const generation = connectionGenerationFields(deps.store, d.extension_id).connection_generation;
       const old = conns.get(keyOf(d));
       conns.delete(keyOf(d));
       if (old) await closeConn(old);
+      if (d.extension_id) checkConnectionGeneration(deps.store, d.extension_id, generation);
+      if (deps.store.settings.get(disconnectedKey(d)) !== receipt)
+        throw conflict("The connection was disconnected; sign in again");
+      deps.store.settings.set(disconnectedKey(d), "");
       setWaitsSignIn(d, false);
       await ensure(d).ready;
     },
@@ -777,9 +732,18 @@ export function createMcp(deps: {
     logs(d: McpDef, n: number) {
       return stderr.read(keyOf(d), n);
     },
+    /** Called while suspended and drained: no automatic use may recreate a cleared session. */
+    requireSignIn(servers: Array<Pick<McpDef, "scope" | "project_id" | "name" | "extension_id">>) {
+      for (const server of servers) deps.store.settings.set(disconnectedKey(server), randomUUID());
+    },
+    /** Only after uninstalling a drained extension; older package versions may have left renamed servers. */
+    forgetExtensionSignIn(id: string) {
+      deps.store.settings.deletePrefix(`mcp_disconnected:global::extension:${id}:`);
+      deps.store.settings.deletePrefix(`mcp_sign_in:extension:${id}:`);
+    },
     /** Refuses new starts while an extension replaces the servers' files. */
-    suspend(servers: Array<Pick<McpDef, "scope" | "project_id" | "name">>): () => void {
-      const keys = [...new Set(servers.map(blockKey))];
+    suspend(servers: Array<Pick<McpDef, "scope" | "project_id" | "name">>, extensionId?: string): () => void {
+      const keys = [...new Set([...servers.map(blockKey), ...(extensionId ? [`extension:${extensionId}`] : [])])];
       if (keys.some((key) => blocked.has(key))) throw conflict("This server is already being updated");
       for (const key of keys) blocked.add(key);
       return () => {

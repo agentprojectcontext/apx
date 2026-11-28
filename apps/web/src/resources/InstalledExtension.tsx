@@ -33,50 +33,59 @@ const readAgain = (source: string) =>
       ? { path: source }
       : undefined;
 
-/** Its keys (typed once, never shown again) and, for one from a folder or an address, reading its files again. */
+export const canReadExtensionAgain = (e: ExtensionInfo) => Boolean(readAgain(e.source));
+
 export function ExtensionKeys({ e, onChanged }: { e: ExtensionInfo; onChanged(): Promise<void> }) {
   const t = useT();
-  const run = async (fn: () => Promise<unknown>) => {
-    await attempt(fn, t);
-    await onChanged();
-  };
-  const again = readAgain(e.source);
-  if (!e.secrets.length && !again) return null;
+  if (!e.secrets.length) return null;
   return (
-    <>
-      {e.secrets.length > 0 && (
-        <section className="mkt-settings__sec">
-          <span className="pform__label">{t("ext.secrets")}</span>
-          {e.secrets.map((s) => (
-            <SecretRow
-              key={s.name}
-              label={s.label}
-              set={s.set}
-              url={s.url}
-              onSave={(value) => run(() => client.call("extensions.set_secret", { id: e.id, name: s.name, value }))}
-            />
-          ))}
-        </section>
-      )}
-      {again && (
-        <section className="mkt-settings__sec">
-          <span className="pform__label">{t("url" in again ? "ext.redownload" : "ext.reload")}</span>
-          <p className="pform__hint mkt-settings__hint">
-            {"url" in again ? t("ext.redownloadHint", { url: e.source }) : t("ext.reloadHint", { folder: e.source })}
-          </p>
-          <div>
-            <Button
-              size="sm"
-              variant="secondary"
-              leadingIcon={<Icons.RefreshCw size={14} />}
-              onClick={() => void run(() => client.call("extensions.install", again))}
-            >
-              {t("url" in again ? "ext.redownload" : "ext.reloadButton")}
-            </Button>
-          </div>
-        </section>
-      )}
-    </>
+    <section className="mkt-settings__sec">
+      <span className="pform__label">{t("ext.secrets")}</span>
+      {e.secrets.map((s) => (
+        <SecretRow
+          key={s.name}
+          label={s.label}
+          set={s.set}
+          url={s.url}
+          onSave={async (value) => {
+            await attempt(() => client.call("extensions.set_secret", { id: e.id, name: s.name, value }), t);
+            await onChanged();
+          }}
+        />
+      ))}
+    </section>
+  );
+}
+
+export function ExtensionRecovery({ e, onChanged }: { e: ExtensionInfo; onChanged(): Promise<void> }) {
+  const t = useT();
+  const [busy, setBusy] = useState(false);
+  const again = readAgain(e.source);
+  if (!again) return null;
+  const run = async () => {
+    setBusy(true);
+    try {
+      await attempt(() => client.call("extensions.install", again), t);
+      await onChanged();
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <section className="mkt-settings__sec">
+      <p className="pform__hint mkt-settings__hint">{t("mkt.readAgainHint")}</p>
+      <div>
+        <Button
+          size="sm"
+          variant="secondary"
+          loading={busy}
+          leadingIcon={<Icons.RefreshCw size={14} />}
+          onClick={() => void run()}
+        >
+          {t("url" in again ? "ext.redownload" : "ext.reloadButton")}
+        </Button>
+      </div>
+    </section>
   );
 }
 

@@ -216,12 +216,21 @@ export const extensionMethods = {
           enabled: z.boolean(),
           /** Atomically claim a first activation; a stale connection attempt must not adopt another's. */
           only_if_disabled: z.literal(true).optional(),
+          /** Required for a connection attempt's first activation: use its original extension snapshot. */
+          connection_generation: z.string().max(64).optional(),
           /** Undo only the activation identified by this receipt; a later change makes it a no-op. */
           rollback_token: z.string().uuid().optional(),
         })
         .strict()
         .refine((p) => (!p.only_if_disabled || p.enabled) && (!p.rollback_token || !p.enabled)),
     result: () => ExtensionInfo.extend({ activation_token: z.string().uuid().optional() }),
+    effect: true,
+    access: "human",
+  }),
+  /** Stops its servers and clears only its managed sign-in session, without uninstalling or revoking at the provider. */
+  "extensions.disconnect": deferMethod({
+    params: () => z.object({ id: z.string().max(40) }).strict(),
+    result: () => ExtensionInfo,
     effect: true,
     access: "human",
   }),

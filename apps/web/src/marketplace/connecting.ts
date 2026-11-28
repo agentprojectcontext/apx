@@ -1,5 +1,5 @@
-type Connectable = { id: string; enabled: boolean; mcp: string[] };
-type ActivationOptions = { only_if_disabled?: true; rollback_token?: string };
+type Connectable = { id: string; enabled: boolean; mcp: string[]; connection_generation?: string | undefined };
+type ActivationOptions = { only_if_disabled?: true; rollback_token?: string; connection_generation?: string };
 
 export class ConnectionRollbackError extends AggregateError {}
 
@@ -16,7 +16,7 @@ export async function connectExtension<E extends Connectable>(
   extension: E,
   actions: {
     enable: (id: string, enabled: boolean, options: ActivationOptions) => Promise<E & { activation_token?: string }>;
-    start: (servers: string[]) => Promise<string[]>;
+    start: (servers: string[], generation: string | undefined) => Promise<string[]>;
     changed: (extension: E) => void;
   },
 ): Promise<{ extension: E; tools: string[] }> {
@@ -24,9 +24,12 @@ export async function connectExtension<E extends Connectable>(
   try {
     const on: E & { activation_token?: string } = extension.enabled
       ? extension
-      : await actions.enable(extension.id, true, { only_if_disabled: true });
+      : await actions.enable(extension.id, true, {
+          only_if_disabled: true,
+          ...(extension.connection_generation ? { connection_generation: extension.connection_generation } : {}),
+        });
     activation = extension.enabled ? undefined : on.activation_token;
-    const tools = await actions.start(on.mcp);
+    const tools = await actions.start(on.mcp, on.connection_generation);
     actions.changed(on);
     return { extension: on, tools };
   } catch (error) {

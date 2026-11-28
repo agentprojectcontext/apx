@@ -69,7 +69,10 @@ export async function mcpCommand(client: ApxClient, args: string[], o: Options):
     return;
   }
   if (sub === "signin") {
-    const { server: s } = await client.call("mcp.signIn", target);
+    const { server: s } = await client.call("mcp.signIn", {
+      ...target,
+      connection_generation: found.connection_generation,
+    });
     if (o.json) console.log(JSON.stringify(s, null, 2));
     else if (s.status === "ready") console.log(`${clean(server)}: signed in · ${s.tools} tools`);
     else if (s.sign_in_url)

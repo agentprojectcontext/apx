@@ -1,6 +1,6 @@
 import type { McpServerStatus } from "@apx/protocol";
 import { Button, Card, ConfirmDialog, IconButton, Icons, MarkdownView, Menu, type MenuEntry } from "@apx/ui";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { isChannelKind } from "../channels/kinds.ts";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
@@ -15,11 +15,13 @@ import { go } from "../shell/nav.ts";
 import { listText } from "./about.ts";
 import { addItem, addSource, type Problem } from "./adding.ts";
 import { ItemIcon } from "./ConnectHead.tsx";
+import { ConnectionCard } from "./ConnectionCard.tsx";
+import { connectionOf } from "./connectionState.ts";
 import { ItemBrings } from "./ItemBrings.tsx";
 import { ItemFacts } from "./ItemFacts.tsx";
 import { ItemLabel } from "./ItemLabel.tsx";
 import { ItemRow } from "./ItemRow.tsx";
-import { ItemSettings } from "./ItemSettings.tsx";
+import { hasExtensionSettings, ItemSettings } from "./ItemSettings.tsx";
 import { fromText, listingIn, nextStep, type Step, stepLabel } from "./itemText.ts";
 import { useAsset } from "./useAsset.ts";
 
@@ -66,6 +68,7 @@ export function ItemPage({
   const copy = listingIn(item.listing, lang);
   const [open, setOpen] = useState<Dialog>();
   const [busy, setBusy] = useState(false);
+  const [disconnectFailed, setDisconnectFailed] = useState(false);
   // An action that removes or disconnects asks first.
   const [asking, setAsking] = useState<{ title: string; body: string; label: string; run(): Promise<unknown> }>();
   const e = item.ext;
@@ -104,6 +107,45 @@ export function ItemPage({
     openExtensionInstall({ url, catalog: true, official: item.entry?.provenance === "official" });
   const server = item.server;
   const channel = item.channel;
+  const connection = connectionOf(e, servers);
+  const connectionState = connection?.state;
+  useEffect(() => {
+    if (connectionState !== "connecting") return;
+    const timer = setInterval(() => void onChanged(), 2_000);
+    return () => clearInterval(timer);
+  }, [connectionState, onChanged]);
+  const hasSession = connection?.saved;
+  const canDisconnect = connection?.canDisconnect;
+  const missingDetails = step === "keys" || step === "settings";
+  const needsSetup = missingDetails || step === "review";
+  const disconnectLabel = t("int.disconnect");
+  const askDisconnect = () => {
+    if (!e) return;
+    setAsking({
+      title: t("mkt.disconnectTitle", { name: item.name }),
+      body: t("mkt.connection.disconnectBody", { name: item.name }),
+      label: disconnectLabel,
+      run: async () => {
+        setDisconnectFailed(false);
+        try {
+          await client.call("extensions.disconnect", { id: e.id });
+        } catch {
+          setDisconnectFailed(true);
+        }
+        await onChanged();
+      },
+    });
+  };
+  const connectionHint =
+    connectionState === "connected"
+      ? hasSession
+        ? t("mkt.connection.signedIn")
+        : t("mkt.connection.ready", { name: item.name })
+      : connectionState === "disconnected"
+        ? t("mkt.connection.signedOut", { name: item.name })
+        : connectionState === "off" && hasSession
+          ? t("mkt.connection.paused")
+          : undefined;
   const act: Partial<Record<Step, () => void>> = {
     add: addSource(item) ? () => void add() : undefined,
     connect: e
@@ -149,7 +191,8 @@ export function ItemPage({
 
   const menu: MenuEntry[] = [];
   if (e) {
-    menu.push({ label: t("mkt.settings"), icon: <Icons.Settings size={14} />, onSelect: () => setOpen("settings") });
+    if (step !== "settings" && hasExtensionSettings(e))
+      menu.push({ label: t("mkt.settings"), icon: <Icons.Settings size={14} />, onSelect: () => setOpen("settings") });
     if (item.update && item.url) {
       const url = item.url;
       menu.push({
@@ -164,11 +207,22 @@ export function ItemPage({
         icon: <Icons.RotateCcw size={14} />,
         onSelect: () => void run(() => client.call("extensions.rollback", { id: e.id })),
       });
+    if (canDisconnect && (needsSetup || (connectionState !== "connected" && connectionState !== "saved")))
+      menu.push({ label: disconnectLabel, icon: <Icons.LogOut size={14} />, onSelect: askDisconnect });
     if (e.enabled)
       menu.push({
         label: t("extx.turnOff"),
         icon: <Icons.Power size={14} />,
-        onSelect: () => void run(() => client.call("extensions.enable", { id: e.id, enabled: false })),
+        onSelect: () => {
+          const turnOff = () => run(() => client.call("extensions.enable", { id: e.id, enabled: false }));
+          if (!hasSession) return void turnOff();
+          setAsking({
+            title: t("mkt.connection.turnOffTitle", { name: item.name }),
+            body: t("mkt.connection.turnOffBody"),
+            label: t("extx.turnOff"),
+            run: turnOff,
+          });
+        },
       });
     menu.push(
       { type: "separator" },
@@ -243,11 +297,58 @@ export function ItemPage({
     );
   }
 
+  const menuButton = menu.length > 0 && (
+    <Menu
+      align="end"
+      items={menu}
+      trigger={<IconButton label={t("mkt.more")} variant="outline" icon={<Icons.Ellipsis size={16} />} />}
+    />
+  );
+  const connectionAction = needsSetup ? (
+    primary
+  ) : connectionState === "off" && e ? (
+    <Button
+      loading={busy}
+      onClick={
+        hasSession ? () => void run(() => client.call("extensions.enable", { id: e.id, enabled: true })) : connectBox
+      }
+    >
+      {t(hasSession ? "mkt.connection.turnOn" : "mkt.step.connect")}
+    </Button>
+  ) : connectionState === "connected" || connectionState === "saved" ? (
+    canDisconnect && (
+      <Button variant="secondary" onClick={askDisconnect}>
+        {disconnectLabel}
+      </Button>
+    )
+  ) : connectionState === "error" || connectionState === "reconnect" || connectionState === "disconnected" ? (
+    <Button loading={busy} onClick={connectBox}>
+      {t(
+        connectionState === "error"
+          ? "box.retry"
+          : connectionState === "reconnect"
+            ? "mkt.connection.reconnectAction"
+            : "mkt.step.connect",
+      )}
+    </Button>
+  ) : connectionState === "connecting" ? (
+    connection?.signIn?.sign_in_url && (
+      <Button onClick={() => window.open(connection.signIn?.sign_in_url, "_blank", "noopener,noreferrer")}>
+        {t("mkt.connection.continueSignIn")}
+      </Button>
+    )
+  ) : (
+    primary
+  );
+
   // What waits on the owner, in one quiet panel: why it is not working yet, and a newer version.
   const waiting =
-    item.attention && item.state === "attention"
+    item.attention &&
+    item.state === "attention" &&
+    (!connectionState || (!missingDetails && item.attention !== "sign-in")) &&
+    connectionState !== "error"
       ? t(`extx.fix.${item.attention}`)
-      : item.state === "off" && e
+      : item.state === "off" && e && (!connectionState || item.attention === "update-waits")
         ? t(item.attention === "update-waits" ? "extx.fix.update-waits" : "mkt.notice.off")
         : undefined;
   const newer = item.update && item.url ? t("mkt.notice.update", { version: item.update }) : undefined;
@@ -275,7 +376,7 @@ export function ItemPage({
       >
         {backLabel}
       </Button>
-      <header className="mkt-page__head">
+      <header className={connectionState ? "mkt-page__head mkt-page__head--connection" : "mkt-page__head"}>
         <ItemIcon item={item} size={56} />
         <div className="mkt-page__titles">
           <div className="mkt-page__name">
@@ -285,17 +386,24 @@ export function ItemPage({
           {by && <span className="mkt-page__by">{by}</span>}
           {tagline && <p className="mkt-page__tagline">{tagline}</p>}
         </div>
-        <div className="mkt-page__act">
-          {primary}
-          {menu.length > 0 && (
-            <Menu
-              align="end"
-              items={menu}
-              trigger={<IconButton label={t("mkt.more")} variant="outline" icon={<Icons.Ellipsis size={16} />} />}
-            />
-          )}
-        </div>
+        {!connectionState && (
+          <div className="mkt-page__act">
+            {primary}
+            {menuButton}
+          </div>
+        )}
       </header>
+      {connectionState && (
+        <ConnectionCard
+          state={missingDetails ? "setup" : connectionState}
+          hint={missingDetails ? (hasSession ? t("mkt.connection.paused") : undefined) : connectionHint}
+          error={disconnectFailed ? t("mkt.connection.disconnectError") : undefined}
+          onRetry={askDisconnect}
+        >
+          {connectionAction}
+          {menuButton}
+        </ConnectionCard>
+      )}
       {notice}
       {problem && (
         <div className="mkt-notice is-problem" role="alert">
@@ -330,6 +438,11 @@ export function ItemPage({
               ))}
             </section>
           )}
+          {about && (
+            <section className="mkt-page__about">
+              <MarkdownView source={about} size="sm" />
+            </section>
+          )}
           {copy && copy.prompts.length > 0 && (
             <Card variant="soft" padding="sm" className="mkt-try">
               <h4>{t("mkt.try")}</h4>
@@ -341,12 +454,7 @@ export function ItemPage({
               ))}
             </Card>
           )}
-          {about && (
-            <section className="mkt-page__about">
-              <MarkdownView source={about} size="sm" />
-            </section>
-          )}
-          <ItemBrings item={item} servers={servers} onChanged={onChanged} />
+          <ItemBrings item={item} servers={servers} connectionShown={Boolean(connectionState)} onChanged={onChanged} />
           {versions.length > 0 && (
             <section className="mkt-section">
               <header className="mkt-section__head">

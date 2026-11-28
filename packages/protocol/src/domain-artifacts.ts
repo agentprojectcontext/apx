@@ -28,6 +28,8 @@ export type OutboxItem = z.infer<typeof OutboxItem>;
 export const McpServerStatus = z.object(
   schemaFields({
     name: () => z.string(),
+    /** Forward this snapshot for an extension sign-in; keep one snapshot across a multi-server attempt. */
+    connection_generation: () => z.string().max(64).optional(),
     scope: () => z.enum(["global", "project"]),
     project_id: () => Id.optional(),
     /** Project credentials, if this is a separate instance of a global server. */

@@ -79,6 +79,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "integrations.oauth_finish": SECRET,
   "mcp.signIn": SECRET,
   "mcp.finishSignIn": SECRET,
+  "extensions.disconnect": "the owner clears a connector's saved sign-in, as for integrations.disconnect",
   "extensions.set_secret": SECRET,
   "extensions.settings": SECRET,
   "extensions.events_emit":

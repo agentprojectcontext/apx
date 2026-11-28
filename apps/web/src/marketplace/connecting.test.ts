@@ -66,6 +66,26 @@ test("a successful first connection is published only after tools become ready",
   assert.deepEqual(f.published, [true]);
 });
 
+test("connect checks its original snapshot before turning on and starts all bridges with the new snapshot", async () => {
+  const selected = { ...extension, connection_generation: "off-snapshot", mcp: ["example-a", "example-b"] };
+  const active = { ...selected, enabled: true, connection_generation: "on-snapshot" };
+  const connected = await connectExtension(selected, {
+    enable: async (id, on, options) => {
+      assert.equal(id, selected.id);
+      assert.equal(on, true);
+      assert.deepEqual(options, { only_if_disabled: true, connection_generation: "off-snapshot" });
+      return active;
+    },
+    start: async (servers, generation) => {
+      assert.deepEqual(servers, selected.mcp);
+      assert.equal(generation, "on-snapshot");
+      return ["read"];
+    },
+    changed: () => {},
+  });
+  assert.deepEqual(connected.extension, active);
+});
+
 test("failure never disables an extension that was already connected", async () => {
   const f = fixture(true);
   await assert.rejects(

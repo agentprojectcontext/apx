@@ -60,7 +60,7 @@ export function ItemRow({ item: i, line, onOpen }: { item: Item; line?: string |
   const provider = officialMcpProvider(i);
   const meta = provider ? t("mkt.provider", { name: provider }) : [kindText(i, t), fromText(i, t)].join(" · ");
   const mine = i.state !== "available" && i.state !== "coming";
-  const connects = Boolean(i.origin === "included" || i.integration || i.channel);
+  const connects = Boolean(i.origin === "included" || i.integration || i.channel || i.ext?.session?.can_disconnect);
   return (
     <CatalogRow
       leading={<ItemIcon item={i} size={36} />}

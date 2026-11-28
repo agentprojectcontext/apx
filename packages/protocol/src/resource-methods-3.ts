@@ -108,7 +108,7 @@ export const resourceMethodsPart3 = {
    * and answers once it is ready, failed, or waits on that page. A server that asked to sign in waits for this.
    */
   "mcp.signIn": deferMethod({
-    params: () => McpTarget,
+    params: () => McpTarget.extend({ connection_generation: z.string().max(64).optional() }).strict(),
     result: () =>
       z.object({
         server: McpServerStatus,
