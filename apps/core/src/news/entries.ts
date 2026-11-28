@@ -16,6 +16,7 @@ import { AGENT_PROMPTS_NEWS } from "./agent-prompts.ts";
 import { AGENT_REVIEW_NEWS } from "./agent-review.ts";
 import { AGENTS_REACH_NEWS } from "./agents-reach.ts";
 import { APX_ACCOUNT_NEWS } from "./apx-account.ts";
+import { AUTO_JUDGE_NEWS } from "./auto-judge.ts";
 import { BROWSER_EDIT_NEWS } from "./browser-edit.ts";
 import { BROWSER_JAVASCRIPT_NEWS } from "./browser-javascript.ts";
 import { BROWSER_RECIPES_NEWS } from "./browser-recipes.ts";
@@ -155,6 +156,7 @@ export type NewsEntry = {
 
 export const NEWS: readonly NewsEntry[] = [
   SERVER_BROWSER_CONTROL_NEWS,
+  AUTO_JUDGE_NEWS,
   {
     id: "stalled-tasks",
     since: "2.17.5",
