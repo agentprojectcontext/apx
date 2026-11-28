@@ -35,6 +35,7 @@ import { applySavedLocalTarget, loadConnection, localCoreUrl } from "./connectio
 import { createConnector } from "./connector.ts";
 import { createCursor } from "./cursor.ts";
 import { editMenu } from "./edit-menu.ts";
+import { createHostFilePicker } from "./host-file-picker.ts";
 import { artifactOwners, itemName, memoryReport, memoryText, memoryWatch, size } from "./memory.ts";
 import { nativeUpdates } from "./native-updates.ts";
 import { startNodeLink } from "./node-link.ts";
@@ -483,6 +484,10 @@ app.whenReady().then(() => {
     if (computerOn && !armed) globalShortcut.register(STOP_KEYS, () => computer.stop());
     if (!computerOn && armed) globalShortcut.unregister(STOP_KEYS);
   };
+  const hostFiles = createHostFilePicker(async () => {
+    const result = await dialog.showOpenDialog(win, { properties: ["openFile"] });
+    return result.canceled ? undefined : result.filePaths[0];
+  });
   const connector = createConnector({
     panel: panel.webContents,
     coreUrl: CORE_URL,
@@ -491,6 +496,7 @@ app.whenReady().then(() => {
     isOwnWindow: (sender) =>
       sender === panel.webContents || popout.isPanel(sender) || quick.isQuick(sender) || artifactWindows.owns(sender),
     disconnected: () => {
+      hostFiles.connect(false);
       computer.cancelPointer();
       updater.connect(undefined);
       link?.stop();
@@ -502,7 +508,10 @@ app.whenReady().then(() => {
       computerOn = false;
       armStop();
     },
-    updating: (connection) => updater.connect(connection),
+    updating: (connection) => {
+      hostFiles.connect(connection.local);
+      updater.connect(connection);
+    },
     opened: (url, node) => {
       computer.cancelPointer();
       base = url;
@@ -599,6 +608,8 @@ app.whenReady().then(() => {
   ipcMain.handle("computer:frame", (e) =>
     e.sender === panel.webContents && computerOn ? computer.frame().catch(() => undefined) : undefined,
   );
+  ipcMain.handle("panel:can-pick-file", (e) => e.sender === panel.webContents && hostFiles.available());
+  ipcMain.handle("panel:pick-file", (e) => (e.sender === panel.webContents ? hostFiles.pick() : undefined));
   // The owner picks a folder (a project's) with the system's own dialog; only the panel may ask.
   ipcMain.handle("panel:pick-folder", async (e) => {
     if (e.sender !== panel.webContents) return undefined;

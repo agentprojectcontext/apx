@@ -701,3 +701,19 @@
   flex: none;
   color: var(--apx-warning);
 }
+
+.mkt-file {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--apx-space-2);
+  min-width: 0;
+}
+.mkt-file__name {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.mkt-file__handoff {
+  margin: 0;
+  color: var(--apx-fg-muted);
+}

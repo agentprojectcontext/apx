@@ -11,6 +11,7 @@ import { badRequest, notFound } from "../errors.ts";
 import { expandHome, isInside } from "../paths.ts";
 import { extensionSecret as extSecret } from "../secret-names.ts";
 import type { Secrets } from "../secrets.ts";
+import { checkSettingFile } from "./setting-file.ts";
 
 type Value = string | number | boolean;
 const PAGE_MAX = 1024 * 1024;
@@ -61,9 +62,9 @@ function checked(s: ExtensionSetting, v: Value): Value {
   if (s.options && !s.options.includes(text)) throw badRequest(`${s.label}: one of ${s.options.join(", ")}`);
   if (s.type === "directory" || s.type === "file") {
     const p = path.resolve(expandHome(text));
-    const st = fs.statSync(p, { throwIfNoEntry: false });
-    if (!st || (s.type === "directory" ? !st.isDirectory() : !st.isFile()))
-      throw badRequest(`${s.label}: no ${s.type === "directory" ? "folder" : "file"} at ${text}`);
+    if (s.type === "file") checkSettingFile(s, p);
+    else if (!fs.statSync(p, { throwIfNoEntry: false })?.isDirectory())
+      throw badRequest(`${s.label}: no folder at ${text}`);
     return p;
   }
   return text;

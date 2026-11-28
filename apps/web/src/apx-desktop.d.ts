@@ -132,6 +132,8 @@ declare global {
       /** Tells the app the computer name of the server in use, for its list. */
       nameServer?(name: string): void;
       /** The system's folder dialog; undefined when the owner cancels. */
+      canPickFile?(): Promise<boolean>;
+      pickFile?(): Promise<string | undefined>;
       pickFolder?(): Promise<string | undefined>;
       /** Whether a newer APX app is out; `check` asks the release feed now. */
       updateStatus?(check?: boolean): Promise<DesktopUpdate | undefined>;
