@@ -332,6 +332,7 @@ export function WorkspaceScreen({
               <SettingsPage
                 creds={creds}
                 data={workspace.data}
+                call={workspace.call}
                 host={host}
                 back={back}
                 disconnect={onUnpair}

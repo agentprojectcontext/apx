@@ -7,7 +7,7 @@ import { lang } from "../i18n";
 import type { CoreEvent } from "../protocol";
 import { nativeConfig } from "./model";
 import { type CarNativeStatus, carNative } from "./native";
-import { useCarEnabled } from "./prefs";
+import { saveCarEnabled, useCarEnabled } from "./prefs";
 
 /** The native side's state, read at start, on each change it reports and when the app comes back. */
 export function useCarNative(): { status: CarNativeStatus | undefined; refresh: () => void } {
@@ -38,10 +38,22 @@ export function useCarSync(creds: Creds, agentName?: string): void {
   const enabled = useCarEnabled();
   useEffect(() => {
     if (!carNative.available || enabled === undefined) return;
-    const send = () => void carNative.configure(nativeConfig(creds, enabled, lang, agentName)).catch(() => undefined);
+    const observe = (status: CarNativeStatus) => {
+      if (status.privacy_blocked) void saveCarEnabled(false);
+    };
+    const send = () =>
+      void carNative
+        .configure(nativeConfig(creds, enabled, lang, agentName))
+        .then(() => carNative.status())
+        .then(observe)
+        .catch(() => undefined);
+    const stop = carNative.onStatus(observe);
     send();
     const app = AppState.addEventListener("change", (state) => state === "active" && send());
-    return () => app.remove();
+    return () => {
+      stop();
+      app.remove();
+    };
   }, [creds, enabled, agentName]);
 }
 

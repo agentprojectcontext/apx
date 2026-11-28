@@ -13,6 +13,7 @@ import { previewSound, setSoundPrefs, useSoundPrefs } from "../sounds";
 import { Button, Chip, IconTile, ListGroup, ListRow, OwnerAvatar, Screen, SubHeader, Toggle, useType } from "../ui/kit";
 import { NoticePreferences } from "../ui/NoticePreferences";
 import { NotificationCard } from "../ui/NotificationCard";
+import { PrivacySettings } from "../ui/PrivacySettings";
 import { makeStyles, useTheme } from "../ui/theme";
 import { VoiceSettings } from "../ui/VoiceSettings";
 import { boss } from "../voice";
@@ -41,8 +42,10 @@ export function SettingsPage({
   openCar,
   voice,
   saveWakeWords,
+  call,
 }: {
   creds: Creds;
+  call?: (method: string, params: Record<string, unknown>) => Promise<unknown>;
   data: Workspace;
   host: string;
   back: () => void;
@@ -121,6 +124,7 @@ export function SettingsPage({
             <ListRow label={t("carMode")} sub={t("carModeSub")} leading={<IconTile icon="Car" />} onPress={openCar} />
           </ListGroup>
         ) : null}
+        {call ? <PrivacySettings call={call} /> : null}
         <Text style={s.label}>{t("setConnection")}</Text>
         <ListGroup>
           <ListRow

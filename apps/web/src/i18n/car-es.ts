@@ -1,13 +1,23 @@
 import type { enCar } from "./car-en.ts";
 
 export const esCar: Record<keyof typeof enCar, string> = {
+  "privacy.title": "Ubicación del teléfono",
+  "privacy.scope":
+    "Estas opciones se aplican a todos los teléfonos conectados a este APX. También necesitan el permiso de ubicación del teléfono.",
+  "privacy.location": "Ubicación a pedido",
+  "privacy.locationHelp": "Permití que tus agentes pidan la ubicación actual de tu teléfono sin iniciar un viaje.",
+  "privacy.trips": "Ubicación durante viajes",
+  "privacy.tripsHelp":
+    "Compartí ubicación para recados mientras manejás. Al apagarla también se detienen los recados; al encenderla no se inicia un viaje.",
+  "privacy.error": "No se pudieron leer o guardar tus opciones de privacidad. Revisá la conexión y volvé a intentar.",
   "car.title": "En el auto",
   "car.lead": "Mientras manejás, APX te avisa cuando pasás cerca de un lugar donde podés hacer un recado pendiente.",
   "car.loadError": "No se pudo cargar esta configuración.",
   "car.saveError": "No se pudo guardar el cambio. Probá de nuevo.",
   "car.retry": "Probar de nuevo",
-  "car.enabled": "Avisarme de recados en el camino",
-  "car.enabledHint": "Usa la ubicación del teléfono solo mientras manejás. Apagado, no corre nada.",
+  "car.enabled": "Recados en todos los dispositivos",
+  "car.enabledHint":
+    "Se aplica a todos los teléfonos conectados. Cada teléfono también necesita tener encendidos los recados y el acceso a ubicación.",
   "car.reach": "Qué tan lejos",
   "car.reachHint": "A qué distancia de tu camino puede estar un lugar para que APX te avise.",
   "car.reach.near": "Cerca",

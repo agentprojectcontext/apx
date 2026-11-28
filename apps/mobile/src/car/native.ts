@@ -8,6 +8,7 @@ export type CarNativeStatus = {
   available: boolean;
   /** Car mode is on in this phone. */
   enabled: boolean;
+  privacy_blocked?: boolean;
   /** The owner allowed APX to read notifications (how it sees Android Auto and Maps). */
   listener: boolean;
   /** Precise location while in use is allowed. */
@@ -37,6 +38,8 @@ export type CarNativeConfig = {
 type NativeModule = {
   configure(config: CarNativeConfig): Promise<void>;
   status(): Promise<CarNativeStatus>;
+  allowTrips(): Promise<void>;
+  pauseTrips(): Promise<void>;
   openListenerSettings(): Promise<void>;
   /** A trip without a car, to try it out: positions go to the core until stopTestTrip. */
   startTestTrip(): Promise<void>;
@@ -70,6 +73,8 @@ const mod = load();
 
 export const carNative = {
   available: Boolean(mod),
+  allowTrips: (): Promise<void> => mod?.allowTrips?.() ?? Promise.resolve(),
+  pauseTrips: (): Promise<void> => mod?.pauseTrips?.() ?? Promise.resolve(),
   configure: (c: CarNativeConfig): Promise<void> => mod?.configure(c) ?? Promise.resolve(),
   status: async (): Promise<CarNativeStatus> => (mod ? { ...(await mod.status()), available: true } : OFF),
   openListenerSettings: (): Promise<void> => mod?.openListenerSettings() ?? Promise.resolve(),

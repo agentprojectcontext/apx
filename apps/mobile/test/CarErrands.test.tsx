@@ -32,6 +32,8 @@ jest.mock("../src/car/native", () => ({
       return mockNative.available;
     },
     configure: async () => undefined,
+    allowTrips: async () => undefined,
+    pauseTrips: async () => undefined,
     status: async () => mockNative.status,
     openListenerSettings: () => mockNative.openListenerSettings(),
     startTestTrip: () => mockNative.startTestTrip(),
@@ -96,13 +98,20 @@ test("without the native side, car mode says only that it needs the newer Androi
   mockNative.available = true;
 });
 
-test("one switch turns car mode on in the phone and in APX, then lists what the phone must allow", async () => {
+test("global errands and this phone require separate explicit choices, then list what the phone must allow", async () => {
   jest.spyOn(SecureStore, "getItemAsync").mockResolvedValue(null);
   const stored = jest.spyOn(SecureStore, "setItemAsync").mockResolvedValue(undefined);
-  const call = jest.fn(async (method: string) => coreStatus(method === "car.configure"));
+  let globalOn = false;
+  const call = jest.fn(async (method: string, params: Record<string, unknown>) => {
+    if (method === "car.configure") globalOn = params.enabled === true;
+    return coreStatus(globalOn);
+  });
   const ui = await mount(<CarModePage creds={credentials} call={call} back={jest.fn()} />);
   await act(async () => undefined);
   expect(ui.queryByText(t("carNeedListener"))).toBeNull();
+  await fireEvent.press(ui.getByRole("switch", { name: t("carGlobal") }));
+  expect(ui.getByRole("switch", { name: t("carSwitch") })).not.toBeChecked();
+  expect(stored).not.toHaveBeenCalledWith("apx.car.enabled", "on");
   await fireEvent.press(ui.getByRole("switch", { name: t("carSwitch") }));
   await act(async () => undefined);
   expect(call).toHaveBeenCalledWith("car.configure", { enabled: true });

@@ -1,6 +1,6 @@
 import type { CarReach, CarSettings, CarStatus } from "@apx/protocol";
 import { Badge, Button, Input, SegmentedControl, SettingRow, Skeleton, Switch } from "@apx/ui";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { SectionHead, SubHead } from "../config/SectionHead.tsx";
 import { client } from "../data/client.ts";
 import { useT } from "../i18n/index.ts";
@@ -19,12 +19,37 @@ export function CarSection() {
   const [loadFailed, setLoadFailed] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
   const [busy, setBusy] = useState(false);
-  const load = () => {
-    setLoadFailed(false);
-    void client.call("car.settings", {}).then(setStatus, () => setLoadFailed(true));
-  };
-  useEffect(load, []);
+  const gate = useRef({ request: 0, busy: false, live: true });
+  const load = useCallback(() => {
+    if (gate.current.busy) return;
+    const request = ++gate.current.request;
+    void client.call("car.settings", {}).then(
+      (value) => {
+        if (!gate.current.live || request !== gate.current.request) return;
+        setStatus(value);
+        setLoadFailed(false);
+      },
+      () => {
+        if (gate.current.live && request === gate.current.request) setLoadFailed(true);
+      },
+    );
+  }, []);
+  useEffect(() => {
+    gate.current.live = true;
+    load();
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") load();
+    }, 3000);
+    return () => {
+      gate.current.live = false;
+      gate.current.request++;
+      clearInterval(timer);
+    };
+  }, [load]);
   const save = async (change: Partial<CarSettings> & { google_key?: string }): Promise<boolean> => {
+    if (gate.current.busy) return false;
+    gate.current.busy = true;
+    gate.current.request++;
     setBusy(true);
     setSaveFailed(false);
     try {
@@ -34,7 +59,8 @@ export function CarSection() {
       setSaveFailed(true);
       return false;
     } finally {
-      setBusy(false);
+      gate.current.busy = false;
+      if (gate.current.live) setBusy(false);
     }
   };
   const head = <SectionHead title={t("car.title")} lead={t("car.lead")} />;
@@ -60,12 +86,17 @@ export function CarSection() {
   return (
     <>
       {head}
+      {loadFailed && (
+        <p role="alert" className="config__lead">
+          {t("car.loadError")}
+        </p>
+      )}
       <SettingRow title={t("car.enabled")} description={t("car.enabledHint")}>
         <Switch
           size="sm"
           aria-label={t("car.enabled")}
           checked={s.enabled}
-          disabled={busy}
+          disabled={busy || loadFailed}
           onCheckedChange={(enabled) => void save({ enabled })}
         />
       </SettingRow>

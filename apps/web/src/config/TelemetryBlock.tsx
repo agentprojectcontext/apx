@@ -29,6 +29,10 @@ export function TelemetryBlock() {
   const state = useTelemetry((s) => s.state);
   useEffect(() => {
     void refreshTelemetry();
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") void refreshTelemetry();
+    }, 3000);
+    return () => clearInterval(timer);
   }, []);
   if (!state) return null;
   const steps = Object.entries(state.sent) as Array<[(typeof TELEMETRY_STAGES)[number], string]>;

@@ -18,7 +18,15 @@ class CarPrefs(context: Context) {
 
   val url: String get() = prefs.getString("url", "").orEmpty().trimEnd('/')
   val token: String get() = prefs.getString("token", "").orEmpty()
-  val enabled: Boolean get() = prefs.getBoolean("enabled", false)
+  val tripPrivacyRevision: String get() = prefs.getString("trip_privacy_revision", "") ?: ""
+  fun setTripPrivacyRevision(revision: String) { prefs.edit().putString("trip_privacy_revision", revision).apply() }
+
+  val blocked: Boolean get() = prefs.getBoolean("privacy_blocked", false)
+  val enabled: Boolean get() = prefs.getBoolean("enabled", false) && !blocked
+
+  fun setPrivacyBlocked(blocked: Boolean) {
+    prefs.edit().putBoolean("privacy_blocked", blocked).apply()
+  }
   val lang: String get() = prefs.getString("lang", "es").orEmpty().ifBlank { "es" }
   val agentName: String get() = prefs.getString("agent_name", "").orEmpty().ifBlank { "APX" }
 

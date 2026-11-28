@@ -28,6 +28,8 @@ object CoreClient {
   /** Returns the method's `result` (a JSONObject for every car.* method), or throws [CoreError]. */
   fun call(context: Context, method: String, params: JSONObject, timeoutMs: Int = TIMEOUT_MS): JSONObject {
     val prefs = CarPrefs(context)
+    if (method == "car.position" && (!prefs.active || prefs.tripId != params.optString("trip_id")))
+      throw CoreError("unauthorized", "trip stopped")
     if (prefs.url.isEmpty() || prefs.token.isEmpty()) throw CoreError("unauthorized", "not paired")
     val connection = try {
       URL("${prefs.url}/rpc/$method").openConnection() as HttpURLConnection

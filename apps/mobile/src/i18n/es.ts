@@ -1,6 +1,27 @@
 import type { Key } from "./en.ts";
 
 export const es: Record<Key, string> = {
+  privacyTitle: "Privacidad",
+  privacyPermission: "Acceso a ubicación en este teléfono",
+  privacyPermissionHelp:
+    "Android también necesita tu permiso. Esto no enciende los recados ni el uso de ubicación por sí solo.",
+  privacyLoading: "Consultando tus opciones…",
+  privacyScope: "Estas opciones se aplican a todos los teléfonos conectados a este APX.",
+  privacyLocation: "Ubicación a pedido",
+  privacyLocationHelp:
+    "Permití que tus agentes pidan la ubicación actual de tu teléfono. También necesita el permiso de ubicación del teléfono.",
+  privacyTrips: "Ubicación durante viajes",
+  privacyTripsHelp:
+    "Compartí ubicación para recados mientras manejás. Al apagarla también se detienen los recados; al encenderla no se inicia un viaje.",
+  privacyStats: "Estadísticas anónimas de uso",
+  privacyStatsHelp:
+    "Compartí cantidades anónimas de uso, no mensajes ni ubicación. Es la misma opción que en tu computadora.",
+  privacyUnavailable:
+    "No se pudieron leer tus opciones de privacidad. Revisá la conexión y actualizá APX en tu computadora; después, volvé a intentar.",
+  privacyReload: "Volver a intentar",
+  carGlobal: "Recados en todos los dispositivos",
+  carGlobalHelp:
+    "Al apagarlos se detienen los viajes en los teléfonos conectados. Cada teléfono también tiene su propio interruptor.",
   artifactReviewOnComputer: "Abrí APX en la compu para revisar esta copia.",
   browserTechnical: "Detalles técnicos",
   browserDocument: "Documento",
@@ -850,7 +871,7 @@ export const es: Record<Key, string> = {
   carMode: "En el auto",
   carModeSub: "Recados cerca de tu camino mientras manejás",
   carUnavailable: "El modo auto necesita la app de Android más nueva.",
-  carSwitch: "Recados en el camino",
+  carSwitch: "Usar este teléfono para recados",
   carSwitchHelp: "Mientras manejás, APX te avisa cuando pasás cerca de un lugar para un recado pendiente.",
   carCoreOff: "Los recados en el camino están apagados en APX.",
   carCoreTurnOn: "Activar",

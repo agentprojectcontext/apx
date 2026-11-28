@@ -91,7 +91,7 @@ export const CarTripCard = lazy(
   withPacks(["car"], () => import("./car/TripCard.tsx").then((m) => ({ default: m.CarTripCard }))),
 );
 export const ConfigModal = lazy(
-  withPacks(["team", "cloudAccount", "publicCopies", "telemetrySettings"], () =>
+  withPacks(["team", "cloudAccount", "publicCopies", "telemetrySettings", "car"], () =>
     import("./config/ConfigModal.tsx").then((m) => ({ default: m.ConfigModal })),
   ),
 );

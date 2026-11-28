@@ -8,6 +8,8 @@ import { notify } from "./notices.ts";
 
 type State = { state: TelemetryState | undefined };
 const store = createStore<State>({ state: undefined });
+let request = 0;
+let changing = false;
 
 export const useTelemetry = <T>(select: (s: State) => T): T => useSlice(store, select);
 
@@ -18,15 +20,18 @@ export const PRIVACY_URL = "https://apxagent.app/reference/privacy/";
 export async function loadTelemetry(): Promise<void> {
   try {
     await client.call("telemetry.seen", {});
-    store.set({ state: await client.call("telemetry.get", {}) });
+    await refreshTelemetry();
   } catch {
     // An older core has no telemetry: nothing to ask.
   }
 }
 
 export async function refreshTelemetry(): Promise<void> {
+  if (changing) return;
+  const mine = ++request;
   try {
-    store.set({ state: await client.call("telemetry.get", {}) });
+    const state = await client.call("telemetry.get", {});
+    if (mine === request) store.set({ state });
   } catch {}
 }
 
@@ -39,9 +44,14 @@ export function noteSearch(results: number): void {
 }
 
 export async function setUsage(usage: boolean): Promise<void> {
+  if (changing) return;
+  changing = true;
+  request++;
   try {
     store.set({ state: await client.call("telemetry.set", { usage }) });
   } catch (e) {
     notify(t("error.change", { error: e instanceof Error ? e.message : String(e) }));
+  } finally {
+    changing = false;
   }
 }

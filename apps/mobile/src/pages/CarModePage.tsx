@@ -1,6 +1,6 @@
 import * as Location from "expo-location";
-import { useCallback, useEffect, useState } from "react";
-import { Alert, Linking, Text, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Alert, AppState, Linking, Text, View } from "react-native";
 import type { CarStatus } from "../../../../packages/protocol/src/car.ts";
 import { useCarNative } from "../car/hooks";
 import { type CheckItem, checklist, statusLine } from "../car/model";
@@ -28,10 +28,7 @@ import { makeStyles, useTheme } from "../ui/theme";
 
 type Call = (method: string, params: Record<string, unknown>) => Promise<unknown>;
 
-/**
- * Car mode for this phone: one switch (it also turns errands on the way on in APX when they are off there), what the
- * phone must allow, where it stands, and a trip without a car to try it.
- */
+/** Global errands and this phone's participation are separate, explicit choices. */
 export function CarModePage({ creds, call, back }: { creds: Creds; call: Call; back: () => void }) {
   const s = useStyles();
   if (!carNative.available)
@@ -55,36 +52,75 @@ function CarModeSettings({ creds, call, back }: { creds: Creds; call: Call; back
   const notifications = useNotifications(creds);
   const [core, setCore] = useState<CarStatus>();
   const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const gate = useRef({ request: 0, busy: false, live: true });
   const readCore = useCallback(() => {
-    void (call("car.settings", {}) as Promise<CarStatus>).then(setCore).catch(() => undefined);
+    if (gate.current.busy) return;
+    const request = ++gate.current.request;
+    void (call("car.settings", {}) as Promise<CarStatus>).then(
+      (value) => {
+        if (!gate.current.live || request !== gate.current.request) return;
+        setCore(value);
+        setFailed(false);
+      },
+      () => {
+        if (gate.current.live && request === gate.current.request) setFailed(true);
+      },
+    );
   }, [call]);
-  useEffect(readCore, [readCore]);
-  /** On: the core's side too when it is off there; off: only this phone (another phone or the panel may still use it). */
+  useEffect(() => {
+    gate.current.live = true;
+    readCore();
+    const timer = setInterval(() => {
+      if (AppState.currentState === "active") readCore();
+    }, 3000);
+    const app = AppState.addEventListener("change", (state) => {
+      if (state === "active") readCore();
+    });
+    return () => {
+      gate.current.live = false;
+      gate.current.request++;
+      clearInterval(timer);
+      app.remove();
+    };
+  }, [readCore]);
   const turn = async (on: boolean) => {
-    if (!on) {
-      if (status?.trip?.source === "manual") await carNative.stopTestTrip().catch(() => undefined);
-      await saveCarEnabled(false);
-      return;
-    }
+    if (gate.current.busy) return;
+    gate.current.busy = true;
+    gate.current.request++;
     setBusy(true);
     try {
-      const now = core ?? ((await call("car.settings", {})) as CarStatus);
-      setCore(now.settings.enabled ? now : ((await call("car.configure", { enabled: true })) as CarStatus));
-      await saveCarEnabled(true);
+      if (on) {
+        const now = (await call("car.settings", {})) as CarStatus;
+        setCore(now);
+        if (!now.settings.enabled) {
+          Alert.alert(t("carMode"), t("carCoreOff"));
+          return;
+        }
+        await carNative.allowTrips();
+      } else {
+        await carNative.pauseTrips();
+      }
+      await saveCarEnabled(on);
     } catch (error) {
       Alert.alert(t("couldNotChange"), error instanceof Error ? error.message : String(error));
     } finally {
-      setBusy(false);
+      gate.current.busy = false;
+      if (gate.current.live) setBusy(false);
     }
   };
-  const coreOn = async () => {
+  const coreOn = async (enabled = true) => {
+    if (gate.current.busy) return;
+    gate.current.busy = true;
+    gate.current.request++;
     setBusy(true);
     try {
-      setCore((await call("car.configure", { enabled: true })) as CarStatus);
+      setCore((await call("car.configure", { enabled })) as CarStatus);
     } catch (error) {
       Alert.alert(t("couldNotChange"), error instanceof Error ? error.message : String(error));
     } finally {
-      setBusy(false);
+      gate.current.busy = false;
+      if (gate.current.live) setBusy(false);
     }
   };
   const allow = async (item: CheckItem["id"]) => {
@@ -104,6 +140,20 @@ function CarModeSettings({ creds, call, back }: { creds: Creds; call: Call; back
       <Screen gap={12}>
         <ListGroup>
           <ListRow
+            label={t("carGlobal")}
+            sub={t("carGlobalHelp")}
+            leading={<IconTile icon="Car" />}
+            chevron={false}
+            trailing={
+              <Toggle
+                label={t("carGlobal")}
+                value={core?.settings.enabled ?? false}
+                disabled={!core || busy || failed}
+                onChange={(on) => void coreOn(on)}
+              />
+            }
+          />
+          <ListRow
             label={t("carSwitch")}
             sub={t("carSwitchHelp")}
             leading={<IconTile icon="Car" tone={enabled ? "brand" : "neutral"} />}
@@ -113,12 +163,8 @@ function CarModeSettings({ creds, call, back }: { creds: Creds; call: Call; back
             chevron={false}
           />
         </ListGroup>
-        {enabled && core && !core.settings.enabled ? (
-          <Card style={s.row}>
-            <Text style={[type.muted, { flex: 1 }]}>{t("carCoreOff")}</Text>
-            <Button label={t("carCoreTurnOn")} size="sm" busy={busy} onPress={() => void coreOn()} />
-          </Card>
-        ) : null}
+        {failed ? <Text style={s.error}>{t("privacyUnavailable")}</Text> : null}
+        {enabled && core && !core.settings.enabled ? <Text style={type.muted}>{t("carCoreOff")}</Text> : null}
         {enabled && status ? (
           <>
             {line ? <StatusCard status={status} line={line} /> : null}

@@ -80,13 +80,6 @@ object TripController {
     CoreClient.send(context, "car.trip_start", tripStart(prefs.tripId, prefs.tripSource, destination))
   }
 
-  /** The core lost the trip (it timed out there): tell it again under the same id. */
-  fun reannounce(context: Context) {
-    val prefs = CarPrefs(context)
-    if (!prefs.tripActive || !prefs.active) return
-    CoreClient.send(context, "car.trip_start", tripStart(prefs.tripId, prefs.tripSource, prefs.tripDestination))
-  }
-
   private fun tripStart(id: String, source: String, destination: String): JSONObject {
     val params = JSONObject().put("trip_id", id).put("source", source.ifBlank { "manual" }).put("at", isoNow())
     if (destination.isNotBlank()) params.put("destination", JSONObject().put("label", destination.take(160)))
@@ -101,6 +94,14 @@ object TripController {
   fun resume(context: Context) {
     val prefs = CarPrefs(context)
     if (prefs.active && prefs.tripActive) TripLocationService.start(context)
+  }
+
+  fun revokePrivacy(context: Context) {
+    val app = context.applicationContext
+    CarPrefs(app).setPrivacyBlocked(true)
+    sources = TripSources()
+    end(app)
+    publishStatus(app)
   }
 
   /** The app's configure(): turning off or unpairing stops everything. */
@@ -142,6 +143,7 @@ object TripController {
     val out = mutableMapOf<String, Any?>(
       "available" to true,
       "enabled" to prefs.active,
+      "privacy_blocked" to prefs.blocked,
       "listener" to listenerGranted(app),
       "location" to granted(app, Manifest.permission.ACCESS_FINE_LOCATION),
       "notifications" to (

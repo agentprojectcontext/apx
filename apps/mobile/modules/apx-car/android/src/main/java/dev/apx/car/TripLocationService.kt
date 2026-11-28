@@ -26,8 +26,8 @@ import org.json.JSONObject
 class TripLocationService : Service() {
   private lateinit var locations: LocationManager
   private var lastUploadMs = 0L
-  private var lastReannounceMs = 0L
   private var listening = false
+  private var acceptedAfterNanos = 0L
   private var lastFix: Location? = null
   private val beat = Handler(Looper.getMainLooper())
 
@@ -35,13 +35,22 @@ class TripLocationService : Service() {
   // point: the last fix is sent again on a timer, under the same upload floor.
   private val heartbeat = object : Runnable {
     override fun run() {
-      publish(lastFix ?: newestFix())
+      publish(lastFix)
       beat.postDelayed(this, HEARTBEAT_MS)
+    }
+  }
+
+  private val privacyCheck = object : Runnable {
+    override fun run() {
+      TripPrivacy.validate(this@TripLocationService) {
+        if (running) beat.postDelayed(this, PRIVACY_CHECK_MS)
+      }
     }
   }
 
   private val listener = object : LocationListener {
     override fun onLocationChanged(location: Location) {
+      if (!running || location.elapsedRealtimeNanos < acceptedAfterNanos) return
       lastFix = location
       publish(location)
     }
@@ -94,10 +103,15 @@ class TripLocationService : Service() {
     }
     running = true
     if (!listening) {
-      requestUpdates()
-      publish(newestFix())
-      beat.removeCallbacks(heartbeat)
-      beat.postDelayed(heartbeat, HEARTBEAT_MS)
+      TripPrivacy.validate(this) {
+        if (!running || !CarPrefs(this).tripActive) return@validate
+        acceptedAfterNanos = SystemClock.elapsedRealtimeNanos()
+        requestUpdates()
+        beat.removeCallbacks(heartbeat)
+        beat.postDelayed(heartbeat, HEARTBEAT_MS)
+        beat.removeCallbacks(privacyCheck)
+        beat.postDelayed(privacyCheck, PRIVACY_CHECK_MS)
+      }
     }
     TripController.publishStatus(this)
     // A low-memory kill does not end a drive; the listener does.
@@ -106,6 +120,9 @@ class TripLocationService : Service() {
 
   override fun onDestroy() {
     beat.removeCallbacks(heartbeat)
+    beat.removeCallbacks(privacyCheck)
+    TripPrivacy.cancel()
+    lastFix = null
     try {
       locations.removeUpdates(listener)
     } catch (_: RuntimeException) {
@@ -129,12 +146,6 @@ class TripLocationService : Service() {
     }
   }
 
-  private fun newestFix(): Location? = try {
-    locations.getProviders(true).mapNotNull { locations.getLastKnownLocation(it) }.maxByOrNull { it.time }
-  } catch (_: SecurityException) {
-    null
-  }
-
   private fun publish(location: Location?) {
     if (location == null) return
     val prefs = CarPrefs(this)
@@ -155,13 +166,14 @@ class TripLocationService : Service() {
     if (location.hasBearing()) params.put("heading_deg", location.bearing.toDouble().coerceIn(0.0, 360.0))
     val app = applicationContext
     CoreClient.send(app, "car.position", params) { result ->
-      if (result == null) return@send
-      CarPrefs(app).markSent()
-      CarAnswers.deliver(app, CarAlert.list(result.optJSONArray("alerts")))
-      if (!result.optBoolean("active", true) && SystemClock.elapsedRealtime() - lastReannounceMs > REANNOUNCE_MS) {
-        lastReannounceMs = SystemClock.elapsedRealtime()
-        TripController.reannounce(app)
+      val current = CarPrefs(app)
+      if (result == null || !result.optBoolean("active", false)) {
+        beat.post { TripController.revokePrivacy(app) }
+        return@send
       }
+      if (!current.active || current.tripId != params.optString("trip_id")) return@send
+      current.markSent()
+      CarAnswers.deliver(app, CarAlert.list(result.optJSONArray("alerts")))
     }
   }
 
@@ -173,7 +185,7 @@ class TripLocationService : Service() {
     private const val MIN_INTERVAL_MS = 30_000L
     private const val MIN_DISTANCE_M = 150f
     private const val MIN_UPLOAD_MS = 25_000L
-    private const val REANNOUNCE_MS = 120_000L
+    private const val PRIVACY_CHECK_MS = 5_000L
     private const val HEARTBEAT_MS = 30_000L
 
     /** In the foreground and following the trip. */

@@ -4,6 +4,7 @@ import { loadHealth } from "../data/engines.ts";
 import { useData } from "../data/state.ts";
 import { isKey, useT } from "../i18n/index.ts";
 import { UsageOverview } from "../shell/UsagePanels.tsx";
+import { PhonePrivacyBlock } from "./PhonePrivacyBlock.tsx";
 import { SectionHead, SubHead } from "./SectionHead.tsx";
 import { TelemetryBlock } from "./TelemetryBlock.tsx";
 
@@ -90,6 +91,7 @@ export function AdvancedSection() {
       )}
       <SubHead>{t("sysUsage.title")}</SubHead>
       <UsageOverview />
+      <PhonePrivacyBlock />
       <TelemetryBlock />
     </>
   );

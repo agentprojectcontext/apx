@@ -27,6 +27,9 @@ test("the phone node releases late connections and cancels scheduled reconnects 
   const locationCalls: unknown[] = [];
   const api = {
     ApxClient: class {
+      async call() {
+        return { location: true, revision: "test" };
+      }
       async connect(...args: unknown[]) {
         calls.push(args);
         const pending = Promise.withResolvers<ReturnType<typeof socket>>();
@@ -36,12 +39,13 @@ test("the phone node releases late connections and cancels scheduled reconnects 
     },
     Location: {
       Accuracy: { Balanced: 3 },
-      async requestForegroundPermissionsAsync() {
+      async getForegroundPermissionsAsync() {
         return { granted: allowed };
       },
-      async getCurrentPositionAsync(options: unknown) {
+      async watchPositionAsync(options: unknown, receive: (p: unknown) => void) {
         locationCalls.push(options);
-        return { coords: { latitude: 10, longitude: 20, accuracy: 5 } };
+        receive({ coords: { latitude: 10, longitude: 20, accuracy: 5 } });
+        return { remove() {} };
       },
     },
   };
@@ -52,7 +56,7 @@ test("the phone node releases late connections and cancels scheduled reconnects 
       if (specifier === "expo-location") return { url: "apx-phone-test:location", shortCircuit: true };
       if (specifier === "./protocol" && context.parentURL?.endsWith("/phone.ts"))
         return { url: "apx-phone-test:protocol", shortCircuit: true };
-      if (specifier === "./phoneRequests") return next(`${specifier}.ts`, context);
+      if (specifier === "./phoneRequests" || specifier === "./phoneLocation") return next(`${specifier}.ts`, context);
       return next(specifier, context);
     },
     load(url, context, next) {
@@ -63,7 +67,7 @@ test("the phone node releases late connections and cancels scheduled reconnects 
         return {
           shortCircuit: true,
           format: "module",
-          source: `${base} export const { Accuracy, requestForegroundPermissionsAsync, getCurrentPositionAsync } = api.Location;`,
+          source: `${base} export const { Accuracy, getForegroundPermissionsAsync, watchPositionAsync } = api.Location;`,
         };
       return next(url, context);
     },

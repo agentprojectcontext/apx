@@ -2,6 +2,7 @@
 // app is paired; the node link reconnects on its own.
 import * as Location from "expo-location";
 import type { Creds } from "./creds";
+import { capturePhoneLocation } from "./phoneLocation";
 import { handlePhoneRequest, PHONE_CAPS, type PhoneDeps } from "./phoneRequests";
 import { ApxClient, type ApxSocket } from "./protocol";
 
@@ -12,18 +13,38 @@ export function startPhoneNode(creds: Creds, photo: PhoneDeps["photo"]): () => v
   const client = new ApxClient({ url: creds.url, token: creds.token, client: { name: "apx-phone", version: "0.0.0" } });
   let socket: ApxSocket | undefined;
   let stopped = false;
+  const captures = new Set<() => void>();
   let attempt = 0;
   let retry: ReturnType<typeof setTimeout> | undefined;
   const deps: PhoneDeps = {
     async location() {
-      const perm = await Location.requestForegroundPermissionsAsync();
-      if (!perm.granted) return undefined;
-      const p = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      return {
-        lat: p.coords.latitude,
-        lon: p.coords.longitude,
-        ...(p.coords.accuracy == null ? {} : { accuracy_m: p.coords.accuracy }),
-      };
+      return capturePhoneLocation({
+        privacy: () => client.call("phone.privacy", {}),
+        onStop: (stop) => {
+          if (stopped) stop();
+          else captures.add(stop);
+          return () => {
+            captures.delete(stop);
+          };
+        },
+        permitted: async () => !stopped && (await Location.getForegroundPermissionsAsync()).granted,
+        watch: (receive) =>
+          Location.watchPositionAsync({ accuracy: Location.Accuracy.Balanced }, (p) =>
+            receive({
+              lat: p.coords.latitude,
+              lon: p.coords.longitude,
+              ...(p.coords.accuracy == null ? {} : { accuracy_m: p.coords.accuracy }),
+            }),
+          ),
+        poll: (check) => {
+          const timer = setInterval(check, 1000);
+          return () => clearInterval(timer);
+        },
+        deadline: (stop) => {
+          const timer = setTimeout(stop, 8000);
+          return () => clearTimeout(timer);
+        },
+      });
     },
     photo,
   };
@@ -46,6 +67,8 @@ export function startPhoneNode(creds: Creds, photo: PhoneDeps["photo"]): () => v
   void loop();
   return () => {
     stopped = true;
+    for (const stop of captures) stop();
+    captures.clear();
     clearTimeout(retry);
     socket?.close();
   };

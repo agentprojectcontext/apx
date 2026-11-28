@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.provider.Settings
+import org.json.JSONObject
 import expo.modules.kotlin.exception.Exceptions
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
@@ -38,6 +39,15 @@ class ApxCarModule : Module() {
     AsyncFunction("configure") { config: CarConfig ->
       TripController.configure(context, config.url, config.token, config.enabled, config.lang, config.agentName)
     }
+
+    AsyncFunction("allowTrips") {
+      val privacy = CoreClient.call(context, "phone.privacy", JSONObject())
+      val revision = privacy.optString("trip_revision", "")
+      check(privacy.optBoolean("trips", false) && revision.isNotEmpty()) { "Turn on trip location in Privacy first" }
+      CarPrefs(context).setTripPrivacyRevision(revision)
+      CarPrefs(context).setPrivacyBlocked(false)
+    }
+    AsyncFunction("pauseTrips") { TripController.revokePrivacy(context) }
 
     AsyncFunction("status") { TripController.status(context) }
 

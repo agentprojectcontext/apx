@@ -1,5 +1,24 @@
 // The app's words in English, the source language; every other language mirrors these keys.
 export const en = {
+  privacyTitle: "Privacy",
+  privacyPermission: "Location access on this phone",
+  privacyPermissionHelp:
+    "Android also needs your permission. This does not turn on errands or location sharing by itself.",
+  privacyLoading: "Checking your choices…",
+  privacyScope: "These choices apply to all phones connected to this APX.",
+  privacyLocation: "Location on request",
+  privacyLocationHelp:
+    "Let your agents ask for your phone’s current location. Your phone must also allow location access.",
+  privacyTrips: "Location during trips",
+  privacyTripsHelp:
+    "Share location for errands while driving. Turning this off also stops errands; turning it on does not start a trip.",
+  privacyStats: "Anonymous usage statistics",
+  privacyStatsHelp: "Share anonymous usage counts, not messages or location. The same choice as on your computer.",
+  privacyUnavailable:
+    "Could not read privacy choices. Check the connection and update APX on your computer, then try again.",
+  privacyReload: "Try again",
+  carGlobal: "Errands on all devices",
+  carGlobalHelp: "Turning this off stops trips on connected phones. Each phone also has its own switch.",
   artifactReviewOnComputer: "Open APX on your computer to review this copy.",
   browserTechnical: "Technical details",
   browserDocument: "Document",
@@ -845,7 +864,7 @@ export const en = {
   carMode: "In the car",
   carModeSub: "Errands near your way while you drive",
   carUnavailable: "Car mode needs the newer Android app.",
-  carSwitch: "Errands on the way",
+  carSwitch: "Use this phone for errands",
   carSwitchHelp: "While you drive, APX tells you when you pass near a place for an open errand.",
   carCoreOff: "Errands on the way are off in APX.",
   carCoreTurnOn: "Turn on",

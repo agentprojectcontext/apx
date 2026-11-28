@@ -1,12 +1,22 @@
 // Errands on the way: Settings › In the car, the trip card and the errand's place on a task.
 export const enCar = {
+  "privacy.title": "Phone location",
+  "privacy.scope":
+    "These choices apply to all phones connected to this APX. Your phone must also allow location access.",
+  "privacy.location": "Location on request",
+  "privacy.locationHelp": "Let your agents ask for your phone’s current location, without starting a trip.",
+  "privacy.trips": "Location during trips",
+  "privacy.tripsHelp":
+    "Share location for errands while driving. Turning this off also stops errands; turning it on does not start a trip.",
+  "privacy.error": "Could not read or save your privacy choices. Check your connection and try again.",
   "car.title": "In the car",
   "car.lead": "While you drive, APX tells you when you pass near a place where you can do an open errand.",
   "car.loadError": "Couldn't load these settings.",
   "car.saveError": "Couldn't save the change. Try again.",
   "car.retry": "Try again",
-  "car.enabled": "Tell me about errands on the way",
-  "car.enabledHint": "Uses your phone's location only while you drive. Nothing runs while it is off.",
+  "car.enabled": "Errands on all devices",
+  "car.enabledHint":
+    "Applies to all connected phones. Each phone must also have errands and location access turned on.",
   "car.reach": "How far ahead",
   "car.reachHint": "How far from your way a place can be for APX to tell you.",
   "car.reach.near": "Near",

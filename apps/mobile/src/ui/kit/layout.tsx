@@ -149,6 +149,7 @@ export function ListRow({
   chevron = true,
   trailing,
   sub,
+  wrap = false,
 }: {
   label: string;
   detail?: string;
@@ -158,24 +159,20 @@ export function ListRow({
   chevron?: boolean;
   trailing?: React.ReactNode;
   sub?: string;
+  wrap?: boolean;
 }) {
   const type = useType();
   const t = useTheme();
   const s = useStyles();
-  return (
-    <Pressable
-      accessibilityRole={onPress ? "button" : undefined}
-      disabled={!onPress}
-      onPress={onPress}
-      style={({ pressed }) => [s.row, pressed && { backgroundColor: t.fill }]}
-    >
+  const content = (
+    <>
       {leading}
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text numberOfLines={1} style={type.rowTitle}>
+        <Text numberOfLines={wrap ? undefined : 1} style={type.rowTitle}>
           {label}
         </Text>
         {sub ? (
-          <Text numberOfLines={2} style={type.meta}>
+          <Text numberOfLines={wrap ? undefined : 2} style={type.meta}>
             {sub}
           </Text>
         ) : null}
@@ -187,6 +184,16 @@ export function ListRow({
       ) : null}
       {trailing}
       {chevron && onPress ? <Icon name="ChevronRight" size={16} color={t.fgSubtle} /> : null}
+    </>
+  );
+  if (!onPress) return <View style={s.row}>{content}</View>;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [s.row, pressed && { backgroundColor: t.fill }]}
+    >
+      {content}
     </Pressable>
   );
 }
