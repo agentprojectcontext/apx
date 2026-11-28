@@ -21,6 +21,7 @@ const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** Agents, projects, threads, surfaces and browser tabs in one round. Throws if the core is unreachable. */
 export async function bootstrap(): Promise<void> {
+  const before = data.get().threads;
   const [agents, projects, threads, surfaces, computer] = await Promise.all([
     client.call("agents.list", {}),
     client.call("projects.list", { include_unregistered: true }),
@@ -42,12 +43,20 @@ export async function bootstrap(): Promise<void> {
       .filter((t) => t.parent_id || t.kind === "a2a")
       .map((t) => [t.id, t]),
   );
+  const listed = { ...keep, ...Object.fromEntries(threads.threads.map((t) => [t.id, t])) };
+  // Live changes received during the read are newer than its snapshot.
+  for (const [id, thread] of Object.entries(prev)) {
+    if (thread !== before[id]) listed[id] = thread;
+  }
+  for (const id of Object.keys(before)) {
+    if (!prev[id]) delete listed[id];
+  }
   data.set({
     agents: Object.fromEntries(agents.agents.map((a) => [a.id, a])),
     former: Object.fromEntries((agents.former ?? []).map((a) => [a.id, a])),
     projects: projects.projects,
     base: projects.base,
-    threads: { ...keep, ...Object.fromEntries(threads.threads.map((t) => [t.id, t])) },
+    threads: listed,
     delegated: threads.delegated ?? {},
     surfaces: Object.fromEntries(surfaces.surfaces.map((s) => [s.id, s])),
     vmThreads: computer.chats,

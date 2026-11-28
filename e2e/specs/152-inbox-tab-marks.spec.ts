@@ -16,16 +16,28 @@ test("a tab shows a spinner while its chat runs and a dot for its news until it 
       return say("Listo, ya está.");
     }),
   });
+  const snapshot = Promise.withResolvers<void>();
   try {
     await env.client.call("setup.finish", {});
     const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
+    // Hold the initial snapshot until the live running state has reached the panel.
+    await page.route("**/rpc/surfaces.list", async (route) => {
+      const response = await route.fetch();
+      await snapshot.promise;
+      await route.fulfill({ response });
+    });
+    const listed = page.waitForResponse("**/rpc/threads.list");
     await page.goto(`${env.core.url}/`);
+    await listed;
     const inbox = page.getByRole("region", { name: "Inbox" });
     const tab = (name: string) => inbox.getByRole("radio", { name: new RegExp(`^${name}`) });
     await tab("Tareas").click();
     await expect(tab("Tareas")).toBeChecked();
 
     await env.client.call("threads.send", { thread: chat.id, text: "revisá el contrato de Northwind" });
+    await expect(tab("Chats").getByRole("img", { name: "1 en curso" })).toBeVisible();
+    snapshot.resolve();
+    await expect(page.locator(".chat__header")).toBeVisible();
     await expect(tab("Chats").getByRole("img", { name: "1 en curso" })).toBeVisible();
     await expect(tab("Chats").locator(".apx-spinner")).toBeVisible();
     await expect(tab("Tareas").getByRole("img", { name: /en curso$/ })).toHaveCount(0);
@@ -44,6 +56,7 @@ test("a tab shows a spinner while its chat runs and a dot for its news until it 
     await expect(inbox.locator(".apx-convrow.is-unread")).toHaveCount(1);
   } finally {
     // A failed check must not leave the model held: closing the core waits for its run.
+    snapshot.resolve();
     release();
     await page.goto("about:blank");
     await env.core.close();

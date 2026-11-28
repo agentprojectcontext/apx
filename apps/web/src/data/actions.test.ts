@@ -74,6 +74,33 @@ function rpc(t: TestContext, replies: Record<string, unknown>) {
   return calls;
 }
 
+for (const change of ["updated", "created", "deleted"] as const) {
+  test(`bootstrap preserves a thread ${change} while its snapshot is pending`, async (t) => {
+    const old = thread();
+    const live = thread("thr_1", "working");
+    data.set({ threads: change === "created" ? {} : { thr_1: old } });
+    const snapshot = Promise.withResolvers<unknown>();
+    rpc(t, {
+      "agents.list": { agents: [] },
+      "projects.list": { projects: [], base: initial.base },
+      "threads.list": { threads: change === "created" ? [] : [old] },
+      "surfaces.list": () => snapshot.promise,
+      "environments.status": { enabled: false },
+      "browser.tabs": { tabs: [] },
+      "jobs.list": { running: [], finished: [] },
+      "engines.status": { engines: [] },
+      "models.list": { engines: [] },
+      "models.config": {},
+      "marks.json": {},
+    });
+    const loading = actions.bootstrap();
+    data.set({ threads: change === "deleted" ? {} : { thr_1: live } });
+    snapshot.resolve({ surfaces: [] });
+    await loading;
+    assert.equal(data.get().threads.thr_1, change === "deleted" ? undefined : live);
+  });
+}
+
 test("sending renders an optimistic attachment once, then replaces it with the persisted message and run", async (t) => {
   const pending = Promise.withResolvers<unknown>();
   const calls = rpc(t, { "threads.send": () => pending.promise });
