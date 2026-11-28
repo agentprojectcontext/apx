@@ -19,19 +19,31 @@ export function useAnswerVisibility<T>(list: RefObject<FlatList<T> | null>) {
   const offset = useRef(0);
   const reading = useRef(false);
   const frame = useRef<number | undefined>(undefined);
+  const measurement = useRef(0);
   const reveal = useCallback(() => {
+    const revision = ++measurement.current;
     if (frame.current !== undefined) cancelAnimationFrame(frame.current);
     frame.current = requestAnimationFrame(() => {
-      frame.current = undefined;
-      const target = focused.current;
-      if (!target || reading.current) return;
-      viewport.current?.measureInWindow((_x, top, _width, height) => {
-        target.measureInWindow((_ax, answerTop, _aw, answerHeight) => {
-          if (target !== focused.current || reading.current || height <= 0 || answerHeight <= 0) return;
-          const next = answerOffset(offset.current, top, height, answerTop, answerHeight);
-          if (Math.abs(next - offset.current) < 1) return;
-          offset.current = next;
-          list.current?.scrollToOffset({ offset: next, animated: false });
+      // Android can apply its caret scroll after the first layout frame.
+      frame.current = requestAnimationFrame(() => {
+        frame.current = undefined;
+        const target = focused.current;
+        if (!target || reading.current) return;
+        viewport.current?.measureInWindow((_x, top, _width, height) => {
+          if (revision !== measurement.current) return;
+          target.measureInWindow((_ax, answerTop, _aw, answerHeight) => {
+            if (
+              revision !== measurement.current ||
+              target !== focused.current ||
+              reading.current ||
+              height <= 0 ||
+              answerHeight <= 0
+            )
+              return;
+            const next = answerOffset(offset.current, top, height, answerTop, answerHeight);
+            if (Math.abs(next - offset.current) < 1) return;
+            list.current?.scrollToOffset({ offset: next, animated: false });
+          });
         });
       });
     });

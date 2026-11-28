@@ -33,9 +33,11 @@ test("focus and viewport resize reveal the answer; blur, drag and unmount stop a
     measureInWindow: (done: (x: number, y: number, width: number, height: number) => void) => done(30, 471, 260, 38),
   } as unknown as View;
   const flush = () => {
-    const callback = scheduled;
-    scheduled = undefined;
-    callback?.(0);
+    while (scheduled) {
+      const callback = scheduled;
+      scheduled = undefined;
+      callback(0);
+    }
   };
   try {
     const ui = await renderHook(() => useAnswerVisibility(list));
