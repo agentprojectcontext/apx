@@ -183,7 +183,11 @@ export const CarTrip = z.object(
     ended_at: () => z.string().optional(),
     destination: () => CarDestination.optional(),
     position: () =>
-      LatLon.extend({ at: z.string(), speed_mps: z.number().optional(), heading_deg: z.number().optional() }).optional(),
+      LatLon.extend({
+        at: z.string(),
+        speed_mps: z.number().optional(),
+        heading_deg: z.number().optional(),
+      }).optional(),
     /** The owner asked for no more offers this trip. */
     silenced: () => z.boolean(),
   }),
@@ -293,8 +297,7 @@ export const carMethods = {
   }),
   /** An errand from the car's list, without an offer (done, skip for this trip, go now). */
   "car.errand": deferMethod({
-    params: () =>
-      z.object({ task_id: z.string(), action: z.enum(["navigate", "skip", "done"]) }).strict(),
+    params: () => z.object({ task_id: z.string(), action: z.enum(["navigate", "skip", "done"]) }).strict(),
     result: () => z.object({ errand: CarErrand.optional(), navigate_url: z.string().optional() }),
     effect: true,
     access: "human",

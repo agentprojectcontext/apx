@@ -44,6 +44,8 @@ export type CarDeps = {
   provider?: (source: PlaceSource) => Promise<PlaceProvider | undefined>;
   fetch?: Fetch;
   onError?: (err: unknown) => void;
+  /** A copy of a new offer on the owner's chat channel, when they asked for it (`tell_in_chat`). */
+  tellOwner?: (alert: CarAlert, lang: Lang) => void;
 };
 
 type PositionIn = {
@@ -175,6 +177,7 @@ export function createCar(d: CarDeps) {
     });
     const alert = alertView(row, store.carTrips.get(trip.id), lang());
     changed(alert);
+    if (settings().tell_in_chat) d.tellOwner?.(alert, lang());
     return alert;
   }
 

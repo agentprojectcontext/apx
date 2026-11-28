@@ -7,7 +7,7 @@ import { bboxOf, distanceM, geohash, TILE_PRECISION, tilesAround } from "./geo.t
 import { evaluateHours } from "./hours.ts";
 import type { Fetch, FoundPlace, PlaceCache, PlaceProvider, SearchArea, StoredPlace } from "./provider.ts";
 
-export const OVERPASS_ENDPOINTS = [
+const OVERPASS_ENDPOINTS = [
   "https://overpass-api.de/api/interpreter",
   "https://overpass.kumi.systems/api/interpreter",
 ] as const;

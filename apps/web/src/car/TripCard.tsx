@@ -69,7 +69,7 @@ export function TripView({ view, onChanged }: { view: CarTripView; onChanged: ()
 }
 
 /** Whether a place is open, when its source knows. */
-export function OpenChip({ place }: { place: CarPlace }) {
+function OpenChip({ place }: { place: CarPlace }) {
   const t = useT();
   if (place.closes_soon) return <Badge tone="warning">{t("car.closesSoon")}</Badge>;
   if (place.open === "open") return <Badge tone="brand">{t("car.open")}</Badge>;

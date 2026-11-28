@@ -1,6 +1,6 @@
 // What an offer says (rules/ERRANDS_ON_THE_WAY.md#delivery): the errand first, then the place, the distance and the
 // street. The spoken text is for a voice in the car: no emoji, no "km", units in words.
-import type { CarDestination, CarPlace } from "@apx/protocol";
+import type { CarAction, CarAlert, CarDestination, CarPlace } from "@apx/protocol";
 
 export type Lang = "es" | "en";
 
@@ -64,4 +64,56 @@ export function addStopUrl(place: { lat: number; lon: number }, destination?: Ca
         ? encodeURIComponent(destination.label)
         : undefined;
   return to ? `${MAPS}&destination=${to}&waypoints=${point(place)}&travelmode=driving` : undefined;
+}
+
+const ACTION_LABELS: Record<Lang, Record<CarAction, string>> = {
+  es: {
+    navigate: "Voy",
+    add_stop: "Sumar parada",
+    next: "Otro lugar",
+    later: "Más tarde",
+    skip: "No en este viaje",
+    silence: "No me avises más",
+    done: "Ya lo hice",
+  },
+  en: {
+    navigate: "Go",
+    add_stop: "Add as a stop",
+    next: "Another place",
+    later: "Later",
+    skip: "Not this trip",
+    silence: "No more this trip",
+    done: "Done",
+  },
+};
+
+export const actionLabel = (action: CarAction, lang: Lang): string => ACTION_LABELS[lang][action];
+
+/** The answers a chat copy offers: a chat cannot add a stop to a route, so that one stays on the car and phone. */
+export const CHAT_ACTIONS: readonly CarAction[] = ["navigate", "next", "later", "skip", "done", "silence"];
+
+/** The offer as a chat message: the errand, then the place, the distance and the street. */
+export function chatText(alert: CarAlert, lang: Lang): string {
+  const where = alert.place.address ? ` (${alert.place.address})` : "";
+  return lang === "es"
+    ? `${alert.errand}: ${alert.place.name}${where}, a ${alert.distance_label} de tu camino.`
+    : `${alert.errand}: ${alert.place.name}${where}, ${alert.distance_label} from your way.`;
+}
+
+/** What the chat says back to a pressed answer. */
+export function chatAnswered(action: CarAction, lang: Lang, url?: string, next?: CarAlert): string {
+  if (action === "navigate" || action === "add_stop") return lang === "es" ? `Dale: ${url ?? ""}` : `Go: ${url ?? ""}`;
+  if (action === "next")
+    return next
+      ? chatText(next, lang)
+      : lang === "es"
+        ? "No encontré otro lugar cerca por ahora; te aviso si aparece."
+        : "No other place nearby for now; I'll tell you if one shows up.";
+  const said: Record<Exclude<CarAction, "navigate" | "add_stop" | "next">, [string, string]> = {
+    later: ["Te lo vuelvo a ofrecer en un rato.", "I'll offer it again in a while."],
+    skip: ["Queda para el próximo viaje.", "It waits for the next drive."],
+    silence: ["No te aviso más en este viaje.", "No more offers this trip."],
+    done: ["Listo, lo marqué como hecho.", "Done, marked as done."],
+  };
+  return said[action][lang === "es" ? 0 : 1];
 }

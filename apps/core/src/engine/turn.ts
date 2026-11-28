@@ -14,6 +14,7 @@ import {
   type Thread,
 } from "@apx/protocol";
 import { readOrganization } from "../apc/org.ts";
+import { ownerDriving, voiceWhileDriving } from "../car/driving.ts";
 import type { AgentRecord } from "../domain/agents.ts";
 import { isConsult } from "../domain/contact-consult.ts";
 import type { InputRecord } from "../domain/inputs.ts";
@@ -645,7 +646,11 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
             timeZone: ownerTimeZone(store),
             channel: channelKindOf(store, o, turn.input.reply_to === null ? null : turn.input.reply_to?.channel),
             noReactions: reactionsOff(store, o, turn.input.reply_to === null ? null : turn.input.reply_to?.channel),
-            voice: o.kind === "channel" && Boolean(store.threads.context(thread.id).voice_replies),
+            voice:
+              o.kind === "channel" &&
+              (Boolean(store.threads.context(thread.id).voice_replies) ||
+                (thread.kind === "home" && voiceWhileDriving(store))),
+            driving: ownerTurn && thread.kind === "home" && ownerDriving(store),
             // A contact turn with no tools makes no call that could wait: it needs no mode.
             mode: turn.audience.kind === "contact" && !told.mode ? undefined : mode,
             told,

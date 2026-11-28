@@ -34,7 +34,7 @@ type GooglePlace = {
 };
 
 /** The request body for one category around a point. */
-export function textSearchBody(area: SearchArea, category: ErrandCategory, language: "es" | "en") {
+function textSearchBody(area: SearchArea, category: ErrandCategory, language: "es" | "en") {
   const def = CATEGORIES[category];
   return {
     textQuery: def.googleQuery[language],

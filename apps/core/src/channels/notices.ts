@@ -1,5 +1,5 @@
 // How a confirmation or question is shown on a channel.
-import type { Part } from "@apx/protocol";
+import { CarAction, type CarAlert, type Part } from "@apx/protocol";
 import type { Presentation } from "../domain/channels.ts";
 import type { ChannelConfig } from "./types.ts";
 
@@ -25,6 +25,8 @@ export const buttonId = {
   suggestion: (id: string, decision: SuggestionDecision) => `s:${id}:${decision}`,
   /** One of a release news entry's actions (news/entries.ts): what it asks goes to the agent as the owner's words. */
   news: (entry: string, n: number) => `n:${entry}:${n}`,
+  /** An answer to an errand offered on the way (DECISIONS.md#d-284). */
+  car: (alertId: string, action: CarAction) => `c:${alertId}:${action}`,
 };
 
 export type SuggestionDecision = "send" | "write" | "ignore";
@@ -39,7 +41,8 @@ export type Button =
   | { kind: "review"; person: string; decision: "answer" | "ignore" }
   | { kind: "suggestion"; id: string; decision: SuggestionDecision }
   | { kind: "continue"; session: string }
-  | { kind: "news"; entry: string; index: number };
+  | { kind: "news"; entry: string; index: number }
+  | { kind: "car"; alert: string; action: CarAction };
 
 export function parseButton(data: string): Button | undefined {
   const [kind, ref, what] = data.split(":");
@@ -55,6 +58,8 @@ export function parseButton(data: string): Button | undefined {
   if (kind === "s" && (what === "send" || what === "write" || what === "ignore"))
     return { kind: "suggestion", id: ref, decision: what };
   if (kind === "n" && /^\d+$/.test(what)) return { kind: "news", entry: ref, index: Number(what) };
+  const action = CarAction.safeParse(what);
+  if (kind === "c" && action.success) return { kind: "car", alert: ref, action: action.data };
   return undefined;
 }
 
@@ -126,4 +131,17 @@ export function ratingOf(emoji: string): "up" | "down" | null | undefined {
 export function shown(cfg: Pick<ChannelConfig, "type">, name: string, externalId: string): string {
   const phone = cfg.type === "whatsapp" ? /^(\d{6,})@s\.whatsapp\.net$/.exec(externalId)?.[1] : undefined;
   return phone ? `${name} (+${phone})` : name;
+}
+
+/** An errand offered on the way, with the answers a chat can give (car/wording.ts words it). */
+export function carPresentation(
+  alert: CarAlert,
+  words: { text: string; label: (action: CarAction) => string; actions: readonly CarAction[] },
+): Presentation {
+  return {
+    text: words.text,
+    buttons: words.actions
+      .filter((a) => alert.actions.includes(a))
+      .map((a) => ({ id: buttonId.car(alert.id, a), label: words.label(a) })),
+  };
 }

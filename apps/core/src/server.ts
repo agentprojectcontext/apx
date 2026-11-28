@@ -23,8 +23,10 @@ import { createApcSync } from "./apc/sync.ts";
 import type { TemplateRoot } from "./apc/templates.ts";
 import { createBus } from "./bus.ts";
 import { type CarDeps, createCar } from "./car/service.ts";
+import { actionLabel, CHAT_ACTIONS, chatText } from "./car/wording.ts";
 import { builtinFactories } from "./channels/builtin-factories.ts";
 import { createChannels } from "./channels/manager.ts";
+import { carPresentation } from "./channels/notices.ts";
 import type { AdapterFactory } from "./channels/types.ts";
 import { type CoreConfig, OAUTH_CHATGPT } from "./config.ts";
 import { coreLogSink } from "./core-log.ts";
@@ -819,6 +821,15 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     ...(opts.clock ? { now: opts.clock } : {}),
     ...(opts.carPlaces ? { provider: opts.carPlaces } : {}),
     onError: (err) => log.warn({ err: errorMessage(err) }, "place search failed"),
+    tellOwner: (alert, lang) =>
+      void channels.notifyOwner(
+        carPresentation(alert, {
+          text: chatText(alert, lang),
+          label: (a) => actionLabel(a, lang),
+          actions: CHAT_ACTIONS,
+        }),
+        "notice",
+      ),
   });
   const extensionEvents = createExtensionEvents({
     store,

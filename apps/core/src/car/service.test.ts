@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { CoreEvent, ErrandCategory, ErrandPlace } from "@apx/protocol";
+import type { CarAlert, CoreEvent, ErrandCategory, ErrandPlace } from "@apx/protocol";
 import { createBus } from "../bus.ts";
 import { openDb } from "../db/db.ts";
 import { createStore, type Store } from "../domain/store.ts";
@@ -314,4 +314,31 @@ test("a trip with no point for 20 minutes ends on its own", async () => {
   assert.equal((await drive(car, point(clock))).active, false, "the phone hears it ended");
   car.tripStart({ trip_id: TRIP, source: "android_auto", at: clock.now().toISOString() });
   assert.equal(car.trip().trip?.id, TRIP, "starting the same trip again opens it");
+});
+
+test("an offer goes to the owner's chat only when they asked for it", async () => {
+  await using env = await setup();
+  const { store, clock, fake } = env;
+  const told: CarAlert[] = [];
+  const car = createCar({
+    store,
+    bus: createBus(),
+    secrets: { resolve: () => undefined, has: () => false, set: () => {} },
+    now: clock.now,
+    provider: async () => fake.provider,
+    tellOwner: (alert) => told.push(alert),
+  });
+  errand(store, "Comprar leche", { categories: ["supermarket"] });
+  car.tripStart({ trip_id: TRIP, source: "android_auto", at: clock.now().toISOString() });
+  assert.equal((await drive(car, point(clock))).alerts.length, 1);
+  assert.equal(told.length, 0, "tell_in_chat is off by default");
+  errand(store, "Fotocopias", { categories: ["stationery"] });
+  store.settings.write("car", { ...store.settings.read("car"), tell_in_chat: true });
+  clock.advance(60_000);
+  const second = await drive(car, point(clock, 200));
+  assert.equal(second.alerts.length, 1);
+  assert.deepEqual(
+    told.map((a) => a.id),
+    [second.alerts[0]?.id],
+  );
 });

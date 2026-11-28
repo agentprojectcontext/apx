@@ -67,7 +67,7 @@ function splitAdditional(rule: string): string[] {
 }
 
 /** Parsed week, or undefined when any part is outside the supported subset. */
-export function parseOpeningHours(raw: string): Week | undefined {
+function parseOpeningHours(raw: string): Week | undefined {
   const text = raw.trim();
   if (!text) return undefined;
   const week: Week = ALL_DAYS.map(() => []);

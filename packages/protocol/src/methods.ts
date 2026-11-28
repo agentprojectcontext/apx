@@ -3,7 +3,6 @@
 import { z } from "zod";
 import { accountMethods } from "./account.ts";
 import { activityReviewMethods } from "./activity-review.ts";
-import { carMethods } from "./car.ts";
 import { agentMigrationMethods } from "./agent-migration.ts";
 import { appMethods } from "./app-methods.ts";
 import { artifactMethods } from "./artifact-methods.ts";
@@ -11,6 +10,7 @@ import { asanaMethods } from "./asana-methods.ts";
 import { autoDecisionMethods } from "./auto-decisions.ts";
 import { browserMethods } from "./browser.ts";
 import { callMethods } from "./call-methods.ts";
+import { carMethods } from "./car.ts";
 import { channelMethods } from "./channel-methods.ts";
 import { contactSourceMethods } from "./contact-sources.ts";
 import { continuationMethods } from "./continuations.ts";

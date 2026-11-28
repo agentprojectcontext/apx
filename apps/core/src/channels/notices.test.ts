@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Part } from "@apx/protocol";
-import { inputPresentation, parseButton } from "./notices.ts";
+import { buttonId, inputPresentation, parseButton } from "./notices.ts";
 
 const labels = {
   approve: "Allow",
@@ -63,4 +63,11 @@ test("a multi-choice question ticks its options, then sends them; any question c
     single.buttons?.map((b) => b.id),
     ["i:in_2:o0", "i:in_2:o1", "i:in_2:s"],
   );
+});
+
+test("an errand offer's chat buttons carry the alert and the answer, and read back", () => {
+  const id = buttonId.car("cal_0123456789abcdef", "navigate");
+  assert.ok(Buffer.byteLength(id) <= 64);
+  assert.deepEqual(parseButton(id), { kind: "car", alert: "cal_0123456789abcdef", action: "navigate" });
+  assert.equal(parseButton("c:cal_1:fly"), undefined);
 });
