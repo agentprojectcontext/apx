@@ -30,6 +30,18 @@ test("location, trip location and anonymous statistics change their shared prefe
   await ui.unmount();
 });
 
+test("a network failure offers retry without diagnosing an outdated computer", async () => {
+  const call = jest.fn(async () => {
+    throw new Error("Network unreachable");
+  });
+  const ui = await render(<PrivacySettings call={call} />);
+  expect(ui.getByText("Couldn’t check the current setting. Check your connection and try again.")).toBeVisible();
+  expect(ui.queryByText(/update APX/i)).toBeNull();
+  expect(ui.queryAllByRole("switch")).toHaveLength(0);
+  expect(ui.getByRole("button", { name: t("privacyReload") })).toBeVisible();
+  await ui.unmount();
+});
+
 test("a rejected save keeps the confirmed preference and reports the error", async () => {
   const f = fixture();
   const alert = jest.spyOn(Alert, "alert");

@@ -17,8 +17,7 @@ export const en = {
     "Share location for errands while driving. Turning this off also stops errands; turning it on does not start a trip.",
   privacyStats: "Anonymous usage statistics",
   privacyStatsHelp: "Share anonymous usage counts, not messages or location. The same choice as on your computer.",
-  privacyUnavailable:
-    "Could not read privacy choices. Check the connection and update APX on your computer, then try again.",
+  privacyUnavailable: "Couldn’t check the current setting. Check your connection and try again.",
   privacyReload: "Try again",
   carGlobal: "Errands on all phones",
   carGlobalHelp: "Turning this off stops trips on connected phones. Each phone also has its own switch.",
@@ -284,7 +283,7 @@ export const en = {
   routinesFailedOne: "1 failed",
   memoriesCount: "{n} notes",
   memoriesCountOne: "1 note",
-  connectedTo: "Connected to {host}",
+  connectedTo: "Paired with {host}",
   nothingHere: "Nothing here yet.",
   channelsHow: "Connect Telegram, WhatsApp, Discord or Slack from APX on your computer.",
   agent: "Agent",

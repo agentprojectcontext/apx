@@ -43,6 +43,18 @@ beforeEach(() => {
 });
 afterEach(() => net.restore());
 
+test("the saved computer is described as paired, not as currently connected", async () => {
+  const ui = await render(
+    view(
+      async () => prefs,
+      async (p) => p,
+    ),
+  );
+  expect(ui.getByText("Paired with Acme")).toBeVisible();
+  expect(ui.queryByText("Connected to Acme")).toBeNull();
+  await ui.unmount();
+});
+
 test("disconnect requires native destructive confirmation", async () => {
   const disconnect = jest.fn();
   const alert = jest.spyOn(Alert, "alert");

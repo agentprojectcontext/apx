@@ -19,8 +19,7 @@ export const es: Record<Key, string> = {
   privacyStats: "Estadísticas anónimas de uso",
   privacyStatsHelp:
     "Compartí cantidades anónimas de uso, no mensajes ni ubicación. Es la misma opción que en tu computadora.",
-  privacyUnavailable:
-    "No se pudieron leer tus opciones de privacidad. Revisá la conexión y actualizá APX en tu computadora; después, volvé a intentar.",
+  privacyUnavailable: "No se pudo consultar el estado. Revisá la conexión y volvé a intentar.",
   privacyReload: "Volver a intentar",
   carGlobal: "Recados en todos los teléfonos",
   carGlobalHelp:
@@ -290,7 +289,7 @@ export const es: Record<Key, string> = {
   routinesFailedOne: "1 falló",
   memoriesCount: "{n} recuerdos",
   memoriesCountOne: "1 recuerdo",
-  connectedTo: "Conectado a {host}",
+  connectedTo: "Vinculado a {host}",
   nothingHere: "Todavía no hay nada acá.",
   channelsHow: "Conectá Telegram, WhatsApp, Discord o Slack desde APX en tu computadora.",
   agent: "Agente",
