@@ -80,7 +80,8 @@ test("the owner takes a server tab, signs in by hand, gives it back and the agen
     "a first picture of the page",
     { ms: 20_000 },
   );
-  assert.equal(first.width, 1280);
+  // The 1280 px window, less a classic scrollbar where the system draws one (Windows): clicks map to this width.
+  assert.ok(first.width > 1240 && first.width <= 1280, `viewport width ${first.width}`);
   page = first;
 
   // Only a tab the owner holds takes their hand.
