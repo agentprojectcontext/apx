@@ -71,6 +71,7 @@ export function CallCard() {
   const line = useRef<CallLine | undefined>(undefined);
   // The owner hung up (or closed the card) while the call was still being placed.
   const hungUp = useRef(false);
+  const starting = useRef<AbortController | undefined>(undefined);
   // Mute and sound as chosen, also while the call is still being placed.
   const chosen = useRef({ muted: false, sound: true });
 
@@ -106,6 +107,7 @@ export function CallCard() {
   useEffect(
     () => () => {
       hungUp.current = true;
+      starting.current?.abort();
       line.current?.hangUp();
     },
     [],
@@ -147,6 +149,9 @@ export function CallCard() {
     quick.current = mode === "quick";
     greeted.current = byName && quick.current ? greetedUntil : undefined;
     hungUp.current = false;
+    starting.current?.abort();
+    const pending = new AbortController();
+    starting.current = pending;
     setProblem(undefined);
     setPartial("");
     setSince(undefined);
@@ -164,33 +169,31 @@ export function CallCard() {
     const stop = () => {
       for (const track of mic.getTracks()) track.stop();
     };
-    let placed: { thread_id: string; ticket: string };
-    try {
-      placed = await client.call("calls.start", {
-        agent_id: agent.id,
-        voice,
-        locale,
-        ...(thread ? { thread } : {}),
-        ...(quick.current ? { mode: "quick" as const } : {}),
-        ...(greeted.current !== undefined ? { greeted: true } : {}),
-      });
-    } catch (err) {
+    if (pending.signal.aborted) {
       stop();
-      setProblem((err as { code?: string }).code === "conflict" ? "callCard.busy" : "callCard.failed");
-      setStage("ended");
       return;
     }
-    if (hungUp.current) {
-      stop();
-      closeCall();
-      return;
-    }
-    calls.set({ live: placed.thread_id, card: { thread: placed.thread_id } });
-    go.inboxThread(placed.thread_id);
     try {
       line.current = await openLine(
         mic,
-        placed.ticket,
+        async () => {
+          pending.signal.throwIfAborted();
+          const placed = await client.call("calls.start", {
+            agent_id: agent.id,
+            voice,
+            locale,
+            ...(thread ? { thread } : {}),
+            ...(quick.current ? { mode: "quick" as const } : {}),
+            ...(greeted.current !== undefined ? { greeted: true } : {}),
+          });
+          if (pending.signal.aborted) {
+            await client.call("calls.end", { thread_id: placed.thread_id });
+            pending.signal.throwIfAborted();
+          }
+          calls.set({ live: placed.thread_id, card: { thread: placed.thread_id } });
+          go.inboxThread(placed.thread_id);
+          return placed.ticket;
+        },
         {
           frame: onFrame,
           closed: (ended) => {
@@ -198,10 +201,12 @@ export function CallCard() {
           },
         },
         greeted.current,
+        pending.signal,
       );
-    } catch {
+    } catch (err) {
       stop();
-      finish("callCard.failed");
+      if (pending.signal.aborted) return;
+      finish((err as { code?: string }).code === "conflict" ? "callCard.busy" : "callCard.failed");
       return;
     }
     line.current.setMuted(chosen.current.muted);
@@ -218,6 +223,7 @@ export function CallCard() {
 
   const hangUp = () => {
     hungUp.current = true;
+    starting.current?.abort();
     if (line.current) line.current.hangUp();
     else closeCall();
   };

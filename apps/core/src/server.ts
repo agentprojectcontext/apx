@@ -738,6 +738,10 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     bossName: () => store.agents.list().find((a) => a.kind === "secretary")?.name ?? "",
     greetings: createGreetings({
       dir: path.join(config.home, "voice", "greetings"),
+      enabled: () => {
+        const s = native.status();
+        return s.calls && (s.call_engine === "services" || s.enabled);
+      },
       voice: () => {
         const s = native.status();
         const v = native.voice();

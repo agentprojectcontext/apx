@@ -74,6 +74,8 @@ test("a new voice records the greetings in use again, and says it is preparing m
   const release = t.holdRecording();
   t.setVoice({ gender: "male" });
   assert.equal(t.greetings.status(), "preparing");
+  assert.deepEqual(t.said, ["¿Sí, Ana?|female"]);
+  t.greetings.refresh();
   release();
   await waitFor(() => t.greetings.status() === "ready", "the new greeting");
   const now = t.greetings.get("quick");

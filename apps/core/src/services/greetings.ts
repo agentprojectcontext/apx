@@ -73,13 +73,15 @@ const MODES: CallMode[] = ["quick", "call"];
 export function createGreetings(deps: {
   dir: string;
   voice: () => GreetingVoice;
+  enabled?: () => boolean;
   /** The line spoken in the voice, as 24 kHz mono PCM16. */
   record: (text: string, v: GreetingVoice, signal: AbortSignal) => Promise<Buffer>;
   log: Log;
   now?: () => number;
 }) {
   const now = deps.now ?? Date.now;
-  const busy = new Map<CallMode, string>();
+  const enabled = () => deps.enabled?.() ?? true;
+  const busy = new Map<CallMode, { key: string; controller: AbortController }>();
   const failed = new Map<string, number>();
 
   const describe = (mode: CallMode) => {
@@ -103,14 +105,22 @@ export function createGreetings(deps: {
   const inUse = () => MODES.filter((m) => files().some((f) => f.startsWith(`${m}-`)));
 
   function record(mode: CallMode) {
+    if (!enabled()) return;
     const g = describe(mode);
-    if (fs.existsSync(g.file) || busy.get(mode) === g.key) return;
+    if (fs.existsSync(g.file) || busy.get(mode)?.key === g.key) return;
     const last = failed.get(g.key);
     if (last !== undefined && now() - last < RETRY_MS) return;
-    busy.set(mode, g.key);
+    busy.get(mode)?.controller.abort();
+    const pending = { key: g.key, controller: new AbortController() };
+    busy.set(mode, pending);
     void (async () => {
       try {
-        const pcm = await deps.record(g.text, g.v, AbortSignal.timeout(RECORD_MS));
+        const pcm = await deps.record(
+          g.text,
+          g.v,
+          AbortSignal.any([pending.controller.signal, AbortSignal.timeout(RECORD_MS)]),
+        );
+        if (!enabled() || busy.get(mode) !== pending || describe(mode).key !== g.key) return;
         if (!pcm.length) throw new Error("the voice returned no audio");
         fs.mkdirSync(deps.dir, { recursive: true });
         fs.writeFileSync(`${g.file}.tmp`, pcm);
@@ -120,16 +130,23 @@ export function createGreetings(deps: {
             fs.rmSync(path.join(deps.dir, f), { force: true });
         failed.delete(g.key);
       } catch (err) {
-        failed.set(g.key, now());
-        deps.log.warn({ err: errorMessage(err, 200), mode }, "greeting not recorded");
+        if (busy.get(mode) === pending && !pending.controller.signal.aborted) {
+          failed.set(g.key, now());
+          deps.log.warn({ err: errorMessage(err, 200), mode }, "greeting not recorded");
+        }
       } finally {
-        if (busy.get(mode) === g.key) busy.delete(mode);
+        if (busy.get(mode) === pending) busy.delete(mode);
       }
     })();
   }
 
   /** Records again what devices use after the voice, its language or the owner's name changed. */
   const refresh = () => {
+    if (!enabled()) {
+      for (const pending of busy.values()) pending.controller.abort();
+      busy.clear();
+      return;
+    }
     for (const m of inUse()) record(m);
   };
 
@@ -138,6 +155,7 @@ export function createGreetings(deps: {
     /** The greeting for `mode` when it is recorded; otherwise it starts recording it and says so. */
     get(mode: CallMode): { key: string; text: string; pcm?: Buffer } {
       const g = describe(mode);
+      if (!enabled()) return { key: g.key, text: g.text };
       try {
         return { key: g.key, text: g.text, pcm: fs.readFileSync(g.file) };
       } catch {
@@ -147,9 +165,9 @@ export function createGreetings(deps: {
     },
     /** Absent until a device asks for a greeting; `preparing` while one in use is recorded again. */
     status(): "ready" | "preparing" | undefined {
+      if (!enabled()) return undefined;
       const used = inUse();
       if (!used.length && !busy.size) return undefined;
-      refresh();
       return used.every((m) => fs.existsSync(describe(m).file)) && !busy.size ? "ready" : "preparing";
     },
   };

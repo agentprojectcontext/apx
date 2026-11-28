@@ -78,9 +78,10 @@ export async function openMic(): Promise<MediaStream> {
  */
 export async function openLine(
   mic: MediaStream,
-  ticket: string,
+  ticket: string | (() => Promise<string>),
   on: LineEvents,
   greetedUntil?: number,
+  signal?: AbortSignal,
 ): Promise<CallLine> {
   let ws: WebSocket | undefined;
   const early: ArrayBuffer[] = [];
@@ -108,6 +109,8 @@ export async function openLine(
   const release = () => {
     if (released) return;
     released = true;
+    signal?.removeEventListener("abort", cancel);
+    early.length = 0;
     flush();
     for (const track of mic.getTracks()) track.stop();
     if (up) up.port.onmessage = null;
@@ -117,29 +120,30 @@ export async function openLine(
     void downCtx.close().catch(() => undefined);
   };
 
+  const cancel = () => {
+    ws?.close();
+    release();
+  };
+  signal?.addEventListener("abort", cancel, { once: true });
+
   try {
-    // Up: the microphone, resampled in a worklet.
-    const workletUrl = URL.createObjectURL(new Blob([WORKLET], { type: "application/javascript" }));
-    try {
-      await upCtx.audioWorklet.addModule(workletUrl);
-    } finally {
-      URL.revokeObjectURL(workletUrl);
-    }
-    source = upCtx.createMediaStreamSource(mic);
-    up = new AudioWorkletNode(upCtx, "apx-call-up", {
-      numberOfInputs: 1,
-      numberOfOutputs: 0,
-      channelCount: 1,
-      channelCountMode: "explicit",
-    });
-    up.port.onmessage = (e: MessageEvent<ArrayBuffer>) => {
-      if (muted || inEcho(Date.now(), greetedUntil)) return;
-      if (ws?.readyState === WebSocket.OPEN) ws.send(e.data);
-      else if (greetedUntil !== undefined && early.length < HELD_FRAMES) early.push(e.data);
-    };
-    source.connect(up);
+    signal?.throwIfAborted();
+    ({ source, up } = await captureMic(
+      upCtx,
+      mic,
+      (data) => {
+        if (released || muted || inEcho(Date.now(), greetedUntil)) return;
+        if (ws?.readyState === WebSocket.OPEN) ws.send(data);
+        else if (greetedUntil !== undefined && early.length < HELD_FRAMES) early.push(data);
+      },
+      signal,
+    ));
     // Down: each chunk scheduled right after the one before.
     out = await echoSafeOutput(downCtx, gain);
+    if (signal?.aborted) {
+      out.close();
+      signal.throwIfAborted();
+    }
     // A call starts from a click, which lets both contexts run.
     void upCtx.resume().catch(() => undefined);
     void downCtx.resume().catch(() => undefined);
@@ -164,9 +168,18 @@ export async function openLine(
     node.onended = () => playing.delete(node);
   };
 
-  const scheme = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const socket = new WebSocket(`${scheme}//${window.location.host}/voice-call?ticket=${encodeURIComponent(ticket)}`);
-  ws = socket;
+  let socket: WebSocket;
+  try {
+    signal?.throwIfAborted();
+    const key = typeof ticket === "string" ? ticket : await ticket();
+    signal?.throwIfAborted();
+    const scheme = window.location.protocol === "https:" ? "wss:" : "ws:";
+    socket = new WebSocket(`${scheme}//${window.location.host}/voice-call?ticket=${encodeURIComponent(key)}`);
+    ws = socket;
+  } catch (err) {
+    release();
+    throw err;
+  }
   socket.binaryType = "arraybuffer";
   socket.onopen = () => {
     for (const frame of early.splice(0)) socket.send(frame);
@@ -204,6 +217,31 @@ export async function openLine(
       release();
     },
   };
+}
+
+async function captureMic(
+  ctx: AudioContext,
+  mic: MediaStream,
+  receive: (data: ArrayBuffer) => void,
+  signal?: AbortSignal,
+) {
+  const url = URL.createObjectURL(new Blob([WORKLET], { type: "application/javascript" }));
+  try {
+    await ctx.audioWorklet.addModule(url);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+  signal?.throwIfAborted();
+  const source = ctx.createMediaStreamSource(mic);
+  const up = new AudioWorkletNode(ctx, "apx-call-up", {
+    numberOfInputs: 1,
+    numberOfOutputs: 0,
+    channelCount: 1,
+    channelCountMode: "explicit",
+  });
+  up.port.onmessage = (e: MessageEvent<ArrayBuffer>) => receive(e.data);
+  source.connect(up);
+  return { source, up };
 }
 
 /**
