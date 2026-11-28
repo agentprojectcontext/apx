@@ -42,9 +42,18 @@ class TripLocationService : Service() {
 
   private val privacyCheck = object : Runnable {
     override fun run() {
-      TripPrivacy.validate(this@TripLocationService) {
+      TripPrivacy.validate(this@TripLocationService, unreachable = {
+        if (running) beat.postDelayed(this, PRIVACY_RETRY_MS)
+      }) {
         if (running) beat.postDelayed(this, PRIVACY_CHECK_MS)
       }
+    }
+  }
+
+  // The first check had no answer: no coordinates are read until one comes, tried again every PRIVACY_RETRY_MS.
+  private val startCheck = object : Runnable {
+    override fun run() {
+      if (running && !listening) startTrip()
     }
   }
 
@@ -102,23 +111,28 @@ class TripLocationService : Service() {
       prefs.setError(null)
     }
     running = true
-    if (!listening) {
-      TripPrivacy.validate(this, beginning = true) {
-        if (!running || !CarPrefs(this).tripActive) return@validate
-        acceptedAfterNanos = SystemClock.elapsedRealtimeNanos()
-        requestUpdates()
-        beat.removeCallbacks(heartbeat)
-        beat.postDelayed(heartbeat, HEARTBEAT_MS)
-        beat.removeCallbacks(privacyCheck)
-        beat.postDelayed(privacyCheck, PRIVACY_CHECK_MS)
-      }
-    }
+    if (!listening) startTrip()
     TripController.publishStatus(this)
     // A low-memory kill does not end a drive; the listener does.
     return START_STICKY
   }
 
+  private fun startTrip() {
+    TripPrivacy.validate(this, beginning = true, unreachable = {
+      if (running) beat.postDelayed(startCheck, PRIVACY_RETRY_MS)
+    }) {
+      if (!running || !CarPrefs(this).tripActive) return@validate
+      acceptedAfterNanos = SystemClock.elapsedRealtimeNanos()
+      requestUpdates()
+      beat.removeCallbacks(heartbeat)
+      beat.postDelayed(heartbeat, HEARTBEAT_MS)
+      beat.removeCallbacks(privacyCheck)
+      beat.postDelayed(privacyCheck, PRIVACY_CHECK_MS)
+    }
+  }
+
   override fun onDestroy() {
+    beat.removeCallbacks(startCheck)
     beat.removeCallbacks(heartbeat)
     beat.removeCallbacks(privacyCheck)
     TripPrivacy.cancel()
@@ -166,11 +180,12 @@ class TripLocationService : Service() {
     if (location.hasSpeed()) params.put("speed_mps", location.speed.toDouble().coerceIn(0.0, 120.0))
     if (location.hasBearing()) params.put("heading_deg", location.bearing.toDouble().coerceIn(0.0, 360.0))
     val app = applicationContext
-    CoreClient.send(app, "car.position", params) { result ->
+    CoreClient.sendWithCode(app, "car.position", params) { result, code ->
       beat.post {
         val current = CarPrefs(app)
         TripPositionReply.handle(current.active, current.tripActive, current.tripId, current.tripPrivacyRevision,
-          params.optString("trip_id"), params.optString("consent_revision"), result?.optBoolean("active", false) == true,
+          params.optString("trip_id"), params.optString("consent_revision"),
+          TripPositionReply.outcome(result?.optBoolean("active", false), code),
           revoke = { TripController.revokePrivacy(app) },
           deliver = {
             current.markSent()
@@ -190,6 +205,7 @@ class TripLocationService : Service() {
     private const val MIN_UPLOAD_MS = 25_000L
     private const val PRIVACY_CHECK_MS = 5_000L
     private const val HEARTBEAT_MS = 30_000L
+    private const val PRIVACY_RETRY_MS = 15_000L
 
     /** In the foreground and following the trip. */
     @Volatile

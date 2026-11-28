@@ -6773,3 +6773,22 @@ signal the free sources give, answers on the car, and the places they use rememb
 Design and v1 lessons: [ERRANDS_ON_THE_WAY.md](ERRANDS_ON_THE_WAY.md).
 
 Docs impact: updated guides for errands on the way and the phone in English and Spanish.
+
+<a id="d-287"></a>
+## D-287 — 2026-11-28 — A trip's location stays on until the owner turns it off, not until the network drops
+
+2.18.1 made the phone stop its trip, and latch errands off until a local tap, whenever its privacy check or a
+position got no answer within twelve seconds. Tested in a car, a Tailscale reconnect of a few seconds ended the drive's
+errands and left the phone's switch off. The owner's rule: in the car, the phone shares its position at the set
+interval until they stop it; without a trip, APX asks the phone for its location only when it needs it.
+
+- Only an answer stops a trip: the core says the trip or its consent no longer holds, or the phone's key is refused.
+  No answer (offline, unavailable, timeout, internal) keeps the trip; the next check (15 s) or point (30 s) tries
+  again, and a first check with no answer reads no coordinates until one comes.
+- Turning errands off (on the phone, for every phone in APX, or one phone from APX) and turning trip location off
+  still stop the phone at its next answer; a change made while it was offline reaches it when it reconnects.
+- Nothing leaves the phone while the core is unreachable, so keeping the trip shares nothing more; the core still
+  rejects positions under an old consent revision.
+
+Docs impact: updated — rules/ERRANDS_ON_THE_WAY.md › Privacy, and the privacy reference and errands guide in English
+and Spanish.
