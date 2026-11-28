@@ -34,7 +34,9 @@ export function attachVoiceCall(
   server.on("upgrade", (req, socket, head) => {
     const url = new URL(req.url ?? "/", "http://core");
     if (url.pathname !== "/voice-call") return;
-    if (!req.headers.origin || !deps.gate.allowedOrigins.has(req.headers.origin)) {
+    // The single-use ticket is the key. A browser always sends Origin, so only the panel's pages pass; the phone's app
+    // (a native client) sends none. See DECISIONS.md#d-285
+    if (req.headers.origin && !deps.gate.allowedOrigins.has(req.headers.origin)) {
       socket.end("HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n");
       return;
     }

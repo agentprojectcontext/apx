@@ -727,6 +727,9 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const native = createNativeVoice({ store, services, engine: voiceEngine, log, auto: config.voice.auto });
   const voice = {
     ...createCallAudio({ store, home: config.home, log, native, engine: voiceEngine, services }),
+    listen: (bytes: Buffer, mime: string, signal: AbortSignal) =>
+      services.listen(bytes, mime, signal, native.voice().locale === "en-US" ? "en" : "es"),
+    bossName: () => store.agents.list().find((a) => a.kind === "secretary")?.name ?? "",
     engine: voiceEngine,
     native,
     calls: createCalls({

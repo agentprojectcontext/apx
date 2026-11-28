@@ -53,6 +53,8 @@ export type Install = {
 export type CallSetup = {
   voice: "female" | "male";
   locale: "es-AR" | "es" | "en-US";
+  /** `quick`: a request said by name, answered in a few words; the voice hangs up once answered. */
+  mode: "call" | "quick";
   owner: string;
   agent: string;
   /** How the voice presents itself ("Acme's personal assistant in APX"), and what its agent can reach. */

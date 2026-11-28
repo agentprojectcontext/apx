@@ -2,6 +2,7 @@ import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Linking, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { nativeVoice } from "../modules/apx-voice";
 import { loadAppearance } from "./appearance";
 import { APP_CLIENT } from "./appInfo";
 import { type Creds, clearCreds, loadCreds } from "./creds";
@@ -53,6 +54,8 @@ function ConnectedApp() {
     // The core revokes this phone's key first; out of reach, the phone forgets it anyway and says so.
     const client = new ApxClient({ url: creds.url, token: creds.token, client: APP_CLIENT, timeoutMs: 8000 });
     setCreds(undefined);
+    // The phone's voice forgets the core and stops listening.
+    nativeVoice.forget();
     void unpairDevice(() => client.call("devices.revoke", { id: creds.device }), clearCreds)
       .then((outcome) => {
         if (outcome === "local") Alert.alert(t("unpairedLocal"), t("unpairedLocalBody"));

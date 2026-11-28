@@ -104,6 +104,7 @@ export function createNativeVoice(deps: {
       ...(settings().call_speech ? { call_speech: settings().call_speech } : {}),
       ...(settings().call_transcription ? { call_transcription: settings().call_transcription } : {}),
       ...(models ? { models } : {}),
+      wake_words: settings().wake_words ?? [],
     };
   }
 
@@ -145,6 +146,8 @@ export function createNativeVoice(deps: {
     usable,
     /** The model calls talk with, when the owner picked one. */
     callModel: (): ModelRef | undefined => settings().call_model,
+    /** The phrases the owner set to wake the voice by name (empty: the usual ones). */
+    wakeWords: (): string[] => settings().wake_words ?? [],
     /** Downloads the voice, or (`ears`) only what hears. */
     async install(part: VoicePart = "all"): Promise<VoiceStatus> {
       install(part);
@@ -159,6 +162,7 @@ export function createNativeVoice(deps: {
       call_engine?: "native" | "services" | undefined;
       call_speech?: string | null | undefined;
       call_transcription?: string | null | undefined;
+      wake_words?: string[] | undefined;
     }) {
       const tier = engine.machine().tier;
       save({
@@ -170,6 +174,7 @@ export function createNativeVoice(deps: {
         ...(p.call_engine !== undefined ? { call_engine: p.call_engine } : {}),
         ...(p.call_speech !== undefined ? { call_speech: p.call_speech ?? undefined } : {}),
         ...(p.call_transcription !== undefined ? { call_transcription: p.call_transcription ?? undefined } : {}),
+        ...(p.wake_words !== undefined ? { wake_words: p.wake_words.length ? p.wake_words : undefined } : {}),
       });
       if (engine.machine().tier !== tier) {
         // Other models: the engine starts again with them, and gets them first where it is on.

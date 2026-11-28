@@ -7,6 +7,7 @@ import { notify } from "../data/notices.ts";
 import { loadVoice, setVoice, useVoice } from "../data/voice.ts";
 import { useT } from "../i18n/index.ts";
 import { ModelRefPicker } from "./models/ModelRefPicker.tsx";
+import { WakeSettings } from "./WakeSettings.tsx";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -70,6 +71,7 @@ export function CallsSettings({
             </>
           )}
           <CallModel s={s} save={save} />
+          <WakeSettings s={s} save={save} />
         </>
       )}
     </>

@@ -25,6 +25,9 @@ While paired it also:
 - **Registers for push** with its Expo push token, when the build has an EAS project id (`APX_EAS_PROJECT_ID`, see
   [Push](#push)). Without one, the owner gives the phone an ntfy address in the panel. Then pick the phone in
   Config › Interruptions › Where notices go: the same budget decides what reaches it.
+- **Wakes by voice** (Settings › Despertar por voz, per phone, Android): listens in the background by loudness,
+  sends short clips to the core, which transcribes them and checks for the agent's name; then a quick voice request
+  opens in a floating panel (needs "display over other apps"). Nothing is kept.
 
 A core on a VPS or reached through Tailscale: choose Tailscale in Settings › Connections › Devices, or run
 `apx expose tailscale` on that server and restart the core. Tailscale Serve forwards the tailnet's HTTPS address to
