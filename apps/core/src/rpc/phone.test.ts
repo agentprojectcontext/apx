@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { ApxClient, ApxError, type ApxSocket } from "@apx/protocol/client";
+import WebSocket from "ws";
 import { testConfig } from "../config.ts";
 import { callTool, say, scriptedLlm } from "../engine/testkit.ts";
 import { createCore } from "../server.ts";
@@ -147,6 +148,35 @@ test("a device sets its own push; notices then reach the phone instead of a chan
   await waitFor(() => pushes.length, "a push");
   assert.equal(pushes[0]?.to, "ExponentPushToken[abc123]");
   assert.match(String(pushes[0]?.body), /Hola desde la rutina/);
+});
+
+/** A socket like the phone app's: React Native's Android WebSocket always sends the core's own address as Origin. */
+const withOrigin = (url: string) => new WebSocket(url, { origin: core.url });
+async function paired(platform: "android" | "ios" | "other") {
+  const { code } = await owner.call("devices.pair_start", {});
+  return (await new ApxClient({ url: core.url }).call("devices.pair", { code, name: `probe-${platform}`, platform }))
+    .token;
+}
+
+test("a paired phone whose socket carries an Origin registers as a node with the phone's capabilities", async () => {
+  const token = await paired("android");
+  const node = await new ApxClient({ url: core.url, token, socketFactory: withOrigin }).connect("node", [
+    "location",
+    "camera",
+  ]);
+  node.close();
+});
+
+test("with an Origin, only a phone's own token and only the phone's capabilities may register as a node", async () => {
+  const phoneToken = await paired("android");
+  const browserToken = await paired("other");
+  const node = (token: string | undefined, caps: string[]) =>
+    new ApxClient({ url: core.url, ...(token ? { token } : {}), socketFactory: withOrigin }).connect("node", caps);
+  // A page of the panel: no device token, or the token a browser gets when it pairs.
+  await assert.rejects(node(undefined, ["location"]));
+  await assert.rejects(node(browserToken, ["location"]));
+  // The phone's token cannot lend what only a native app on the computer may (its browser, its files).
+  await assert.rejects(node(phoneToken, ["location", "browser"]));
 });
 
 test("a public address goes first in the pairing QR", () => {

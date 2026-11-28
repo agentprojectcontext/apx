@@ -46,6 +46,7 @@ import { BottomNav, type NavItem } from "./ui/kit/BottomNav";
 import { MediaClient } from "./ui/media/context";
 import { makeStyles, useTheme } from "./ui/theme";
 import { useChatFilter } from "./viewPrefs";
+import { useNativeVoice } from "./voice";
 
 type Tab = "chats" | "inbox" | "tasks" | "sessions" | "more";
 const TABS: Array<NavItem<Tab>> = [
@@ -84,6 +85,7 @@ export function WorkspaceScreen({
   const theme = useTheme();
   const s = useStyles();
   const workspace = useWorkspace(creds);
+  useNativeVoice(creds, workspace.data.agents);
   const insets = useSafeAreaInsets();
   const host = useMemo(() => {
     try {
@@ -336,6 +338,8 @@ export function WorkspaceScreen({
                 load={workspace.noticePrefs}
                 save={workspace.setNoticePrefs}
                 openCar={() => push({ kind: "car" })}
+                voice={workspace.voiceStatus}
+                saveWakeWords={workspace.setWakeWords}
               />
             );
           default:

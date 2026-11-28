@@ -4,7 +4,7 @@
 // the call, worked with that agent's own model, shown in the call as a card that settles with the answer.
 // See DECISIONS.md#d-227
 import crypto from "node:crypto";
-import type { CallVoice, Part, VoiceLocale } from "@apx/protocol";
+import type { CallMode, CallVoice, Part, VoiceLocale } from "@apx/protocol";
 import type { Bus } from "../bus.ts";
 import type { AgentRecord } from "../domain/agents.ts";
 import { ownerIdentity } from "../domain/owner.ts";
@@ -29,6 +29,13 @@ const ASK = {
     `Pedido por voz, en una llamada. Mis palabras, transcritas (pueden tener errores): «${heard}». La voz lo entendió como: ${task}. Respondé en una o dos frases cortas para decir en voz alta: sin listas, links ni formato.`,
   en: (heard: string, task: string) =>
     `Asked by voice, on a call. My words, transcribed (they may have errors): "${heard}". The voice took it as: ${task}. Answer in English in one or two short sentences to be said aloud: no lists, links or formatting.`,
+};
+/** A quick request said by name: the call may hang up before the answer, which then stays in this chat. */
+const ASK_QUICK = {
+  es: (heard: string, task: string) =>
+    `Pedido rápido por voz, manos libres (te llamé por tu nombre). Mis palabras, transcritas (pueden tener errores): «${heard}». La voz lo entendió como: ${task}. Hacelo y respondé en una frase corta para decir en voz alta.`,
+  en: (heard: string, task: string) =>
+    `A quick voice request, hands-free (I called you by name). My words, transcribed (they may have errors): "${heard}". The voice took it as: ${task}. Do it and answer in English in one short sentence to be said aloud.`,
 };
 
 /** What the engine tells about the call (the rest of its frames go to the panel untouched). */
@@ -71,6 +78,9 @@ type Live = {
   thread: string;
   agent: string;
   lang: "es" | "en";
+  mode: CallMode;
+  /** The paired device the call talks through (absent: the panel). */
+  device?: string | undefined;
   speaking?: string;
   /** The voice's message text before the line being spoken. */
   spoken: string;
@@ -88,6 +98,8 @@ export type CallTicket = {
   agent: string;
   voice: CallVoice;
   locale: VoiceLocale;
+  mode: CallMode;
+  device?: string | undefined;
   until: number;
 };
 
@@ -173,7 +185,7 @@ export function createCalls(deps: {
       parent_id: l.thread,
     });
     store.threads.mergeContext(sub.id, { titled: true });
-    const text = ASK[l.lang](heard?.trim() || task, task);
+    const text = (l.mode === "quick" ? ASK_QUICK : ASK)[l.lang](heard?.trim() || task, task);
     store.messages.add({ thread_id: sub.id, author: { kind: "user" }, parts: [{ type: "text", text }] });
     const message = voiceMessage(l);
     addPart(message, (parts) => [
@@ -288,21 +300,36 @@ export function createCalls(deps: {
   });
 
   return {
-    status: () => ({ live: live?.thread }),
+    status: () => ({ live: live?.thread, device: live?.device, mode: live?.mode }),
     /** Whether a call has a model to talk with. */
     hasModel: () => deps.models().length > 0,
 
     /** A call's thread (a new one, or the call it goes on in) and the ticket its socket redeems once. */
-    start(p: { agent_id?: string | undefined; voice: CallVoice; locale: VoiceLocale; thread?: string | undefined }) {
+    start(p: {
+      agent_id?: string | undefined;
+      voice: CallVoice;
+      locale: VoiceLocale;
+      thread?: string | undefined;
+      mode?: CallMode | undefined;
+      /** The paired device placing the call. */
+      device?: string | undefined;
+    }) {
       if (live) throw conflict("a call is already going on");
       let thread = p.thread ? store.threads.get(p.thread) : undefined;
       if (p.thread && thread?.kind !== "call") throw notFound("call");
       // Calling again from a call's chat calls the same agent.
       const agent = callable(thread?.agent_ids[0] ?? p.agent_id);
+      const mode = p.mode ?? "call";
       if (!thread) {
-        thread = store.threads.create({ kind: "call", title: "Call", agent_ids: [agent.id] });
+        thread = store.threads.create({
+          kind: "call",
+          title: mode === "quick" ? (p.locale === "en-US" ? "Voice request" : "Pedido por voz") : "Call",
+          agent_ids: [agent.id],
+        });
         store.threads.mergeContext(thread.id, { titled: true });
       }
+      // Where the call talks through, shown in its chat: a voice channel on the owner's phone, or this panel.
+      store.threads.mergeContext(thread.id, { call: { mode, ...(p.device ? { device: p.device } : {}) } });
       for (const [k, t] of tickets) if (t.until < now()) tickets.delete(k);
       const ticket = crypto.randomBytes(24).toString("base64url");
       tickets.set(ticket, {
@@ -310,6 +337,8 @@ export function createCalls(deps: {
         agent: agent.id,
         voice: p.voice,
         locale: p.locale,
+        mode,
+        ...(p.device ? { device: p.device } : {}),
         until: now() + TICKET_MS,
       });
       return { thread_id: thread.id, ticket, expires_in: TICKET_MS / 1000 };
@@ -323,8 +352,16 @@ export function createCalls(deps: {
       if (live) throw conflict("a call is already going on");
       const agent = callable(t.agent);
       const lang = t.locale === "en-US" ? "en" : "es";
-      live = { thread: t.thread, agent: agent.id, lang, thinking: new Map(), spoken: "" };
-      log.info({ thread: t.thread, agent: agent.id }, "call started");
+      live = {
+        thread: t.thread,
+        agent: agent.id,
+        lang,
+        mode: t.mode,
+        device: t.device,
+        thinking: new Map(),
+        spoken: "",
+      };
+      log.info({ thread: t.thread, agent: agent.id, mode: t.mode, device: t.device }, "call started");
       const owner = ownerIdentity(store).name;
       const ownerName = owner || "the owner";
       const isBoss = agent.kind === "secretary";
@@ -333,6 +370,7 @@ export function createCalls(deps: {
         setup: {
           voice: t.voice,
           locale: t.locale,
+          mode: t.mode,
           owner,
           agent: agent.name,
           who: isBoss

@@ -1,4 +1,4 @@
-// Errands on the way (DECISIONS.md#d-284, rules/ERRANDS_ON_THE_WAY.md): the phone tells the core when the owner drives
+// Errands on the way (DECISIONS.md#d-286, rules/ERRANDS_ON_THE_WAY.md): the phone tells the core when the owner drives
 // and where they are; the core finds a place for each open errand near the way and offers it on the car, the phone and
 // the panel. Everything is off until the owner turns it on.
 import { z } from "zod";

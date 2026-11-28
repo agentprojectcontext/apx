@@ -369,8 +369,10 @@ export function createServices(deps: {
      * final words never wait behind these) or whisper.cpp; undefined without one. APX's voice also starts here, so it
      * is up by the time the recording ends.
      */
-    async listen(bytes: Buffer, mime: string, signal: AbortSignal): Promise<string | undefined> {
-      const s = ofKind("transcription").find((x) => x.enabled);
+    async listen(bytes: Buffer, mime: string, signal: AbortSignal, language?: string): Promise<string | undefined> {
+      const found = ofKind("transcription").find((x) => x.enabled);
+      // A clip of a word or two is too short for whisper to tell the language: the owner's is given.
+      const s = found && language && !found.language ? { ...found, language } : found;
       if (s?.dialect === "apx-voice" && deps.voice?.installed("ears"))
         return transcribeWith(s, { path: "", bytes, mime }, signal, true);
       if (s?.dialect !== "whisper-cpp" || !whisperCpp.available(s.model)) return undefined;

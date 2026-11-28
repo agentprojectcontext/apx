@@ -1,6 +1,6 @@
 // Threads, what was said in them (messages, for people) and what the model saw (model_log, for the model).
 // Two projections of one conversation: the UI never reads the model log and the model never reads display parts.
-import type { MailMark, ModelChoice, RoutineAutonomy, Thread } from "@apx/protocol";
+import type { CallMode, MailMark, ModelChoice, RoutineAutonomy, Thread } from "@apx/protocol";
 import type { Updateable } from "kysely";
 import { sql } from "kysely";
 import type { Bus } from "../bus.ts";
@@ -32,6 +32,8 @@ export type ThreadContext = {
   flow_editor?: { project: string; flow?: string | undefined };
   /** A title was given (or tried) once. */
   titled?: boolean;
+  /** A call's chat: a conversation or a quick request said by name, and the paired device it talked through. */
+  call?: { mode: CallMode; device?: string | undefined };
   /** Memory notes shown per agent, and the model log seq of the turn that showed the standing ones. */
   memory_shown?: Record<string, string[]>;
   memory_since?: Record<string, number>;

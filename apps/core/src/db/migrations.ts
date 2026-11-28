@@ -1441,7 +1441,7 @@ export const MIGRATIONS: readonly string[] = [
   CREATE INDEX auto_decisions_thread ON auto_decisions(thread_id);
   `,
   `
-  -- Errands on the way (DECISIONS.md#d-284): an errand's place, the phone's trips (last point only), the offers made in
+  -- Errands on the way (DECISIONS.md#d-286): an errand's place, the phone's trips (last point only), the offers made in
   -- each and what the owner held, OpenStreetMap places cached by tile, and the owner's answers counted per place.
   ALTER TABLE tasks ADD COLUMN place TEXT;
   CREATE TABLE car_trips (

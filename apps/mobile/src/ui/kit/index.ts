@@ -1,4 +1,4 @@
-export { AgentAvatar, AgentPair, ProjectAvatar } from "./avatars";
+export { AgentAvatar, AgentPair, agentBlob, ProjectAvatar } from "./avatars";
 export {
   BottomSheet,
   Fab,

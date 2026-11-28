@@ -25,7 +25,7 @@ export const buttonId = {
   suggestion: (id: string, decision: SuggestionDecision) => `s:${id}:${decision}`,
   /** One of a release news entry's actions (news/entries.ts): what it asks goes to the agent as the owner's words. */
   news: (entry: string, n: number) => `n:${entry}:${n}`,
-  /** An answer to an errand offered on the way (DECISIONS.md#d-284). */
+  /** An answer to an errand offered on the way (DECISIONS.md#d-286). */
   car: (alertId: string, action: CarAction) => `c:${alertId}:${action}`,
 };
 

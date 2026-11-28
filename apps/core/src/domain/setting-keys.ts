@@ -98,7 +98,7 @@ export const SETTINGS = {
     max_seconds: 180,
     cooldown_days: 14,
   }),
-  /** Errands on the way (DECISIONS.md#d-284): off until the owner turns it on. */
+  /** Errands on the way (DECISIONS.md#d-286): off until the owner turns it on. */
   car: entry(CarSettings, {
     enabled: false,
     reach: "normal",
@@ -261,6 +261,8 @@ export const SETTINGS = {
         call_engine: z.enum(["native", "services"]).optional(),
         call_speech: z.string().optional(),
         call_transcription: z.string().optional(),
+        /** What wakes the voice by name on a phone or computer that listens for it (unset: "ok", "che", "hey" + the super-agent's name). */
+        wake_words: z.array(z.string()).optional(),
       })
       .catch({}),
     {},

@@ -119,7 +119,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "devices.pair_start": MACHINE,
   "devices.pair_cancel": MACHINE,
   "devices.revoke": MACHINE,
-  // Errands on the way (DECISIONS.md#d-284): what the phone in car mode reports, and the owner's answers on the car.
+  // Errands on the way (DECISIONS.md#d-286): what the phone in car mode reports, and the owner's answers on the car.
   "car.trip_start": "the phone in car mode says when the owner drives",
   "car.position": "the phone in car mode says where the owner is",
   "car.trip_end": "the phone in car mode says when the drive ended",
@@ -192,6 +192,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "calls.start": AS_OWNER,
   "calls.end": AS_OWNER,
   "calls.say": AS_OWNER,
+  "voice.wake": AS_OWNER,
   "channels.recover": PANEL,
   "channels.email_history":
     "the owner explicitly imports private mailbox history with apx channels email-history; agents must not import it unasked",

@@ -46,4 +46,10 @@ export const enCall = {
   "callCard.missing.disabled": "Calls are turned off. Turn them on in Settings › Voice and calls.",
   "callCard.openVoices": "Set up voice and calls",
   "callCard.openModels": "Choose a model in Settings",
+  "callBar.onDevice": "By voice on {device}",
+  "callBar.elsewhere": "On another screen",
+  "callBar.failed": "Couldn't hang up. Try again in a moment.",
+  "callChip.quick": "Voice request",
+  "callChip.quickFrom": "Voice request from {device}",
+  "callChip.fromDevice": "From {device}",
 };

@@ -49,4 +49,10 @@ export const esCall: Record<keyof typeof enCall, string> = {
   "callCard.missing.disabled": "Las llamadas están apagadas. Prendelas en Ajustes › Voz y llamadas.",
   "callCard.openVoices": "Configurar voz y llamadas",
   "callCard.openModels": "Elegir un modelo en Configuración",
+  "callBar.onDevice": "Por voz en {device}",
+  "callBar.elsewhere": "En otra pantalla",
+  "callBar.failed": "No se pudo cortar. Probá de nuevo en un momento.",
+  "callChip.quick": "Pedido por voz",
+  "callChip.quickFrom": "Pedido por voz desde {device}",
+  "callChip.fromDevice": "Desde {device}",
 };

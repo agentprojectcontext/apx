@@ -6677,7 +6677,77 @@ on an agent's tab without taking it over (the desktop app needs the takeover to 
 Docs impact: updated concepts/autonomy in English and Spanish and rules/SUPER_AGENT_POWERS.md.
 
 <a id="d-284"></a>
-## D-284 — 2026-11-27 — Errands on the way are part of APX, off by default, and learn the owner's places
+## D-284 — 2026-11-27 — A paired phone registers as a node with its own token, though its socket carries an Origin
+
+The phone app never became a node: agents never got `phone_location` or `phone_photo`. The core let only a socket
+without an Origin register as a node, so that a browser page could not. React Native's Android WebSocket always adds
+one (the core's own address) unless the app sends its own, so every attempt was refused and retried in silence. The
+operator link passed because that Origin is one of the core's own addresses.
+
+- A node socket with an Origin now passes only when its token is a paired device's whose platform is `android` or
+  `ios`, and every capability it asks for is a phone's (`PHONE_CAPS` in the protocol: location, camera). Without an
+  Origin nothing changes (terminal, desktop main process).
+- A page of the panel is still refused: it has no device token, or the one a browser gets when it pairs (`other`,
+  `desktop`). A phone's token cannot lend `browser`, `fs` or `computer`, where requests could carry what the owner keeps
+  (a stored secret to fill, a file). What a phone node gets is a request for its position or for a picture the owner
+  takes; what it answers is data, never instructions (rule 10).
+- Rejected: having the app send an empty or fake Origin. It leans on how OkHttp and Node read an empty header, and a
+  phone that looks like a native client on the computer could lend any capability.
+- A refused node is now written to the log (`node refused`, with its origin, client and capabilities).
+
+Known limit: the platform is what the device said when it paired. Pairing needs a code from the owner, and the device
+shows as a phone in Settings › Devices, where it can be revoked; a client that lied would still reach only the phone's
+capabilities.
+
+Docs impact: none. devices/phone (English and Spanish) already describes the phone lending location and camera; this
+makes it true.
+
+<a id="d-285"></a>
+## D-285 — 2026-11-27 — Wake by voice: the phone listens by loudness, the core checks the name
+
+The owner wanted to ask their super-agent for something hands-free, as with a home assistant: say its name and ask,
+with the phone locked or the app closed. An old tablet already did this for another project (loudness detection on the
+device, transcription on the server) and proved it. APX takes that approach.
+
+- **The phone detects, the core decides.** The Android app listens in the background with a persistent notification and
+  sends only short clips (0.6–2.5 s) when it hears loud speech; nothing is kept. The core transcribes each clip with its
+  own transcription engine (APX's voice or whisper.cpp) and checks it against the wake phrases, in `voice.wake
+  {data, mime} → {awake, text}`. The check is in the core, not the app (rule 3): phrases are one setting for every device
+  (`voice.set` gains `wake_words`; empty means ok, che or hey plus the super-agent's name), and a new phrase needs no new
+  app. The desktop may listen too, with a per-computer switch.
+- **Native audio on the phone.** It has to run with the app closed, so the capture is a native foreground service, not
+  the web view.
+- **A quick call.** `calls.start` gains `mode: "call" | "quick"`. A quick request greets with a short "¿Sí?", answers in
+  one sentence and hangs up on its own unless it must ask. Any call also ends when the owner says "cortá", "listo, nada
+  más", "eso es todo" (or "hang up", "that's all"), or when the voice ends it. `CallStatus` gains `live_device` and
+  `live_mode`, and the call's thread records `call {mode, device?}`, so the chat shows "Pedido por voz · desde <phone>"
+  and the panel shows a live-call bar with Hang up when the call is on the phone. The call's voice, model and engine stay
+  on the core; the phone only carries audio.
+- **A ticket opens native sockets.** The `/voice-call` socket accepts clients with no `Origin` header (the native app)
+  when they present the single-use ticket from `calls.start`; browsers still have to come from the panel's origins. The
+  ticket, not the origin, is the key (D-139's listener is unchanged).
+- The phone pops over other apps with the display-over-other-apps permission; some phones' battery optimization may stop
+  listening, and the docs say so.
+- **Hanging up does not wait on the model.** A small model often forgets the `[[end]]` tag, so a quick request hangs up
+  once the voice answered with anything but a question. When the owner asked something ("¿qué tengo hoy?") and a task
+  started, it waits up to 25 s for the answer to be said; nobody speaking for 9 s also ends it.
+- **The clip is heard in the owner's language.** Whisper cannot tell the language of two words and wrote "che Roby" in
+  English; the call's locale is passed. The call word and the name may come glued ("cherobi").
+- **The ears stay warm.** The engine unloads after 10 minutes unused, and a cold one takes about 12 s, so the first name
+  after a quiet hour would go unanswered: while it listens, the phone sends half a second of silence every 7 minutes.
+
+Rejected:
+- An always-on recognizer on the device (Android SpeechRecognizer): it is not continuous and beeps at each restart.
+- A third-party wake-word engine: keys, licences and weight in the app, and a fixed phrase instead of the agent's name.
+- Streaming all audio to the core: battery, bandwidth and the owner's privacy; loudness detection keeps silence on the
+  phone.
+
+*Builds on [D-227](#d-227).*
+
+Docs impact: updated office/calls and devices/phone in English and Spanish, apps/mobile/README.md; news entry voice-wake.
+
+<a id="d-286"></a>
+## D-286 — 2026-11-27 — Errands on the way are part of APX, off by default, and learn the owner's places
 
 v1's APK knew when the owner drove (Android Auto, Maps), sent the phone's position to the daemon, and offered a shop
 for an errand when one was near, with answers on the car. v2 had the `errand` task kind and nothing behind it. The

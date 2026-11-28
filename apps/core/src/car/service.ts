@@ -1,4 +1,4 @@
-// Errands on the way (DECISIONS.md#d-284, rules/ERRANDS_ON_THE_WAY.md): trips from the phone, one offer per position at
+// Errands on the way (DECISIONS.md#d-286, rules/ERRANDS_ON_THE_WAY.md): trips from the phone, one offer per position at
 // most, the owner's answers. Everything is in the store, so a restart keeps the trip; only the search plan is in memory.
 import type {
   CarAction,

@@ -1,6 +1,6 @@
 # Errands on the way (car mode)
 
-> Engineering design for location-aware errands. Decision: [D-284](DECISIONS.md#d-284). Contract:
+> Engineering design for location-aware errands. Decision: [D-286](DECISIONS.md#d-286). Contract:
 > `packages/protocol/src/car.ts`. Lessons carried from v1 (branch `v1`, `rules/android.md` there) are marked **v1**.
 
 The owner's phone tells the core when they drive and where they are. The core finds a place for each open errand
