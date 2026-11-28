@@ -8,7 +8,7 @@ import path from "node:path";
 import { isInside, realpath } from "../apps/core/src/paths.ts";
 import { desktopDataDir } from "../packages/install/src/paths.ts";
 
-const SANDBOX_PORTS = ["E2E_PORT", "E2E_CONTROL_PORT", "E2E_WA_PORT", "E2E_PAIR_PORT"] as const;
+const SANDBOX_PORTS = ["E2E_PORT", "E2E_CONTROL_PORT", "E2E_PAIR_PORT"] as const;
 
 /** Free loopback ports for every sandbox listener; explicit ones remain available for debugging. */
 export async function sandboxPorts(env: NodeJS.ProcessEnv = process.env): Promise<Record<string, string>> {

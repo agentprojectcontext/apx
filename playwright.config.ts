@@ -44,7 +44,7 @@ export default defineConfig({
   ],
   webServer: {
     command: "node --no-warnings e2e/env.ts",
-    url: `http://127.0.0.1:${port}/health`,
+    url: `http://127.0.0.1:${process.env.E2E_CONTROL_PORT}/ready`,
     reuseExistingServer: false,
     timeout: 60_000,
     stdout: "pipe",

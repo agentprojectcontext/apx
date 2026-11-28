@@ -24,8 +24,6 @@ const root = path.resolve(import.meta.dirname, "..");
 export const E2E = {
   port: Number(process.env.E2E_PORT ?? 7460),
   control: Number(process.env.E2E_CONTROL_PORT ?? 7461),
-  /** The emulated phone for WhatsApp (e2e/fake-baileys.ts), inside the core's process. */
-  whatsapp: Number(process.env.E2E_WA_PORT ?? 7462),
   telegramToken: "123456789:AAE2eFakeTokenForTheEmulatedBot0",
   discordToken: "MTIzNDU2Nzg5MDEyMzQ1Njc4.GfAkE1.e2eFakeTokenForTheEmulatedDiscordBot",
   slackTokens: { bot: "xoxb-1234-e2e-fake-bot", app: "xapp-1-e2e-fake-app" },
@@ -33,7 +31,7 @@ export const E2E = {
   run: process.env.E2E_RUN ?? "manual",
 };
 // Starting beside something already listening would leave the specs talking to it instead of this sandbox.
-for (const port of [E2E.port, E2E.control, E2E.whatsapp])
+for (const port of [E2E.port, E2E.control])
   if (await portTaken(port)) {
     console.error(`apx e2e: port ${port} is already in use; free it or pick other E2E_* ports`);
     process.exit(1);
@@ -124,7 +122,8 @@ const core = spawn(process.execPath, ["--no-warnings", "--import", hook, path.jo
     APX_OLLAMA_URL: "http://127.0.0.1:9",
     // Never the machine's own Ollama or LM Studio either: the only model app on "this computer" is the fake one.
     APX_LOCAL_MODELS: `ollama:${localApp.port}`,
-    E2E_WA_PORT: String(E2E.whatsapp),
+    E2E_RUN: E2E.run,
+    E2E_WA_PORT: process.env.E2E_WA_PORT,
     E2E_DESKTOP_TRASH_RECORD: desktopTrashRecord,
     E2E_DESKTOP_APP: desktopApp,
     // Anything the core hands an app opens on the sandbox's data, never the machine app's saved connection.
@@ -132,10 +131,15 @@ const core = spawn(process.execPath, ["--no-warnings", "--import", hook, path.jo
     E2E_PROJECT_ROOT: fx.repo,
   },
 });
+let whatsappPort: number | undefined;
+core.once("message", (message: { whatsappPort?: number }) => {
+  whatsappPort = message.whatsappPort;
+});
 const log = fs.createWriteStream(path.join(dir, "core.log"));
 core.stdout?.pipe(log);
 core.stderr?.pipe(log);
 
+let ready = false;
 /** The outside world for the tests: a Telegram user writing, what the bot sent, where things are. */
 const control = http.createServer((req, res) => {
   let raw = "";
@@ -148,6 +152,7 @@ const control = http.createServer((req, res) => {
       res.end(JSON.stringify(body));
     };
     const body = (raw ? JSON.parse(raw) : {}) as Record<string, unknown>;
+    if (req.url === "/ready") return json(ready ? 200 : 503, { ready });
     if (req.url === "/info")
       return json(200, {
         run: E2E.run,
@@ -158,6 +163,7 @@ const control = http.createServer((req, res) => {
         discord: E2E.discordToken,
         slack: E2E.slackTokens,
         core: `http://127.0.0.1:${E2E.port}`,
+        whatsappPort,
         llm: llm.url.replace(/\/v1$/, ""),
         service: serviceUrl,
       });
@@ -250,10 +256,10 @@ control.once("error", (error) => {
 });
 control.listen(E2E.control, "127.0.0.1");
 
-// Ready when this sandbox's own core answers (its home's id), never whatever else took the port meanwhile.
+// Ready only after the phone is listening and this sandbox's own core answers (its home's id).
 const coreUrl = `http://127.0.0.1:${E2E.port}`;
 const readyBy = Date.now() + 30_000;
-while (!(await coreOwnsHome(coreUrl, fx.home))) {
+while (!whatsappPort || !(await coreOwnsHome(coreUrl, fx.home))) {
   if (Date.now() > readyBy || core.exitCode !== null) {
     console.error(`apx e2e: the sandbox core did not answer on ${E2E.port}; see ${path.join(dir, "core.log")}`);
     core.kill("SIGKILL");
@@ -267,8 +273,9 @@ await fetch(`http://127.0.0.1:${E2E.port}/rpc/models.set_config`, {
   headers: { "content-type": "application/json", "idempotency-key": "e2e-model" },
   body: JSON.stringify({ default: { model: "custom/fake-1", router: false } }),
 });
+ready = true;
 console.log(
-  `apx e2e: core http://127.0.0.1:${E2E.port} · control :${(control.address() as AddressInfo).port} · ${dir}`,
+  `apx e2e: core ${coreUrl} · control :${(control.address() as AddressInfo).port} · WhatsApp :${whatsappPort} · ${dir}`,
 );
 
 let stopping = false;

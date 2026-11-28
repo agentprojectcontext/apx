@@ -167,8 +167,9 @@ container; production browser launches retain it. On macOS, desktop coverage use
 process so the display does not sleep. Start native window tests in an unlocked graphical session with an
 awake display; a sleeping or locked display cannot supply reliable native focus events.
 Every Playwright run (coverage or not) picks free loopback ports and a run id in `playwright.config.ts`
-(`e2e/sandbox.ts`), so parallel checkouts and scratch cores never collide; `E2E_PORT`, `E2E_CONTROL_PORT` and
-`E2E_WA_PORT` override the ports when debugging.
+(`e2e/sandbox.ts`) and verifies it is talking to its own control API and core. The emulated WhatsApp phone binds
+an OS-assigned loopback port directly and publishes it through the control API before Playwright starts. For
+manual debugging, `E2E_PORT`, `E2E_CONTROL_PORT` and `E2E_WA_PORT` can override the respective ports.
 Local browser coverage runs the same six Playwright shards as CI sequentially, replaying setup for each shard
 and merging their counters into the same report. An explicit `--part=web --shard=i/6` still runs only that part.
 `node scripts/coverage-parallel.ts` runs CI's eight parts (unit, panel in six, desktop) side by side on one machine

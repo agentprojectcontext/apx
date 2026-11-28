@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { tempDir } from "../apps/core/src/testkit/platform.ts";
+import { startFakePhone } from "../e2e/fake-baileys.ts";
 import { assertSandboxDesktopData, coreOwnsHome, portTaken } from "../e2e/sandbox.ts";
 import { desktopDataDir } from "../packages/install/src/paths.ts";
 
@@ -52,4 +53,30 @@ test("a sandbox talks only to the core whose home it made", async () => {
   }
   assert.equal(await coreOwnsHome(url, temp.path), false);
   assert.equal(await portTaken(port), false);
+});
+
+test("WhatsApp binds its own port while another fixture is listening, and rejects an occupied override", async () => {
+  const service = http.createServer((_req, res) => {
+    res.writeHead(201, { "content-type": "application/json" });
+    res.end(JSON.stringify({ enrolled: true }));
+  });
+  await new Promise<void>((resolve) => service.listen(0, "127.0.0.1", resolve));
+  try {
+    const occupied = (service.address() as AddressInfo).port;
+    await assert.rejects(startFakePhone("sandbox", occupied), { code: "EADDRINUSE" });
+    const phone = await startFakePhone("sandbox");
+    try {
+      assert.notEqual(phone.port, occupied);
+      const sent = await fetch(`http://127.0.0.1:${phone.port}/sent`);
+      assert.equal(sent.status, 200);
+      assert.equal(sent.headers.get("x-apx-e2e-run"), "sandbox");
+      assert.deepEqual((await sent.json()).sent, []);
+      const scan = await fetch(`http://127.0.0.1:${phone.port}/scan`, { method: "POST" });
+      assert.deepEqual(await scan.json(), { ok: true });
+    } finally {
+      await phone.close();
+    }
+  } finally {
+    await new Promise<void>((resolve) => service.close(() => resolve()));
+  }
 });

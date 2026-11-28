@@ -7,24 +7,36 @@ import { coreOwnsHome } from "../sandbox.ts";
 
 const core = `http://127.0.0.1:${process.env.E2E_PORT ?? 7460}`;
 const control = `http://127.0.0.1:${process.env.E2E_CONTROL_PORT ?? 7461}`;
-const phone = `http://127.0.0.1:${process.env.E2E_WA_PORT ?? 7462}`;
 const post = (url: string, body: unknown = {}) => fetch(url, { method: "POST", body: JSON.stringify(body) });
 let seq = 0;
 
-let checked: Promise<void> | undefined;
+type SandboxInfo = { run: string; home: string; whatsappPort: number };
+let checked: Promise<SandboxInfo> | undefined;
 /**
  * The control API and the core are this run's sandbox (its id, its home's core), checked once before the first call:
  * never a core someone else left on the port.
  */
-export function ownSandbox(): Promise<void> {
+export function ownSandbox(): Promise<SandboxInfo> {
   checked ??= (async () => {
-    const info = (await (await fetch(`${control}/info`)).json()) as { run?: string; home?: string };
+    const info = (await (await fetch(`${control}/info`)).json()) as SandboxInfo;
     if (process.env.E2E_RUN && info.run !== process.env.E2E_RUN)
       throw new Error(`${control} belongs to another e2e run (${info.run ?? "unknown"}), not this one`);
     if (!info.home || !(await coreOwnsHome(core, info.home)))
       throw new Error(`${core} is not this sandbox's core: refusing to talk to it`);
+    return info;
   })();
   return checked;
+}
+
+async function phoneRequest(path: string, body?: object): Promise<Response> {
+  const { run, whatsappPort } = await ownSandbox();
+  if (!Number.isInteger(whatsappPort) || whatsappPort < 1 || whatsappPort > 65535)
+    throw new Error("This sandbox did not publish a WhatsApp phone port");
+  const url = `http://127.0.0.1:${whatsappPort}${path}`;
+  const response = await (body === undefined ? fetch(url) : post(url, body));
+  if (!response.ok || response.headers.get("x-apx-e2e-run") !== run)
+    throw new Error(`WhatsApp ${path}: unexpected phone response (HTTP ${response.status}, run ${run})`);
+  return response;
 }
 
 /** A protocol call, as the owner. */
@@ -139,35 +151,30 @@ export const world = {
     ((await (await fetch(`${control}/tg/sent?chat=${chat}`)).json()) as { sent: Array<{ text?: string }> }).sent,
   /** The owner's phone on WhatsApp: scan the QR, write in "Message yourself", someone else writing. */
   whatsapp: {
-    scan: () => post(`${phone}/scan`),
-    fromOwner: (text: string) => post(`${phone}/owner`, { text }),
+    scan: () => phoneRequest("/scan", {}),
+    fromOwner: (text: string) => phoneRequest("/owner", { text }),
     /** Someone writes; resolves with WhatsApp's id of the message. */
     message: async (from: { phone: string; name: string }, text: string) =>
-      ((await (await post(`${phone}/message`, { from, text })).json()) as { id: string }).id,
+      ((await (await phoneRequest("/message", { from, text })).json()) as { id: string }).id,
     /** The phone holds a message's real content (a video APX kept only as a placeholder), to send when asked again. */
-    keep: (id: string, content: object) => post(`${phone}/keep`, { id, content }),
+    keep: (id: string, content: object) => phoneRequest("/keep", { id, content }),
     /** Someone sends a file: `content` as WhatsApp shapes it (videoMessage, documentMessage…), `bytes` base64. */
-    media: (from: { phone: string; name: string }, content: object) => post(`${phone}/media`, { from, content }),
+    media: (from: { phone: string; name: string }, content: object) => phoneRequest("/media", { from, content }),
     /** The last message sent to `jid` reaches their phone (3) or is read (4). */
-    receipt: (jid: string, status: 3 | 4) => post(`${phone}/receipt`, { jid, status }),
-    presence: (jid: string, online: boolean) => post(`${phone}/presence`, { jid, online }),
+    receipt: (jid: string, status: 3 | 4) => phoneRequest("/receipt", { jid, status }),
+    presence: (jid: string, online: boolean) => phoneRequest("/presence", { jid, online }),
     /** Someone puts an emoji on the last message sent to them ("": takes it off). */
-    react: (from: { phone: string; name: string }, emoji: string) => post(`${phone}/react`, { from, emoji }),
+    react: (from: { phone: string; name: string }, emoji: string) => phoneRequest("/react", { from, emoji }),
     /** The line is added to a group (`announce`: only admins may write there). */
     joinGroup: (group: string, subject: string, announce = false) =>
-      post(`${phone}/group/join`, { group, subject, announce }),
+      phoneRequest("/group/join", { group, subject, announce }),
     /** Someone writes in a group (`mention`: they @mention the line). */
     inGroup: (from: { phone: string; name: string }, group: string, text: string, mention = false) =>
-      post(`${phone}/group/message`, { from, group, text, mention }),
+      phoneRequest("/group/message", { from, group, text, mention }),
     /** The owner types in a group on the line's phone. */
-    ownerInGroup: (group: string, text: string) => post(`${phone}/group/owner`, { group, text }),
+    ownerInGroup: (group: string, text: string) => phoneRequest("/group/owner", { group, text }),
     sentTo: async (jid: string) =>
-      (
-        (await (await fetch(`${phone}/sent?jid=${encodeURIComponent(jid)}`)).json()) as {
-          owner: string;
-          sent: string[];
-        }
-      ).sent,
+      ((await (await phoneRequest(`/sent?jid=${encodeURIComponent(jid)}`)).json()) as { sent: string[] }).sent,
   },
   llmCalls: async () => ((await (await fetch(`${control}/llm/calls`)).json()) as { calls: number }).calls,
 };
