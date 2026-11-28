@@ -156,6 +156,7 @@ function checkV2(m: ExtensionManifest, has: (rel: string) => boolean): void {
     m.pages.map((p) => p.id),
   );
   for (const s of m.settings) {
+    if (s.fileFormat && s.type !== "file") throw new PackageError(`setting ${s.name}: only a file has a file format`);
     if (s.format && (s.type !== "string" || s.sensitive || s.default !== undefined || s.options || s.generate))
       throw new PackageError(`setting ${s.name}: an HTTPS address must be a plain string without defaults or options`);
     if (

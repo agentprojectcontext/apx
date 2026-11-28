@@ -24,6 +24,7 @@ import { nothingToConnect, type Problem, problemOf } from "./adding.ts";
 import { ApxMark, ItemIcon } from "./ConnectHead.tsx";
 import { connectExtension, connectionFailureKey } from "./connecting.ts";
 import { SettingField } from "./ExtensionConfig.tsx";
+import { fileProblem } from "./fileProblem.ts";
 import { connectionUpdateText, nameFor, settingCopyIn } from "./itemText.ts";
 import { PairBody, usePairing } from "./PairStep.tsx";
 import "../styles/install-box.css";
@@ -374,7 +375,9 @@ export function InstallBox({
     }
   };
 
+  const [fileError, setFileError] = useState<ReturnType<typeof fileProblem>>();
   const connect = async () => {
+    setFileError(undefined);
     if (start?.kind === "address") return void add();
     if (!ext) return;
     setBusy(true);
@@ -404,7 +407,11 @@ export function InstallBox({
       setLink("connected");
       setPhase("done");
     } catch (e) {
-      await recoverConnection(e, ext, fields.length > 0);
+      const file = fileProblem(e);
+      if (file) {
+        setLink("broken");
+        setFileError(file);
+      } else await recoverConnection(e, ext, fields.length > 0);
     } finally {
       setBusy(false);
     }
@@ -638,7 +645,14 @@ export function InstallBox({
                     key={s.name}
                     s={s}
                     value={values[s.name]}
-                    onChange={(v) => setValues((x) => ({ ...x, [s.name]: v }))}
+                    error={fileError?.setting === s.name ? t(fileError.key) : undefined}
+                    onChange={(v) => {
+                      if (fileError?.setting === s.name) {
+                        setFileError(undefined);
+                        setLink("idle");
+                      }
+                      setValues((x) => ({ ...x, [s.name]: v }));
+                    }}
                   />
                 ),
               )}

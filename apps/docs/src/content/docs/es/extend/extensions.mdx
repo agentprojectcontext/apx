@@ -222,6 +222,14 @@ declaración de credencial vinculada borra las afectadas y exige reconectar; vol
 una credencial local no la revoca en el servicio. Los paquetes que usan este contrato deben exigir APX 2.17.5 o posterior;
 las versiones anteriores no entienden la vinculación.
 
+### Ajustes de archivo del equipo
+
+Un ajuste `file` usa el selector de archivos de Desktop cuando está conectado a su APX local. Muestra el nombre del archivo, no la ruta completa. Cancelar conserva la selección anterior. Web, móvil y Desktop conectado a un APX remoto indican que se abra Desktop en el equipo donde corre APX; este control no sube archivos ni acepta una ruta pegada. Los clientes del protocolo y la CLI todavía pueden enviar una ruta del equipo.
+
+Para una copia SQLite independiente, declará `"type": "file", "fileFormat": "sqlite"`. Al guardar se comprueban existencia, lectura, cabecera SQLite y metadatos del esquema mediante una conexión inmutable de solo lectura, sin carga de extensiones. No consulta registros, ejecuta SQL libre, crea archivos auxiliares ni cambia el archivo original. Rechaza bases WAL y archivos con journal/WAL/memoria compartida: cerrá la aplicación de origen y exportá primero una copia independiente. No es una comprobación completa de cada página de datos; la extensión debe conservar sus propias verificaciones de solo lectura al abrir el archivo más tarde.
+
+Los errores devuelven `bad_request` con `detail: { kind: "setting_file", setting: "<name>", reason: "missing" | "unreadable" | "invalid_sqlite" | "active_sqlite" }`. El panel los traduce en una acción junto al campo sin mostrar la ruta. `fileFormat` sólo es válido en ajustes de archivo. Es un campo nuevo: versiones anteriores de APX lo rechazan; no distribuyas un paquete que lo use hasta identificar una versión compatible.
+
 ### Su ficha: `apx-listing.json`
 
 Un `apx-listing.json` opcional junto al manifiesto es su ficha en el Marketplace: un `summary` y un `tagline`, una

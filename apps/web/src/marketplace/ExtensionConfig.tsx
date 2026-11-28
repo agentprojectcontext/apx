@@ -5,6 +5,8 @@ import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
 import { useLanguage, useT } from "../i18n/index.ts";
 import { attempt } from "../resources/InstalledExtension.tsx";
+import { FileSetting } from "./FileSetting.tsx";
+import { fileProblem } from "./fileProblem.ts";
 import { settingCopyIn } from "./itemText.ts";
 
 // An extension's own settings page (manifest 2): a form built from its settings, and its pages, each opened in a
@@ -20,16 +22,29 @@ export function SettingField({
   onChange,
   hint,
   replaceSecret = false,
+  error,
 }: {
   s: Setting;
   value: Value | undefined;
   onChange(v: Value): void;
   hint?: string | undefined;
   replaceSecret?: boolean | undefined;
+  error?: string | undefined;
 }) {
   const t = useT();
   const { label, description } = settingCopyIn(s, useLanguage());
   const help = hint ?? description;
+  if (s.type === "file")
+    return (
+      <FileSetting
+        label={label}
+        description={help}
+        value={value === undefined ? undefined : String(value)}
+        sqlite={s.fileFormat === "sqlite"}
+        error={error}
+        onChange={onChange}
+      />
+    );
   if (s.type === "boolean")
     return (
       <Field label={label} hint={help}>
@@ -127,6 +142,7 @@ export function ExtensionConfig({ e, onChanged }: { e: ExtensionInfo; onChanged(
   const t = useT();
   const [values, setValues] = useState<Record<string, Value>>({});
   const [busy, setBusy] = useState(false);
+  const [fileError, setFileError] = useState<ReturnType<typeof fileProblem>>();
   const [page, setPage] = useState<{ id: string; title: string }>();
   if (!e.settings.length && !e.pages.length) return null;
   const changed = new Set(
@@ -139,7 +155,17 @@ export function ExtensionConfig({ e, onChanged }: { e: ExtensionInfo; onChanged(
   const save = async () => {
     if (needsReplacement || busy) return;
     setBusy(true);
-    const ok = await attempt(() => client.call("extensions.settings", { id: e.id, values }), t);
+    setFileError(undefined);
+    const ok = await attempt(async () => {
+      try {
+        return await client.call("extensions.settings", { id: e.id, values });
+      } catch (error) {
+        const problem = fileProblem(error);
+        if (!problem) throw error;
+        setFileError(problem);
+        return undefined;
+      }
+    }, t);
     setBusy(false);
     if (!ok) return;
     setValues({});
@@ -162,7 +188,11 @@ export function ExtensionConfig({ e, onChanged }: { e: ExtensionInfo; onChanged(
                 : undefined
           }
           replaceSecret={replaceNames.has(s.name)}
-          onChange={(v) => setValues((x) => ({ ...x, [s.name]: v }))}
+          error={fileError?.setting === s.name ? t(fileError.key) : undefined}
+          onChange={(v) => {
+            setFileError(undefined);
+            setValues((x) => ({ ...x, [s.name]: v }));
+          }}
         />
       ))}
       {e.settings.length > 0 && (

@@ -124,6 +124,8 @@ test("panel requests return native replies without exposing a general invoke cap
     ["browserFrame", ["tab_1"], "panel:browser-frame", ["tab_1"]],
     ["hasBrowserView", ["tab_1"], "panel:has-browser-view", ["tab_1"]],
     ["stopComputer", [], "computer:stop", []],
+    ["canPickFile", [], "panel:can-pick-file", []],
+    ["pickFile", [], "panel:pick-file", []],
     ["pickFolder", [], "panel:pick-folder", []],
     ["servers", [], "desktop:servers", []],
     ["openServer", ["url:https://apx.example.com"], "desktop:open-server", ["url:https://apx.example.com"]],
