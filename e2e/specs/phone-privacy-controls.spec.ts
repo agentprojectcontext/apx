@@ -41,7 +41,11 @@ for (const language of ["en", "es"] as const) {
         name: language === "en" ? "Errands on all phones" : "Recados en todos los teléfonos",
       });
       await expect(global).toBeChecked();
-      await expect(global).toHaveAccessibleDescription(/phones|teléfonos/);
+      await expect(global).toHaveAccessibleDescription(
+        language === "en"
+          ? "Turns errands on the way on or off for every phone at once."
+          : "Enciende o apaga los recados en el camino en todos los teléfonos a la vez.",
+      );
       await expect(dialog.getByText(language === "en" ? "Connected" : "Conectado", { exact: true })).toHaveCount(0);
       await dialog
         .getByRole("button", { name: language === "en" ? "Manage trip location" : "Configurar ubicación de viajes" })
