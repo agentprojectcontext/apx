@@ -92,6 +92,40 @@ test("the phone news reaches only owners with a paired phone, not a browser or a
   }
 });
 
+test("the errands widget news applies only to paired Android phones", () => {
+  const entry = NEWS.find((item) => item.id === "car-phone-widget");
+  assert.ok(entry);
+  assert.equal(entry.since, "2.18.1");
+  const { store, done } = setup();
+  try {
+    assert.equal(entry.applies(newsFacts(store)), false);
+    store.devices.create("Browser", "other");
+    store.devices.create("Desk", "desktop");
+    store.devices.create("Phone", "ios");
+    assert.equal(entry.applies(newsFacts(store)), false);
+    store.devices.create("Android phone", "android");
+    assert.equal(entry.applies(newsFacts(store)), true);
+    assert.ok(newsAction(entry.id, 0));
+  } finally {
+    done();
+  }
+});
+
+test("prepared greeting news applies to owners with a paired device", () => {
+  const entry = NEWS.find((item) => item.id === "voice-instant-greeting");
+  assert.ok(entry);
+  assert.equal(entry.since, "2.18.1");
+  const { store, done } = setup();
+  try {
+    assert.equal(entry.applies(newsFacts(store)), false);
+    store.devices.create("Desk", "desktop");
+    assert.equal(entry.applies(newsFacts(store)), true);
+    assert.ok(newsAction(entry.id, 0));
+  } finally {
+    done();
+  }
+});
+
 test("contextual connection news only reaches owners with a private MCP server", () => {
   const entry = NEWS.find((item) => item.id === "mcp-context");
   assert.ok(entry);

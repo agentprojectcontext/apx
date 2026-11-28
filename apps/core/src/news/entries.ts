@@ -1,13 +1,6 @@
 // Release news worth acting on: what a release lets the super-agent do for this owner. Each entry is told once, and
 // only to an owner it applies to. See rules/DECISIONS.md#d-117
 
-import { FOLDER_MOVED } from "../apc/folder-notice.ts";
-import type { StoreSize } from "../db/db.ts";
-import type { Store } from "../domain/store.ts";
-import { NOISY_COMMENTS } from "../domain/tasks.ts";
-import { computerHost } from "../environments/host.ts";
-import { hasManagedSession } from "../extensions/sessions.ts";
-import { CATALOG } from "../integrations/catalog.ts";
 import { ACTIVITY_REVIEW_NEWS } from "./activity-review.ts";
 import { ACTIVITY_REVIEW_HISTORY_NEWS } from "./activity-review-history.ts";
 import { AGENT_FALLBACKS_NEWS } from "./agent-fallbacks.ts";
@@ -23,6 +16,7 @@ import { BROWSER_JAVASCRIPT_NEWS } from "./browser-javascript.ts";
 import { BROWSER_RECIPES_NEWS } from "./browser-recipes.ts";
 import { BROWSER_SIGN_IN_NEWS } from "./browser-sign-in.ts";
 import { CALL_SERVICES_NEWS } from "./call-services.ts";
+import { CAR_WIDGET_NEWS } from "./car-widget.ts";
 import { CHANNEL_AGENTS_NEWS } from "./channel-agents.ts";
 import { CHAT_CONTINUATIONS_NEWS } from "./chat-continuations.ts";
 import { CHROME_TABS_NEWS } from "./chrome-tabs.ts";
@@ -57,6 +51,7 @@ import { PUBLIC_ARTIFACTS_NEWS } from "./public-artifacts.ts";
 import { QUEUED_MESSAGES_NEWS } from "./queued-messages.ts";
 import { QUICK_CHAT_NEWS } from "./quick-chat.ts";
 import { RESEARCH_FROM_CHAT_NEWS } from "./research-from-chat.ts";
+import { RETAINED_EMAIL_NEWS } from "./retained-email.ts";
 import { ROOM_AGENT_NEWS } from "./room-agent.ts";
 import { ROOM_HANDOFF_NEWS } from "./room-handoff.ts";
 import { ROUTINE_PERMISSIONS_NEWS } from "./routine-permissions.ts";
@@ -72,6 +67,7 @@ import { TASK_COMMENTS_NEWS } from "./task-comments.ts";
 import { TASK_GOALS_NEWS } from "./task-goals.ts";
 import { TASK_REGROUP_NEWS } from "./task-regroup.ts";
 import { VOICE_CALLS_NEWS } from "./voice-calls.ts";
+import { VOICE_GREETING_NEWS } from "./voice-greeting.ts";
 import { VOICE_WAKE_NEWS } from "./voice-wake.ts";
 import { WHATSAPP_GROUPS_NEWS } from "./whatsapp-groups.ts";
 import { WORKFLOWS_NEWS } from "./workflows.ts";
@@ -113,6 +109,8 @@ export type NewsFacts = {
   devices?: number;
   /** A phone (Android or iOS) is paired: it lends its location and camera while its app is open. */
   phone?: boolean;
+  /** A paired Android phone can show the errands home-screen widget. */
+  androidPhone?: boolean;
   /** Open tasks with an agent on them. */
   tasks?: number;
   /** Open tasks whose comments piled up (worth cleaning). */
@@ -167,6 +165,8 @@ export type NewsEntry = {
 
 export const NEWS: readonly NewsEntry[] = [
   PHONE_PRIVACY_NEWS,
+  CAR_WIDGET_NEWS,
+  VOICE_GREETING_NEWS,
   ERRANDS_ON_THE_WAY_NEWS,
   PHONE_NODE_NEWS,
   SERVER_BROWSER_CONTROL_NEWS,
@@ -177,27 +177,7 @@ export const NEWS: readonly NewsEntry[] = [
   AGENT_FOLDER_NEWS,
   SIGN_IN_CARDS_NEWS,
   CALL_SERVICES_NEWS,
-  {
-    id: "email-retained-history",
-    since: "2.14.0",
-    title: {
-      en: "Keep automatic mail without automatic replies",
-      es: "Guardá correo automático sin respuestas automáticas",
-    },
-    about: {
-      en: "Account notices and newsletters now stay in your Email chats. You can also recover older mail quietly from the terminal.",
-      es: "Los avisos de cuentas y boletines ahora quedan en tus chats de Email. También podés recuperar correo anterior sin avisos desde la terminal.",
-    },
-    applies: (facts) => facts.email,
-    text: "Email channels keep automatic mail that passes the account's existing sender checks and filters, without starting automatic replies. New mail can still be checked for importance. The owner can explicitly recover retained mailbox history with apx channels email-history, one bounded page at a time; it deduplicates stored messages and starts no replies, agent turns or alerts for history. Recovery is owner-only because importing private history must be an explicit choice. Never claim old mail has already been recovered; show verified counts and filtering limits.",
-    actions: [
-      {
-        label: { en: "Check missing mail", es: "Revisar correo faltante" },
-        prompt:
-          "Help me check which Email messages are missing and explain how to recover retained mailbox history quietly.",
-      },
-    ],
-  },
+  RETAINED_EMAIL_NEWS,
 
   ROUTINE_PERMISSIONS_NEWS,
   HEADLINE_MODELS_NEWS,
@@ -753,64 +733,7 @@ export const NEWS: readonly NewsEntry[] = [
   ...OLDER_NEWS,
 ];
 
-/** Names of private MCP connections, without their configuration. */
-const ownMcpServers = (store: Store): string[] => {
-  try {
-    const servers = JSON.parse(store.settings.get("mcp_servers") ?? "{}") as { mcpServers?: object };
-    return Object.keys(servers.mcpServers ?? {});
-  } catch {
-    return [];
-  }
-};
-const connectedIntegrations = (store: Store): number => {
-  const names = ownMcpServers(store);
-  return CATALOG.filter((e) => names.includes(e.id)).length;
-};
-
-const signedIn = (store: Store, id: string) => Boolean(store.settings.get(`google_account:${id}`));
-
-/** A store this big that cannot give space back is worth one compaction. */
-const BIG_STORE_BYTES = 500 * 1024 * 1024;
-
-export const newsFacts = (store: Store, o: { hermes?: boolean; storeSize?: StoreSize } = {}): NewsFacts => ({
-  hermes: o.hermes ?? false,
-  bigStore: o.storeSize !== undefined && !o.storeSize.incremental && o.storeSize.bytes >= BIG_STORE_BYTES,
-  artifacts: store.surfaces.list().length,
-  desktop: store.devices.list().some((d) => d.platform === "desktop"),
-  devices: store.devices.list().length,
-  phone: store.devices.list().some((d) => d.platform === "android" || d.platform === "ios"),
-  codex: store.threads.list({ engine: "codex", limit: 1 }).length > 0,
-  claude: store.threads.list({ engine: "claude", limit: 1 }).length > 0,
-  google: {
-    calendar: signedIn(store, "google-calendar"),
-    gmail: signedIn(store, "gmail"),
-    drive: signedIn(store, "google-drive"),
-    gmailReadable: signedIn(store, "gmail") && store.settings.get("google_client:gmail") === "own",
-  },
-  secretary: store.settings.read("profile").id === "secretary",
-  contacts: store.persons.list().some((p) => p.role !== "owner" && p.role !== "blocked" && p.addresses.length > 0),
-  channels: store.settings.read("channels").length,
-  rooms: store.settings.read("channels").some((c) => (c.rooms?.rooms.length ?? 0) > 0),
-  eventReminders: signedIn(store, "google-calendar") && store.settings.read("calendar_reminders").enabled,
-  email: store.settings.read("channels").some((c) => c.type === "email" && c.email !== undefined),
-  whatsapp: store.settings.read("channels").some((c) => c.type === "whatsapp"),
-  integrations: connectedIntegrations(store),
-  mcp: ownMcpServers(store).length,
-  extensionEvents: store.extensions.list().some((e) => Boolean(e.manifest.events?.length)),
-  extensionSessions: store.extensions.list().some((e) => hasManagedSession(e.manifest)),
-  computer: computerHost() !== undefined && store.projects.list().length > 0,
-  mac: process.platform === "darwin" && store.projects.list().length > 0,
-  tasks: store.tasks.list({ state: "open", limit: 500 }).filter((t) => t.assignee).length,
-  noisyTasks: store.tasks.noisy(NOISY_COMMENTS).length,
-  localModels: store.settings.read("local_models_seen").length > 0,
-  ownModels: store.agents.list().filter((a) => a.model_choice?.model).length,
-  projects: store.projects.list().length,
-  agentFolder: Boolean(store.settings.get(FOLDER_MOVED)),
-  routines: store.routines.list().filter((r) => r.action === "agent" || r.action === "watch").length,
-  promptedAgents: store.agents.list().filter((a) => a.kind !== "secretary" && a.prompt.trim()).length,
-  agents: store.agents.list().filter((a) => a.kind !== "secretary").length,
-  research: store.settings.read("discovery").enabled,
-});
+export { newsFacts } from "./facts.ts";
 
 /** The action a channel button stands for. */
 export const newsAction = (entryId: string, index: number): NewsAction | undefined =>
