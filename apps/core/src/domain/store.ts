@@ -13,6 +13,7 @@ import { approvalsRepo } from "./approvals.ts";
 import { autoDecisionsRepo } from "./auto-decisions.ts";
 import { auxCallsRepo } from "./aux-calls.ts";
 import { carAlertsRepo } from "./car-alerts.ts";
+import { carPhonesRepo } from "./car-phones.ts";
 import { carPlacesRepo } from "./car-places.ts";
 import { carPrefsRepo } from "./car-prefs.ts";
 import { carTripsRepo } from "./car-trips.ts";
@@ -129,6 +130,7 @@ export function createStore(db: Db, bus: Bus) {
     carAlerts: carAlertsRepo(q),
     carPlaces: carPlacesRepo(q),
     carPrefs: carPrefsRepo(q),
+    carPhones: carPhonesRepo(q),
     channels: channelsRepo(q),
     stickers: stickersRepo(q),
     surfaces: surfacesRepo(q, bus),

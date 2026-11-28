@@ -167,8 +167,16 @@ export const WORK: Readonly<Record<string, Setting>> = {
     asks: "untrusted",
   },
   "car.settings": {
-    does: "errands on the way while the owner drives: on or off, reach, where places come from, chat copy, voice while driving",
-    read: (_p, { store }) => JSON.stringify(store.settings.read("car")),
+    does: "errands on the way while the owner drives: on or off, reach, where places come from, chat copy, voice while driving, and the phones taking part",
+    read: (_p, { store }) =>
+      JSON.stringify({
+        ...store.settings.read("car"),
+        phones: store.carPhones.list().map((p) => ({
+          device_id: p.device_id,
+          name: store.devices.get(p.device_id)?.name,
+          enabled: p.enabled,
+        })),
+      }),
   },
   "car.configure": {
     does: "configure errands on the way (enabled, reach near|normal|far, source osm|google, tell_in_chat, voice_while_driving); the owner types a Google key in the panel",
@@ -179,6 +187,10 @@ export const WORK: Readonly<Record<string, Setting>> = {
       const { google_key: _key, ...rest } = merged(store.settings.read("car"), p) as Record<string, unknown>;
       return rest;
     },
+  },
+  "car.phone": {
+    does: "turn a phone off for errands on the way (enabled false, device_id from car.settings phones); it stops sharing its trips. Only the phone itself turns them back on",
+    says: () => "Turn a phone off for errands",
   },
   "car.place_choice": {
     does: "mark a place the owner uses for errands: prefer, avoid, none or forget (key from the car settings screen)",

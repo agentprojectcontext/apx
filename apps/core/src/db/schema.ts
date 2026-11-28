@@ -107,6 +107,13 @@ export interface CarHoldsTable {
   at: string;
 }
 
+export interface CarPhonesTable {
+  device_id: string;
+  enabled: number;
+  changed_at: string;
+  changed_by: string;
+}
+
 export interface CarPlacePrefsTable {
   key: string;
   name: string;
@@ -931,6 +938,7 @@ export interface Database {
   aux_calls: AuxCallsTable;
   car_alerts: CarAlertsTable;
   car_holds: CarHoldsTable;
+  car_phones: CarPhonesTable;
   car_place_prefs: CarPlacePrefsTable;
   car_place_tiles: CarPlaceTilesTable;
   car_places: CarPlacesTable;

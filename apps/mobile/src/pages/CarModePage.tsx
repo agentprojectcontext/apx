@@ -28,7 +28,7 @@ import { makeStyles, useTheme } from "../ui/theme";
 
 type Call = (method: string, params: Record<string, unknown>) => Promise<unknown>;
 
-/** Global errands and this phone's participation are separate, explicit choices. */
+/** This phone's own switch for errands; APX on the computer holds the switch for every phone. */
 export function CarModePage({ creds, call, back }: { creds: Creds; call: Call; back: () => void }) {
   const s = useStyles();
   if (!carNative.available)
@@ -84,6 +84,13 @@ function CarModeSettings({ creds, call, back }: { creds: Creds; call: Call; back
       app.remove();
     };
   }, [readCore]);
+  // Turned off from APX on the computer: this phone follows, as if its switch had been tapped.
+  const offFromApx = core?.this_phone === false;
+  useEffect(() => {
+    if (!offFromApx || !enabled || gate.current.busy) return;
+    void carNative.pauseTrips().catch(() => undefined);
+    void saveCarEnabled(false);
+  }, [offFromApx, enabled]);
   const turn = async (on: boolean) => {
     if (gate.current.busy) return;
     gate.current.busy = true;
@@ -97,27 +104,16 @@ function CarModeSettings({ creds, call, back }: { creds: Creds; call: Call; back
           Alert.alert(t("carMode"), t("carCoreOff"));
           return;
         }
+        await call("car.phone", { enabled: true });
+        setCore({ ...now, this_phone: true });
         await carNative.allowTrips();
       } else {
         await carNative.pauseTrips();
+        await call("car.phone", { enabled: false }).catch(() => undefined);
       }
       await saveCarEnabled(on);
     } catch {
       Alert.alert(t("couldNotChange"), t("privacyUnavailable"));
-    } finally {
-      gate.current.busy = false;
-      if (gate.current.live) setBusy(false);
-    }
-  };
-  const coreOn = async (enabled = true) => {
-    if (gate.current.busy) return;
-    gate.current.busy = true;
-    gate.current.request++;
-    setBusy(true);
-    try {
-      setCore((await call("car.configure", { enabled })) as CarStatus);
-    } catch (error) {
-      Alert.alert(t("couldNotChange"), error instanceof Error ? error.message : String(error));
     } finally {
       gate.current.busy = false;
       if (gate.current.live) setBusy(false);
@@ -139,23 +135,6 @@ function CarModeSettings({ creds, call, back }: { creds: Creds; call: Call; back
       <SubHeader title={t("carMode")} back={back} />
       <Screen gap={12}>
         <ListGroup>
-          <ListRow
-            label={t("carGlobal")}
-            sub={t(core && !failed ? "carGlobalHelp" : failed ? "privacyUnknown" : "privacyLoading")}
-            leading={<IconTile icon="Car" />}
-            chevron={false}
-            trailing={
-              core && !failed ? (
-                <Toggle
-                  label={t("carGlobal")}
-                  hint={t("carGlobalHelp")}
-                  value={core.settings.enabled}
-                  disabled={busy}
-                  onChange={(on) => void coreOn(on)}
-                />
-              ) : undefined
-            }
-          />
           <ListRow
             label={t("carSwitch")}
             sub={t("carSwitchHelp")}

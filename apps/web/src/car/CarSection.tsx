@@ -5,6 +5,7 @@ import { SectionHead, SubHead } from "../config/SectionHead.tsx";
 import { client } from "../data/client.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
+import { CarPhones } from "./CarPhones.tsx";
 import { CarPlaces } from "./CarPlaces.tsx";
 import { CarPreview } from "./CarPreview.tsx";
 import { TripView } from "./TripCard.tsx";
@@ -13,7 +14,7 @@ import "./car.css";
 
 const REACHES: readonly CarReach[] = ["near", "normal", "far"];
 
-/** Settings › In the car: on or off, how far ahead, where places come from, and the phone that reports the trips. */
+/** Settings › In the car: on or off, the phones taking part, how far ahead and where places come from. */
 export function CarSection() {
   const t = useT();
   const [status, setStatus] = useState<CarStatus>();
@@ -120,6 +121,9 @@ export function CarSection() {
           {t("car.saveError")}
         </p>
       )}
+      <SubHead>{t("car.phones")}</SubHead>
+      <p className="config__lead">{t("car.phonesHint")}</p>
+      <CarPhones />
       {s.enabled && (
         <>
           <SettingRow title={t("car.reach")} description={t("car.reachHint")}>

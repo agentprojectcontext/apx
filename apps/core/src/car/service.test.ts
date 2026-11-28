@@ -342,3 +342,40 @@ test("an offer goes to the owner's chat only when they asked for it", async () =
     [second.alerts[0]?.id],
   );
 });
+
+test("the owner turns a phone off from APX: its trip ends, its next point is refused, only the phone turns it on", async () => {
+  await using env = await setup();
+  const { car, store, clock } = env;
+  errand(store, "Comprar leche", { categories: ["supermarket"] });
+  const { device } = store.devices.create("Acme phone", "android");
+  const other = store.devices.create("Northwind phone", "android").device;
+  assert.deepEqual(car.phones(), [], "a phone is listed once it takes part");
+  car.tripStart({ trip_id: TRIP, source: "android_auto", at: clock.now().toISOString(), device_id: device.id });
+  assert.equal(car.status(device.id).this_phone, true);
+  const listed = car.phones();
+  assert.equal(listed.length, 1);
+  assert.equal(listed[0]?.name, "Acme phone");
+  assert.equal(listed[0]?.trip?.id, TRIP, "the panel sees the trip it is on");
+
+  assert.throws(() => car.phone({ enabled: true, device_id: device.id }, undefined), /Only the phone itself/);
+  const off = car.phone({ enabled: false, device_id: device.id }, undefined);
+  assert.equal(off.enabled, false);
+  assert.equal(off.changed_by, "owner");
+  assert.equal(off.trip, undefined, "its trip ended");
+  assert.equal(car.trip().trip, undefined);
+  assert.equal(car.position(point(clock)).active, false, "the phone hears it on its next point and turns off");
+  assert.equal(car.status(device.id).this_phone, false);
+  const again = car.tripStart({
+    trip_id: "trip-0002-acme",
+    source: "android_auto",
+    at: clock.now().toISOString(),
+    device_id: device.id,
+  });
+  assert.deepEqual(again, { alerts: [], errands: [] }, "an off phone starts no trip");
+
+  car.phone({ enabled: true }, device.id);
+  assert.equal(car.status(device.id).this_phone, true, "the phone turned itself back on");
+  assert.equal(car.phone({ enabled: false }, other.id).changed_by, "phone", "a phone may turn itself off");
+  assert.throws(() => car.phone({ enabled: false }, undefined), /Say which phone/);
+  assert.throws(() => car.phone({ enabled: false, device_id: "dev_unknown" }, undefined), /phone not found/);
+});

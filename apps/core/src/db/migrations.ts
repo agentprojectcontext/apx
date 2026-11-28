@@ -1516,4 +1516,12 @@ export const MIGRATIONS: readonly string[] = [
   );
   `,
   `ALTER TABLE tasks ADD COLUMN proposed_by TEXT;`,
+  `
+  CREATE TABLE car_phones (
+    device_id TEXT PRIMARY KEY,
+    enabled INTEGER NOT NULL,
+    changed_at TEXT NOT NULL,
+    changed_by TEXT NOT NULL CHECK(changed_by IN ('phone', 'owner'))
+  );
+  `,
 ];

@@ -169,14 +169,20 @@ class AlertScreen(carContext: CarContext, private val alertId: String) : Screen(
     val context = carContext
     val alert = CarAlertStore.get(alertId)
       ?: return list(context.carString(R.string.apx_car_screen_title), listOf(row(context.carString(R.string.apx_car_alert_gone))), back = true)
-    val rows = mutableListOf(row(alert.errand.ifBlank { alert.title }, CarText.detail(alert.distanceLabel, alert.place?.name), alert.place?.address))
+    // The header names the errand; the first row says where it is, so neither repeats the other.
+    val errand = alert.errand.ifBlank { alert.title }
+    val place = alert.place
+    val rows = mutableListOf(
+      if (place != null) row(place.name.ifBlank { errand }, alert.distanceLabel, place.address)
+      else row(errand, alert.distanceLabel),
+    )
     for (action in alert.actions) {
       rows += row(CarNotifications.actionLabel(context, action)) {
         CarNav.answer(context, alert, action)
         screenManager.pop()
       }
     }
-    return list(alert.title, rows, back = true)
+    return list(errand, rows, back = true)
   }
 }
 
@@ -186,11 +192,18 @@ class ErrandScreen(carContext: CarContext, private val errand: CarErrand) : Scre
     val context = carContext
     val app = context.applicationContext
     val title = errand.title.ifBlank { errand.best?.name ?: "" }
-    val rows = mutableListOf(row(title, CarText.detail(CarText.distanceLabel(errand.distanceM), errand.best?.name), errand.best?.address))
-    rows += row(context.carString(R.string.apx_car_errand_navigate)) {
-      CarCore.errand(app, errand.taskId, "navigate")
-      CarNav.navigate(context, errand.best, title)
-      screenManager.pop()
+    val best = errand.best
+    // The header already names the errand: the rows say where, and Maps only opens for a known place.
+    val rows = mutableListOf<Row>()
+    if (best == null) {
+      rows += row(context.carString(R.string.apx_car_errand_no_place))
+    } else {
+      rows += row(best.name.ifBlank { title }, CarText.distanceLabel(errand.distanceM), best.address)
+      rows += row(context.carString(R.string.apx_car_errand_navigate)) {
+        CarCore.errand(app, errand.taskId, "navigate")
+        CarNav.navigate(context, best, title)
+        screenManager.pop()
+      }
     }
     rows += row(context.carString(R.string.apx_car_errand_done)) {
       CarCore.errand(app, errand.taskId, "done")

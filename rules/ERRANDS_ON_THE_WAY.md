@@ -48,6 +48,16 @@ MessagingStyle "APX" conversation    ◀────── offer text; voice rep
   agent's choice always wins over the keywords.
 - The panel and the phone show the place on the errand form: category chips, a brand field, "a fixed place".
 
+## Phones
+
+Each paired phone turns errands on for itself (**Use this phone for errands**, on the phone); APX on the computer
+holds the one switch for every phone (`car.configure`) and lists the phones taking part (`car.phones`, table
+`car_phones`, one row per device that ever turned errands on or started a trip). From that list the owner turns a
+phone off (`car.phone` with its `device_id`): the core ends its trip and refuses its trip starts and points, so the
+phone switches itself off on its next point or when its car page reads `car.settings` (`this_phone: false`), as if
+its switch had been tapped. Only the phone turns itself back on (`car.phone` without `device_id`), since turning on
+starts sharing that phone's location. The super-agent may turn a phone off through `apx_settings`, never on.
+
 ## Trips
 
 - A trip starts when the phone reports an Android Auto session or a Maps route (**v1**: the trip ends only when both
@@ -145,6 +155,16 @@ MessagingStyle "APX" conversation    ◀────── offer text; voice rep
 - Sideloaded builds: Android Auto shows a car app that is not from Play only with *Unknown sources* on in Android
   Auto's developer settings. The phone's car mode screen says how.
 - Testing: the Desktop Head Unit (DHU) over `adb forward tcp:5277 tcp:5277`.
+
+## Widget
+
+Android Auto gives no dashboard card to a points-of-interest app: the home screen holds navigation, media and
+calls, and a message-style notification is the only thing that floats over it. The phone app therefore has a plain
+home-screen widget (`ApxCarWidget`, RemoteViews): the offer waiting for an answer with its place, distance, Go now
+and Another place (the same answer path as the notification), or a line saying nothing is near. It is redrawn when
+offers change or a trip starts or ends, never on a timer. Google announced in May 2026 that phone widgets reach
+Android Auto during the year; this widget needs no change for that. A media session to borrow the media card was
+ruled out: it would take the place of the owner's music and Play admits only audio apps as media.
 
 ## Out of scope (for now)
 

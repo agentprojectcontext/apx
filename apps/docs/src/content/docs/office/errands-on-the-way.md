@@ -17,13 +17,13 @@ It starts off. Until you turn it on, the phone runs nothing in the background an
 
 ## Turn it on
 
-1. Open **Settings › In the car** on the phone or computer and enable **Errands on all phones**.
+1. Open **Settings › In the car** in APX on your computer and enable **Errands on all phones**.
 2. On each participating Android phone, enable **Use this phone for errands**. The two switches are independent and initially off. **Settings › Privacy › Location during trips** must also allow sharing.
 3. Allow what the list asks for, one tap each: **Read notifications** (how APX sees that Android Auto connected or
    that Maps started a route), **Location** and **Notifications**.
 4. Try it without driving: **Try without a car** starts a test trip from where you are.
 
-Turn off **Errands on all phones** from either app to stop errands everywhere, or **Use this phone for errands** to stop only that phone. A disconnected phone pauses its GPS after a failed safety check and requires explicit local reactivation. Remote GPS shutdown needs both the core and APK on 2.18.1 or later; older APKs may keep their GPS running while the updated core discards positions. See [Privacy and telemetry](/reference/privacy/#phone-location-is-a-separate-choice) for timing and compatibility limits.
+Turn off **Errands on all phones** on the computer to stop errands everywhere, or **Use this phone for errands** on a phone to stop only that one. The computer also lists your phones under **Phones**: **Turn off** stops one of them from there, and it switches off on its next point. Only the phone turns itself back on. A disconnected phone pauses its GPS after a failed safety check and requires explicit local reactivation. Remote GPS shutdown needs both the core and APK on 2.18.1 or later; older APKs may keep their GPS running while the updated core discards positions. See [Privacy and telemetry](/reference/privacy/#phone-location-is-a-separate-choice) for timing and compatibility limits.
 
 In the panel, **Settings › In the car** has the rest: how far ahead you want to hear about places, where the places
 come from, and whether you also want the offer in your chat (Telegram, WhatsApp…).
@@ -79,3 +79,7 @@ Every answer teaches APX about the place: the ones you go to rank first next tim
   cap the daily use in Google's console so nothing is ever charged.
 
 Your position goes only to your APX: one point at a time while a trip lasts, never a history.
+
+## On the phone's home screen
+
+Add the **Errands on the way** widget from your launcher's widget list: it shows the errand APX offers with its place and distance, and **Go now** and **Another place** buttons. Android Auto shows phone widgets once Google turns them on for your car.
