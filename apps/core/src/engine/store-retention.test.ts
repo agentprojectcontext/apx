@@ -9,6 +9,7 @@ import { createStore, type Store } from "../domain/store.ts";
 import { toInput } from "../providers/chatgpt-responses.ts";
 import type { ChatItem } from "../providers/types.ts";
 import { tempDir } from "../testkit/platform.ts";
+import { recordingStore } from "../testkit/recording-store.ts";
 import { HISTORY_BUDGET_CHARS, project } from "./context.ts";
 import { memoryHistory } from "./memory-projection.ts";
 import { compactBackupName, createRetention } from "./store-retention.ts";
@@ -263,6 +264,38 @@ test("turns a chat's summary replaced are compacted, the summary and newer turns
     );
     assert.deepEqual(levels, [3, 3, 3, 3, 3, 3, 2, 2, 1, 1, 1, 1]);
     assert.equal(view(store, thread), before);
+  } finally {
+    db.close();
+    home.remove();
+  }
+});
+
+test("a beat looks at a bounded page of old runs and goes on from there, however many cannot go further", () => {
+  const home = tempDir("apx-retention-beats-");
+  const db = openDb(home.path);
+  try {
+    const { store, take } = recordingStore(db);
+    const threads = Array.from(
+      { length: 3 },
+      (_, i) => store.threads.create({ kind: "loose", title: `Chat ${i}`, agent_ids: ["superagent"] }).id,
+    );
+    // Short turns stay in every view: once stubbed they can go no further, and a beat used to look at all of them.
+    for (const t of threads) for (let i = 0; i < 250; i++) turn(store, t, i, { output: "ok" });
+    const retention = createRetention({ store, db, now: later(30) });
+    retention.pass();
+    const stuck = Number((db.prepare("SELECT count(*) AS n FROM runs WHERE trimmed < 3").get() as { n: number }).n);
+    assert.ok(stuck > 400, `${stuck} runs left below compacted`);
+    const spansOf = (ran: Array<{ sql: string; params: unknown[] }>) =>
+      ran.filter((q) => /group by "thread_id"/.test(q.sql)).map((q) => String(q.params[0]));
+    const seen = new Set<string>();
+    for (let beat = 0; beat < 6; beat++) {
+      take();
+      retention.check.run(new Date());
+      const looked = spansOf(take());
+      assert.ok(looked.length > 0 && looked.length <= 200, `beat ${beat} looked at ${looked.length} runs`);
+      for (const id of looked) seen.add(id);
+    }
+    assert.equal(seen.size, stuck, "beats go on from where the last one stopped until every run was seen");
   } finally {
     db.close();
     home.remove();

@@ -4052,7 +4052,9 @@ The rule: **stored copies shrink only to what every view of the chat already rea
   four history budgets wide (or behind the chat's summary), the encrypted reasoning goes too. A chat with an unfinished
   turn is not touched. The margins cover views that reach further back when forgotten notes remove newer turns.
 - **The file gives space back.** A new store is `auto_vacuum = INCREMENTAL`; the background check (`store-retention`,
-  every 10 minutes, 200 runs or chat views a beat) frees up to 100 MB of pages after its pass. An older store needs one
+  every 10 minutes) frees up to 100 MB of pages after its pass. A beat's work is bounded: each run it looks at counts,
+  also one that can go no further yet, and measuring a chat's view counts by the log rows it read; the next beat goes
+  on from the run where this one stopped ([HISTORY](HISTORY.md#retention-beat-freeze)). An older store needs one
   `VACUUM` to become incremental: `apx doctor --fix` calls `storage.compact`, which does every due pass at once and
   rewrites the file when the disk has twice its size free (otherwise it says so and frees nothing yet). The core blocks
   while it runs (about 20 s for 1.1 GB), so it is the owner's call, not the clock's.
