@@ -3,6 +3,9 @@
  * (media/whats-new/<lang>/<key>.mp4), with the first release that has it. A new feature goes at the top.
  */
 export const WELCOME_SLIDES = [
+  { key: "phone-calls", since: "2.18.1" },
+  { key: "errands-on-the-way", since: "2.18.1" },
+  { key: "wake-by-voice", since: "2.18.1" },
   { key: "free-agents", since: "2.17.0" },
   { key: "workflows", since: "2.17.0" },
   { key: "engine-sessions", since: "2.17.0" },

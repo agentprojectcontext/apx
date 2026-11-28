@@ -9,12 +9,14 @@ import call2 from "../assets/welcome/call-2.jpg";
 import call3 from "../assets/welcome/call-3.jpg";
 import call4 from "../assets/welcome/call-4.jpg";
 import engine1 from "../assets/welcome/engine-1.jpg";
+import errandsOnTheWay from "../assets/welcome/errands-on-the-way.webp";
 import folder1 from "../assets/welcome/folder-1.jpg";
 import free1 from "../assets/welcome/free-1.jpg";
 import group1 from "../assets/welcome/group-1.jpg";
 import group2 from "../assets/welcome/group-2.jpg";
 import group3 from "../assets/welcome/group-3.jpg";
 import market1 from "../assets/welcome/market-1.jpg";
+import phoneCalls from "../assets/welcome/phone-calls.webp";
 import public1 from "../assets/welcome/public-1.jpg";
 import slide1 from "../assets/welcome/slide-1.jpg";
 import slide2 from "../assets/welcome/slide-2.jpg";
@@ -26,6 +28,7 @@ import slide7 from "../assets/welcome/slide-7.jpg";
 import slide8 from "../assets/welcome/slide-8.jpg";
 import slide9 from "../assets/welcome/slide-9.jpg";
 import slide10 from "../assets/welcome/slide-10.jpg";
+import wakeByVoice from "../assets/welcome/wake-by-voice.webp";
 import workflow1 from "../assets/welcome/workflow-1.jpg";
 import { closeCard, useClosedCards } from "../data/cornerCards.ts";
 import { useSetup } from "../data/setup.ts";
@@ -34,11 +37,12 @@ import { enWelcome, type WelcomeKey } from "../i18n/welcome-en.ts";
 import { esWelcome } from "../i18n/welcome-es.ts";
 import { type SlideKey, seenBefore, slidesToShow, type WelcomeSlide } from "./welcomeFilm.ts";
 
-// What is new, one feature per slide, each its own short clip with music, played from the docs site with no player
-// chrome. Their titles are written in each language, so each has its own cut; where one cannot load, that slide's
-// still stays in its place.
+// Each feature has a clip from the docs site and a local still if playback is unavailable.
 const clip = (lang: "es" | "en", key: string) => `https://apxagent.app/media/whats-new/${lang}/${key}.mp4`;
 const POSTERS: Record<SlideKey, string> = {
+  "phone-calls": phoneCalls,
+  "errands-on-the-way": errandsOnTheWay,
+  "wake-by-voice": wakeByVoice,
   "free-agents": free1,
   workflows: workflow1,
   "engine-sessions": engine1,

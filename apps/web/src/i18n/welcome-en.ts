@@ -9,6 +9,15 @@ export const enWelcome = {
   "welcome.cta": "Let's go",
   "welcome.soundOn": "Turn sound on",
   "welcome.soundOff": "Turn sound off",
+  "welcome.phone-calls.title": "Talk to APX from your phone",
+  "welcome.phone-calls.text":
+    "Call your super-agent from the APX app. Talk hands-free while it answers and works for you; the conversation stays in your chat.",
+  "welcome.errands-on-the-way.title": "Your errands, along the way",
+  "welcome.errands-on-the-way.text":
+    "Turn on errands for this phone to find useful stops on your route. Choose where to go, leave it for later, or turn sharing off from your phone or computer.",
+  "welcome.wake-by-voice.title": "Say its name and ask",
+  "welcome.wake-by-voice.text":
+    "Turn on wake by voice on your Android phone, then say your super-agent's name. Make a short request, keep talking, and say goodbye when you're done.",
   "welcome.free-agents.title": "Agents without walls",
   "welcome.free-agents.text":
     "Your agents now work in all your projects, not only their own. Their role says what they're good at, and every result tells you which project it's in.",

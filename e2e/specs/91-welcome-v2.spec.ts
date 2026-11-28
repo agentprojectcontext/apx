@@ -21,19 +21,19 @@ test("the owner steps through the slides and Skip closes them for good", async (
   await open(page);
   const dialog = page.getByRole("dialog", { name: "Lo nuevo de APX" });
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole("heading", { name: "Agentes sin paredes" })).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "Hablá con APX desde tu teléfono" })).toBeVisible();
   await expect(dialog.getByText(`1 de ${slides.length}`, { exact: true })).toBeVisible();
   // The film could not load: the slide's still takes its place.
-  await expect(dialog.getByRole("img", { name: "Agentes sin paredes" })).toBeVisible();
+  await expect(dialog.getByRole("img", { name: "Hablá con APX desde tu teléfono" })).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Atrás" })).toHaveCount(0);
 
   await dialog.getByRole("button", { name: "Siguiente" }).click();
-  await expect(dialog.getByRole("heading", { name: "Un pedido, muchos agentes" })).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "Tus recados, de camino" })).toBeVisible();
   await page.keyboard.press("ArrowRight");
-  await expect(dialog.getByRole("heading", { name: "Claude Code, con su propia cara" })).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "Decí su nombre y pedile" })).toBeVisible();
   await expect(dialog.getByText(`3 de ${slides.length}`, { exact: true })).toBeVisible();
   await dialog.getByRole("button", { name: "Atrás" }).click();
-  await expect(dialog.getByRole("heading", { name: "Un pedido, muchos agentes" })).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "Tus recados, de camino" })).toBeVisible();
 
   await dialog.getByRole("button", { name: "Saltear" }).click();
   await expect(dialog).toBeHidden();
@@ -53,6 +53,34 @@ test("the last slide ends with Vamos", async ({ page }) => {
   await expect(dialog.getByRole("button", { name: "Siguiente" })).toHaveCount(0);
   await dialog.getByRole("button", { name: "Vamos" }).click();
   await expect(dialog).toBeHidden();
+});
+
+test("the three phone clips play on wide and narrow screens", async ({ page }, info) => {
+  const keys = ["phone-calls", "errands-on-the-way", "wake-by-voice"];
+  await page.route("https://apxagent.app/media/whats-new/**", async (route) => {
+    const file = new URL(route.request().url()).pathname.split("/").at(-1);
+    if (!file || !keys.some((key) => file === `${key}.mp4`)) return route.abort();
+    await route.fulfill({
+      contentType: "video/mp4",
+      body: readFileSync(new URL(`../../apps/docs/public/media/whats-new/es/${file}`, import.meta.url)),
+    });
+  });
+  await open(page);
+  const dialog = page.getByRole("dialog", { name: "Lo nuevo de APX" });
+  for (const [index, key] of keys.entries()) {
+    await expect(
+      dialog.getByRole("heading", { name: esWelcome[`welcome.${key}.title` as keyof typeof esWelcome] }),
+    ).toBeVisible();
+    const video = dialog.locator("video");
+    await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.readyState)).toBeGreaterThanOrEqual(2);
+    await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(0);
+    await page.screenshot({ path: info.outputPath(`${key}-desktop.png`) });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(dialog.getByRole("button", { name: "Siguiente" })).toBeVisible();
+    await page.screenshot({ path: info.outputPath(`${key}-phone.png`) });
+    await page.setViewportSize({ width: 1280, height: 900 });
+    if (index < keys.length - 1) await dialog.getByRole("button", { name: "Siguiente" }).click();
+  }
 });
 
 const keep = (page: import("@playwright/test").Page, corner: object) =>
@@ -84,7 +112,7 @@ test("a device that closed the 2.14.3 welcome sees only what came after it", asy
   await keep(page, { welcome: "whats-new-2.14.3" });
   await open(page);
   const dialog = page.getByRole("dialog", { name: "Lo nuevo de APX" });
-  await expect(dialog.getByRole("heading", { name: "Agentes sin paredes" })).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "Hablá con APX desde tu teléfono" })).toBeVisible();
   await expect(
     dialog.getByText(`1 de ${slidesToShow(version, seenBefore("whats-new-2.14.3")).length}`, { exact: true }),
   ).toBeVisible();

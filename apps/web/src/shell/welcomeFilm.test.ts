@@ -4,6 +4,12 @@ import { ALL_SLIDES, seenBefore, slidesToShow, WELCOME_SLIDES } from "./welcomeF
 
 const keys = (version: string, seen: readonly string[]) => slidesToShow(version, seen).map((s) => s.key);
 
+test("the phone release shows calls, errands and wake clips in order to an updating device", () => {
+  const previous = WELCOME_SLIDES.filter((s) => s.since !== "2.18.1").map((s) => s.key);
+  assert.deepEqual(keys("2.18.1", previous), ["phone-calls", "errands-on-the-way", "wake-by-voice"]);
+  assert.deepEqual(keys("2.18.1", ALL_SLIDES), []);
+});
+
 test("a device that saw every slide but a new one is shown only the new one", () => {
   const fresh = WELCOME_SLIDES[0].key;
   assert.deepEqual(

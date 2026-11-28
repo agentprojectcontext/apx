@@ -9,6 +9,15 @@ export const esWelcome: Record<WelcomeKey, string> = {
   "welcome.cta": "Vamos",
   "welcome.soundOn": "Activar el sonido",
   "welcome.soundOff": "Silenciar",
+  "welcome.phone-calls.title": "Hablá con APX desde tu teléfono",
+  "welcome.phone-calls.text":
+    "Llamá a tu superagente desde la app de APX. Hablá con manos libres mientras te responde y trabaja para vos; la conversación queda en tu chat.",
+  "welcome.errands-on-the-way.title": "Tus recados, de camino",
+  "welcome.errands-on-the-way.text":
+    "Activá los recados en este teléfono para encontrar paradas útiles en tu ruta. Elegí adónde ir, dejalo para después o apagá el uso de ubicación desde el teléfono o la computadora.",
+  "welcome.wake-by-voice.title": "Decí su nombre y pedile",
+  "welcome.wake-by-voice.text":
+    "Activá Despertar por voz en tu Android y decí el nombre de tu superagente. Hacé un pedido corto, seguí conversando y despedite cuando termines.",
   "welcome.free-agents.title": "Agentes sin paredes",
   "welcome.free-agents.text":
     "Tus agentes ya trabajan en todos tus proyectos, no solo en el suyo. Su rol dice en qué son buenos, y cada resultado te dice en qué proyecto quedó.",
