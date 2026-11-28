@@ -48,8 +48,18 @@ export async function deleteThread(id: string): Promise<boolean> {
   }
 }
 
+const pendingReads = new Set<Set<string>>();
+
+/** Keeps deletions newer than an in-flight snapshot, even before a chat is loaded. */
+export function trackThreadRead() {
+  const deleted = new Set<string>();
+  pendingReads.add(deleted);
+  return { deleted, close: () => pendingReads.delete(deleted) };
+}
+
 /** Drops deleted chats from memory; one still open shows as not found instead of being fetched again. */
 export function forgetThreads(ids: string[]): void {
+  for (const read of pendingReads) for (const id of ids) read.add(id);
   for (const id of ids) {
     discardAttachments(id);
     keepDraft(id, "");

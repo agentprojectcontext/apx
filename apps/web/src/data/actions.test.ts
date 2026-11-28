@@ -74,11 +74,11 @@ function rpc(t: TestContext, replies: Record<string, unknown>) {
   return calls;
 }
 
-for (const change of ["updated", "created", "deleted"] as const) {
+for (const change of ["updated", "created", "deleted", "deleted-unloaded"] as const) {
   test(`bootstrap preserves a thread ${change} while its snapshot is pending`, async (t) => {
     const old = thread();
     const live = thread("thr_1", "working");
-    data.set({ threads: change === "created" ? {} : { thr_1: old } });
+    data.set({ threads: change === "created" || change === "deleted-unloaded" ? {} : { thr_1: old } });
     const snapshot = Promise.withResolvers<unknown>();
     rpc(t, {
       "agents.list": { agents: [] },
@@ -94,10 +94,12 @@ for (const change of ["updated", "created", "deleted"] as const) {
       "marks.json": {},
     });
     const loading = actions.bootstrap();
-    data.set({ threads: change === "deleted" ? {} : { thr_1: live } });
+    const deleted = change === "deleted" || change === "deleted-unloaded";
+    if (deleted) (await import("./threadAdmin.ts")).forgetThreads(["thr_1"]);
+    else data.set({ threads: { thr_1: live } });
     snapshot.resolve({ surfaces: [] });
     await loading;
-    assert.equal(data.get().threads.thr_1, change === "deleted" ? undefined : live);
+    assert.equal(data.get().threads.thr_1, deleted ? undefined : live);
   });
 }
 

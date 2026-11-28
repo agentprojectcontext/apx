@@ -64,6 +64,53 @@ test("a tab shows a spinner while its chat runs and a dot for its news until it 
   }
 });
 
+test("a chat deleted before its first snapshot arrives does not reappear", async ({ page }) => {
+  const held = Promise.withResolvers<void>();
+  const env = await startCore({
+    port: 0,
+    llm: scriptedLlm(async () => {
+      await held.promise;
+      return say("ok");
+    }),
+  });
+  const snapshot = Promise.withResolvers<void>();
+  try {
+    await env.client.call("setup.finish", {});
+    const chat = await env.client.call("threads.create", {
+      kind: "loose",
+      agent_id: "superagent",
+      title: "Transient chat",
+    });
+    await page.route("**/rpc/surfaces.list", async (route) => {
+      const response = await route.fetch();
+      await snapshot.promise;
+      await route.fulfill({ response });
+    });
+    const listed = page.waitForResponse("**/rpc/threads.list");
+    await page.goto(`${env.core.url}/`);
+    await listed;
+    await env.client.call("threads.delete", { thread: chat.id });
+    const marker = await env.client.call("threads.create", {
+      kind: "loose",
+      agent_id: "superagent",
+      title: "Live marker",
+    });
+    await env.client.call("threads.send", { thread: marker.id, text: "Hold this reply" });
+    const inbox = page.getByRole("region", { name: "Inbox" });
+    await expect(inbox.getByRole("radio", { name: /^Chats/ }).getByRole("img", { name: "1 en curso" })).toBeVisible();
+    snapshot.resolve();
+    await expect(page.locator(".chat__header")).toBeVisible();
+    await expect(inbox.getByText("Transient chat", { exact: true })).toHaveCount(0);
+    await expect(inbox.getByText("Live marker", { exact: true })).toBeVisible();
+  } finally {
+    held.resolve();
+    snapshot.resolve();
+    await page.goto("about:blank");
+    await env.core.close();
+    await env.cleanup();
+  }
+});
+
 test("a tab picked while the chats still load stays picked once they arrive", async ({ page }) => {
   const env = await startCore({ port: 0, llm: scriptedLlm(() => say("ok")) });
   try {

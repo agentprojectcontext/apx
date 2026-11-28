@@ -15,60 +15,67 @@ import { notify } from "./notices.ts";
 import { hasNoticesFor, loadNotifications } from "./notifications.ts";
 import { socketCall } from "./socketCall.ts";
 import { data, upsertMessage } from "./state.ts";
-import { openMarkReadDialog } from "./threadAdmin.ts";
+import { openMarkReadDialog, trackThreadRead } from "./threadAdmin.ts";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** Agents, projects, threads, surfaces and browser tabs in one round. Throws if the core is unreachable. */
 export async function bootstrap(): Promise<void> {
-  const before = data.get().threads;
-  const [agents, projects, threads, surfaces, computer] = await Promise.all([
-    client.call("agents.list", {}),
-    client.call("projects.list", { include_unregistered: true }),
-    // Archived chats too: the Inbox keeps them apart, under Archived. And a few of each chat's delegated chats.
-    client.call("threads.list", { include_archived: true, delegated: DELEGATED_SHOWN }),
-    client.call("surfaces.list", {}),
-    client
-      .call("environments.status", {})
-      .then((status) => ({ chats: status.enabled ? (status.chats ?? []) : [], computers: computersOf(status) }))
-      .catch((error: unknown) => {
-        if (error instanceof ApxError && error.code === "unknown_method") return { chats: [], computers: NO_COMPUTERS };
-        return { chats: data.get().vmThreads, computers: data.get().computers };
-      }),
-  ]);
-  const prev = data.get().threads;
-  // Keep sub-threads opened in this session: threads.list leaves them out.
-  const keep = Object.fromEntries(
-    Object.values(prev)
-      .filter((t) => t.parent_id || t.kind === "a2a")
-      .map((t) => [t.id, t]),
-  );
-  const listed = { ...keep, ...Object.fromEntries(threads.threads.map((t) => [t.id, t])) };
-  // Live changes received during the read are newer than its snapshot.
-  for (const [id, thread] of Object.entries(prev)) {
-    if (thread !== before[id]) listed[id] = thread;
+  const read = trackThreadRead();
+  try {
+    const before = data.get().threads;
+    const [agents, projects, threads, surfaces, computer] = await Promise.all([
+      client.call("agents.list", {}),
+      client.call("projects.list", { include_unregistered: true }),
+      // Archived chats too: the Inbox keeps them apart, under Archived. And a few of each chat's delegated chats.
+      client.call("threads.list", { include_archived: true, delegated: DELEGATED_SHOWN }),
+      client.call("surfaces.list", {}),
+      client
+        .call("environments.status", {})
+        .then((status) => ({ chats: status.enabled ? (status.chats ?? []) : [], computers: computersOf(status) }))
+        .catch((error: unknown) => {
+          if (error instanceof ApxError && error.code === "unknown_method")
+            return { chats: [], computers: NO_COMPUTERS };
+          return { chats: data.get().vmThreads, computers: data.get().computers };
+        }),
+    ]);
+    const prev = data.get().threads;
+    // Keep sub-threads opened in this session: threads.list leaves them out.
+    const keep = Object.fromEntries(
+      Object.values(prev)
+        .filter((t) => t.parent_id || t.kind === "a2a")
+        .map((t) => [t.id, t]),
+    );
+    const listed = { ...keep, ...Object.fromEntries(threads.threads.map((t) => [t.id, t])) };
+    // Live changes received during the read are newer than its snapshot.
+    for (const [id, thread] of Object.entries(prev)) {
+      if (thread !== before[id]) listed[id] = thread;
+    }
+    for (const id of Object.keys(before)) {
+      if (!prev[id]) delete listed[id];
+    }
+    for (const id of read.deleted) delete listed[id];
+    data.set({
+      agents: Object.fromEntries(agents.agents.map((a) => [a.id, a])),
+      former: Object.fromEntries((agents.former ?? []).map((a) => [a.id, a])),
+      projects: projects.projects,
+      base: projects.base,
+      threads: listed,
+      delegated: threads.delegated ?? {},
+      surfaces: Object.fromEntries(surfaces.surfaces.map((s) => [s.id, s])),
+      vmThreads: computer.chats,
+      computers: computer.computers,
+      ready: true,
+    });
+    for (const id of opened) void loadProjectThreads(id);
+    void loadTabs();
+    void loadJobs();
+    void loadEngines();
+    void loadCatalog();
+    void loadModelsConfig();
+  } finally {
+    read.close();
   }
-  for (const id of Object.keys(before)) {
-    if (!prev[id]) delete listed[id];
-  }
-  data.set({
-    agents: Object.fromEntries(agents.agents.map((a) => [a.id, a])),
-    former: Object.fromEntries((agents.former ?? []).map((a) => [a.id, a])),
-    projects: projects.projects,
-    base: projects.base,
-    threads: listed,
-    delegated: threads.delegated ?? {},
-    surfaces: Object.fromEntries(surfaces.surfaces.map((s) => [s.id, s])),
-    vmThreads: computer.chats,
-    computers: computer.computers,
-    ready: true,
-  });
-  for (const id of opened) void loadProjectThreads(id);
-  void loadTabs();
-  void loadJobs();
-  void loadEngines();
-  void loadCatalog();
-  void loadModelsConfig();
 }
 
 /** Projects whose own chats were loaded: a new bootstrap (a reconnect) loads them again. */
