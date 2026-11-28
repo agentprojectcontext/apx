@@ -5,7 +5,7 @@
 import path from "node:path";
 import { type Db, storeCopy, storeRebuild, storeReclaim, storeSize } from "../db/db.ts";
 import type { LogEntry } from "../domain/model-log.ts";
-import { type LogRow, TRIMMED, type Trimmed } from "../domain/retention.ts";
+import { type LogRow, type RunMark, TRIMMED, type Trimmed } from "../domain/retention.ts";
 import type { Store } from "../domain/store.ts";
 import { REASONING } from "../providers/chatgpt-responses.ts";
 import type { ChatItem } from "../providers/types.ts";
@@ -22,8 +22,14 @@ const RETENTION = {
   /** How many history budgets back from the newest turn a run must lie: no view of the chat reaches that far. */
   viewBudgets: 4,
   everyMs: 10 * 60_000,
-  /** Runs (and chat views) one beat works on, so a beat never holds the core for long. */
+  /**
+   * Work one beat does, so it never holds the core for long: each run it looks at costs 1, and measuring a chat's view
+   * 1 more per `rowsPerWork` log rows it read. A beat goes on next time from the run it stopped at.
+   */
   workPerBeat: 200,
+  rowsPerWork: 50,
+  /** Runs read at once while walking those not yet compacted. */
+  page: 500,
   /** Free pages one beat gives back to the disk (100 MB of 4 KB pages). */
   pagesPerBeat: 25_600,
 };
@@ -71,21 +77,24 @@ export function createRetention(o: { store: Store; db: Db; now?: () => Date }) {
 
   // Views kept between beats, measured again only when the chat's log or summary moved.
   const views = new Map<string, { key: string; view: View }>();
-  const viewOf = (threadId: string): { view: View; measured: boolean } => {
+  /** A chat's view and the work it took: nothing when it was kept, more the more log rows were read to measure it. */
+  const viewOf = (threadId: string): { view: View; work: number } => {
     const key = `${store.retention.lastSeq(threadId)}:${store.threads.context(threadId).compaction?.upto ?? ""}`;
     const kept = views.get(threadId);
-    if (kept?.key === key) return { view: kept.view, measured: false };
-    const view = measure(threadId);
+    if (kept?.key === key) return { view: kept.view, work: 0 };
+    const { view, rows } = measure(threadId);
     views.set(threadId, { key, view });
-    return { view, measured: true };
+    return { view, work: 1 + Math.floor(rows / RETENTION.rowsPerWork) };
   };
-  const measure = (threadId: string): View => {
+  const measure = (threadId: string): { view: View; rows: number } => {
     const entries = store.modelLog.list(threadId);
     const epoch = store.threads.context(threadId).compaction;
     const from = project(entries, RETENTION.viewBudgets * HISTORY_BUDGET_CHARS, epoch).from;
     const seen = epoch ? entries.filter((e) => e.seq > epoch.upto) : entries;
-    return { from, starts: historyGroups(seen).map((g) => g.seq) };
+    return { view: { from, starts: historyGroups(seen).map((g) => g.seq) }, rows: entries.length };
   };
+  // Where the walk over runs not yet compacted stopped: the next beat starts after it, the oldest again at the end.
+  let mark: RunMark | undefined;
 
   /** How far a run's log in one chat may be compacted: behind every view, stubbed, or not yet. */
   const reach = (v: View, last: number): Trimmed => {
@@ -109,38 +118,59 @@ export function createRetention(o: { store: Store; db: Db; now?: () => Date }) {
     return due.length;
   }
 
-  /** Compacts runs that ended long ago as far as every chat holding their log allows. */
+  /**
+   * Compacts runs that ended long ago as far as every chat holding their log allows. Every run looked at counts as
+   * work, also one that cannot go further yet: a store with thousands of them reads a page of them per beat, not all.
+   */
   function compactRuns(budget: number, counts: RetentionCounts): void {
     const before = new Date(clock().getTime() - RETENTION.keepDays * DAY).toISOString();
     let work = 0;
-    for (const r of store.retention.due(TRIMMED.compacted, 1_000_000, before)) {
-      if (work >= budget) return;
-      const spans = store.retention.spans(r.id);
-      if (spans.some((s) => store.retention.live(s.thread_id))) continue;
-      const level = Math.min(
-        TRIMMED.compacted,
-        ...spans.map((s) => {
-          const { view, measured } = viewOf(s.thread_id);
-          if (measured) work++;
-          return reach(view, s.last);
-        }),
-      ) as Trimmed;
-      if (level <= r.trimmed) continue;
-      work++;
-      store.tx(() => {
-        for (const s of spans) {
-          const rows = store.retention.rows(s.thread_id, s.first, s.last);
-          for (const row of compactedRows(rows, r.id, { reasoning: level < TRIMMED.compacted })) {
-            store.retention.rewrite(s.thread_id, row.seq, row.item);
-            counts.rows++;
-          }
-        }
-        // A stubbed result no longer shows its read_output ref to any view.
-        counts.outputs_dropped += store.retention.dropOutputs(store.retention.keptOutputs(r.id));
-        store.retention.mark(r.id, level);
-        counts.runs_compacted++;
-      });
+    // A pass with no bound looks at every run, from the oldest.
+    if (!Number.isFinite(budget)) mark = undefined;
+    for (;;) {
+      const page = store.retention.compactable(before, RETENTION.page, mark);
+      for (const r of page) {
+        if (work >= budget) return;
+        mark = { id: r.id, ended_at: r.ended_at };
+        work++;
+        compactRun(r, counts, (w) => (work += w));
+      }
+      if (page.length < RETENTION.page) {
+        mark = undefined;
+        return;
+      }
     }
+  }
+
+  function compactRun(
+    r: { id: string; trimmed: number },
+    counts: RetentionCounts,
+    spent: (work: number) => void,
+  ): void {
+    const spans = store.retention.spans(r.id);
+    if (spans.some((s) => store.retention.live(s.thread_id))) return;
+    const level = Math.min(
+      TRIMMED.compacted,
+      ...spans.map((s) => {
+        const { view, work } = viewOf(s.thread_id);
+        spent(work);
+        return reach(view, s.last);
+      }),
+    ) as Trimmed;
+    if (level <= r.trimmed) return;
+    store.tx(() => {
+      for (const s of spans) {
+        const rows = store.retention.rows(s.thread_id, s.first, s.last);
+        for (const row of compactedRows(rows, r.id, { reasoning: level < TRIMMED.compacted })) {
+          store.retention.rewrite(s.thread_id, row.seq, row.item);
+          counts.rows++;
+        }
+      }
+      // A stubbed result no longer shows its read_output ref to any view.
+      counts.outputs_dropped += store.retention.dropOutputs(store.retention.keptOutputs(r.id));
+      store.retention.mark(r.id, level);
+      counts.runs_compacted++;
+    });
   }
 
   /** One pass over what is due; `budget` bounds the work, none does it all. */

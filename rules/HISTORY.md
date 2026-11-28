@@ -618,3 +618,28 @@ source under `android/` is untracked or ignored, or when a module `expo-module.c
 source.
 
 **Where:** `scripts/check-native-modules.ts`; tests in `scripts/check-native-modules.test.ts`.
+
+<a id="retention-beat-freeze"></a>
+### The core froze for minutes in store retention's beat
+
+The owner's core stopped answering twice in a day: no `/health`, nothing in the log for minutes, the process in
+uninterruptible I/O until it was restarted. A sample showed the main thread under a timer in one `StatementSync.all`,
+reading B-tree pages one `pread` at a time while it walked an index and looked each row up in its table. The store was
+2 GB (`model_log` 1 GB, `steps` 570 MB) on a disk 97% full, so almost nothing stayed in the page cache. The WhatsApp
+reconnects just before each freeze were a coincidence: the freezes came about 20 minutes after a restart.
+
+The beat of `store-retention` counted as work only the runs it compacted and the chat views it measured. Every other
+run past the 14 days was looked at on every beat: 6,091 runs that could go no further yet, each one's model log rows
+found through `model_log_run_seq` and read from the table for their chat (about 100,000 random row reads a beat), and
+after a restart each chat's view was measured again with up to 2,000 rows each. On a copy of the store a beat ran
+10,000 to 24,000 statements and read 10,000 to 45,000 rows, growing beat after beat; warm on a fast disk it took
+0.6–2.5 s, cold on the full disk it took minutes. Picking the due runs also read every finished run's row, because
+the planner preferred `runs_memory_completed` to `runs_trimmed`.
+
+**Rule:** a background beat bounds what it reads, not only what it changes. Retention counts each run it looks at and
+each chat view by the log rows it read, keeps where it stopped for the next beat, and picks runs from one covering
+index (`runs_retention`). On the same copy a beat runs about 600 statements and reads 2,000–5,000 rows.
+
+**Where:** `engine/store-retention.ts` (`compactRuns`, `viewOf`), `domain/retention.ts` (`compactable`),
+`db/migrations.ts` (`runs_retention`); tests in `engine/store-retention.test.ts` and `db/hot-query-plans.test.ts`.
+

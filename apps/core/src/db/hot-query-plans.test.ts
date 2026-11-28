@@ -2,52 +2,13 @@
 // scan freezes the core for seconds (DECISIONS.md#d-201). Without ANALYZE statistics SQLite plans the same way on an
 // empty store as on a large one, so the plans checked here are the ones a large store gets.
 import assert from "node:assert/strict";
-import type { DatabaseSync, SQLInputValue } from "node:sqlite";
 import { test } from "node:test";
-import { createBus } from "../bus.ts";
-import { createStore, type Store } from "../domain/store.ts";
 import { tempDir } from "../testkit/platform.ts";
+import { plan, recordingStore } from "../testkit/recording-store.ts";
 import { openDb } from "./db.ts";
 
 /** Tables that grow with every turn or message. */
 const LARGE = ["threads", "messages", "runs", "steps", "model_log", "jobs", "outbox", "memory_episodes", "memory_work"];
-
-type Ran = { sql: string; params: SQLInputValue[] };
-
-/** The store, and the statements it ran (text and bound values) since the last `take()`. */
-function recordingStore(db: DatabaseSync): { store: Store; take: () => Ran[] } {
-  let ran: Ran[] = [];
-  const recording = new Proxy(db, {
-    get(target, key) {
-      if (key === "prepare")
-        return (text: string) => {
-          const st = target.prepare(text);
-          return new Proxy(st, {
-            get(s, method) {
-              const value = Reflect.get(s, method, s);
-              if (typeof value !== "function") return value;
-              if (method === "all" || method === "get" || method === "run" || method === "iterate")
-                return (...params: SQLInputValue[]) => {
-                  ran.push({ sql: text, params });
-                  return value.apply(s, params);
-                };
-              return value.bind(s);
-            },
-          });
-        };
-      const value = Reflect.get(target, key, target);
-      return typeof value === "function" ? value.bind(target) : value;
-    },
-  });
-  return {
-    store: createStore(recording, createBus()),
-    take: () => {
-      const out = ran;
-      ran = [];
-      return out;
-    },
-  };
-}
 
 /** Tables the plan reads row by row (`SCAN t`, not `SCAN t USING INDEX`), aliases resolved. */
 function scannedTables(text: string, p: string): string[] {
@@ -55,14 +16,6 @@ function scannedTables(text: string, p: string): string[] {
   return [...p.matchAll(/^SCAN (\w+)(.*)$/gm)]
     .filter((m) => !m[2]?.startsWith(" USING"))
     .map((m) => alias.get(m[1] as string) ?? (m[1] as string));
-}
-
-function plan(db: DatabaseSync, q: Ran): string {
-  return db
-    .prepare(`EXPLAIN QUERY PLAN ${q.sql}`)
-    .all(...q.params)
-    .map((row) => String(row.detail))
-    .join("\n");
 }
 
 test("hot reads use an index on every large table, and paged lists never sort the whole table", async () => {
@@ -93,6 +46,10 @@ test("hot reads use an index on every large table, and paged lists never sort th
       ["jobs.finished", () => store.jobs.finished(12), { paged: true }],
       ["channels.outbox.recent", () => store.channels.outbox.recent(20), { paged: true }],
       ["agents.active", () => store.agents.active("agent_a")],
+      ["retention.due", () => store.retention.due(1, 200)],
+      ["retention.compactable", () => store.retention.compactable(since, 500)],
+      ["retention.compactable after", () => store.retention.compactable(since, 500, { id: "run_a", ended_at: since })],
+      ["retention.spans", () => store.retention.spans("run_a")],
     ];
     const failures: string[] = [];
     for (const [name, read, opts] of reads) {
@@ -164,6 +121,27 @@ test("every foreign key into a growing table has an index, so a cascading delete
       }
     }
     assert.deepEqual(missing, []);
+  } finally {
+    db.close();
+    await home.remove();
+  }
+});
+
+test("store retention picks finished runs from one index, without reading each run", async () => {
+  const home = tempDir("apx-retention-plans-");
+  const db = openDb(home.path);
+  try {
+    const { store, take } = recordingStore(db);
+    const since = new Date().toISOString();
+    for (const read of [
+      () => store.retention.due(1, 200),
+      () => store.retention.compactable(since, 500),
+      () => store.retention.compactable(since, 500, { id: "run_a", ended_at: since }),
+    ]) {
+      take();
+      read();
+      for (const q of take()) assert.match(plan(db, q), /USING COVERING INDEX runs_retention/, q.sql);
+    }
   } finally {
     db.close();
     await home.remove();

@@ -1524,4 +1524,9 @@ export const MIGRATIONS: readonly string[] = [
     changed_by TEXT NOT NULL CHECK(changed_by IN ('phone', 'owner'))
   );
   `,
+  // Store retention picks finished runs by how far they were trimmed from the index alone (DECISIONS.md#d-201).
+  `
+  DROP INDEX IF EXISTS runs_trimmed;
+  CREATE INDEX runs_retention ON runs(state, trimmed, ended_at, id, thread_id) WHERE ended_at IS NOT NULL;
+  `,
 ];

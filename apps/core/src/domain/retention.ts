@@ -8,28 +8,57 @@ export type Trimmed = (typeof TRIMMED)[keyof typeof TRIMMED];
 
 export type LogRow = { seq: number; run_id: string | undefined; item: string };
 
+/** Where a walk over finished runs stands: the last run it looked at. */
+export type RunMark = { id: string; ended_at: string };
+
 const REF = "read_output ref=";
+const FINISHED = ["completed", "failed", "canceled"] as const;
 
 export function retentionRepo({ one, all, run }: Sql) {
   return {
-    /** Finished runs below `level`, oldest end first; `endedBefore` keeps the recent ones out. */
-    due(
-      level: Trimmed,
-      limit: number,
-      endedBefore?: string,
-    ): Array<{ id: string; thread_id: string; trimmed: number }> {
+    /** Finished runs below `level`, the least trimmed and oldest end first. */
+    due(level: Trimmed, limit: number): Array<{ id: string; thread_id: string; trimmed: number }> {
       return all(
         qb
           .selectFrom("runs")
           .select(["id", "thread_id", "trimmed"])
           .where("trimmed", "<", level)
           .where("ended_at", "is not", null)
-          .$if(endedBefore !== undefined, (q) => q.where("ended_at", "<", endedBefore as string))
-          .where("state", "in", ["completed", "failed", "canceled"])
+          .where("state", "in", FINISHED)
           .orderBy("trimmed")
           .orderBy("ended_at")
           .limit(limit),
       );
+    },
+    /**
+     * Finished runs not yet fully compacted that ended before `endedBefore`, by end then id, starting after `after`:
+     * a walk over them goes on where the last page stopped.
+     */
+    compactable(
+      endedBefore: string,
+      limit: number,
+      after?: RunMark,
+    ): Array<RunMark & { thread_id: string; trimmed: number }> {
+      return all(
+        qb
+          .selectFrom("runs")
+          .select(["id", "thread_id", "trimmed", "ended_at"])
+          .where("trimmed", "<", TRIMMED.compacted)
+          .where("ended_at", "is not", null)
+          .where("ended_at", "<", endedBefore)
+          .where("state", "in", FINISHED)
+          .$if(after !== undefined, (q) =>
+            q.where((eb) =>
+              eb.or([
+                eb("ended_at", ">", (after as RunMark).ended_at),
+                eb.and([eb("ended_at", "=", (after as RunMark).ended_at), eb("id", ">", (after as RunMark).id)]),
+              ]),
+            ),
+          )
+          .orderBy("ended_at")
+          .orderBy("id")
+          .limit(limit),
+      ).map((r) => ({ id: r.id, thread_id: r.thread_id, trimmed: Number(r.trimmed), ended_at: r.ended_at as string }));
     },
     mark(runId: string, level: Trimmed): void {
       run(qb.updateTable("runs").set({ trimmed: level }).where("id", "=", runId).where("trimmed", "<", level));
