@@ -162,8 +162,9 @@ starts sharing that phone's location. The super-agent may turn a phone off throu
   elsewhere or deleted leaves.
 - An app update can leave the notification listener unbound; opening the app or the car app asks Android to rebind
   it, and the car app open counts as the car connected.
-- Testing: the Desktop Head Unit (DHU) over `adb forward tcp:5277 tcp:5277`. The 2022 DHU draws neither the map's
-  camera nor its markers; a real head unit centres the map on the car.
+- Testing: the Desktop Head Unit (DHU) over `adb forward tcp:5277 tcp:5277`. Use DHU 2.1 (`sdkmanager --channel=1
+  "extras;google;auto"`) and give it a position (`location <lat> <lon>` on its console): DHU 2.0 leaves the places
+  map at 0,0.
 
 ## Widget
 
