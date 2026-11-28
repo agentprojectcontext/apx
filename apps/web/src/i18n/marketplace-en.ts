@@ -1,5 +1,16 @@
 // UI strings, English: the Marketplace's lists, an extension's page and its dialogs (part of the resources pack).
 export const enMarketplace = {
+  "mkt.chooseBackup": "Choose backup",
+  "mkt.changeBackup": "Change backup",
+  "mkt.chooseFile": "Choose file",
+  "mkt.changeFile": "Change file",
+  "mkt.fileHostOnly": "Open APX Desktop on the computer running APX to choose the file.",
+  "mkt.fileMissing": "We couldn’t find that file. Choose an existing copy.",
+  "mkt.fileUnreadable": "We couldn’t read that file. Check its permissions or choose another copy.",
+  "mkt.fileInvalidSqlite": "We couldn’t open this file as a SQLite database. Choose a valid SQLite backup.",
+  "mkt.fileActiveSqlite": "This database may still be in use. Choose a standalone backup.",
+  "mkt.filePickerFailed": "We couldn’t open the file chooser. Try again.",
+
   "mkt.explore": "Explore",
   "mkt.advanced": "Advanced",
   "mkt.advancedLead": "Build extensions, try them or add them from elsewhere.",

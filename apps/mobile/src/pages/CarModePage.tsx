@@ -138,6 +138,7 @@ function CarModeSettings({ creds, call, back }: { creds: Creds; call: Call; back
           <ListRow
             label={t("carSwitch")}
             sub={t("carSwitchHelp")}
+            wrap
             leading={<IconTile icon="Car" tone={enabled ? "brand" : "neutral"} />}
             trailing={
               <Toggle value={enabled} label={t("carSwitch")} disabled={busy} onChange={(on) => void turn(on)} />

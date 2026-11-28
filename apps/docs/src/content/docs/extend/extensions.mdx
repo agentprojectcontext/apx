@@ -216,6 +216,14 @@ credential declaration clears affected credentials and requires reconnection; ro
 Deleting a local credential does not revoke it at the service. Packages using this contract must require APX 2.17.5 or
 later; older versions do not understand the binding.
 
+### Host file settings
+
+A `file` setting uses the desktop file chooser when Desktop is connected to its local APX. It displays the filename, not the full path. Cancel keeps the previous selection. Web, mobile and Desktop connected to a remote APX ask the owner to open Desktop on the computer running APX; they do not upload a file or accept a pasted path in this control. Protocol and CLI callers can still supply a host path.
+
+For a standalone SQLite backup, declare `"type": "file", "fileFormat": "sqlite"`. Saving checks existence, readability, the SQLite header and schema metadata using a read-only immutable connection with extension loading disabled. It does not query table records, run arbitrary SQL, create sidecars or change the source file. WAL databases and files with journal/WAL/shared-memory companions are refused: close the source application and export a standalone backup first. This is not a full integrity check of every data page; the extension must retain its own read-only checks when it later opens the file.
+
+File failures return `bad_request` with `detail: { kind: "setting_file", setting: "<name>", reason: "missing" | "unreadable" | "invalid_sqlite" | "active_sqlite" }`. The panel translates these into an inline recovery action without displaying the path. `fileFormat` is valid only for file settings. It is a new manifest field: earlier APX versions reject it; do not distribute a package using it until a compatible APX release is identified.
+
 ### Its page: `apx-listing.json`
 
 An optional `apx-listing.json` beside the manifest is its page in the Marketplace: a `summary` and `tagline`, a

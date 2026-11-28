@@ -122,6 +122,10 @@ test("what a manifest 2 names must hold: declared references, files that exist, 
     /does not bring/,
   );
   await bad(manifest({ settings: [{ name: "region", label: "R", type: "number", default: "us" }] }), /default is not/);
+  await bad(
+    manifest({ settings: [{ name: "backup", label: "Backup", type: "string", fileFormat: "sqlite" }] }),
+    /only a file has a file format/,
+  );
   write(manifest());
 });
 
