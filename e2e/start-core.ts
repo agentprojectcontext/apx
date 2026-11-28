@@ -20,6 +20,8 @@ process.on("message", (m: { clock: string | null }) => {
 process.channel?.unref();
 const core = await createCore(config, {
   discoveryWeb: fakeDiscoveryWeb,
+  // Account probes stay in the sandbox; a refused example account exercises the catalog's fallback without the network.
+  integrationFetch: async () => new Response(null, { status: 401 }),
   clock: () => (stoppedAt === undefined ? new Date() : new Date(stoppedAt)),
   desktop: {
     reveal: async () => {},
