@@ -15,7 +15,7 @@ export async function handlePhoneRequest(method: string, params: unknown, deps: 
   if (method === "phone.location") {
     const at = (deps.now ?? (() => new Date()))().toISOString();
     const p = await deps.location();
-    if (!p) throw new Error("the owner did not allow APX to know where the phone is");
+    if (!p) throw new Error("Phone location is unavailable or not allowed");
     return { ...p, at };
   }
   if (method === "phone.photo") {

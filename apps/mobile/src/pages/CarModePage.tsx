@@ -102,8 +102,8 @@ function CarModeSettings({ creds, call, back }: { creds: Creds; call: Call; back
         await carNative.pauseTrips();
       }
       await saveCarEnabled(on);
-    } catch (error) {
-      Alert.alert(t("couldNotChange"), error instanceof Error ? error.message : String(error));
+    } catch {
+      Alert.alert(t("couldNotChange"), t("privacyUnavailable"));
     } finally {
       gate.current.busy = false;
       if (gate.current.live) setBusy(false);

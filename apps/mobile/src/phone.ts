@@ -23,31 +23,44 @@ export function startPhoneNode(creds: Creds, photo: PhoneDeps["photo"]): () => v
   const deps: PhoneDeps = {
     async location() {
       const requested = socket;
+      const captureAfter = Date.now();
+      const captureUntil = captureAfter + 8000;
       return capturePhoneLocation({
         privacy: () => client.call("phone.privacy", {}),
         onStop: (stop) => {
-          if (stopped || !requested || socket !== requested || AppState.currentState !== "active") stop();
+          if (
+            stopped ||
+            !requested ||
+            socket !== requested ||
+            AppState.currentState !== "active" ||
+            Date.now() >= captureUntil
+          )
+            stop();
           else captures.add(stop);
           return () => {
             captures.delete(stop);
           };
         },
         permitted: async () =>
-          !stopped && AppState.currentState === "active" && (await Location.getForegroundPermissionsAsync()).granted,
+          !stopped &&
+          Date.now() < captureUntil &&
+          AppState.currentState === "active" &&
+          (await Location.getForegroundPermissionsAsync()).granted,
         watch: (receive) =>
-          Location.watchPositionAsync({ accuracy: Location.Accuracy.High, mayShowUserSettingsDialog: false }, (p) =>
+          Location.watchPositionAsync({ accuracy: Location.Accuracy.High, mayShowUserSettingsDialog: false }, (p) => {
+            if (!Number.isFinite(p.timestamp) || p.timestamp < captureAfter) return;
             receive({
               lat: p.coords.latitude,
               lon: p.coords.longitude,
               ...(p.coords.accuracy == null ? {} : { accuracy_m: p.coords.accuracy }),
-            }),
-          ),
+            });
+          }),
         poll: (check) => {
           const timer = setInterval(check, 1000);
           return () => clearInterval(timer);
         },
         deadline: (stop) => {
-          const timer = setTimeout(stop, 8000);
+          const timer = setTimeout(stop, Math.max(0, captureUntil - Date.now()));
           return () => clearTimeout(timer);
         },
       });

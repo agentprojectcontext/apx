@@ -25,12 +25,14 @@ test("the phone node releases late connections and cancels scheduled reconnects 
   const waiting: ReturnType<typeof Promise.withResolvers<ReturnType<typeof socket>>>[] = [];
   let allowed = true;
   let deliver = true;
+  let privacyGate: Promise<void> | undefined;
   let removed = 0;
   let stateChanged: ((state: string) => void) | undefined;
   const locationCalls: unknown[] = [];
   const api = {
     ApxClient: class {
       async call() {
+        await privacyGate;
         return { location: true, revision: "test" };
       }
       async connect(...args: unknown[]) {
@@ -54,7 +56,10 @@ test("the phone node releases late connections and cancels scheduled reconnects 
       },
       async watchPositionAsync(options: unknown, receive: (p: unknown) => void) {
         locationCalls.push(options);
-        if (deliver) receive({ coords: { latitude: 10, longitude: 20, accuracy: 5 } });
+        if (deliver) {
+          receive({ timestamp: 0, coords: { latitude: 50, longitude: 60, accuracy: 5 } });
+          receive({ timestamp: Number.MAX_SAFE_INTEGER, coords: { latitude: 10, longitude: 20, accuracy: 5 } });
+        }
         return {
           remove() {
             removed++;
@@ -93,7 +98,7 @@ test("the phone node releases late connections and cancels scheduled reconnects 
     hooks.deregister();
     Reflect.deleteProperty(globalThis, key);
   });
-  t.mock.timers.enable({ apis: ["setTimeout"] });
+  t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 10_000 });
   const { startPhoneNode } = await import("./phone.ts");
   const creds = { url: "https://core.example.com", token: "test-key", device: "phone" };
   const stopLate = startPhoneNode(creds, async () => undefined);
@@ -122,6 +127,14 @@ test("the phone node releases late connections and cancels scheduled reconnects 
   );
   assert.ok(Number.isFinite(Date.parse(position.at)));
   assert.deepEqual(locationCalls, [{ accuracy: 4, mayShowUserSettingsDialog: false }]);
+  const slowPrivacy = Promise.withResolvers<void>();
+  privacyGate = slowPrivacy.promise;
+  const expired = assert.rejects(connected.handler("phone.location", {}), /allow/);
+  t.mock.timers.tick(8001);
+  slowPrivacy.resolve();
+  await expired;
+  privacyGate = undefined;
+  assert.equal(locationCalls.length, 1, "a late privacy response cannot start GPS after the request budget");
   deliver = false;
   const background = assert.rejects(connected.handler("phone.location", {}), /allow/);
   await setImmediate();
