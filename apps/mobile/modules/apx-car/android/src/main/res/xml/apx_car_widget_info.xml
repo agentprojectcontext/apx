@@ -4,10 +4,10 @@
     android:description="@string/apx_car_widget_description"
     android:initialLayout="@layout/apx_car_widget"
     android:minWidth="250dp"
-    android:minHeight="110dp"
+    android:minHeight="180dp"
     android:previewLayout="@layout/apx_car_widget"
     android:resizeMode="horizontal|vertical"
     android:targetCellWidth="4"
-    android:targetCellHeight="2"
+    android:targetCellHeight="3"
     android:updatePeriodMillis="0"
     android:widgetCategory="home_screen" />

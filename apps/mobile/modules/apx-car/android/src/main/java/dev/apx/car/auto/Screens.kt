@@ -7,8 +7,7 @@ import androidx.car.app.CarToast
 import androidx.car.app.Screen
 import androidx.car.app.constraints.ConstraintManager
 import androidx.car.app.model.Action
-import androidx.car.app.model.ItemList
-import androidx.car.app.model.ListTemplate
+import androidx.car.app.model.CarColor
 import androidx.car.app.model.Row
 import androidx.car.app.model.Template
 import androidx.car.app.versioning.CarAppApiLevels
@@ -28,16 +27,6 @@ import dev.apx.car.CoreError
 import dev.apx.car.R
 import dev.apx.car.carString
 import org.json.JSONObject
-
-private fun list(title: String, rows: List<Row>, back: Boolean): Template {
-  val items = ItemList.Builder()
-  rows.forEach { items.addItem(it) }
-  return ListTemplate.Builder()
-    .setSingleList(items.build())
-    .setTitle(title)
-    .setHeaderAction(if (back) Action.BACK else Action.APP_ICON)
-    .build()
-}
 
 private fun row(title: String, vararg texts: String?, onClick: (() -> Unit)? = null): Row {
   val builder = Row.Builder().setTitle(title)
@@ -97,54 +86,60 @@ class TripScreen(carContext: CarContext) : Screen(carContext), DefaultLifecycleO
         unreachable = result == null
         if (result != null) {
           view = result
-          CarAlertStore.put(result.alerts, quiet = true)
+          CarAlertStore.sync(result.alerts)
         }
         invalidate()
       }
     }
   }
 
-  override fun onGetTemplate(): Template {
+  override fun onGetTemplate(): Template = safely(carContext) { tripTemplate() }
+
+  private fun tripTemplate(): Template {
     val context = carContext
     val title = context.carString(R.string.apx_car_screen_title)
     val prefs = CarPrefs(context)
-    if (!prefs.active) return list(title, listOf(row(context.carString(R.string.apx_car_off))), back = false)
+    if (!prefs.active) return apxMessage(context, title, context.carString(R.string.apx_car_off))
+    val talk = talkStrip(context, context.carString(R.string.apx_car_talk, prefs.agentName)) {
+      AgentChat.prompt(context.applicationContext)
+      CarToast.makeText(context, context.carString(R.string.apx_car_talk_hint), CarToast.LENGTH_SHORT).show()
+    }
+    if (!asked) return placesMap(context, title, emptyList(), back = false, strip = talk, loading = true)
 
     val max = maxRows()
     val rows = mutableListOf<Row>()
     val alerts = CarAlertStore.all()
+    // Offers first, in green; then the other errands by distance, in blue.
     for (alert in alerts) {
-      if (rows.size >= max - 1) break
-      rows += row(alert.errand.ifBlank { alert.title }, CarText.detail(alert.distanceLabel, alert.place?.name, alert.place?.address)) {
-        screenManager.push(AlertScreen(context, alert.id))
-      }
+      if (rows.size >= max) break
+      rows += placeRow(
+        context, alert.errand.ifBlank { alert.title }, alert.place, alert.distanceM,
+        CarText.detail(if (alert.distanceM == null) alert.distanceLabel else null, alert.place?.name),
+        CarColor.GREEN,
+      ) { screenManager.push(AlertScreen(context, alert.id)) }
     }
     val offered = alerts.map { it.taskId }.toSet()
-    for (errand in view?.errands.orEmpty()) {
-      if (rows.size >= max - 1) break
-      if (errand.taskId in offered) continue
+    val errands = view?.errands.orEmpty().filter { it.taskId !in offered }.sortedBy { it.distanceM ?: Int.MAX_VALUE }
+    for (errand in errands) {
+      if (rows.size >= max) break
       val held = when (errand.held) {
         "skip" -> context.carString(R.string.apx_car_held_skip)
         "later" -> context.carString(R.string.apx_car_held_later)
         else -> null
       }
-      rows += row(errand.title.ifBlank { errand.best?.name ?: "" }, CarText.detail(CarText.distanceLabel(errand.distanceM), errand.best?.name, held)) {
-        screenManager.push(ErrandScreen(context, errand))
-      }
+      val best = errand.best
+      rows += placeRow(
+        context, errand.title.ifBlank { best?.name ?: "" }, best, errand.distanceM,
+        CarText.detail(best?.name, held),
+        CarColor.BLUE,
+      ) { screenManager.push(ErrandScreen(context, errand)) }
     }
     if (rows.isEmpty()) {
-      val empty = when {
-        !asked -> R.string.apx_car_loading
-        unreachable -> R.string.apx_car_unreachable
-        else -> R.string.apx_car_no_errands
-      }
-      rows += row(context.carString(empty))
+      val empty = if (unreachable) R.string.apx_car_unreachable else R.string.apx_car_no_errands
+      return apxMessage(context, title, context.carString(empty))
     }
-    rows += row(context.carString(R.string.apx_car_talk, prefs.agentName), context.carString(R.string.apx_car_talk_hint)) {
-      AgentChat.prompt(context.applicationContext)
-      CarToast.makeText(context, context.carString(R.string.apx_car_talk_hint), CarToast.LENGTH_SHORT).show()
-    }
-    return list(title, rows, back = false)
+    // The map starts where the owner is: a head unit without its own location would otherwise open it at 0,0.
+    return placesMap(context, title, rows, back = false, strip = talk, anchor = NearbySearch.lastPoint(context))
   }
 
   private fun maxRows(): Int = try {
@@ -165,11 +160,13 @@ class TripScreen(carContext: CarContext) : Screen(carContext), DefaultLifecycleO
 
 /** One offer with every answer the core gave it. */
 class AlertScreen(carContext: CarContext, private val alertId: String) : Screen(carContext) {
-  override fun onGetTemplate(): Template {
+  override fun onGetTemplate(): Template = safely(carContext) { build() }
+
+  private fun build(): Template {
     val context = carContext
     val alert = CarAlertStore.get(alertId)
-      ?: return list(context.carString(R.string.apx_car_screen_title), listOf(row(context.carString(R.string.apx_car_alert_gone))), back = true)
-    // The header names the errand; the first row says where it is, so neither repeats the other.
+      ?: return apxMessage(context, context.carString(R.string.apx_car_screen_title), context.carString(R.string.apx_car_alert_gone))
+    // The header names the errand; the first row says where it is, then the answers.
     val errand = alert.errand.ifBlank { alert.title }
     val place = alert.place
     val rows = mutableListOf(
@@ -182,23 +179,54 @@ class AlertScreen(carContext: CarContext, private val alertId: String) : Screen(
         screenManager.pop()
       }
     }
-    return list(errand, rows, back = true)
+    return answersList(errand, rows)
   }
 }
 
-/** An errand from the list, without an offer: go there now, done, or not this trip. */
+/**
+ * An errand from the list, without an offer: go there now, done, or not this trip. One with no place yet looks for
+ * one where the owner is now (car.preview) and shows it when found.
+ */
 class ErrandScreen(carContext: CarContext, private val errand: CarErrand) : Screen(carContext) {
-  override fun onGetTemplate(): Template {
+  private val main = Handler(Looper.getMainLooper())
+  private var found: CarErrand? = null
+  private var search: Int = if (errand.best == null) R.string.apx_car_errand_searching else 0
+
+  init {
+    if (errand.best == null) lookNearby()
+  }
+
+  override fun onGetTemplate(): Template = safely(carContext) { build() }
+
+  private fun lookNearby() {
+    val app = carContext.applicationContext
+    val here = NearbySearch.lastPoint(app)
+    if (here == null) {
+      search = R.string.apx_car_errand_no_location
+      return
+    }
+    CoreClient.io.execute {
+      val match = NearbySearch.preview(app, here, errand.taskId)
+      main.post {
+        found = match
+        search = if (match?.best == null) R.string.apx_car_errand_none_near else 0
+        invalidate()
+      }
+    }
+  }
+
+  private fun build(): Template {
     val context = carContext
     val app = context.applicationContext
     val title = errand.title.ifBlank { errand.best?.name ?: "" }
-    val best = errand.best
+    val current = found ?: errand
+    val best = current.best
     // The header already names the errand: the rows say where, and Maps only opens for a known place.
     val rows = mutableListOf<Row>()
     if (best == null) {
-      rows += row(context.carString(R.string.apx_car_errand_no_place))
+      rows += row(context.carString(if (search != 0) search else R.string.apx_car_errand_no_place))
     } else {
-      rows += row(best.name.ifBlank { title }, CarText.distanceLabel(errand.distanceM), best.address)
+      rows += row(best.name.ifBlank { title }, CarText.distanceLabel(current.distanceM), best.address)
       rows += row(context.carString(R.string.apx_car_errand_navigate)) {
         CarCore.errand(app, errand.taskId, "navigate")
         CarNav.navigate(context, best, title)
@@ -215,6 +243,6 @@ class ErrandScreen(carContext: CarContext, private val errand: CarErrand) : Scre
       CarToast.makeText(context, context.carString(R.string.apx_car_ack_skip), CarToast.LENGTH_SHORT).show()
       screenManager.pop()
     }
-    return list(title, rows, back = true)
+    return answersList(title, rows)
   }
 }

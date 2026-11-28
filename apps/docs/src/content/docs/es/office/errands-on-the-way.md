@@ -58,7 +58,7 @@ Cuando adelante tuyo, lo bastante cerca, hay un lugar para un recado, APX te lo 
 | **No me avises más** | No hay más avisos hasta que el auto se vuelva a conectar. |
 | **Ya lo hice** | El recado se cierra. |
 
-En el auto, la app de APX lista los avisos y tus recados abiertos, y tiene una fila para hablar con tu superagente.
+En el auto, la app de APX muestra un mapa con los avisos y tus recados abiertos al costado, cada uno con un pin, la distancia y el lugar, y un botón para hablar con tu superagente. Un recado que todavía no tiene lugar busca uno donde estás cuando lo abrís.
 Sin abrirla, los avisos también llegan como mensajes que Android Auto lee en voz alta; contestá con la voz: "voy",
 "otro", "después", "no", "ya está", "no me avises más". Cualquier otra cosa que digas le llega a tu superagente, y su
 respuesta te la lee.
@@ -84,4 +84,4 @@ Tu posición va solo a tu APX: un punto por vez mientras dura el viaje, nunca un
 
 ## En la pantalla de inicio del teléfono
 
-Agregá el widget **Recados en el camino** desde la lista de widgets de tu pantalla de inicio: muestra el recado que APX te ofrece con el lugar y la distancia, y los botones **Ir ahora** y **Otro lugar**. Android Auto muestra los widgets del teléfono cuando Google los habilite para tu auto.
+Agregá el widget **Recados en el camino** desde la lista de widgets de tu pantalla de inicio: muestra hasta cuatro recados cerca de tu camino, cada uno con su lugar más cercano y la distancia; tocá uno para abrir la ruta. Android Auto muestra los widgets del teléfono cuando Google los habilite para tu auto.

@@ -154,15 +154,25 @@ starts sharing that phone's location. The super-agent may turn a phone off throu
   the address and key to the native side when car mode is turned on and clears them when unpaired.
 - Sideloaded builds: Android Auto shows a car app that is not from Play only with *Unknown sources* on in Android
   Auto's developer settings. The phone's car mode screen says how.
-- Testing: the Desktop Head Unit (DHU) over `adb forward tcp:5277 tcp:5277`.
+- Car screens: the trip is a `PlaceListMapTemplate` (needs `androidx.car.app.MAP_TEMPLATES`): every row has a distance
+  span or is browsable, a tinted pin image (a row takes an image or a marker, not both), and "Talk to <agent>" is
+  in the action strip. Answer screens are plain lists. A screen that fails to build shows a message: the car app
+  shares the phone app's process, so a thrown template stops both. An errand with no place runs `car.preview` at the
+  phone's last fix when opened. The phone's offers follow `car.trip` (`CarAlertStore.sync`), so one answered
+  elsewhere or deleted leaves.
+- An app update can leave the notification listener unbound; opening the app or the car app asks Android to rebind
+  it, and the car app open counts as the car connected.
+- Testing: the Desktop Head Unit (DHU) over `adb forward tcp:5277 tcp:5277`. The 2022 DHU draws neither the map's
+  camera nor its markers; a real head unit centres the map on the car.
 
 ## Widget
 
 Android Auto gives no dashboard card to a points-of-interest app: the home screen holds navigation, media and
 calls, and a message-style notification is the only thing that floats over it. The phone app therefore has a plain
-home-screen widget (`ApxCarWidget`, RemoteViews): the offer waiting for an answer with its place, distance, Go now
-and Another place (the same answer path as the notification), or a line saying nothing is near. It is redrawn when
-offers change or a trip starts or ends, never on a timer. Google announced in May 2026 that phone widgets reach
+home-screen widget (`ApxCarWidget`, RemoteViews): up to four errands near the way from `car.trip`, offers waiting
+for an answer first, each with its closest place and distance; a row records "going" and opens the route (the same
+path as the notification), or a line says nothing is near. It reads again when offers change, a trip starts or
+ends, and at most once a minute while driving; never on a timer of its own. Google announced in May 2026 that phone widgets reach
 Android Auto during the year; this widget needs no change for that. A media session to borrow the media card was
 ruled out: it would take the place of the owner's music and Play admits only audio apps as media.
 

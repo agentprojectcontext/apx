@@ -12,6 +12,10 @@ object CarActions {
   const val SILENCE = "silence"
   const val DONE = "done"
 
+  /** Google Maps driving to a place, the same link the core gives an offer (wording.ts navigateUrl). */
+  fun routeTo(place: CarPlace): String =
+    "https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lon}&travelmode=driving"
+
   /** "I'm going": the phone or the car opens the route after recording the answer. */
   fun opensRoute(action: String): Boolean = action == NAVIGATE || action == ADD_STOP
 

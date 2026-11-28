@@ -28,7 +28,6 @@
     <string name="apx_car_ack_failed">APX no lo recibió. Probá de nuevo en el teléfono.</string>
 
     <string name="apx_car_screen_title">Recados en el camino</string>
-    <string name="apx_car_loading">Cargando</string>
     <string name="apx_car_no_errands">No hay recados pendientes</string>
     <string name="apx_car_off">El modo auto está apagado. Activalo en APX en el teléfono.</string>
     <string name="apx_car_unreachable">APX no respondió. Muestro lo que sabe este teléfono.</string>
@@ -56,7 +55,12 @@
     <string name="apx_car_error_other">APX no pudo guardar el viaje</string>
     <string name="apx_car_error_location">APX no puede usar tu ubicación</string>
     <string name="apx_car_error_background">Abrí APX para seguir este viaje</string>
-    <string name="apx_car_widget_description">El recado que APX te ofrece en el camino, con Ir ahora y Otro lugar</string>
+    <string name="apx_car_widget_description">Los recados cerca de tu camino, cada uno con su lugar más cercano; tocá uno para la ruta</string>
     <string name="apx_car_widget_driving">Nada cerca por ahora</string>
     <string name="apx_car_widget_idle">Mientras manejás, acá aparecen los recados cerca de tu camino</string>
+    <string name="apx_car_widget_none">No hay recados pendientes</string>
+    <string name="apx_car_screen_failed">No pude mostrar esta pantalla. Probá de nuevo.</string>
+    <string name="apx_car_errand_searching">Buscando un lugar cerca…</string>
+    <string name="apx_car_errand_none_near">No encontré un lugar cerca para esto</string>
+    <string name="apx_car_errand_no_location">No pude saber dónde estás</string>
 </resources>

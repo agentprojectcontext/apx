@@ -20,6 +20,8 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import dev.apx.car.CarActions
 import dev.apx.car.CarAlert
+import dev.apx.car.CarPrefs
+import dev.apx.car.ApxCarListener
 import dev.apx.car.CarAlertStore
 import dev.apx.car.CarAnswers
 import dev.apx.car.CarNotifications
@@ -55,8 +57,12 @@ class ApxCarSession : Session(), DefaultLifecycleObserver {
 
   override fun onCreateScreen(intent: Intent): Screen {
     CarNav.attach(carContext)
-    // The car app open counts as the app in use: a location service refused from the background can start now.
-    TripController.resume(carContext.applicationContext)
+    // The car app open counts as the app in use: a location service refused from the background can start now. It
+    // also means the car is connected, even when the listener missed it (an update mid-drive).
+    val app = carContext.applicationContext
+    ApxCarListener.rebindIfNeeded(app)
+    if (CarPrefs(app).active) TripController.update(app, { it.copy(carLink = true) })
+    TripController.resume(app)
     return TripScreen(carContext)
   }
 
@@ -67,6 +73,8 @@ class ApxCarSession : Session(), DefaultLifecycleObserver {
   override fun onDestroy(owner: LifecycleOwner) {
     CarAlertStore.removeListener(onAlerts)
     CarNav.detach(carContext)
+    val app = carContext.applicationContext
+    if (CarPrefs(app).active) TripController.update(app, { it.copy(carLink = false) })
   }
 
   /** A new offer while the car app is open: a car alert with its two main answers (car API 5 and later). */
