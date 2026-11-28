@@ -57,7 +57,8 @@
     <string name="apx_car_error_other">APX could not save the trip</string>
     <string name="apx_car_error_location">APX cannot use your location</string>
     <string name="apx_car_error_background">Open APX to follow this trip</string>
-    <string name="apx_car_widget_description">The errand APX offers on your way, with Go now and Another place</string>
+    <string name="apx_car_widget_description">Errands near your way, each with its closest place; tap one for the route</string>
     <string name="apx_car_widget_driving">Nothing near for now</string>
     <string name="apx_car_widget_idle">Errands near your way show here while you drive</string>
+    <string name="apx_car_widget_none">No open errands</string>
 </resources>

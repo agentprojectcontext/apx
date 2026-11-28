@@ -84,4 +84,4 @@ Tu posición va solo a tu APX: un punto por vez mientras dura el viaje, nunca un
 
 ## En la pantalla de inicio del teléfono
 
-Agregá el widget **Recados en el camino** desde la lista de widgets de tu pantalla de inicio: muestra el recado que APX te ofrece con el lugar y la distancia, y los botones **Ir ahora** y **Otro lugar**. Android Auto muestra los widgets del teléfono cuando Google los habilite para tu auto.
+Agregá el widget **Recados en el camino** desde la lista de widgets de tu pantalla de inicio: muestra hasta cuatro recados cerca de tu camino, cada uno con su lugar más cercano y la distancia; tocá uno para abrir la ruta. Android Auto muestra los widgets del teléfono cuando Google los habilite para tu auto.

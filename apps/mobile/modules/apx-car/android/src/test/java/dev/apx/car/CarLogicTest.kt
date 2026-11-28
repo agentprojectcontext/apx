@@ -156,4 +156,12 @@ class TripSourcesTest {
     assertEquals(TripSources.Change.End, TripSources().decide(true))
     assertEquals(TripSources.Change.Keep, TripSources().decide(false))
   }
+
+  @Test fun aWidgetRowOpensTheSameDrivingRouteAsAnOffer() {
+    val place = CarPlace(key = "osm:way/1", name = "Acme Market", lat = -41.161, lon = -71.4122, address = null)
+    assertEquals(
+      "https://www.google.com/maps/dir/?api=1&destination=-41.161,-71.4122&travelmode=driving",
+      CarActions.routeTo(place),
+    )
+  }
 }

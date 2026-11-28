@@ -125,6 +125,19 @@ class CarActionReceiver : BroadcastReceiver() {
       )
     }
 
+    const val EXTRA_TASK = "task_id"
+
+    /** An errand row's route (the widget): records that the owner is going, then opens Maps to its best place. */
+    fun errandIntent(context: Context, taskId: String, place: CarPlace, requestCode: Int): PendingIntent {
+      val open = Intent(context, CarAnswerActivity::class.java)
+        .putExtra(EXTRA_TASK, taskId)
+        .putExtra(EXTRA_URL, CarActions.routeTo(place))
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+      return PendingIntent.getActivity(
+        context, requestCode, open, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+      )
+    }
+
     /** Mutable: the system fills in the spoken reply. */
     fun replyIntent(context: Context): PendingIntent = PendingIntent.getBroadcast(
       context,
@@ -152,10 +165,12 @@ class CarAnswerActivity : Activity() {
     val alertId = intent.getStringExtra(CarActionReceiver.EXTRA_ALERT).orEmpty()
     val action = intent.getStringExtra(CarActionReceiver.EXTRA_ACTION).orEmpty()
     val url = intent.getStringExtra(CarActionReceiver.EXTRA_URL).orEmpty()
+    val taskId = intent.getStringExtra(CarActionReceiver.EXTRA_TASK).orEmpty()
     val app = applicationContext
     val recorded = CountDownLatch(1)
     val alert = CarAlertStore.get(alertId)
-    if (alert != null) CarAnswers.answer(app, alert, action) { recorded.countDown() }
+    if (taskId.isNotEmpty()) CarCore.errand(app, taskId, "navigate") { recorded.countDown() }
+    else if (alert != null) CarAnswers.answer(app, alert, action) { recorded.countDown() }
     else {
       CarNotifications.cancelAlert(app, alertId)
       CarCore.answer(app, alertId, action) { recorded.countDown() }
