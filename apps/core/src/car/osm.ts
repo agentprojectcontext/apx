@@ -7,8 +7,11 @@ import { bboxOf, distanceM, geohash, TILE_PRECISION, tilesAround } from "./geo.t
 import { evaluateHours } from "./hours.ts";
 import type { Fetch, FoundPlace, PlaceCache, PlaceProvider, SearchArea, StoredPlace } from "./provider.ts";
 
+// Public instances in order; under load one answers 502 at once or hangs, so the next one is tried.
 const OVERPASS_ENDPOINTS = [
   "https://overpass-api.de/api/interpreter",
+  "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+  "https://overpass.private.coffee/api/interpreter",
   "https://overpass.kumi.systems/api/interpreter",
 ] as const;
 
@@ -47,12 +50,11 @@ export type OverpassElement = {
 export function overpassQuery(tiles: readonly string[]): string {
   const b = bboxOf(tiles);
   const box = [b.south, b.west, b.north, b.east].map((n) => n.toFixed(6)).join(",");
-  const lines: string[] = [];
-  for (const [key, values] of osmSelectorValues()) {
-    const filter = values.length === 1 ? `["${key}"="${values[0]}"]` : `["${key}"~"^(${values.join("|")})$"]`;
-    lines.push(`node${filter};`, `way${filter};`);
-  }
-  return `[out:json][timeout:10][bbox:${box}];\n(\n${lines.join("\n")}\n);\nout center tags;`;
+  // One statement per key: a busy public instance answers this in seconds where one per value timed out.
+  const lines = [...osmSelectorValues()].map(([key, values]) =>
+    values.length === 1 ? `nwr["${key}"="${values[0]}"];` : `nwr["${key}"~"^(${values.join("|")})$"];`,
+  );
+  return `[out:json][timeout:25][bbox:${box}];\n(\n${lines.join("\n")}\n);\nout center tags qt;`;
 }
 
 /** An Overpass element as a cached place, or undefined when it has no name or no errand category. */
@@ -82,11 +84,26 @@ export function toStoredPlace(el: OverpassElement): StoredPlace | undefined {
   };
 }
 
+/**
+ * Missing tiles in batches of neighbours (geohash order keeps each query's box small), the batch nearest the point
+ * first so the part of the way that matters arrives first.
+ */
+function batches(missing: readonly string[], size: number, from: { lat: number; lon: number }): string[][] {
+  const sorted = missing.toSorted();
+  const out: string[][] = [];
+  for (let i = 0; i < sorted.length; i += size) out.push(sorted.slice(i, i + size));
+  const near = (batch: string[]) => {
+    const b = bboxOf(batch);
+    return distanceM(from, { lat: (b.south + b.north) / 2, lon: (b.west + b.east) / 2 });
+  };
+  return out.toSorted((a, b) => near(a) - near(b));
+}
+
 export function osmProvider(opts: OsmOptions): PlaceProvider {
   const endpoints = opts.endpoints ?? OVERPASS_ENDPOINTS;
   const gap = opts.minGapMs ?? 2_000;
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
-  const batchSize = opts.batchSize ?? 36;
+  const batchSize = opts.batchSize ?? 12;
   let queue: Promise<unknown> = Promise.resolve();
   let lastStart = Number.NEGATIVE_INFINITY;
 
@@ -132,7 +149,13 @@ export function osmProvider(opts: OsmOptions): PlaceProvider {
   }
 
   async function fetchTiles(tiles: readonly string[], signal: AbortSignal | undefined): Promise<void> {
-    const elements = await enqueue(() => overpass(overpassQuery(tiles), signal));
+    // Searches for several errands share tiles: a batch another search fetched while this one waited is skipped.
+    const elements = await enqueue(() => {
+      const since = new Date(opts.now().getTime() - FRESH_MS).toISOString();
+      const fresh = opts.cache.freshTiles(tiles, since);
+      return fresh.size === tiles.length ? Promise.resolve(undefined) : overpass(overpassQuery(tiles), signal);
+    });
+    if (!elements) return;
     const byTile = new Map<string, StoredPlace[]>(tiles.map((t) => [t, []]));
     for (const el of elements) {
       const place = toStoredPlace(el);
@@ -143,33 +166,39 @@ export function osmProvider(opts: OsmOptions): PlaceProvider {
     for (const [tile, places] of byTile) opts.cache.putTile(tile, places, at);
   }
 
-  async function refresh(tiles: readonly string[], signal: AbortSignal | undefined): Promise<void> {
+  async function refresh(
+    tiles: readonly string[],
+    from: { lat: number; lon: number },
+    signal: AbortSignal | undefined,
+  ): Promise<void> {
     const since = new Date(opts.now().getTime() - FRESH_MS).toISOString();
     const fresh = opts.cache.freshTiles(tiles, since);
-    const missing = tiles.filter((t) => !fresh.has(t)).sort();
     const failed: string[] = [];
     let error: unknown;
-    for (let i = 0; i < missing.length; i += batchSize) {
-      const batch = missing.slice(i, i + batchSize);
+    for (const batch of batches(
+      tiles.filter((t) => !fresh.has(t)),
+      batchSize,
+      from,
+    )) {
       try {
         await fetchTiles(batch, signal);
       } catch (err) {
-        if (signal?.aborted) throw err;
         failed.push(...batch);
         error = err;
+        // Out of time: the batches that arrived (the nearest) are what this search has.
+        if (signal?.aborted) break;
       }
     }
     if (failed.length === 0) return;
-    // Stale places beat none, but a tile never fetched would make a far place look like the nearest.
-    const known = opts.cache.freshTiles(failed, EVER);
-    if (failed.some((t) => !known.has(t))) throw error;
+    // Nearest tiles go first, so what did arrive is the part of the way that matters; nothing at all is an error.
+    if (opts.cache.freshTiles(tiles, EVER).size === 0) throw error;
   }
 
   return {
     id: "osm",
     async search(area: SearchArea, categories: readonly ErrandCategory[], at: Date, signal?: AbortSignal) {
       const tiles = tilesAround(area.lat, area.lon, area.radius_m);
-      await refresh(tiles, signal);
+      await refresh(tiles, area, signal);
       const wanted = new Set(categories);
       const seen = new Set<string>();
       const found: Array<FoundPlace & { d: number }> = [];

@@ -24,7 +24,7 @@ import { placeOfTask } from "./errands.ts";
 import { googleProvider } from "./google.ts";
 import { type MatchContext, pick, quiet, WORST_ACCURACY_M } from "./matcher.ts";
 import { osmProvider } from "./osm.ts";
-import { createPlans, type OpenErrand, SEARCH_DEADLINE_MS } from "./plan.ts";
+import { createPlans, type OpenErrand, REQUEST_DEADLINE_MS } from "./plan.ts";
 import type { Fetch, PlaceProvider } from "./provider.ts";
 import { alertView, errandViews, lockedPlaces, publicTrip, shownPlace } from "./view.ts";
 import type { Lang } from "./wording.ts";
@@ -69,7 +69,7 @@ export function createCar(d: CarDeps) {
   let google: { key: string; provider: PlaceProvider } | undefined;
   const defaultProvider = async (source: PlaceSource): Promise<PlaceProvider | undefined> => {
     if (source === "osm") {
-      osm ??= osmProvider({ cache: store.carPlaces, fetch: fetcher, now, deadlineMs: SEARCH_DEADLINE_MS });
+      osm ??= osmProvider({ cache: store.carPlaces, fetch: fetcher, now, deadlineMs: REQUEST_DEADLINE_MS });
       return osm;
     }
     // Google without a key offers nothing: never a guess from another source.

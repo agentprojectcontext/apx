@@ -49,7 +49,10 @@ function memoryCache(): PlaceCache & { tiles: Map<string, { at: string; places: 
 
 type Call = { url: string; init?: RequestInit; at: number };
 
-function setup(answers: Array<number | "throw"> = []) {
+const PRIMARY = "https://overpass.example/api/interpreter";
+const SECONDARY = "https://overpass.example.org/api/interpreter";
+
+function setup(answers: Array<number | "throw"> = [], batchSize = 100) {
   let clock = Date.parse("2026-11-23T15:00:00Z"); // Monday 12:00 in Córdoba
   const waits: number[] = [];
   const calls: Call[] = [];
@@ -70,6 +73,8 @@ function setup(answers: Array<number | "throw"> = []) {
       clock += ms;
     },
     timeZone: TZ,
+    endpoints: [PRIMARY, SECONDARY],
+    batchSize,
   });
   return {
     provider,
@@ -106,11 +111,11 @@ test("toStoredPlace keeps named places with an errand category", () => {
 
 test("one query asks for every category's tags, nodes and ways, by centre", () => {
   const q = overpassQuery(["69y7pk"]);
-  assert.match(q, /^\[out:json\]\[timeout:10\]\[bbox:-?\d/);
-  assert.match(q, /node\["shop"~"\^\(supermarket\|.*stationery.*\)\$"\];/);
-  assert.match(q, /way\["amenity"~"\^\(.*fuel.*\)\$"\];/);
-  assert.match(q, /node\["office"="courier"\];/);
-  assert.match(q, /out center tags;$/);
+  assert.match(q, /^\[out:json\]\[timeout:25\]\[bbox:-?\d/);
+  assert.match(q, /nwr\["shop"~"\^\(supermarket\|.*stationery.*\)\$"\];/);
+  assert.match(q, /nwr\["amenity"~"\^\(.*fuel.*\)\$"\];/);
+  assert.match(q, /nwr\["office"="courier"\];/);
+  assert.match(q, /out center tags qt;$/);
 });
 
 test("search returns the requested categories within the radius, nearest first, with hours", async () => {
@@ -129,7 +134,7 @@ test("search returns the requested categories within the radius, nearest first, 
   const init = s.calls[0]?.init;
   assert.equal(init?.method, "POST");
   assert.equal(new Headers(init?.headers).get("user-agent"), "APX (errands on the way)");
-  assert.match(decodeURIComponent(String(init?.body).slice(5)), /out center tags;/);
+  assert.match(decodeURIComponent(String(init?.body).slice(5)), /out center tags qt;/);
   // The convenience store is 680 m away: in at 1 km, out at 500 m.
   const kiosks = await s.provider.search(area(), ["kiosk"], s.now());
   assert.deepEqual(
@@ -155,7 +160,7 @@ test("a busy or failing endpoint falls back to the next one", async () => {
   assert.equal(found.length, 1);
   assert.deepEqual(
     s.calls.map((c) => c.url),
-    ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"],
+    [PRIMARY, SECONDARY],
   );
   const t = setup([503, "throw"]);
   await assert.rejects(t.provider.search(area(), ["supermarket"], t.now()), /unavailable/);
@@ -175,6 +180,24 @@ test("requests go one at a time and at least 2 s apart", async () => {
     assert.ok(gap >= 2_000, `gap ${gap}`);
   }
   assert.deepEqual(s.waits, [2_000, 2_000]);
+});
+
+test("tiles go in small batches, the nearest first; what arrived is used when a later batch fails", async () => {
+  const s = setup([200, 503, 503, 503, 503, 503, 503, 503, 503], 2);
+  const found = await s.provider.search(area(), ["supermarket"], s.now());
+  assert.ok(s.calls.length > 2, "more than one batch");
+  // The first query's box holds the search point.
+  const box = /bbox:([-\d.]+),([-\d.]+),([-\d.]+),([-\d.]+)/.exec(
+    decodeURIComponent(String(s.calls[0]?.init?.body).slice(5)),
+  );
+  const [south, west, north, east] = (box?.slice(1) ?? []).map(Number);
+  assert.ok(
+    (south ?? 0) <= CENTER.lat && CENTER.lat <= (north ?? 0) && (west ?? 0) <= CENTER.lon && CENTER.lon <= (east ?? 0),
+  );
+  assert.deepEqual(
+    found.map((p) => p.key),
+    ["osm:node/101"],
+  );
 });
 
 test("when Overpass fails, places fetched before are used even if stale; never fetched is an error", async () => {
@@ -205,4 +228,40 @@ test("a timed-out Overpass answer is not cached", async () => {
   });
   await assert.rejects(provider.search(area(), ["supermarket"], new Date(clock)));
   assert.equal(cache.tiles.size, 0);
+});
+
+test("searches for several errands at once over the same area fetch its tiles once", async () => {
+  const s = setup();
+  const [milk, pills] = await Promise.all([
+    s.provider.search(area(), ["supermarket"], s.now()),
+    s.provider.search(area(), ["pharmacy"], s.now()),
+  ]);
+  assert.equal(s.calls.length, 1);
+  assert.equal(milk[0]?.key, "osm:node/101");
+  assert.equal(pills[0]?.key, "osm:way/202");
+});
+
+test("a search out of time keeps the nearest batches that arrived", async () => {
+  const s = setup([], 2);
+  const ctl = new AbortController();
+  let n = 0;
+  const provider = osmProvider({
+    cache: s.cache,
+    endpoints: [PRIMARY],
+    batchSize: 2,
+    now: s.now,
+    sleep: async () => {},
+    timeZone: TZ,
+    fetch: async () => {
+      if (++n === 2) ctl.abort(new Error("deadline"));
+      if (n >= 2) throw new Error("aborted");
+      return Response.json(FIXTURE);
+    },
+  });
+  const found = await provider.search(area(), ["supermarket"], s.now(), ctl.signal);
+  assert.equal(n, 2, "no request after the deadline");
+  assert.deepEqual(
+    found.map((p) => p.key),
+    ["osm:node/101"],
+  );
 });

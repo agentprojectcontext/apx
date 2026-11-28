@@ -9,7 +9,9 @@ import type { FoundPlace, PlaceProvider } from "./provider.ts";
 /** Moved this far from where it last warmed, a trip warms again around the new point. */
 const WARM_MOVE_M = 1500;
 /** How long one warm's searches may take, all together (AGENTS.md rule 9). */
-export const SEARCH_DEADLINE_MS = 45_000;
+/** One warm's whole budget, and one Overpass request's: a busy instance gets cut and the next one tried. */
+export const SEARCH_DEADLINE_MS = 60_000;
+export const REQUEST_DEADLINE_MS = 25_000;
 
 export type OpenErrand = { task_id: string; title: string; place: ErrandPlace | undefined };
 
@@ -61,7 +63,7 @@ export function createPlans(o: {
     if (!categories.length) return [];
     const provider = await o.provider();
     if (!provider) return undefined;
-    const radius_m = 2 * (e.place?.radius_m ?? REACH_M[reach]);
+    const radius_m = 1.5 * (e.place?.radius_m ?? REACH_M[reach]);
     try {
       return await provider.search({ lat: at.lat, lon: at.lon, radius_m }, categories, o.now(), signal);
     } catch (err) {
