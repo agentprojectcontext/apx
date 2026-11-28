@@ -8,7 +8,7 @@ import { ChannelFace } from "../lazy.ts";
 
 /**
  * Keep the avatar column aligned; a delegated session shows its recipient with its caller as a small badge, a call the
- * agent called with a small phone. A helper
+ * agent called with a small phone (a microphone for a voice request said by name). A helper
  * has no face of its own: a helper mark, with the agent that started it as the badge.
  */
 export function ThreadAvatar({
@@ -53,7 +53,11 @@ export function ThreadAvatar({
         <EngineIcon engine={thread.engine} tile size={size} />
       ) : thread.kind === "call" && !agent ? (
         <span className="threadavatar__call" style={{ width: size, height: size }}>
-          <Icons.Phone size={Math.round(size * 0.55)} />
+          {thread.call?.mode === "quick" ? (
+            <Icons.Mic size={Math.round(size * 0.55)} />
+          ) : (
+            <Icons.Phone size={Math.round(size * 0.55)} />
+          )}
         </span>
       ) : helper ? (
         <Tooltip content={t("subthread.worker")}>
@@ -79,13 +83,17 @@ export function ThreadAvatar({
           </span>
         ))
       )}
-      {/* A call shows who was called, with a phone on it. */}
+      {/* A call shows who was called, with a phone on it; a voice request said by name, with a microphone. */}
       {thread.kind === "call" && agent && (
         <span
           className="threadavatar__callmark"
           style={{ width: Math.max(10, Math.round(size * 0.5)), height: Math.max(10, Math.round(size * 0.5)) }}
         >
-          <Icons.Phone size={Math.max(6, Math.round(size * 0.3))} />
+          {thread.call?.mode === "quick" ? (
+            <Icons.Mic size={Math.max(6, Math.round(size * 0.3))} />
+          ) : (
+            <Icons.Phone size={Math.max(6, Math.round(size * 0.3))} />
+          )}
         </span>
       )}
       {badge && (

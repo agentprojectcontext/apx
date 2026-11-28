@@ -142,6 +142,7 @@ export function attachVoiceCall(
       if (!frame.success) return;
       if (frame.data.type === "ready") {
         answered = true;
+        deps.calls.hear(call.thread, { type: "ready" });
         for (const b of early.splice(0)) engine?.send(b, { binary: true });
       }
       if (frame.data.type === "end") end(frame.data.reason);

@@ -11,6 +11,7 @@ export const esCallSlim: Partial<Record<MessageKey, string>> = {
   "call.open": "Mostrar tus llamadas",
   "call.close": "Ocultar tus llamadas",
   "call.personal": "Personal",
+  "call.handsFree": "Manos libres",
   "call.start": "Llamar a {name}",
   "call.again": "Volver a llamar",
   "call.back": "Volver a la llamada",

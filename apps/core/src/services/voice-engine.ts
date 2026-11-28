@@ -53,8 +53,10 @@ export type Install = {
 export type CallSetup = {
   voice: "female" | "male";
   locale: "es-AR" | "es" | "en-US";
-  /** `quick`: a request said by name, answered in a few words; the voice hangs up once answered. */
+  /** `quick`: a request said by name, answered in a few words, that the core ends (DECISIONS.md#d-289). */
   mode: "call" | "quick";
+  /** What a quick request's voice says when it cannot make out the owner, before it hangs up. */
+  confused: string;
   owner: string;
   /** What the voice says first; `greeted` ("1"): the device already played it, so the voice listens at once. */
   greeting: string;

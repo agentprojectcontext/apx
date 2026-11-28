@@ -116,7 +116,14 @@ export function CommandPalette() {
         group: "palette.chats",
         title: chatTitle(th, t) || t("palette.untitled"),
         ...(th.preview ? { detail: th.preview } : {}),
-        icon: th.kind === "call" ? <Icons.Phone size={15} /> : <Icons.MessageSquare size={15} />,
+        icon:
+          th.kind !== "call" ? (
+            <Icons.MessageSquare size={15} />
+          ) : th.call?.mode === "quick" ? (
+            <Icons.Mic size={15} />
+          ) : (
+            <Icons.Phone size={15} />
+          ),
         run: close(() => go.thread(th.id)),
       }));
     const projectItems: Item[] = projects

@@ -10,6 +10,7 @@ export const enCallSlim = {
   "call.open": "Show your calls",
   "call.close": "Hide your calls",
   "call.personal": "Personal",
+  "call.handsFree": "Hands-free",
   "call.start": "Call {name}",
   "call.again": "Call again",
   "call.back": "Back to the call",

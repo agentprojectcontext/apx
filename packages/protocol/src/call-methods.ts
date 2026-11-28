@@ -131,7 +131,7 @@ export const CallStatus = z.object(
     live: () => Id.optional(),
     /** The paired device the call going on talks through (absent: this computer's panel). */
     live_device: () => z.string().optional(),
-    /** `quick`: the call going on is a request said by name, hands-free; it hangs up once answered. */
+    /** `quick`: the call going on is a request said by name, hands-free: a short back-and-forth the core ends. */
     live_mode: () => CallMode.optional(),
     /** The voice a call starts with. */
     voice: () => NativeVoice.optional(),

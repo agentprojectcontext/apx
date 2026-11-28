@@ -118,23 +118,20 @@ You cannot look anything up or do anything yourself during the call. Behind you,
 When {owner} says goodbye or has to go, answer with one short goodbye that says "chau" ("bye" in English): the call then ends.
 When {owner} says they are done ("listo", "nada más", "cortá", "eso es todo"), say a two-word goodbye and end it with the tag [[end]]: the call hangs up after your line.
 """
-# A quick request: the owner woke the voice by name for one thing, hands-free. Added to the prompt.
+# A quick request: the owner woke the voice by name, hands-free. Added to the prompt. The core decides when it ends
+# (the owner's goodbye, silence, the voice not understanding) and sends "end" (DECISIONS.md#d-289).
 QUICK = """
 ## A quick request
 
-{owner} called you by name, hands-free, for one thing: this is a short voice request, not a conversation.
+{owner} called you by name, hands-free: a short voice request, not a long call. It may take a few turns ("¿cómo va el lavavajillas?", then "dale, prendelo").
 
-- Answer in one short sentence, a few words when you can ("Dale, ahí lo pongo.").
-- When you need something to do it, ask one short question and wait.
-- Otherwise, once you answered or started the task, end your reply with [[end]]: the call hangs up after your line, and the task goes on behind you.
-- When {owner} adds something else, handle it the same way.
+- Answer in one or two short sentences, a few words when you can ("Dale, ahí lo pongo.").
+- When you need something to do it, ask one short question.
+- After answering, do not say goodbye or end the call: {owner} may ask something else. The call hangs up by itself when {owner} says they are done or goes quiet.
+- When you cannot make out what {owner} wants, ask once to repeat it. If you still cannot, say only "{confused}" and end your reply with [[end]].
 """
 QUICK_BYE = {"es": "Dale, chau.", "en": "Okay, bye."}
-QUICK_IDLE_S = 9  # a quick request nobody follows up hangs up on its own
-QUICK_WAIT_S = 25  # a question asked by name waits this long for its answer to be told before hanging up
-# A quick request that asks something ("¿qué tengo hoy?") waits for the answer; one that asks for an action does not.
-QUESTION = re.compile(r"(\?|^\W*(qu[eé]|cu[aá]l|cu[aá]ndo|c[oó]mo|d[oó]nde|qui[eé]n|cu[aá]nt[oa]s?|hay|ten[eé]s|tengo|"
-                      r"sab[eé]s|what|when|how|where|who|which|is|are|do|does|did|can)\b)", re.I)
+QUICK_CONFUSED = {"es": "No te entendí; cualquier cosa me volvés a llamar.", "en": "I didn't get that; call me again anytime."}
 ACCENT = {
     "es-AR": 'In Spanish use Argentine Spanish with voseo ("querés", "decime", "fijate").',
     "es": 'In Spanish use neutral Latin American Spanish with "tú" ("quieres", "dime", "fíjate"), no regional slang.',
@@ -308,9 +305,9 @@ class Call:
             name=self.name, owner=owner, accent=ACCENT[self.style],
             who=q.get("who") or f"{owner}'s personal assistant in APX",
             reach=q.get("reach") or f"{owner}'s projects, agents, memory, mail, calendar, web and tools")
-            + (QUICK.format(owner=owner) if self.quick else "")}
+            + (QUICK.format(owner=owner, confused=q.get("confused") or QUICK_CONFUSED[self.lang]) if self.quick else "")}
         self.ending = False
-        self.wait_until = 0.0  # a quick question waits for its answer until then
+        self.closing = False  # the core ended a quick request: its last line plays, nothing more is heard
         self.thoughts, self.thought_n = {}, 0
         self.answered = False  # the voice began answering what is in `unheard`
         self.pieces, self.seg, self.seg_voiced = [], 0, 0  # what is heard of the words being said, where the rest begins
@@ -477,7 +474,6 @@ class Call:
         messages = [self.system, *self.history]
         await self.send({"type": "state", "state": "thinking"})
         spoken, skipped, hang_up = [], False, False
-        asked_before = self.n
         self.carry = ""
         holding = {"speaking": False}
         filler = asyncio.create_task(self.hold_on(holding))
@@ -525,15 +521,26 @@ class Call:
         finally:
             self.turn_end()
         said = " ".join(spoken).strip()
-        if hang_up or (spoken and ends_call(heard, said)):
+        # A quick request goes on after an answer: the core ends it (the owner's goodbye, silence, confusion).
+        if hang_up or (not self.quick and spoken and ends_call(heard, said)):
             await self.hang_up("goodbye")
-        elif self.quick and said and not said.endswith("?"):
-            # A quick request ends once answered, unless the voice asked something back. A question waits a while for
-            # what the agent finds, so the answer is said; an action is done behind and the call goes.
-            if self.n > asked_before and QUESTION.search(heard.strip()):
-                self.wait_until = time.monotonic() + QUICK_WAIT_S
-            else:
-                await self.hang_up("goodbye")
+
+    def finish(self, reason, text):
+        """The core ended a quick request: the voice stops, says its last line (if any) and hangs up."""
+        if self.closing or self.ending:
+            return
+        self.closing = True
+        self.barge_in()
+        self.news.clear()
+
+        async def run():
+            if text:
+                await self.send({"type": "state", "state": "speaking"})
+                await self.say(text)
+                self.turn_end()
+            await self.hang_up(reason)
+
+        self.reply_task = asyncio.create_task(run())
 
     async def hang_up(self, reason):
         """Ends the call once the voice's last line played at the owner's end."""
@@ -574,11 +581,9 @@ class Call:
                                                             f'{answer[:2000] or "none"})'})
             self.history.append({"role": "assistant", "content": " ".join(spoken) or "…"})
             self.turn_end()
-        if self.quick and self.wait_until and not self.tasks:
-            await self.hang_up("goodbye")
 
     def maybe_tell(self):
-        if not self.news or self.in_speech or self.busy() or time.monotonic() - self.last_voice < QUIET_BEFORE_NEWS_S:
+        if not self.news or self.closing or self.in_speech or self.busy() or time.monotonic() - self.last_voice < QUIET_BEFORE_NEWS_S:
             return
         n, state, text, by = self.news.popleft()
         self.reply_task = asyncio.create_task(self.tell(n, state, text, by))
@@ -600,6 +605,8 @@ class Call:
             await self.frame(frame)
 
     async def frame(self, frame):
+        if self.closing:  # the last line plays out; what the microphone hears now is not answered
+            return
         p = self.vad.prob(frame)
         talking = self.speaking()
         voiced = p >= (VAD_ON_SPEAKING if talking else VAD_ON)
@@ -742,7 +749,8 @@ class Call:
         await self.send({"type": "heard", "text": new, **({"whole": True} if whole else {})})
         await self.send({"type": "partial", "text": ""})
         text, self.carry = " ".join(t for t in (self.carry, new) if t), ""
-        if HANG_UP.match(text) and len(text.split()) <= 8:
+        # A quick request's goodbye is the core's to hear: it answers "heard" with "end".
+        if not self.quick and HANG_UP.match(text) and len(text.split()) <= 8:
             self.history.append({"role": "user", "content": text})
             await self.send({"type": "state", "state": "speaking"})
             await self.say(QUICK_BYE[self.lang])
@@ -766,6 +774,8 @@ class Call:
 
     def typed(self, text):
         """Words the owner typed in the call's chat (already written there): answered aloud like words said."""
+        if self.closing:
+            return
         self.barge_in()
         if self.reply_task and not self.reply_task.done():
             self.reply_task.cancel()
@@ -786,18 +796,6 @@ class Call:
         while True:
             await asyncio.sleep(0.2)
             self.maybe_tell()
-            if self.idle():
-                await self.hang_up("idle")
-                return
-
-    def idle(self):
-        """Nobody said anything for a while after the voice's last word, and nothing is left to tell."""
-        if not self.quick or self.ending or self.in_speech or self.busy() or self.news:
-            return False
-        now = time.monotonic()
-        if self.wait_until:
-            return now >= self.wait_until
-        return now - max(self.last_voice, self.playing_until) >= QUICK_IDLE_S
 
 
 @app.websocket("/call")
@@ -827,6 +825,8 @@ async def call(ws: WebSocket):
                         c.thought(f)
                     elif f.get("type") == "typed" and str(f.get("text") or "").strip():
                         c.typed(str(f["text"]).strip())
+                    elif f.get("type") == "end":
+                        c.finish(str(f.get("reason") or "goodbye"), str(f.get("text") or ""))
 
     reader = asyncio.create_task(receive())
     preparation = asyncio.create_task(load_for_call(speech, lambda f: ws.send_json(f), lambda: greeting_audio(q), started_in))
