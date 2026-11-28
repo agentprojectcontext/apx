@@ -196,7 +196,8 @@ export function PinMark() {
 
 /**
  * Where the chat happens, after who speaks in it: the channel's app for a contact's chat, "External session" (or who
- * started it) for an engine's, nothing for a group (its line names its members), "Personal" for a call, and otherwise the agent's role (or
+ * started it) for an engine's, nothing for a group (its line names its members), "Personal" for a call ("Hands-free" for a
+ * voice request said by name), and otherwise the agent's role (or
  * what kind of chat it is).
  */
 function contextOf(thread: Thread, agent: Agent | undefined, t: T): string {
@@ -205,7 +206,7 @@ function contextOf(thread: Thread, agent: Agent | undefined, t: T): string {
     return thread.parent_id && agent ? t("engine.startedBy", { name: agent.name }) : t("nav.externalSession");
   if (thread.kind === "group") return "";
   if (thread.kind === "a2a") return t("thread.a2a");
-  if (thread.kind === "call") return t("call.personal");
+  if (thread.kind === "call") return t(thread.call?.mode === "quick" ? "call.handsFree" : "call.personal");
   if (thread.kind === "routine") return t("thread.routineOf", { name: routineName(thread) });
   if (thread.flow) return t("thread.flowStep");
   return agent?.role || (thread.kind === "home" ? t("thread.home") : t("thread.chat"));

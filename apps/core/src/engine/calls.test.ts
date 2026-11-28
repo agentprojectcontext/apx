@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { callHandlers } from "../rpc/calls.ts";
-import { waitFor } from "../testkit/platform.ts";
+import { manualTimers, waitFor } from "../testkit/platform.ts";
 import { createCalls, type ToEngine } from "./calls.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
@@ -366,4 +366,76 @@ test("calls from the panel say plainly what this machine still needs", async () 
   const handlers = callHandlers(undefined);
   assert.deepEqual(handlers["calls.status"](), { ready: false, running: false, missing: "platform" });
   assert.throws(() => handlers["calls.start"]({}), /calls need a Mac with Apple silicon/);
+});
+
+test("a quick request said by name is a short back-and-forth the core ends: the owner's goodbye, silence or confusion", async () => {
+  const timers = manualTimers();
+  const calls = createCalls({
+    store: env.core.store,
+    bus: env.core.bus,
+    admit: env.core.engine.admit,
+    log: quiet,
+    llm,
+    models: () => ["fake/fake-1"],
+    timers,
+  });
+  const open = (locale: "es-AR" | "en-US" = "es-AR") => {
+    const { thread_id, ticket } = calls.start({ voice: "female", locale, mode: "quick", device: "phone-1" });
+    const setup = calls.redeem(ticket).setup;
+    const told: ToEngine[] = [];
+    let hungUp = 0;
+    calls.attach(
+      thread_id,
+      (f) => told.push(f),
+      () => {
+        hungUp++;
+        calls.end(thread_id);
+      },
+    );
+    calls.hear(thread_id, { type: "ready" });
+    const turn = (heard: string, said: string) => {
+      calls.hear(thread_id, { type: "partial", text: heard.slice(0, 5) });
+      calls.hear(thread_id, { type: "heard", text: heard });
+      calls.hear(thread_id, { type: "saying", text: said });
+      timers.tick(3_000);
+      calls.hear(thread_id, { type: "said", text: said });
+      calls.hear(thread_id, { type: "turn_end" });
+    };
+    const ends = () => told.filter((f) => f.type === "end");
+    return { thread_id, setup, told, turn, ends, hungUp: () => hungUp };
+  };
+
+  const bye = open();
+  assert.match(bye.setup.confused, /No te entendí/);
+  bye.turn("Roby, ¿cómo están los platos?", "El lavavajillas terminó hace una hora.");
+  timers.tick(8_000);
+  bye.turn("Ok, entonces prendelo", "Dale, lo prendo.");
+  timers.tick(8_000);
+  bye.turn("¿Cuánto tarda?", "Una hora y media.");
+  assert.deepEqual(bye.ends(), [], "three turns and it is still on");
+  calls.hear(bye.thread_id, { type: "heard", text: "Listo, gracias" });
+  assert.deepEqual(bye.ends(), [{ type: "end", reason: "goodbye", text: "Dale, chau." }]);
+  calls.hear(bye.thread_id, { type: "think", id: 9, messages: [] });
+  assert.ok(!bye.told.some((f) => f.type === "thought"), "a request that is ending asks its model nothing more");
+  timers.tick(10_000);
+  assert.equal(bye.hungUp(), 1, "an engine that does not hang up is hung up by the core");
+  const said = env.core.store.messages.list(bye.thread_id).filter((m) => m.author.kind === "user");
+  assert.equal(said.length, 4, "every turn is written in the call");
+  assert.deepEqual(env.core.store.threads.get(bye.thread_id)?.call, { mode: "quick", device: "phone-1" });
+
+  const quiet9 = open("en-US");
+  quiet9.turn("What time is it in Tokyo?", "It's ten at night there.");
+  timers.tick(8_999);
+  assert.deepEqual(quiet9.ends(), []);
+  timers.tick(1);
+  assert.deepEqual(quiet9.ends(), [{ type: "end", reason: "idle", text: "" }]);
+  calls.end(quiet9.thread_id);
+
+  const lost = open();
+  lost.turn("mmm la cosa esa", "No te entendí, ¿me repetís?");
+  lost.turn("eso que te dije", "Perdón, no te entendí.");
+  assert.deepEqual(lost.ends(), [
+    { type: "end", reason: "confused", text: "No te entendí; cualquier cosa me volvés a llamar." },
+  ]);
+  calls.end(lost.thread_id);
 });

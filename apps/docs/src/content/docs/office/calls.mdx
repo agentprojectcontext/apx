@@ -105,8 +105,15 @@ time.
 ## Wake by voice
 
 Say "ok" or "che" followed by your super-agent's name, and a short voice request opens with no hands, even with the
-phone locked or the app closed. The voice answers "¿Sí?", you ask, it answers in one short sentence and hangs up on its
-own, unless it needs to ask you something.
+phone locked or the app closed. The voice answers "¿Sí?", you ask, and it answers in one or two short sentences. Keep
+going as long as you need: "Roby, how is the dishwasher doing?" … "OK, then turn it on" … "that's all, thanks".
+
+- **When it hangs up.** When you say you are done ("listo", "gracias", "listo, gracias", "eso es todo", "nada más",
+  "cortá", or "that's all", "thanks", "hang up"), it says a short goodbye and hangs up. After about 9 seconds with
+  nobody speaking it hangs up on its own; while something you asked for is still being worked on, it waits up to 25
+  seconds for the answer. If it can't make out what you want, it asks you to repeat once; the second time it says "I
+  didn't get that; call me again anytime" and hangs up, so it never stays open. Right after it asks you
+  something, a plain "dale, gracias" counts as a yes, not a goodbye.
 
 - **On your Android phone.** In the APX app, open **Settings** and turn on **Despertar por voz**. It is per phone.
   While it is on the phone listens in the background: a notification says so and Android shows the microphone in use.
@@ -131,7 +138,9 @@ own, unless it needs to ask you something.
 - **A greeting with your chosen service.** If calls use a remote speech service, preparing the greeting sends its text
   (including your first name, when set) to that service before a call. Turning calls off cancels pending preparation
   and stops new recordings. Reading voice settings alone never records a greeting.
-- **In the chat.** The call's chat shows it as a quick voice request and the phone it came from.
+- **In the chat.** The call's chat shows it as a quick voice request and the phone it came from. Under **Calls** it is
+  listed as **Voice request** with a microphone and **Hands-free**, apart from your calls, which show a phone. Whatever
+  you asked for that is still running when it hangs up finishes in that chat.
 
 The call's voice, model and services are the ones set on your computer: the phone only carries the audio.
 

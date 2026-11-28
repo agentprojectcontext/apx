@@ -15,7 +15,8 @@ import type { Log } from "../log.ts";
 import type { Llm } from "../providers/llm.ts";
 import type { ChatItem } from "../providers/types.ts";
 import { greetingLine } from "../services/greetings.ts";
-import type { AdmitFn } from "./engine.ts";
+import type { AdmitFn, RunTimers } from "./engine.ts";
+import { createQuickEnding, QUICK_END_GRACE_MS, QUICK_LINES, type QuickEnding, wallTimers } from "./quick-request.ts";
 import { answerOf } from "./run-outcome.ts";
 
 const TICKET_MS = 60_000;
@@ -31,12 +32,12 @@ const ASK = {
   en: (heard: string, task: string) =>
     `Asked by voice, on a call. My words, transcribed (they may have errors): "${heard}". The voice took it as: ${task}. Answer in English in one or two short sentences to be said aloud: no lists, links or formatting.`,
 };
-/** A quick request said by name: the call may hang up before the answer, which then stays in this chat. */
+/** A quick request said by name: the call may end before the answer, which then stays in this chat. */
 const ASK_QUICK = {
   es: (heard: string, task: string) =>
-    `Pedido rápido por voz, manos libres (te llamé por tu nombre). Mis palabras, transcritas (pueden tener errores): «${heard}». La voz lo entendió como: ${task}. Hacelo y respondé en una frase corta para decir en voz alta.`,
+    `Pedido rápido por voz, manos libres (te llamé por tu nombre). Mis palabras, transcritas (pueden tener errores): «${heard}». La voz lo entendió como: ${task}. Hacelo y respondé en una o dos frases cortas para decir en voz alta.`,
   en: (heard: string, task: string) =>
-    `A quick voice request, hands-free (I called you by name). My words, transcribed (they may have errors): "${heard}". The voice took it as: ${task}. Do it and answer in English in one short sentence to be said aloud.`,
+    `A quick voice request, hands-free (I called you by name). My words, transcribed (they may have errors): "${heard}". The voice took it as: ${task}. Do it and answer in English in one or two short sentences to be said aloud.`,
 };
 
 /** What the engine tells about the call (the rest of its frames go to the panel untouched). */
@@ -51,7 +52,9 @@ export type EngineEvent =
   | { type: "turn_end" }
   | { type: "ask"; n: number; task: string; heard?: string }
   | { type: "think"; id: number; messages: unknown }
-  | { type: "think_stop"; id: number };
+  | { type: "think_stop"; id: number }
+  /** The voice is up and listening. */
+  | { type: "ready" };
 
 /**
  * What the engine is told about the call: an ask's answer, read to the owner as soon as nobody is talking; and the
@@ -63,7 +66,9 @@ export type ToEngine =
   | { type: "thought"; id: number; text: string }
   | { type: "thought_end"; id: number; error?: string }
   /** Words the owner typed in the call's chat, answered aloud as if said. */
-  | { type: "typed"; text: string };
+  | { type: "typed"; text: string }
+  /** A quick request is over: the voice says `text` (none: nothing) and hangs up. */
+  | { type: "end"; reason: string; text: string };
 
 type Ask = {
   n: number;
@@ -92,6 +97,8 @@ type Live = {
   send?: (f: ToEngine) => void;
   hangUp?: () => void;
   thinking: Map<number, AbortController>;
+  /** A quick request's endings (DECISIONS.md#d-289). */
+  quick?: QuickEnding;
 };
 
 export type CallTicket = {
@@ -134,9 +141,12 @@ export function createCalls(deps: {
   /** The models a call talks with, in order: the owner's pick, else their main model. */
   models: () => string[];
   now?: () => number;
+  /** A quick request's silence and hang-up clocks. */
+  timers?: RunTimers;
 }) {
   const { store, log } = deps;
   const now = deps.now ?? Date.now;
+  const timers = deps.timers ?? wallTimers;
   const tickets = new Map<string, CallTicket>();
   let live: Live | undefined;
   /** Asks by the sub-chat that answers them: the agent's turn, and its turns again as what it delegated comes back. */
@@ -238,6 +248,7 @@ export function createCalls(deps: {
           : p,
       ),
     );
+    if (live === a.from) live.quick?.tasks();
     if (live === a.from && (answer || !waiting)) {
       // A teammate's report woke the agent: the voice says who finished.
       const origin = run.trigger === "a2a_result" ? run.input?.origin : undefined;
@@ -256,6 +267,7 @@ export function createCalls(deps: {
   async function think(l: Live, id: number, raw: unknown) {
     const ac = new AbortController();
     l.thinking.set(id, ac);
+    l.quick?.thinking(true);
     let sent = 0;
     const send = (f: ToEngine) => {
       if (live === l) l.send?.(f);
@@ -289,11 +301,37 @@ export function createCalls(deps: {
     } catch (err) {
       if (!ac.signal.aborted) {
         log.warn({ err: err instanceof Error ? err.message : String(err) }, "call model failed");
-        send({ type: "thought_end", id, error: "the model did not answer" });
+        // A quick request cannot go on without its model: the voice says it did not get it and hangs up.
+        if (l.quick && live === l) l.quick.failed();
+        else send({ type: "thought_end", id, error: "the model did not answer" });
       }
     } finally {
       l.thinking.delete(id);
+      l.quick?.thinking(false);
     }
+  }
+
+  /**
+   * A quick request ends by the owner's goodbye, by silence, or when the voice did not understand: the engine says the
+   * last line and hangs up; one that does not is hung up by the core.
+   */
+  function quickEnding(l: Live, locale: VoiceLocale, name: string): QuickEnding {
+    return createQuickEnding({
+      locale,
+      names: [name],
+      timers,
+      pending: () => [...asks.values()].filter((a) => a.from === l).length,
+      end: (reason, line) => {
+        if (live !== l) return;
+        log.info({ thread: l.thread, reason }, "quick request ending");
+        for (const ac of l.thinking.values()) ac.abort();
+        if (l.send) l.send({ type: "end", reason, text: line });
+        else endLive(l.thread);
+        timers.after(QUICK_END_GRACE_MS, () => {
+          if (live === l) endLive(l.thread);
+        });
+      },
+    });
   }
 
   deps.bus.on((e) => {
@@ -301,6 +339,26 @@ export function createCalls(deps: {
     const run = store.runs.get(e.run.id);
     if (run) answered(run);
   });
+
+  function endLive(thread: string) {
+    if (live?.thread !== thread) return;
+    const { hangUp, thinking, quick } = live;
+    quick?.stop();
+    for (const ac of thinking.values()) ac.abort();
+    live = undefined;
+    log.info({ thread }, "call ended");
+    hangUp?.();
+  }
+
+  /** What the engine tells, as a quick request's clock reads it. */
+  function follow(q: QuickEnding, e: EngineEvent) {
+    if (e.type === "ready") q.ready();
+    else if (e.type === "partial") q.partial(e.text);
+    else if (e.type === "heard") q.heard(e.text);
+    else if (e.type === "saying") q.saying();
+    else if (e.type === "said") q.said(e.text);
+    else if (e.type === "turn_end") q.turnEnd();
+  }
 
   return {
     status: () => ({ live: live?.thread, device: live?.device, mode: live?.mode }),
@@ -357,7 +415,7 @@ export function createCalls(deps: {
       if (live) throw conflict("a call is already going on");
       const agent = callable(t.agent);
       const lang = t.locale === "en-US" ? "en" : "es";
-      live = {
+      const l: Live = {
         thread: t.thread,
         agent: agent.id,
         lang,
@@ -366,6 +424,8 @@ export function createCalls(deps: {
         thinking: new Map(),
         spoken: "",
       };
+      if (t.mode === "quick") l.quick = quickEnding(l, t.locale, agent.name);
+      live = l;
       log.info({ thread: t.thread, agent: agent.id, mode: t.mode, device: t.device }, "call started");
       const owner = ownerIdentity(store).name;
       const ownerName = owner || "the owner";
@@ -378,6 +438,7 @@ export function createCalls(deps: {
           mode: t.mode,
           owner,
           greeting: greetingLine(t.mode, t.locale, owner),
+          confused: QUICK_LINES[t.locale].confused,
           greeted: t.greeted ? ("1" as const) : ("" as const),
           agent: agent.name,
           who: isBoss
@@ -406,6 +467,10 @@ export function createCalls(deps: {
     hear(thread: string, e: EngineEvent) {
       const l = live;
       if (!l || l.thread !== thread) return;
+      if (l.quick) follow(l.quick, e);
+      if (e.type === "ready") return;
+      // A quick request that is ending asks its model nothing more.
+      if (e.type === "think" && l.quick?.over) return;
       const join = (a: string, b: string) => `${a} ${b}`.trim();
       if (e.type === "partial") {
         // The owner's words show in the chat as they speak, in their last message while the voice has not answered it;
@@ -457,6 +522,7 @@ export function createCalls(deps: {
         l.spoken = "";
       } else if (e.type === "ask") {
         ask(l, e.n, e.task, e.heard);
+        l.quick?.tasks();
       } else if (e.type === "think") {
         void think(l, e.id, e.messages);
       } else if (e.type === "think_stop") {
@@ -479,14 +545,7 @@ export function createCalls(deps: {
     },
 
     /** The call is over (hung up, the socket dropped, the engine stopped). Asks still running finish in their chats. */
-    end(thread: string) {
-      if (live?.thread !== thread) return;
-      const { hangUp, thinking } = live;
-      for (const ac of thinking.values()) ac.abort();
-      live = undefined;
-      log.info({ thread }, "call ended");
-      hangUp?.();
-    },
+    end: endLive,
   };
 }
 

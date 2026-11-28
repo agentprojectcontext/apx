@@ -6813,3 +6813,37 @@ cold) before its greeting, so the owner heard nothing after saying the name.
   said over the loading is heard. The device does not send what its microphone hears while the greeting plays.
 - **Only by name.** A call from a button still greets from the engine as before: the owner is looking at the screen,
   which says the voice is getting ready.
+
+<a id="d-289"></a>
+## D-289 — 2026-11-28 — A voice request said by name is a short conversation the core ends
+
+Amends [D-285](#d-285). Tried on a real phone, a quick request hung up right after its first answer, so the owner
+could not follow up ("¿cómo están los platos?" … "dale, prendelo"). The owner wants it like a call but short, for quick
+things, ending only when they are done, when nobody speaks, or when the voice did not understand.
+
+- **The core ends it, the engine says the last line.** `engine/quick-request.ts` holds the rules as pure functions and
+  a small clock on injected timers: `isGoodbye` (Spanish and English: "listo", "gracias", "listo, gracias", "eso es
+  todo", "nada más", "cortá", "that's all", "thanks", "hang up"; only closing words and softeners, the agent's name
+  allowed, at most eight words), and `isMissed` (the voice saying it did not catch the owner). `calls` feeds the clock
+  with what the engine already tells (`ready`, `partial`, `heard`, `saying`, `said`, `turn_end`, asks and their
+  results) and sends the engine `{type: "end", reason, text}`; the engine stops, says `text` and hangs up. If it does not
+  within 10 s, the core hangs up itself. A call from a button is unchanged.
+- **Three endings.** The owner's goodbye: "Dale, chau." Right after the voice asked something, a plain "dale, gracias"
+  is a yes; only a clear goodbye ("no, nada más", "eso es todo") ends it. Silence: 9 s with nobody speaking, counted
+  from when the voice is up and paused while the owner speaks, the voice thinks or speaks; 25 s while a task asked in
+  the call has not answered, so its answer is told (as D-285's wait for questions, now for any task). Confusion: the
+  voice saying it did not understand two turns in a row, or the call's model failing, ends with "No te entendí;
+  cualquier cosa me volvés a llamar" (the line comes from the core in the call's setup, per accent); the voice may also
+  end it itself with that line and `[[end]]`, which the quick prompt asks for.
+- **Only the ending changed.** Answers stay one or two short sentences; the engine no longer hangs up after an answer,
+  no longer keeps its own silence clock, and leaves a quick request's goodbye to the core.
+- **Told apart where calls are listed.** A quick request keeps its "Voice request" name; its row adds a microphone
+  instead of the phone and says "Hands-free" ("Manos libres") instead of "Personal". No new channel: it is still a
+  call, with the call's thread, voice and model; a channel would split the owner's calls in two places.
+
+Rejected:
+- Keeping the goodbye check in the engine (it had one): the core already sees every turn, can test it without a voice,
+  and one place decides for every device.
+- Ending on a fixed number of turns: the owner decides when they are done.
+
+Docs impact: updated office/calls and devices/phone in English and Spanish; news entry voice-wake-conversation.
