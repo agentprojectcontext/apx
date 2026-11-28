@@ -73,7 +73,7 @@ class ApxCarSession : Session(), DefaultLifecycleObserver {
   private fun showCarAlert(alert: CarAlert) {
     if (carContext.carAppApiLevel < CarAppApiLevels.LEVEL_5) return
     try {
-      val builder = Alert.Builder(Math.floorMod(alert.id.hashCode(), 100_000), CarText.create(alert.title), 12_000L)
+      val builder = Alert.Builder(Math.floorMod(alert.id.hashCode(), 100_000), CarText.create(alert.errand.ifBlank { alert.title }), 12_000L)
       val detail = dev.apx.car.CarText.detail(alert.distanceLabel, alert.place?.name)
       if (detail.isNotEmpty()) builder.setSubtitle(CarText.create(detail))
       for (action in CarActions.forCarAlert(alert.actions)) {

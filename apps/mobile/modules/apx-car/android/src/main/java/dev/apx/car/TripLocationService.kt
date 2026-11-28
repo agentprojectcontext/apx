@@ -10,6 +10,7 @@ import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.SystemClock
@@ -27,9 +28,23 @@ class TripLocationService : Service() {
   private var lastUploadMs = 0L
   private var lastReannounceMs = 0L
   private var listening = false
+  private var lastFix: Location? = null
+  private val beat = Handler(Looper.getMainLooper())
+
+  // A car stopped at a light gets no new fix (150 m), but an offer found by a search that just ended waits for its next
+  // point: the last fix is sent again on a timer, under the same upload floor.
+  private val heartbeat = object : Runnable {
+    override fun run() {
+      publish(lastFix ?: newestFix())
+      beat.postDelayed(this, HEARTBEAT_MS)
+    }
+  }
 
   private val listener = object : LocationListener {
-    override fun onLocationChanged(location: Location) = publish(location)
+    override fun onLocationChanged(location: Location) {
+      lastFix = location
+      publish(location)
+    }
 
     @Deprecated("Required below API 29")
     override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
@@ -81,6 +96,8 @@ class TripLocationService : Service() {
     if (!listening) {
       requestUpdates()
       publish(newestFix())
+      beat.removeCallbacks(heartbeat)
+      beat.postDelayed(heartbeat, HEARTBEAT_MS)
     }
     TripController.publishStatus(this)
     // A low-memory kill does not end a drive; the listener does.
@@ -88,6 +105,7 @@ class TripLocationService : Service() {
   }
 
   override fun onDestroy() {
+    beat.removeCallbacks(heartbeat)
     try {
       locations.removeUpdates(listener)
     } catch (_: RuntimeException) {
@@ -156,6 +174,7 @@ class TripLocationService : Service() {
     private const val MIN_DISTANCE_M = 150f
     private const val MIN_UPLOAD_MS = 25_000L
     private const val REANNOUNCE_MS = 120_000L
+    private const val HEARTBEAT_MS = 30_000L
 
     /** In the foreground and following the trip. */
     @Volatile

@@ -74,7 +74,8 @@ object CarNotifications {
   fun showAlert(context: Context, alert: CarAlert) {
     ensureChannels(context)
     val id = alertId(alert.id)
-    val body = CarText.detail(alert.distanceLabel, alert.place?.name, alert.place?.address)
+    // The title already says the errand, the place and the distance: the body adds only the street.
+    val body = alert.place?.address.orEmpty()
     val builder = NotificationCompat.Builder(context, ALERTS)
       .setSmallIcon(R.drawable.ic_apx_car)
       .setContentTitle(alert.title)
@@ -181,7 +182,7 @@ object CarConversation {
     CarNotifications.ensureChannels(context)
     val me = Person.Builder().setName(context.carString(R.string.apx_car_me)).setKey("owner").build()
     val apx = Person.Builder().setName("APX").setKey("apx").setBot(true).build()
-    val style = NotificationCompat.MessagingStyle(me).setConversationTitle("APX").setGroupConversation(false)
+    val style = NotificationCompat.MessagingStyle(me).setGroupConversation(false)
     val snapshot = synchronized(lines) { lines.toList() }
     for (line in snapshot) style.addMessage(line.text, line.at, if (line.fromApx) apx else null)
 

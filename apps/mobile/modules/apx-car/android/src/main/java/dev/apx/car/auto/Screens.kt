@@ -115,7 +115,7 @@ class TripScreen(carContext: CarContext) : Screen(carContext), DefaultLifecycleO
     val alerts = CarAlertStore.all()
     for (alert in alerts) {
       if (rows.size >= max - 1) break
-      rows += row(alert.title, CarText.detail(alert.distanceLabel, alert.place?.name, alert.place?.address)) {
+      rows += row(alert.errand.ifBlank { alert.title }, CarText.detail(alert.distanceLabel, alert.place?.name, alert.place?.address)) {
         screenManager.push(AlertScreen(context, alert.id))
       }
     }
