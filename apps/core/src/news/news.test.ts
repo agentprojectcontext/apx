@@ -77,6 +77,21 @@ const entry = (id: string, since = "2.7.3"): NewsEntry => ({
   ],
 });
 
+test("the phone news reaches only owners with a paired phone, not a browser or a desktop", () => {
+  const entry = NEWS.find((item) => item.id === "phone-node");
+  assert.ok(entry);
+  const { store, done } = setup();
+  try {
+    store.devices.create("Browser", "other");
+    store.devices.create("Desk", "desktop");
+    assert.equal(entry.applies(newsFacts(store)), false);
+    store.devices.create("Pixel", "android");
+    assert.equal(entry.applies(newsFacts(store)), true);
+  } finally {
+    done();
+  }
+});
+
 test("contextual connection news only reaches owners with a private MCP server", () => {
   const entry = NEWS.find((item) => item.id === "mcp-context");
   assert.ok(entry);
