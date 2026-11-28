@@ -135,8 +135,7 @@ Lo que hace una vez vinculada:
   las integraciones ni funciones del bridge del panel web.
 - **Le presta el teléfono al core como nodo**: los agentes tienen `phone_location` y `phone_photo`, pero solo mientras
   el teléfono está conectado. La foto siempre la sacás vos en el teléfono (la app te muestra para qué la pide el
-  agente). La ubicación pide el permiso del sistema una vez, y te pide el OK cada vez que hay contenido de afuera en el
-  turno.
+  agente). La ubicación necesita el permiso del sistema, que das explícitamente en **Ajustes › Privacidad › Acceso a ubicación en este teléfono**, y te pide el OK cada vez que hay contenido de afuera en el turno. **Ubicación a pedido** se puede apagar ahí o en **Configuración › Avanzado › Ubicación del teléfono** en la computadora, por separado de la ubicación de viajes y de la cámara. Consultá [Privacidad](/es/reference/privacy/#la-ubicación-del-teléfono-se-elige-por-separado) para el corte remoto, las pausas sin conexión y la compatibilidad entre versiones.
 - **Recibe notificaciones**, como se cuenta abajo.
 
 Si no llega al core, la app conserva la vinculación para cuando pueda. Desvincularla (o revocarla en el panel) la

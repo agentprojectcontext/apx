@@ -17,10 +17,13 @@ It starts off. Until you turn it on, the phone runs nothing in the background an
 
 ## Turn it on
 
-1. On the phone, open **Settings › In the car** and turn it on.
-2. Allow what the list asks for, one tap each: **Read notifications** (how APX sees that Android Auto connected or
+1. Open **Settings › In the car** on the phone or computer and enable **Errands on all devices**.
+2. On each participating Android phone, enable **Use this phone for errands**. The two switches are independent and initially off. **Settings › Privacy › Location during trips** must also allow sharing.
+3. Allow what the list asks for, one tap each: **Read notifications** (how APX sees that Android Auto connected or
    that Maps started a route), **Location** and **Notifications**.
-3. Try it without driving: **Try without a car** starts a test trip from where you are.
+4. Try it without driving: **Try without a car** starts a test trip from where you are.
+
+Turn off **Errands on all devices** from either app to stop errands everywhere, or **Use this phone for errands** to stop only that phone. A disconnected phone pauses its GPS after a failed safety check and requires explicit local reactivation. Remote GPS shutdown needs both the core and APK on 2.18.1 or later; older APKs may keep their GPS running while the updated core discards positions. See [Privacy and telemetry](/reference/privacy/#phone-location-is-a-separate-choice) for timing and compatibility limits.
 
 In the panel, **Settings › In the car** has the rest: how far ahead you want to hear about places, where the places
 come from, and whether you also want the offer in your chat (Telegram, WhatsApp…).

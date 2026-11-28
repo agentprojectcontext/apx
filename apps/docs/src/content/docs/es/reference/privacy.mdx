@@ -54,7 +54,22 @@ Estos números empiezan a contar cuando decís que sí: nada de lo que hiciste a
 contado que todavía no se mandó. Un día en que no pasó ninguna de estas cosas no manda ninguna.
 
 Solo esos números y nombres. Podés cambiar la respuesta cuando quieras en **Configuración › Avanzado › Estadísticas de uso**, que
-además muestra los números del próximo reporte y lo último que se mandó, tal cual salió.
+además muestra los números del próximo reporte y lo último que se mandó, tal cual salió. En Android, **Ajustes › Privacidad › Estadísticas anónimas de uso** cambia esa misma preferencia del APX emparejado; no crea otro consentimiento. Al apagarla se descartan los números de uso pendientes, incluso un reporte que espera detrás de otro envío. No se puede retirar un pedido que ya salió. Este interruptor no detiene los pasos de instalación de arriba; para detenerlos también, usá las variables de entorno de **Apagarla**.
+
+## La ubicación del teléfono se elige por separado
+
+En **Configuración › Avanzado › Ubicación del teléfono** en la computadora, o **Ajustes › Privacidad** en Android, elegí por separado:
+
+- **Ubicación a pedido**: si tus agentes pueden pedir la ubicación actual del teléfono sin iniciar un viaje.
+- **Ubicación durante viajes**: si un teléfono puede compartir posiciones para los [recados en el camino](/es/office/errands-on-the-way/). Al apagarla también se apagan los recados; volver a encenderla no inicia un viaje.
+
+Estas dos opciones se aplican a todos los teléfonos conectados a este APX. Cada teléfono también necesita el permiso de ubicación de Android. Actualizar no amplía los permisos existentes. Apagar la ubicación no desvincula el teléfono ni apaga su cámara, y no cambia tu elección de estadísticas.
+
+**Ajustes › En el auto** tiene un interruptor aparte, inicialmente apagado, de **Recados en todos los dispositivos**. Android también tiene **Usar este teléfono para recados**, inicialmente apagado: activalo explícitamente en cada teléfono que deba participar. Encender el interruptor global no enciende el de cada teléfono.
+
+Con la computadora y el APK en **2.18.1 o posterior**, un viaje valida sus permisos antes de acceder al GPS y después los revisa cada cinco segundos. Si una comprobación no termina en doce segundos, el teléfono detiene el viaje, deja de escuchar ubicaciones y requiere que vuelvas a habilitar ese teléfono. La ventana habitual de detección es de hasta diecisiete segundos, sujeta a la planificación de Android; no es una garantía de tiempo real si Android suspende la app. Un teléfono sin conexión no puede recibir el cambio remoto de inmediato. La computadora deja de aceptar posiciones en cuanto las desactivás y no puede reabrir ese viaje revocado por un aviso viejo del teléfono. Una solicitud de ubicación en curso se descarta si cambia el consentimiento antes de terminar.
+
+Actualizá **ambas** apps para cortar el GPS a distancia. Un **APK 2.18.0** puede seguir usando su GPS aunque la computadora actualizada ya descarte sus ubicaciones; detenelo desde ese teléfono o actualizalo. Un **APK 2.18.1 con una computadora 2.18.0** no puede validar las opciones nuevas y no empieza a compartir ubicaciones de viajes ni a pedido. Actualizá la computadora para usarlas. Reconectarse nunca levanta la pausa de seguridad del teléfono.
 
 ## Lo que nunca se manda
 

@@ -133,7 +133,7 @@ What it does once paired:
   integration or bridge feature.
 - **Lends the phone to the core as a node**: agents get `phone_location` and `phone_photo`, but only while the phone
   is connected. A photo is always taken by you on the phone (the app shows why the agent wants it). Location asks the
-  system's permission once, and asks for your OK whenever outside content is in the turn.
+  system's permission, granted explicitly in **Settings › Privacy › Location access on this phone**, and asks for your OK whenever outside content is in the turn. **Location on request** can be turned off there or in the computer's **Settings › Advanced › Phone location**, independently of trip location and camera. See [Privacy](/reference/privacy/#phone-location-is-a-separate-choice) for remote shutdown, offline pauses and version compatibility.
 - **Takes notifications**, described next.
 
 If you can't reach the core, the app keeps its pairing for when it can. Unpairing (or revoking it in the panel) sends

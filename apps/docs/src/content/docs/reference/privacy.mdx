@@ -52,7 +52,22 @@ These counts start when you say yes: nothing done before is counted, and saying 
 yet. A day when none of them happened sends none of them.
 
 Only these numbers and names. You can change your answer any time in **Settings › Advanced › Usage statistics**, which also shows
-the next report's numbers and the last thing sent, exactly as it left.
+the next report's numbers and the last thing sent, exactly as it left. In Android **Settings › Privacy**, **Anonymous usage statistics** changes that same preference for the paired APX; it does not create a separate consent. Turning it off drops unsent usage counts, including a report waiting behind another send. A request already sent cannot be recalled. This switch does not stop the install steps above; use the environment settings under **Turning it off** to stop those too.
+
+## Phone location is a separate choice
+
+In **Settings › Advanced › Phone location** on the computer, or **Settings › Privacy** in the Android app, choose independently:
+
+- **Location on request**: whether agents can ask for the phone's current location, without starting a trip.
+- **Location during trips**: whether a phone can share positions for [errands on the way](/office/errands-on-the-way/). Turning this off also turns off errands; turning it back on does not start a trip.
+
+These two choices apply to every phone connected to this APX. Android's location permission is also required on each phone. Existing permissions are not expanded by updating. Turning location off does not disconnect the phone or turn off its camera, and does not change your statistics choice.
+
+**Settings › In the car** has a separate, initially off **Errands on all devices** switch. Android also has **Use this phone for errands**, initially off: enable it explicitly on each phone that should participate. Turning the global switch on does not turn this phone switch on.
+
+With both the computer and APK on **2.18.1 or later**, a trip validates its permissions before accessing GPS, then checks every five seconds. If a check cannot complete within twelve seconds, the phone stops the trip, removes its location listeners and requires you to enable that phone again. The usual detection window is up to seventeen seconds, subject to Android scheduling; this is not a real-time guarantee when Android suspends the app. A disconnected phone cannot receive a remote change immediately. The computer stops accepting trip positions as soon as you disable them, and cannot reopen that revoked trip from a stale phone announcement. A location request already running is discarded if its consent changes before it finishes.
+
+Update **both** apps for remote GPS shutdown. A **2.18.0 APK** may continue using its own GPS after the updated computer stops accepting its locations; stop it on that phone or update it. A **2.18.1 APK with a 2.18.0 computer** cannot validate the new location choices and does not start sharing trip or requested locations. Update the computer to use them. Reconnecting never clears the phone's safety pause.
 
 ## Never sent
 

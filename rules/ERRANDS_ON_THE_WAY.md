@@ -13,6 +13,14 @@ screens) and tables and methods in the core, neither of which an extension can b
 the owner turns it on the phone runs nothing and the core does nothing. A core on a server works the same: the phone
 reaches it with its paired key, the app does not need to be open.
 
+## Privacy and compatibility
+
+From 2.18.1, `phone.privacy` and owner-only `phone.configure_privacy` hold two installation-wide choices, separate from telemetry: requested location and trip location. Existing OS permissions and choices are retained; global errands and each phone's participation still start off. Disabling trip location also disables global errands. The core rejects disabled positions before ingestion, rechecks punctual consent after the node reply and never reopens a trip revoked by the owner. Revoked trip ids are tombstoned in settings; ordinary idle expiration remains recoverable.
+
+The native service validates the current trip and privacy before registering location listeners, then validates every five seconds with an independent twelve-second main-handler deadline. A failed/late validation ends the service, removes listeners, clears local alerts and latches a persistent safety pause. Queued position sends check the local active trip again. Only a local explicit enable clears that latch. A persisted trip-consent revision also rejects an off/on that happened while the phone was offline or its process was stopped; a punctual-location change does not revoke this separate trip revision. No pre-trip last-known fix is reused. Two small validation calls per cycle trade extra requests for conservative shutdown; Android suspension can extend scheduling, so the usual seventeen-second detection window is not a hard real-time guarantee.
+
+Both core and APK must be updated. The old APK has no remote GPS shutdown, although the updated core rejects its disabled positions. The updated APK fails closed for trip and punctual location against an old core without the privacy method. Pairing and camera remain independent. The usage-statistics control changes the existing shared `telemetry.set` consent and drops unsent usage counts; lifecycle reports retain their existing policy. See the English/Spanish privacy reference for user instructions and offline limits.
+
 ## Pieces
 
 ```
