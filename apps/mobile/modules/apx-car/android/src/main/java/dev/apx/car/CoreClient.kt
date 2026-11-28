@@ -75,22 +75,29 @@ object CoreClient {
   }
 
   /** On [io]; a failure is recorded in the owner's words and logged without the request. */
-  fun send(context: Context, method: String, params: JSONObject, done: (JSONObject?) -> Unit = {}) {
+  fun send(context: Context, method: String, params: JSONObject, done: (JSONObject?) -> Unit = {}) =
+    sendWithCode(context, method, params) { result, _ -> done(result) }
+
+  /** Like [send], with the error code when there is no result (`offline` when the core never answered). */
+  fun sendWithCode(context: Context, method: String, params: JSONObject, done: (JSONObject?, String?) -> Unit) {
     val app = context.applicationContext
     io.execute {
+      var code: String? = null
       val result = try {
         call(app, method, params).also { CarPrefs(app).setError(null) }
       } catch (error: CoreError) {
         Log.w(TAG, "$method failed: ${error.code}")
         CarPrefs(app).setError(ownerWords(app, error))
+        code = error.code
         null
       } catch (error: RuntimeException) {
         Log.w(TAG, "$method failed: ${error.javaClass.simpleName}")
         CarPrefs(app).setError(app.carString(R.string.apx_car_error_other))
+        code = "internal"
         null
       }
       try {
-        done(result)
+        done(result, code)
       } catch (error: RuntimeException) {
         Log.w(TAG, "$method result handling failed: ${error.javaClass.simpleName}")
       }
