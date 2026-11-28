@@ -39,6 +39,6 @@ test("the owner's own phrases wake it too", () => {
 });
 
 test("the usual phrases are a call word and the super-agent's name", () => {
-  assert.deepEqual(defaultWakeWords("Roby"), ["ok Roby", "che Roby", "hey Roby"]);
+  assert.deepEqual(defaultWakeWords("Roby"), ["Ok Roby", "Che Roby", "Hey Roby"]);
   assert.deepEqual(defaultWakeWords(" "), []);
 });

@@ -3,6 +3,8 @@
 export const enCallSlim = {
   "call.titled": "Call · {when}",
   "call.name": "Call",
+  "call.quickTitled": "Voice request · {when}",
+  "call.quickName": "Voice request",
   "call.calls": "Calls",
   "call.count": "{n} calls",
   "call.open": "Show your calls",
