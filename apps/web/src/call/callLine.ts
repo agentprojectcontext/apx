@@ -1,11 +1,14 @@
 // A call's audio in the browser: the microphone up to the core as 16 kHz PCM16, the voice down as 24 kHz PCM16 played
 // back to back, and the live frames (CallFrame in packages/protocol/src/call-methods.ts) handed to the card.
 import type { CallFrame } from "@apx/protocol";
+import { inEcho } from "./greeting.ts";
 
 const UP_RATE = 16_000;
 const DOWN_RATE = 24_000;
 /** Lead before the first queued chunk plays, so the next one arrives before this one ends. */
 const LEAD_S = 0.05;
+/** What a greeted call keeps of the microphone until its socket opens (~100 ms each: ten seconds). */
+const HELD_FRAMES = 100;
 
 /**
  * A worklet named `name` that averages the input over each 16 kHz sample's span and posts `samples` of PCM16 at a time
@@ -68,9 +71,19 @@ export async function openMic(): Promise<MediaStream> {
   });
 }
 
-/** Connects the call's socket and its audio both ways; `hangUp` (or the socket closing) releases everything. */
-export async function openLine(mic: MediaStream, ticket: string, on: LineEvents): Promise<CallLine> {
+/**
+ * Connects the call's socket and its audio both ways; `hangUp` (or the socket closing) releases everything.
+ * `greetedUntil`: this computer greeted the owner, so nothing is sent until then (ms), and what is said after it is
+ * kept until the socket opens: the voice hears it once it loads.
+ */
+export async function openLine(
+  mic: MediaStream,
+  ticket: string,
+  on: LineEvents,
+  greetedUntil?: number,
+): Promise<CallLine> {
   let ws: WebSocket | undefined;
+  const early: ArrayBuffer[] = [];
   let muted = false;
   let released = false;
   let ended = false;
@@ -120,7 +133,9 @@ export async function openLine(mic: MediaStream, ticket: string, on: LineEvents)
       channelCountMode: "explicit",
     });
     up.port.onmessage = (e: MessageEvent<ArrayBuffer>) => {
-      if (!muted && ws?.readyState === WebSocket.OPEN) ws.send(e.data);
+      if (muted || inEcho(Date.now(), greetedUntil)) return;
+      if (ws?.readyState === WebSocket.OPEN) ws.send(e.data);
+      else if (greetedUntil !== undefined && early.length < HELD_FRAMES) early.push(e.data);
     };
     source.connect(up);
     // Down: each chunk scheduled right after the one before.
@@ -153,6 +168,9 @@ export async function openLine(mic: MediaStream, ticket: string, on: LineEvents)
   const socket = new WebSocket(`${scheme}//${window.location.host}/voice-call?ticket=${encodeURIComponent(ticket)}`);
   ws = socket;
   socket.binaryType = "arraybuffer";
+  socket.onopen = () => {
+    for (const frame of early.splice(0)) socket.send(frame);
+  };
   socket.onmessage = (e: MessageEvent<ArrayBuffer | string>) => {
     if (typeof e.data !== "string") {
       play(e.data);

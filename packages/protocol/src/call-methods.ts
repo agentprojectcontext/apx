@@ -85,6 +85,12 @@ export const VoiceStatus = z.object(
     call_transcription: () => Id.optional(),
     /** What wakes the voice by name on a phone or computer that listens for it ("ok Roby", "che Roby"). */
     wake_words: () => z.array(z.string()),
+    /**
+     * The greeting a phone or computer plays the moment it hears its name, recorded ahead in the current voice and
+     * language: `preparing` while it is recorded again (the voice, language or owner's name changed). Absent until a
+     * device asks for it.
+     */
+    greeting: () => z.enum(["ready", "preparing"]).optional(),
     /** What this Mac's voice is made of and where it is kept (absent where it cannot run). */
     models: () =>
       z
@@ -199,6 +205,8 @@ export const callMethods = {
           /** Calling again from a call's chat goes on in that thread. */
           thread: Id.optional(),
           mode: CallMode.optional(),
+          /** The device already played the greeting: the voice listens at once, and hears what is said while it loads. */
+          greeted: z.boolean().optional(),
         })
         .strict(),
     result: () =>
@@ -227,6 +235,29 @@ export const callMethods = {
       z.object({
         awake: z.boolean(),
         text: z.string(),
+      }),
+    effect: false,
+    access: "human",
+  }),
+  /**
+   * The greeting recorded ahead for a call by name (`quick`), as a 24 kHz mono WAV: a device plays it the moment it
+   * hears its name, then starts the call with `greeted`. With `have` (the key it holds) only the key comes back when it
+   * did not change. Not ready yet: it is being recorded, ask again later.
+   */
+  "voice.greeting": deferMethod({
+    params: () =>
+      z
+        .object({
+          mode: CallMode.default("quick"),
+          have: z.string().max(64).optional(),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        ready: z.boolean(),
+        key: z.string().optional(),
+        text: z.string().optional(),
+        data: z.string().optional(),
       }),
     effect: false,
     access: "human",

@@ -708,6 +708,17 @@
     padding-left: 0;
   }
 }
+/* The greeting being made again, under the picker it follows. */
+.voicerow__note {
+  flex-basis: 100%;
+  margin: 6px 0 0;
+  padding-left: 32px;
+}
+@media (max-width: 640px) {
+  .voicerow__note {
+    padding-left: 0;
+  }
+}
 .voicerow__where {
   margin-left: 6px;
   font-size: var(--apx-text-xs);

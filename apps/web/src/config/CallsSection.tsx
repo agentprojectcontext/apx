@@ -6,6 +6,8 @@ import { loadCatalog, models } from "../data/models.ts";
 import { notify } from "../data/notices.ts";
 import { loadVoice, setVoice, useVoice } from "../data/voice.ts";
 import { useT } from "../i18n/index.ts";
+import { GreetingNote } from "./GreetingNote.tsx";
+import { callEngine, greetingNoteAt } from "./greetingNote.ts";
 import { ModelRefPicker } from "./models/ModelRefPicker.tsx";
 import { WakeSettings } from "./WakeSettings.tsx";
 
@@ -36,7 +38,7 @@ export function CallsSettings({
     void loadCallStatus();
   };
   if (!s) return null;
-  const engine = s.call_engine ?? (s.tier === "none" ? "services" : "native");
+  const engine = callEngine(s);
   return (
     <>
       <SettingRow title={t("calls.allow")} description={t(s.calls ? "calls.allowHint" : "calls.offHint")}>
@@ -60,6 +62,7 @@ export function CallsSettings({
             />
           </SettingRow>
           {engine === "native" && s.tier === "none" && <p className="config__lead">{t("calls.nativeUnavailable")}</p>}
+          {greetingNoteAt(s) === "calls" && <GreetingNote className="config__hint" />}
           {engine === "services" && (
             <>
               <CallService kind="speech" services={speech} selected={s.call_speech} save={save} />

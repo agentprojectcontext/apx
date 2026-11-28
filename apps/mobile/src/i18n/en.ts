@@ -419,6 +419,7 @@ export const en = {
   setVoice: "Voice",
   voiceWake: "Wake by voice",
   voiceWakeHelp: "Say “{phrase}” and {name} answers, even with the app closed or the phone locked",
+  voiceGreetingPreparing: "Getting the greeting ready in the new voice…",
   voiceWakeOff: "Waking by voice needs this phone to be paired with a computer that has APX's voice",
   voicePhrases: "Phrases that wake it",
   voicePhrasesHelp: "Separated by commas. Empty: the usual ones",

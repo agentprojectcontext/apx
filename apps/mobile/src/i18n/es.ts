@@ -426,6 +426,7 @@ export const es: Record<Key, string> = {
   setVoice: "Voz",
   voiceWake: "Despertar por voz",
   voiceWakeHelp: "Decí «{phrase}» y {name} te contesta, aunque la app esté cerrada o el teléfono bloqueado",
+  voiceGreetingPreparing: "Preparando el saludo con la voz nueva…",
   voiceWakeOff: "Para despertarlo por voz, este teléfono tiene que estar conectado a una computadora con la voz de APX",
   voicePhrases: "Frases que lo despiertan",
   voicePhrasesHelp: "Separadas por comas. Vacío: las de siempre",

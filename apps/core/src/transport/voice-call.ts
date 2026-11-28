@@ -20,6 +20,9 @@ const BOTH = new Set(["partial"]);
  * single-use ticket comes from the human-only `calls.start`; what the call says is written to its thread by `calls`,
  * which also runs the model the call talks with.
  */
+/** What a greeted call keeps while the voice loads: 30 s of 16 kHz PCM16. */
+const EARLY_MAX = 30 * 16_000 * 2;
+
 export function attachVoiceCall(
   server: Server,
   deps: {
@@ -79,7 +82,10 @@ export function attachVoiceCall(
       : undefined;
     let ended = false;
     // What the owner says before the voice answers (while it loads) is never heard: the call begins with its greeting.
+    // A device that already played the greeting goes on talking, so that is kept and heard once the voice is up.
     let answered = false;
+    const early: Buffer[] = [];
+    let earlyBytes = 0;
     const end = (reason: string) => {
       if (ended) return;
       ended = true;
@@ -95,6 +101,11 @@ export function attachVoiceCall(
     panel.on("message", (data, binary) => {
       if (binary) {
         if (answered && engine?.readyState === engine?.OPEN) engine?.send(data, { binary: true });
+        else if (!answered && call.setup.greeted && earlyBytes < EARLY_MAX) {
+          const b = Array.isArray(data) ? Buffer.concat(data) : Buffer.isBuffer(data) ? data : Buffer.from(data);
+          early.push(b);
+          earlyBytes += b.length;
+        }
         return;
       }
       try {
@@ -129,7 +140,10 @@ export function attachVoiceCall(
       }
       const frame = CallFrame.safeParse(e);
       if (!frame.success) return;
-      if (frame.data.type === "ready") answered = true;
+      if (frame.data.type === "ready") {
+        answered = true;
+        for (const b of early.splice(0)) engine?.send(b, { binary: true });
+      }
       if (frame.data.type === "end") end(frame.data.reason);
       else tell(frame.data);
     };

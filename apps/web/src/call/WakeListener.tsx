@@ -3,6 +3,7 @@ import { callScene, calls, openCall, useCalls } from "../data/calls.ts";
 import { client } from "../data/client.ts";
 import { upWorklet } from "./callLine.ts";
 import { loadCallStatus } from "./callStatus.ts";
+import { echoUntil, type GreetingAnswer, type HeldGreeting, nextGreeting } from "./greeting.ts";
 import { stopWake } from "./wakeSwitch.ts";
 import { base64, createSegmenter, encodeWav, FRAME_SAMPLES, worthChecking } from "./wakeVad.ts";
 
@@ -19,6 +20,25 @@ export function WakeListener() {
   return null;
 }
 
+/** The greeting held while this computer listens; in memory only, kept across calls so only its key is asked again. */
+let held: HeldGreeting | undefined;
+
+/** Plays the held greeting on the listener's own audio (running, since it just heard the name): when the mic may send. */
+function playGreeting(ctx: AudioContext, greeting: HeldGreeting): number | undefined {
+  try {
+    const buffer = ctx.createBuffer(1, greeting.samples.length, greeting.rate);
+    buffer.copyToChannel(greeting.samples, 0);
+    const node = ctx.createBufferSource();
+    node.buffer = buffer;
+    node.connect(ctx.destination);
+    node.onended = () => void ctx.close().catch(() => undefined);
+    node.start();
+    return echoUntil(Date.now(), buffer.duration);
+  } catch {
+    return undefined;
+  }
+}
+
 function listen(): () => void {
   let stopped = false;
   let mic: MediaStream | undefined;
@@ -27,17 +47,30 @@ function listen(): () => void {
   let checking = false;
   let lastCheck: number | undefined;
   const segmenter = createSegmenter();
+  let asking: ReturnType<typeof setTimeout> | undefined;
+
+  // The greeting, asked for now and checked again every few minutes while this computer listens.
+  const askGreeting = async () => {
+    const answer: GreetingAnswer | undefined = await client
+      .call("voice.greeting", { mode: "quick", ...(held ? { have: held.key } : {}) })
+      .catch(() => undefined);
+    const next = nextGreeting(held, answer);
+    held = next.held;
+    if (!stopped) asking = setTimeout(() => void askGreeting(), next.askIn);
+  };
 
   // Without a click since the page loaded, the audio waits for the next one.
   const wakeAudio = () => void ctx?.resume().catch(() => undefined);
-  const stop = () => {
+  // `greeting`: the audio stays open until the greeting ends, and closes then.
+  const stop = (greeting = false) => {
     if (stopped) return;
     stopped = true;
+    clearTimeout(asking);
     window.removeEventListener("pointerdown", wakeAudio);
     window.removeEventListener("keydown", wakeAudio);
     if (node) node.port.onmessage = null;
     for (const track of mic?.getTracks() ?? []) track.stop();
-    void ctx?.close().catch(() => undefined);
+    if (!greeting) void ctx?.close().catch(() => undefined);
   };
 
   const check = async (clip: Int16Array) => {
@@ -48,8 +81,9 @@ function listen(): () => void {
     try {
       const heard = await client.call("voice.wake", { data: base64(encodeWav(clip)), mime: "audio/wav" });
       if (heard.awake && !stopped && callScene(calls.get()) === "quiet") {
-        stop();
-        openCall({ mode: "quick" });
+        const greetedUntil = ctx && held ? playGreeting(ctx, held) : undefined;
+        stop(greetedUntil !== undefined);
+        openCall({ mode: "quick", greetedUntil });
       }
     } catch (err) {
       if ((err as { code?: string }).code === "unavailable") {
@@ -61,6 +95,7 @@ function listen(): () => void {
     }
   };
 
+  void askGreeting();
   void (async () => {
     try {
       mic = await navigator.mediaDevices.getUserMedia({

@@ -129,15 +129,12 @@ QUICK = """
 - Otherwise, once you answered or started the task, end your reply with [[end]]: the call hangs up after your line, and the task goes on behind you.
 - When {owner} adds something else, handle it the same way.
 """
-QUICK_GREETING = {"es-AR": "¿Sí{owner}?", "es": "¿Sí{owner}?", "en": "Yes{owner}?"}
 QUICK_BYE = {"es": "Dale, chau.", "en": "Okay, bye."}
 QUICK_IDLE_S = 9  # a quick request nobody follows up hangs up on its own
 QUICK_WAIT_S = 25  # a question asked by name waits this long for its answer to be told before hanging up
 # A quick request that asks something ("¿qué tengo hoy?") waits for the answer; one that asks for an action does not.
 QUESTION = re.compile(r"(\?|^\W*(qu[eé]|cu[aá]l|cu[aá]ndo|c[oó]mo|d[oó]nde|qui[eé]n|cu[aá]nt[oa]s?|hay|ten[eé]s|tengo|"
                       r"sab[eé]s|what|when|how|where|who|which|is|are|do|does|did|can)\b)", re.I)
-GREETING = {"es-AR": "Hola{owner}, ¿en qué te ayudo?", "es": "Hola{owner}, ¿en qué te puedo ayudar?",
-            "en": "Hi{owner}, what can I do for you?"}
 ACCENT = {
     "es-AR": 'In Spanish use Argentine Spanish with voseo ("querés", "decime", "fijate").',
     "es": 'In Spanish use neutral Latin American Spanish with "tú" ("quieres", "dime", "fíjate"), no regional slang.',
@@ -284,19 +281,15 @@ def call_style(q):
     return locale, lang, ("en" if lang == "en" else locale)
 
 
-def greeting_line(style, owner, quick=False):
-    if quick:
-        return QUICK_GREETING[style].format(owner=f", {owner}" if owner else "")
-    return GREETING[style].format(owner=f" {owner}" if owner else "")
-
-
 def greeting_audio(q):
-    """The greeting, spoken in the call's voice before the call is answered."""
-    locale, lang, style = call_style(q)
+    """The greeting (its words come from the core), spoken in the call's voice before the call is answered. None when
+    the device already played it: the call listens at once."""
+    if q.get("greeted") == "1" or not q.get("greeting"):
+        return []
+    locale, lang, _ = call_style(q)
     voice = speech.voice(f"{locale}-{'male' if q.get('voice') == 'male' else 'female'}")
     out = []
-    line = greeting_line(style, q.get("owner", ""), q.get("mode") == "quick")
-    speech.mouth.speak(line, lang, voice, out.append, threading.Event()).result()
+    speech.mouth.speak(q["greeting"], lang, voice, out.append, threading.Event()).result()
     return out
 
 
@@ -310,6 +303,7 @@ class Call:
         self.vad = speech.vad.stream()
         owner = self.owner or "the owner"
         self.quick = q.get("mode") == "quick"
+        self.greeting, self.greeted = q.get("greeting") or "", q.get("greeted") == "1"
         self.system = {"role": "system", "content": PROMPT.format(
             name=self.name, owner=owner, accent=ACCENT[self.style],
             who=q.get("who") or f"{owner}'s personal assistant in APX",
@@ -466,8 +460,12 @@ class Call:
             q.put_nowait(("end", f.get("error") or "") if f["type"] == "thought_end" else ("text", f.get("text", "")))
 
     async def greet(self, audio):
-        line = greeting_line(self.style, self.owner, self.quick)
-        self.history.append({"role": "assistant", "content": line})
+        line = self.greeting
+        if line:
+            self.history.append({"role": "assistant", "content": line})
+        if self.greeted or not line or not audio:  # the device said it already: what was said meanwhile is heard next
+            await self.send({"type": "state", "state": "listening"})
+            return
         await self.send({"type": "state", "state": "speaking"})
         await self.say(line, audio)  # made while the call loaded: it plays as soon as the call is answered
         self.turn_end()
