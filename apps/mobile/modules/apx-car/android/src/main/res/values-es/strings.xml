@@ -40,7 +40,8 @@
     <string name="apx_car_held_skip">No en este viaje</string>
     <string name="apx_car_held_later">Más tarde</string>
     <string name="apx_car_errand_navigate">Navegar</string>
-    <string name="apx_car_errand_done">Ya la hice</string>
+    <string name="apx_car_errand_done">Ya lo hice</string>
+    <string name="apx_car_errand_no_place">Todavía no hay un lugar cerca</string>
     <string name="apx_car_errand_skip">No en este viaje</string>
 
     <string name="apx_car_me">Vos</string>

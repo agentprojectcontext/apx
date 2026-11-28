@@ -42,6 +42,7 @@
     <string name="apx_car_held_later">Later</string>
     <string name="apx_car_errand_navigate">Navigate</string>
     <string name="apx_car_errand_done">Already done</string>
+    <string name="apx_car_errand_no_place">No place nearby yet</string>
     <string name="apx_car_errand_skip">Not this trip</string>
 
     <string name="apx_car_me">You</string>
