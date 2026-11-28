@@ -459,8 +459,10 @@ export const CatalogEntry = z.object(
     /** As the index copies them from its listing, to show it before its package is read. */
     tagline: () => z.string().optional(),
     category: () => ExtensionCategory.optional(),
-    /** The index's icon for it (an https address), shown before its package is read. */
+    /** The index's avatar (an https address); preferred over the package icon for official entries. */
     icon_url: () => z.string().optional(),
+    /** The provider of a direct official MCP, asserted only by APX's official catalog. */
+    mcp_provider: () => z.string().optional(),
     version: () => z.string(),
     /** When the catalog published this version (ISO date), to show what is new. */
     published_at: () => z.string().optional(),

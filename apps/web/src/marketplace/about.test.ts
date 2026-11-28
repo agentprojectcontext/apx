@@ -2,6 +2,29 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { CatalogEntry, ExtensionInfo } from "@apx/protocol";
 import { aboutEntry, aboutExtension, connectText, originOf, refusalOf, toolsLine } from "./about.ts";
+import { iconFiles, officialMcpProvider } from "./brand.ts";
+
+test("the connect box does not credit a third-party replacement as the original provider", () => {
+  const entry: CatalogEntry = {
+    id: "billing",
+    name: "Northwind Billing",
+    description: "",
+    categories: [],
+    version: "1.0.0",
+    provenance: "official",
+    publisher: "APX",
+    mcp_provider: "Northwind",
+    icon_url: "https://example.com/avatar.png",
+  };
+  const opts = { label: "official" as const, look: { entry } };
+  const verified = aboutExtension(ext(), "en", opts);
+  assert.equal(officialMcpProvider(verified), "Northwind");
+  assert.equal(iconFiles(verified).file, "@icon");
+  const replaced = aboutExtension(ext({ provenance: "third_party" }), "en", opts);
+  assert.equal(officialMcpProvider(replaced), undefined);
+  assert.equal(iconFiles(replaced).file, undefined);
+  assert.equal(replaced.publisher, undefined);
+});
 
 // The key with its values, so a test reads what the add box would say without the dictionaries.
 const t = (key: string, vars?: Record<string, string | number>) =>

@@ -2,6 +2,7 @@ import { Button, CatalogRow, Icons } from "@apx/ui";
 import type { ReactNode } from "react";
 import { type MessageKey, useLanguage, useT } from "../i18n/index.ts";
 import type { Item } from "../resources/extensionItems.ts";
+import { officialMcpProvider } from "./brand.ts";
 import { type Count, countsOf } from "./brings.ts";
 import { ItemIcon } from "./ConnectHead.tsx";
 import { ItemLabel } from "./ItemLabel.tsx";
@@ -56,7 +57,8 @@ export function ItemRow({ item: i, line, onOpen }: { item: Item; line?: string |
       label: t(n === undefined ? c.some : n === 1 ? c.one : c.many, { n: n ?? 0 }),
     };
   });
-  const meta = [kindText(i, t), fromText(i, t)].filter(Boolean).join(" · ");
+  const provider = officialMcpProvider(i);
+  const meta = provider ? t("mkt.provider", { name: provider }) : [kindText(i, t), fromText(i, t)].join(" · ");
   const mine = i.state !== "available" && i.state !== "coming";
   const connects = Boolean(i.origin === "included" || i.integration || i.channel);
   return (

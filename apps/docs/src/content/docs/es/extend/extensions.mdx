@@ -339,6 +339,19 @@ publica APX. APX pide el catálogo solo cuando revisás o instalás una extensi�
 cuando no lo alcanza; sin copia, el diálogo avisa que no pudo saberlo. Otra dirección del catálogo se configura con
 `APX_MARKETPLACE_INDEX` ([Configuración](/es/reference/configuration/)).
 
+Para un MCP oficial directo, el índice oficial puede indicar `mcp_provider` con el nombre visible del proveedor del
+servicio. La ficha dice entonces “MCP de {name} · publicado por APX”: el proveedor y quien publica el paquete son
+cosas distintas. Los catálogos agregados no pueden usar esta atribución. El enlace al sitio web sigue llevando al
+sitio oficial del servicio.
+
+El `icon` del índice de una entrada oficial es su avatar del Marketplace, separado del `icon` de la ficha del paquete.
+APX prefiere ese avatar en el catálogo, el detalle y la conexión, también para un paquete instalado que coincida y sea
+oficial. Si el avatar de un MCP directo del proveedor falta o no carga, muestra una pieza de rompecabezas neutra.
+Los demás paquetes pueden usar su propio ícono; si no tienen una imagen que se pueda mostrar, aparece la misma pieza.
+Las imágenes las descarga el core, no el panel desde
+un servidor externo. Al reemplazar una imagen, usá una URL inmutable basada en su huella: la caché de imágenes usa la
+URL como clave; cambiar solo los bytes en la misma dirección no invalida una copia guardada.
+
 ### Tus propios catálogos
 
 Las ramas de un catálogo de GitHub son fuentes separadas. Un catálogo de rama agregado antes de que APX registrara
