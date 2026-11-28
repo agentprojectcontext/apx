@@ -54,6 +54,7 @@ import type { enWidgetChat } from "./widget-chat-en.ts";
 export const en = {
   "input.reviewCopy": "Review public copy",
   "config.activityReview": "Activity review",
+  "config.car": "In the car",
   "config.discovery": "Research",
   "panel.computer": "Computer",
   "panel.computer.hint": "See the agent's Linux computer",
@@ -2047,6 +2048,7 @@ export type MessageKey =
   | keyof typeof enAccount
   | keyof typeof enGroup
   | keyof typeof enActivityReview
+  | keyof typeof import("./car-en.ts").enCar
   | keyof typeof enAutoDecisions
   | keyof typeof enDiscovery
   | keyof typeof noticeEn

@@ -94,6 +94,8 @@ export const callTool = (id: string, name: string, args: object): { message: Ass
 
 type StartCoreOptions = {
   token?: string;
+  /** Errands' place search; a fake so no test reaches OpenStreetMap. */
+  carPlaces?: CoreOptions["carPlaces"];
   /** The new super-agent's mode, as a fresh install sets it (default: none, the project's). */
   superAgentAutonomy?: Autonomy;
   computer?: ComputerConfig;
@@ -198,6 +200,7 @@ export async function startCore(opts: StartCoreOptions) {
           }
         : {}),
       ...(opts.asanaFetch ? { asanaFetch: opts.asanaFetch } : {}),
+      ...(opts.carPlaces ? { carPlaces: opts.carPlaces } : {}),
       ...(opts.publicArtifactFetch ? { publicArtifactFetch: opts.publicArtifactFetch } : {}),
       ...(opts.extensionFetch ? { extensionFetch: opts.extensionFetch } : {}),
       integrationFetch: opts.integrationFetch ?? (async () => new Response("{}", { status: 200 })),

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Car mode. Read aloud by the car's assistant: no emoji, plain words. -->
+<resources>
+    <string name="apx_car_listener_label">APX car mode</string>
+
+    <string name="apx_car_trip_channel">Trip in progress</string>
+    <string name="apx_car_trip_channel_description">Shown while APX follows a trip to tell you about errands on the way.</string>
+    <string name="apx_car_trip_title">APX is watching for your errands</string>
+    <string name="apx_car_trip_text">You will hear when you pass near something on your list.</string>
+    <string name="apx_car_trip_text_destination">On the way to %1$s. You will hear about errands nearby.</string>
+
+    <string name="apx_car_alerts_channel">Errands on the way</string>
+    <string name="apx_car_alerts_channel_description">A place for one of your errands is near, with what you can answer.</string>
+
+    <string name="apx_car_action_navigate">Go now</string>
+    <string name="apx_car_action_add_stop">Add as a stop</string>
+    <string name="apx_car_action_next">Another place</string>
+    <string name="apx_car_action_later">Later</string>
+    <string name="apx_car_action_skip">Not now</string>
+    <string name="apx_car_action_silence">No more this trip</string>
+    <string name="apx_car_action_done">Already done</string>
+
+    <string name="apx_car_ack_navigate">Opening the route</string>
+    <string name="apx_car_ack_next">Looking for another place</string>
+    <string name="apx_car_ack_later">I will remind you later</string>
+    <string name="apx_car_ack_skip">Left for another trip</string>
+    <string name="apx_car_ack_silence">No more alerts this trip</string>
+    <string name="apx_car_ack_done">Marked as done</string>
+    <string name="apx_car_ack_failed">APX did not get that. Try again on the phone.</string>
+
+    <string name="apx_car_screen_title">Errands on the way</string>
+    <string name="apx_car_loading">Loading</string>
+    <string name="apx_car_no_errands">No open errands</string>
+    <string name="apx_car_off">Car mode is off. Turn it on in APX on your phone.</string>
+    <string name="apx_car_unreachable">APX did not answer. Showing what this phone knows.</string>
+    <string name="apx_car_talk">Talk to %1$s</string>
+    <string name="apx_car_talk_hint">Answer the APX message by voice</string>
+    <string name="apx_car_talk_prompt">What should I tell %1$s? Reply to this message.</string>
+    <string name="apx_car_alert_gone">You already answered this one</string>
+    <string name="apx_car_navigate_failed">Could not open the route</string>
+    <string name="apx_car_held_skip">Not this trip</string>
+    <string name="apx_car_held_later">Later</string>
+    <string name="apx_car_errand_navigate">Navigate</string>
+    <string name="apx_car_errand_done">Already done</string>
+    <string name="apx_car_errand_skip">Not this trip</string>
+
+    <string name="apx_car_me">You</string>
+    <string name="apx_car_reply">Reply</string>
+    <string name="apx_car_reply_label">Reply to APX</string>
+    <string name="apx_car_mark_read">Mark as read</string>
+    <string name="apx_car_agent_waiting">%1$s is still working on it. The answer will be in the chat.</string>
+    <string name="apx_car_agent_failed">Your message did not reach %1$s. Try again in a moment.</string>
+
+    <string name="apx_car_error_offline">Your APX server did not answer</string>
+    <string name="apx_car_error_unpaired">This phone is no longer paired with APX</string>
+    <string name="apx_car_error_other">APX could not save the trip</string>
+    <string name="apx_car_error_location">APX cannot use your location</string>
+    <string name="apx_car_error_background">Open APX to follow this trip</string>
+</resources>

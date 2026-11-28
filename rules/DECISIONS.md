@@ -6675,3 +6675,31 @@ on an agent's tab without taking it over (the desktop app needs the takeover to 
 *Amends [D-281](#d-281), [D-165](#d-165).*
 
 Docs impact: updated concepts/autonomy in English and Spanish and rules/SUPER_AGENT_POWERS.md.
+
+<a id="d-284"></a>
+## D-284 — 2026-11-27 — Errands on the way are part of APX, off by default, and learn the owner's places
+
+v1's APK knew when the owner drove (Android Auto, Maps), sent the phone's position to the daemon, and offered a shop
+for an errand when one was near, with answers on the car. v2 had the `errand` task kind and nothing behind it. The
+owner wants it back, finished: categories that tell a supermarket errand from a stationery one, the best place by every
+signal the free sources give, answers on the car, and the places they use remembered as places, not as memory text.
+
+- Native, not an extension: it needs code in the APK (car detection, a location service, the Android Auto screens) and
+  tables and methods in the core, which an extension cannot bring. The `car` setting is off by default; until the owner
+  turns it on the phone runs no listener or service and the core offers nothing. A core on a server works the same:
+  the phone reaches it with its paired key over `/rpc`, without the app open and without the node link.
+- An errand gains `place` (closed `ErrandCategory` list, brand, or one fixed point). The agent that writes the errand
+  categorises it; a keyword fallback covers errands without one.
+- Place search is OpenStreetMap through Overpass by default (keyless, cached 7 days, ODbL); the owner may add a Google
+  Places key for open-now, ratings and coverage, stored as a secret, with only place ids kept (Google's terms).
+- One offer per position, one-shot per trip and errand (v1's per-place key flooded a town), answers: navigate, add as
+  a stop, another place, later, not this trip, no more this trip, done.
+- Answers are counted per place (`car_place_prefs`) and rank the owner's places first; the owner can prefer, avoid or
+  forget one in the panel.
+- Android Auto shows only messaging notifications with reply and mark-as-read, so the offer goes both to the APX car
+  app (template screens with every answer) and as a message in an "APX" conversation answered by voice, which is also
+  how the owner talks to the super-agent in the car.
+
+Design and v1 lessons: [ERRANDS_ON_THE_WAY.md](ERRANDS_ON_THE_WAY.md).
+
+Docs impact: updated guides for errands on the way and the phone in English and Spanish.

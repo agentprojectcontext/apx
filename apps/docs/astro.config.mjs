@@ -111,6 +111,7 @@ export default defineConfig({
           items: [
             "docs/office/chat",
             "docs/office/tasks",
+            "docs/office/errands-on-the-way",
             "docs/office/routines",
             "docs/office/secretary",
             "docs/office/contextual-research",

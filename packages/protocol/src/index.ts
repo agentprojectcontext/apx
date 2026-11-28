@@ -8,6 +8,7 @@ export * from "./asana-methods.ts";
 export * from "./auto-decisions.ts";
 export * from "./browser.ts";
 export * from "./call-methods.ts";
+export * from "./car.ts";
 export * from "./chrome.ts";
 export * from "./composer-methods.ts";
 export * from "./constants.ts";

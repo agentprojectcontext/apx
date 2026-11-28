@@ -6,6 +6,7 @@
 // subtask; an agent answering another one gives nobody work (DECISIONS.md#d-079), unless it works for the owner.
 import { type Author, SUPER_AGENT_ID, type Task, type TaskAsked } from "@apx/protocol";
 import { planSteps } from "@apx/protocol/task-plan";
+import { errandPlace } from "../car/errands.ts";
 import { ownerAgentOf } from "../domain/owner-work.ts";
 import { worksIn } from "../domain/projects.ts";
 import { publicRun } from "../domain/runs.ts";
@@ -328,6 +329,7 @@ export function taskHandlers(
           asked: ownerWords(ctx),
           proposed,
           kind: p.kind,
+          place: p.kind === "errand" ? errandPlace(p.place, p.title, p.description) : p.place,
           priority: p.priority,
           tags: tagsOf(p.tags),
           person_id: person,

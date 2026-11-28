@@ -1,5 +1,6 @@
 // Methods behind the office: tasks and commitments, routines and the attention tray (extensions: extension-methods.ts).
 import { z } from "zod";
+import { ErrandPlace } from "./car.ts";
 import { deferMethod } from "./defer-method.ts";
 import { Id, Message, Nudge, Run, Thread } from "./domain.ts";
 import {
@@ -140,6 +141,8 @@ export const officeMethods = {
           status: z.string().max(40).optional(),
           parent: Id.optional(),
           kind: TaskKind.optional(),
+          /** An errand's place: the kinds of shop, a brand or one fixed place. */
+          place: ErrandPlace.optional(),
           priority: TaskPriority.optional(),
           tags: z.array(TaskTag).max(12).optional(),
           due_at: z.string().max(40).optional(),
@@ -173,6 +176,8 @@ export const officeMethods = {
           /** Regroup existing work without starting it again; null detaches it. */
           parent: Id.nullable().optional(),
           kind: TaskKind.optional(),
+          /** null clears it. */
+          place: ErrandPlace.nullable().optional(),
           priority: TaskPriority.optional(),
           tags: z.array(TaskTag).max(12).optional(),
           due_at: z.string().max(40).nullable().optional(),

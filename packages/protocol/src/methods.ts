@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { accountMethods } from "./account.ts";
 import { activityReviewMethods } from "./activity-review.ts";
+import { carMethods } from "./car.ts";
 import { agentMigrationMethods } from "./agent-migration.ts";
 import { appMethods } from "./app-methods.ts";
 import { artifactMethods } from "./artifact-methods.ts";
@@ -156,6 +157,7 @@ export const methods = {
   ...activityReviewMethods,
   ...autoDecisionMethods,
   ...discoveryMethods,
+  ...carMethods,
   ...agentMigrationMethods,
   ...instanceMethods,
   ...engineUsageMethods,

@@ -1,6 +1,7 @@
-import type { Task, TaskKind, TaskPriority } from "@apx/protocol";
+import type { ErrandPlace, Task, TaskKind, TaskPriority } from "@apx/protocol";
 import { Button, Dialog, Field, Help, Input, TagInput, Textarea } from "@apx/ui";
 import { useState } from "react";
+import { ErrandPlaceField } from "../car/ErrandPlaceField.tsx";
 import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
 import { ProjectSelect } from "../common/pickers/ProjectSelect.tsx";
 import { columnLabel } from "../common/taskStatus.ts";
@@ -84,6 +85,7 @@ export function NewTask({ projectId, onClose }: { projectId?: string | undefined
   const [customRemind, setCustomRemind] = useState<string>();
   const [priority, setPriority] = useState<TaskPriority>("normal");
   const [tags, setTags] = useState<string[]>([]);
+  const [place, setPlace] = useState<ErrandPlace>();
   const { attachments, change: setAttachments, consumed } = useDraftAttachments();
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -109,6 +111,7 @@ export function NewTask({ projectId, onClose }: { projectId?: string | undefined
       ...(project ? { project } : {}),
       ...(assignee ? { assignee } : {}),
       ...(kind === "commitment" && person ? { person, owed_by: owedBy } : {}),
+      ...(kind === "errand" && place ? { place } : {}),
       ...(due ? { due_at: due } : {}),
       ...(remind ? { remind_at: remind } : {}),
       ...(tags.length ? { tags } : {}),
@@ -173,6 +176,11 @@ export function NewTask({ projectId, onClose }: { projectId?: string | undefined
               <OwedByControl value={owedBy} onChange={setOwedBy} />
             </Field>
           </div>
+        )}
+        {kind === "errand" && (
+          <Field label={t("tasks.errandWhere")} hint={t("tasks.errandWhereHint")}>
+            <ErrandPlaceField value={place} onChange={setPlace} />
+          </Field>
         )}
         <div className="taskform__row">
           {global && (

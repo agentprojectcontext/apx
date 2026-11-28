@@ -3,6 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, BackHandler, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChatScreen } from "./ChatScreen";
+import { useCarNative, useCarSync, useCarTrip } from "./car/hooks";
+import { tripSummary } from "./car/model";
 import { isNewChat, newChatThread } from "./chat/newChat";
 import type { Creds } from "./creds";
 import { inboxThreads } from "./hooks/chatSelectors";
@@ -15,6 +17,7 @@ import { t } from "./i18n";
 import { setViewingThread } from "./notifications";
 import { AboutPage } from "./pages/AboutPage";
 import { ArchivedChatsPage } from "./pages/ArchivedChatsPage";
+import { CarModePage } from "./pages/CarModePage";
 import { ChatsPage } from "./pages/ChatsPage";
 import { FilesPage } from "./pages/FilesPage";
 import { InboxPage } from "./pages/InboxPage";
@@ -31,6 +34,7 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { SharedFilesPage } from "./pages/SharedFilesPage";
 import { TaskDetailPage } from "./pages/TaskDetailPage";
 import { TasksPage } from "./pages/TasksPage";
+import { TripPage } from "./pages/TripPage";
 import { SurfacesScreen } from "./SurfacesScreen";
 import { TaskMenu } from "./tasks/TaskMenu";
 import { ChatMenu } from "./ui/ChatMenu";
@@ -61,6 +65,8 @@ type Page =
   | { kind: "task"; id: string }
   | { kind: "newTask" }
   | { kind: "newProject" }
+  | { kind: "car" }
+  | { kind: "trip" }
   | { kind: "more"; id: Exclude<MoreId, "apps"> };
 
 export function WorkspaceScreen({
@@ -94,6 +100,12 @@ export function WorkspaceScreen({
     void connection.check();
   };
   const inbox = useMemo(() => inboxItems(workspace.data), [workspace.data]);
+  // Car mode: the native side is told the core and key; the trip's banner and page follow the core's trip.
+  const superAgent = workspace.data.agents.find((agent) => agent.kind === "secretary")?.name;
+  useCarSync(creds, superAgent);
+  const car = useCarNative();
+  const trip = useCarTrip(workspace.call, workspace.listen, car.status?.trip?.id);
+  const tripNow = tripSummary(trip.view, car.status);
   useNotifications(creds);
   const [tab, setTab] = useState<Tab>("chats");
   /** Tabs opened once stay mounted, so each keeps its scroll and state while another is shown. */
@@ -274,6 +286,10 @@ export function WorkspaceScreen({
             openThread={openById}
           />
         );
+      case "car":
+        return <CarModePage creds={creds} call={workspace.call} back={back} />;
+      case "trip":
+        return <TripPage view={trip.view} answer={trip.answer} back={back} />;
       case "newProject":
         return (
           <NewProjectPage
@@ -319,6 +335,7 @@ export function WorkspaceScreen({
                 disconnect={onUnpair}
                 load={workspace.noticePrefs}
                 save={workspace.setNoticePrefs}
+                openCar={() => push({ kind: "car" })}
               />
             );
           default:
@@ -389,6 +406,7 @@ export function WorkspaceScreen({
             open={(item) => on.push({ kind: "task", id: item.id })}
             create={() => on.push({ kind: "newTask" })}
             openThread={on.openById}
+            {...(tripNow.active ? { trip: { waiting: tripNow.waiting, open: () => on.push({ kind: "trip" }) } } : {})}
           />
         );
       case "sessions":
@@ -424,7 +442,19 @@ export function WorkspaceScreen({
         ))}
       </View>
     ),
-    [tab, visited, workspace.data, workspace.online, inbox, chatFilter, taskActions, host, s],
+    [
+      tab,
+      visited,
+      workspace.data,
+      workspace.online,
+      inbox,
+      chatFilter,
+      taskActions,
+      host,
+      s,
+      tripNow.active,
+      tripNow.waiting,
+    ],
   );
   if (workspace.loading && workspace.data.threads.length === 0)
     return (

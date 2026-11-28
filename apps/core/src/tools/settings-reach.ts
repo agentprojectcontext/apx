@@ -119,6 +119,12 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "devices.pair_start": MACHINE,
   "devices.pair_cancel": MACHINE,
   "devices.revoke": MACHINE,
+  // Errands on the way (DECISIONS.md#d-284): what the phone in car mode reports, and the owner's answers on the car.
+  "car.trip_start": "the phone in car mode says when the owner drives",
+  "car.position": "the phone in car mode says where the owner is",
+  "car.trip_end": "the phone in car mode says when the drive ended",
+  "car.answer": AS_OWNER,
+  "car.errand": AS_OWNER,
   "environments.configure": MACHINE,
   "environments.stop": MACHINE,
   "browser.control": MACHINE,

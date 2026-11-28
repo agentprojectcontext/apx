@@ -8,6 +8,8 @@ import { enApprovals } from "./approvals-en.ts";
 import { esApprovals } from "./approvals-es.ts";
 import { enCall } from "./call-en.ts";
 import { esCall } from "./call-es.ts";
+import { enCar } from "./car-en.ts";
+import { esCar } from "./car-es.ts";
 import { enCards } from "./cards-en.ts";
 import { esCards } from "./cards-es.ts";
 import { enCloudAccount } from "./cloud-account-en.ts";
@@ -238,6 +240,7 @@ const en = {
   ...enTelemetrySettings,
   ...enCloudAccount,
   ...enActivityReview,
+  ...enCar,
   ...enApprovals,
   ...enCall,
   ...enComputer,
@@ -261,6 +264,7 @@ const es = {
   ...esTelemetrySettings,
   ...esCloudAccount,
   ...esActivityReview,
+  ...esCar,
   ...esApprovals,
   ...esCall,
   ...esComputer,
