@@ -20,7 +20,7 @@ import { ThreadAvatar } from "../inbox/ThreadAvatar.tsx";
 import { PinMark } from "../inbox/ThreadRow.tsx";
 import { threadMenu } from "../inbox/threadActions.tsx";
 import { useThreadChannel } from "../inbox/useThreadChannel.ts";
-import { CallAgain, CallButton, ChannelFace, GroupPart, TaskCrumb, TaskStateButton } from "../lazy.ts";
+import { CallAgain, CallButton, CallVoiceTag, ChannelFace, GroupPart, TaskCrumb, TaskStateButton } from "../lazy.ts";
 import { PanelSwitcher } from "../panel/PanelSwitcher.tsx";
 import { go, useNav } from "../shell/nav.ts";
 import { toggleGroupCard, toggleRoomCard, useGroupCard, useRoomCard } from "./roomCard.ts";
@@ -159,6 +159,11 @@ export function ChatHeader({
                       : agent.name}
               </button>
             </Tooltip>
+          )}
+          {thread.call && (
+            <Suspense fallback={null}>
+              <CallVoiceTag thread={thread} />
+            </Suspense>
           )}
           {engine && <span>{t("chat.headerEngine", { engine })}</span>}
           {engine && agent && thread.parent_id && <StartedBy agent={agent} from={thread.parent_id} />}

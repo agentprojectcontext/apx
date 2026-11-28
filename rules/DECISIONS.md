@@ -6701,3 +6701,47 @@ capabilities.
 
 Docs impact: none. devices/phone (English and Spanish) already describes the phone lending location and camera; this
 makes it true.
+
+<a id="d-285"></a>
+## D-285 — 2026-11-27 — Wake by voice: the phone listens by loudness, the core checks the name
+
+The owner wanted to ask their super-agent for something hands-free, as with a home assistant: say its name and ask,
+with the phone locked or the app closed. An old tablet already did this for another project (loudness detection on the
+device, transcription on the server) and proved it. APX takes that approach.
+
+- **The phone detects, the core decides.** The Android app listens in the background with a persistent notification and
+  sends only short clips (0.6–2.5 s) when it hears loud speech; nothing is kept. The core transcribes each clip with its
+  own transcription engine (APX's voice or whisper.cpp) and checks it against the wake phrases, in `voice.wake
+  {data, mime} → {awake, text}`. The check is in the core, not the app (rule 3): phrases are one setting for every device
+  (`voice.set` gains `wake_words`; empty means ok, che or hey plus the super-agent's name), and a new phrase needs no new
+  app. The desktop may listen too, with a per-computer switch.
+- **Native audio on the phone.** It has to run with the app closed, so the capture is a native foreground service, not
+  the web view.
+- **A quick call.** `calls.start` gains `mode: "call" | "quick"`. A quick request greets with a short "¿Sí?", answers in
+  one sentence and hangs up on its own unless it must ask. Any call also ends when the owner says "cortá", "listo, nada
+  más", "eso es todo" (or "hang up", "that's all"), or when the voice ends it. `CallStatus` gains `live_device` and
+  `live_mode`, and the call's thread records `call {mode, device?}`, so the chat shows "Pedido por voz · desde <phone>"
+  and the panel shows a live-call bar with Hang up when the call is on the phone. The call's voice, model and engine stay
+  on the core; the phone only carries audio.
+- **A ticket opens native sockets.** The `/voice-call` socket accepts clients with no `Origin` header (the native app)
+  when they present the single-use ticket from `calls.start`; browsers still have to come from the panel's origins. The
+  ticket, not the origin, is the key (D-139's listener is unchanged).
+- The phone pops over other apps with the display-over-other-apps permission; some phones' battery optimization may stop
+  listening, and the docs say so.
+- **Hanging up does not wait on the model.** A small model often forgets the `[[end]]` tag, so a quick request hangs up
+  once the voice answered with anything but a question. When the owner asked something ("¿qué tengo hoy?") and a task
+  started, it waits up to 25 s for the answer to be said; nobody speaking for 9 s also ends it.
+- **The clip is heard in the owner's language.** Whisper cannot tell the language of two words and wrote "che Roby" in
+  English; the call's locale is passed. The call word and the name may come glued ("cherobi").
+- **The ears stay warm.** The engine unloads after 10 minutes unused, and a cold one takes about 12 s, so the first name
+  after a quiet hour would go unanswered: while it listens, the phone sends half a second of silence every 7 minutes.
+
+Rejected:
+- An always-on recognizer on the device (Android SpeechRecognizer): it is not continuous and beeps at each restart.
+- A third-party wake-word engine: keys, licences and weight in the app, and a fixed phrase instead of the agent's name.
+- Streaming all audio to the core: battery, bandwidth and the owner's privacy; loudness detection keeps silence on the
+  phone.
+
+*Builds on [D-227](#d-227).*
+
+Docs impact: updated office/calls and devices/phone in English and Spanish, apps/mobile/README.md; news entry voice-wake.

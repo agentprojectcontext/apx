@@ -40,6 +40,20 @@ const BLOBS: Record<string, number> = {
   carbon: require("../../../../../packages/ui/src/blobs/bodies/carbon.webp"),
 };
 
+/** The blob an agent wears (its own, or one picked from its id), for a screen drawn outside React (the voice's). */
+export function agentBlob(
+  name: string,
+  blob?: string,
+  id?: string,
+): { source?: number; eyes: unknown[]; eyeColor?: string } {
+  const seed = id ?? name;
+  const hash = [...seed].reduce((value, char) => (value * 31 + char.charCodeAt(0)) >>> 0, 0);
+  const blobName = blob || Object.keys(BLOBS)[hash % Object.keys(BLOBS).length];
+  const source = blobName ? BLOBS[blobName] : undefined;
+  const look = blobName ? blobEyes[blobName] : undefined;
+  return { ...(source ? { source } : {}), eyes: look?.eyes ?? [], ...(look ? { eyeColor: look.color } : {}) };
+}
+
 /** Muted hues behind an agent's initials, one set per scheme so the text keeps its contrast. */
 const INITIALS_BG = {
   dark: ["#23453b", "#392b51", "#26384d", "#493128", "#492d3c", "#274147", "#47402a", "#3e2e48"],

@@ -65,4 +65,17 @@ export const enVoice = {
   "calls.modelHint": "Who you talk with on a call. The agent you call keeps working with its own model.",
   "calls.mainModel": "Your main model",
   "calls.pickModel": "Another model",
+  "wake.title": "Wake by voice",
+  "wake.lead": "Say one of these and ask for something hands-free. It answers in a few words and hangs up.",
+  "wake.words": "Phrases that wake it",
+  "wake.wordsHint": "Short phrases with its name work best.",
+  "wake.placeholder": "Ok {name}…",
+  "wake.add": "Add",
+  "wake.remove": "Remove {tag}",
+  "wake.reset": "Use the usual ones",
+  "wake.here": "Listen on this computer",
+  "wake.hereHint": "The microphone stays on while no call goes on. Your phone has its own switch in the app.",
+  "wake.problem.mic": "It stopped listening: the microphone isn't available. Allow it and turn this on again.",
+  "wake.problem.unavailable":
+    "It stopped listening: this computer can't understand what you say yet. Set up how it hears above.",
 };

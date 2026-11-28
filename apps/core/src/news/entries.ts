@@ -67,6 +67,7 @@ import { TASK_COMMENTS_NEWS } from "./task-comments.ts";
 import { TASK_GOALS_NEWS } from "./task-goals.ts";
 import { TASK_REGROUP_NEWS } from "./task-regroup.ts";
 import { VOICE_CALLS_NEWS } from "./voice-calls.ts";
+import { VOICE_WAKE_NEWS } from "./voice-wake.ts";
 import { WHATSAPP_GROUPS_NEWS } from "./whatsapp-groups.ts";
 import { WORKFLOWS_NEWS } from "./workflows.ts";
 
@@ -245,6 +246,7 @@ export const NEWS: readonly NewsEntry[] = [
   MEMORY_REVIEW_NEWS,
   GROUP_CHATS_NEWS,
   VOICE_CALLS_NEWS,
+  VOICE_WAKE_NEWS,
   MARKETPLACE_NEWS,
   PUBLIC_ARTIFACTS_NEWS,
   EXTENSION_EVENTS_NEWS,

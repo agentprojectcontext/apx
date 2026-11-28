@@ -186,6 +186,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "calls.start": AS_OWNER,
   "calls.end": AS_OWNER,
   "calls.say": AS_OWNER,
+  "voice.wake": AS_OWNER,
   "channels.recover": PANEL,
   "channels.email_history":
     "the owner explicitly imports private mailbox history with apx channels email-history; agents must not import it unasked",

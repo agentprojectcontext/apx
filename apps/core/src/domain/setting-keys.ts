@@ -252,6 +252,8 @@ export const SETTINGS = {
         call_engine: z.enum(["native", "services"]).optional(),
         call_speech: z.string().optional(),
         call_transcription: z.string().optional(),
+        /** What wakes the voice by name on a phone or computer that listens for it (unset: "ok", "che", "hey" + the super-agent's name). */
+        wake_words: z.array(z.string()).optional(),
       })
       .catch({}),
     {},

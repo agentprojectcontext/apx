@@ -92,6 +92,16 @@ export const Thread = z.object(
     mail_mark: () => MailMark.optional(),
     /** The chat's own model, picked in its composer; absent = the agent's. */
     model_choice: () => ModelChoice.optional(),
+    /** A call's chat: `quick` for a request said by name, and the paired device (a phone) it talked through. */
+    call: () =>
+      z
+        .object(
+          schemaFields({
+            mode: () => z.enum(["call", "quick"]),
+            device: () => z.string().optional(),
+          }),
+        )
+        .optional(),
     /** The chat in which the super-agent told what an update brought: that release's version. */
     release: () => z.string().optional(),
     /** The automatic title, present only while the owner's own name (`title`) stands over it. */

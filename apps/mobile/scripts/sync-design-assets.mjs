@@ -109,6 +109,7 @@ const names = [
   "Star",
   "Minus",
   "MapPin",
+  "Phone",
 ];
 const icons = {};
 for (const name of names) {

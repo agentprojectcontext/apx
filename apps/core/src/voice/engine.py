@@ -71,11 +71,17 @@ TOLD_SENTENCES = 3
 SENTENCE_END = re.compile(r"(?<=[.!?…])[\"')\]]?\s+")
 TASK = re.compile(r"\[\[\s*(?:task|tarea)\s*:\s*(.+?)\s*(?:\]\]|$)", re.I | re.S)
 SKIP = re.compile(r"\[\[\s*skip\s*\]\]", re.I)
+END = re.compile(r"\[\[\s*(?:end|fin|colgar)\s*\]\]", re.I)
 NOISE = re.compile(r"(subt[ií]tulos|amara\.org|gracias por ver|thanks for watching)", re.I)
 BYE_HEARD = re.compile(r"\b(chau|chao|adi[oó]s|hasta luego|nos vemos|bye|goodbye|see you)\b", re.I)
 # Leaving without a goodbye word ("tengo que cortar"): the call ends only when the voice says goodbye back.
 LEAVING = re.compile(r"\b(cortamos|tengo que cortar|te corto|te dejo|me tengo que ir|i have to go|gotta go|"
                      r"talk (to you )?later)\b", re.I)
+# "cortá", "listo, nada más": the owner is done; a short line like this hangs up after a quick goodbye, no model asked.
+HANG_UP = re.compile(r"^\W*(?:(?:bueno|listo|ok(?:ay)?|dale|gracias|perfecto|joya|genial|eso es todo|nada m[aá]s|"
+                     r"no,? (?:nada|gracias)|ya est[aá]|est[aá])\W*)*(?:cort[aá]|colg[aá]|cortamos|cort[aá] nom[aá]s|"
+                     r"nada m[aá]s|eso es todo|eso era todo|ya est[aá]|listo,? gracias|gracias,? listo|"
+                     r"hang up|that'?s all|that'?s it|nothing else)(?:\W+(?:gracias|chau|thanks|bye))*\W*$", re.I)
 MARKUP = re.compile(r"[*_#`]+")
 WORD = re.compile(r"\w+")
 HISTORY = 60  # exchanges a call keeps for its model; the system prompt always goes
@@ -110,7 +116,26 @@ You cannot look anything up or do anything yourself during the call. Behind you,
 ## Ending
 
 When {owner} says goodbye or has to go, answer with one short goodbye that says "chau" ("bye" in English): the call then ends.
+When {owner} says they are done ("listo", "nada más", "cortá", "eso es todo"), say a two-word goodbye and end it with the tag [[end]]: the call hangs up after your line.
 """
+# A quick request: the owner woke the voice by name for one thing, hands-free. Added to the prompt.
+QUICK = """
+## A quick request
+
+{owner} called you by name, hands-free, for one thing: this is a short voice request, not a conversation.
+
+- Answer in one short sentence, a few words when you can ("Dale, ahí lo pongo.").
+- When you need something to do it, ask one short question and wait.
+- Otherwise, once you answered or started the task, end your reply with [[end]]: the call hangs up after your line, and the task goes on behind you.
+- When {owner} adds something else, handle it the same way.
+"""
+QUICK_GREETING = {"es-AR": "¿Sí{owner}?", "es": "¿Sí{owner}?", "en": "Yes{owner}?"}
+QUICK_BYE = {"es": "Dale, chau.", "en": "Okay, bye."}
+QUICK_IDLE_S = 9  # a quick request nobody follows up hangs up on its own
+QUICK_WAIT_S = 25  # a question asked by name waits this long for its answer to be told before hanging up
+# A quick request that asks something ("¿qué tengo hoy?") waits for the answer; one that asks for an action does not.
+QUESTION = re.compile(r"(\?|^\W*(qu[eé]|cu[aá]l|cu[aá]ndo|c[oó]mo|d[oó]nde|qui[eé]n|cu[aá]nt[oa]s?|hay|ten[eé]s|tengo|"
+                      r"sab[eé]s|what|when|how|where|who|which|is|are|do|does|did|can)\b)", re.I)
 GREETING = {"es-AR": "Hola{owner}, ¿en qué te ayudo?", "es": "Hola{owner}, ¿en qué te puedo ayudar?",
             "en": "Hi{owner}, what can I do for you?"}
 ACCENT = {
@@ -259,7 +284,9 @@ def call_style(q):
     return locale, lang, ("en" if lang == "en" else locale)
 
 
-def greeting_line(style, owner):
+def greeting_line(style, owner, quick=False):
+    if quick:
+        return QUICK_GREETING[style].format(owner=f", {owner}" if owner else "")
     return GREETING[style].format(owner=f" {owner}" if owner else "")
 
 
@@ -268,7 +295,8 @@ def greeting_audio(q):
     locale, lang, style = call_style(q)
     voice = speech.voice(f"{locale}-{'male' if q.get('voice') == 'male' else 'female'}")
     out = []
-    speech.mouth.speak(greeting_line(style, q.get("owner", "")), lang, voice, out.append, threading.Event()).result()
+    line = greeting_line(style, q.get("owner", ""), q.get("mode") == "quick")
+    speech.mouth.speak(line, lang, voice, out.append, threading.Event()).result()
     return out
 
 
@@ -281,10 +309,14 @@ class Call:
         self.voice = speech.voice(f"{self.locale}-{self.gender}")
         self.vad = speech.vad.stream()
         owner = self.owner or "the owner"
+        self.quick = q.get("mode") == "quick"
         self.system = {"role": "system", "content": PROMPT.format(
             name=self.name, owner=owner, accent=ACCENT[self.style],
             who=q.get("who") or f"{owner}'s personal assistant in APX",
-            reach=q.get("reach") or f"{owner}'s projects, agents, memory, mail, calendar, web and tools")}
+            reach=q.get("reach") or f"{owner}'s projects, agents, memory, mail, calendar, web and tools")
+            + (QUICK.format(owner=owner) if self.quick else "")}
+        self.ending = False
+        self.wait_until = 0.0  # a quick question waits for its answer until then
         self.thoughts, self.thought_n = {}, 0
         self.answered = False  # the voice began answering what is in `unheard`
         self.pieces, self.seg, self.seg_voiced = [], 0, 0  # what is heard of the words being said, where the rest begins
@@ -434,7 +466,7 @@ class Call:
             q.put_nowait(("end", f.get("error") or "") if f["type"] == "thought_end" else ("text", f.get("text", "")))
 
     async def greet(self, audio):
-        line = greeting_line(self.style, self.owner)
+        line = greeting_line(self.style, self.owner, self.quick)
         self.history.append({"role": "assistant", "content": line})
         await self.send({"type": "state", "state": "speaking"})
         await self.say(line, audio)  # made while the call loaded: it plays as soon as the call is answered
@@ -446,7 +478,8 @@ class Call:
         self.history = self.history[-HISTORY:]
         messages = [self.system, *self.history]
         await self.send({"type": "state", "state": "thinking"})
-        spoken, skipped = [], False
+        spoken, skipped, hang_up = [], False, False
+        asked_before = self.n
         self.carry = ""
         holding = {"speaking": False}
         filler = asyncio.create_task(self.hold_on(holding))
@@ -461,6 +494,8 @@ class Call:
                 async for raw in lines:
                     if SKIP.search(raw):
                         skipped, raw = True, SKIP.sub("", raw)
+                    if END.search(raw):
+                        hang_up, raw = True, END.sub("", raw)
                     for m in TASK.finditer(raw):
                         self.n += 1
                         self.tasks[self.n] = (m.group(1).strip(), time.monotonic())
@@ -491,9 +526,24 @@ class Call:
             self.history.append({"role": "assistant", "content": said or ("[[skip]]" if skipped else "…")})
         finally:
             self.turn_end()
-        if spoken and ends_call(heard, " ".join(spoken)):
-            await asyncio.sleep(max(0.0, self.playing_until - time.monotonic()) + 0.4)
-            await self.send({"type": "end", "reason": "goodbye"})
+        said = " ".join(spoken).strip()
+        if hang_up or (spoken and ends_call(heard, said)):
+            await self.hang_up("goodbye")
+        elif self.quick and said and not said.endswith("?"):
+            # A quick request ends once answered, unless the voice asked something back. A question waits a while for
+            # what the agent finds, so the answer is said; an action is done behind and the call goes.
+            if self.n > asked_before and QUESTION.search(heard.strip()):
+                self.wait_until = time.monotonic() + QUICK_WAIT_S
+            else:
+                await self.hang_up("goodbye")
+
+    async def hang_up(self, reason):
+        """Ends the call once the voice's last line played at the owner's end."""
+        if self.ending:
+            return
+        self.ending = True
+        await asyncio.sleep(max(0.0, self.playing_until - time.monotonic()) + 0.4)
+        await self.send({"type": "end", "reason": reason})
 
     async def hold_on(self, holding):
         await asyncio.sleep(HOLD_ON_S)
@@ -526,6 +576,8 @@ class Call:
                                                             f'{answer[:2000] or "none"})'})
             self.history.append({"role": "assistant", "content": " ".join(spoken) or "…"})
             self.turn_end()
+        if self.quick and self.wait_until and not self.tasks:
+            await self.hang_up("goodbye")
 
     def maybe_tell(self):
         if not self.news or self.in_speech or self.busy() or time.monotonic() - self.last_voice < QUIET_BEFORE_NEWS_S:
@@ -692,6 +744,13 @@ class Call:
         await self.send({"type": "heard", "text": new, **({"whole": True} if whole else {})})
         await self.send({"type": "partial", "text": ""})
         text, self.carry = " ".join(t for t in (self.carry, new) if t), ""
+        if HANG_UP.match(text) and len(text.split()) <= 8:
+            self.history.append({"role": "user", "content": text})
+            await self.send({"type": "state", "state": "speaking"})
+            await self.say(QUICK_BYE[self.lang])
+            self.turn_end()
+            await self.hang_up("goodbye")
+            return
         last = next((m["content"] for m in reversed(self.history) if m["role"] == "assistant"), "")
         # An acknowledgement asks for nothing, unless it answers a question ("¿lo busco?" "dale").
         if ACK.match(text) and (self.tasks or not last.rstrip().endswith("?")):
@@ -729,6 +788,18 @@ class Call:
         while True:
             await asyncio.sleep(0.2)
             self.maybe_tell()
+            if self.idle():
+                await self.hang_up("idle")
+                return
+
+    def idle(self):
+        """Nobody said anything for a while after the voice's last word, and nothing is left to tell."""
+        if not self.quick or self.ending or self.in_speech or self.busy() or self.news:
+            return False
+        now = time.monotonic()
+        if self.wait_until:
+            return now >= self.wait_until
+        return now - max(self.last_voice, self.playing_until) >= QUICK_IDLE_S
 
 
 @app.websocket("/call")

@@ -102,6 +102,36 @@ corre por su lado; escuchás cada respuesta apenas está lista, nunca encima de 
 
 Para terminar, despedite ("chau", "tengo que cortar"): la voz se despide y corta. **Colgar** la termina cuando quieras.
 
+## Despertar por voz
+
+Decí "ok" o "che" y el nombre de tu superagente, y se abre un pedido corto por voz sin tocar nada, incluso con el
+teléfono bloqueado o la app cerrada. La voz contesta "¿Sí?", pedís, responde en una frase corta y corta sola, salvo que
+necesite preguntarte algo.
+
+- **En tu teléfono Android.** En la app de APX, abrí **Ajustes** y activá **Despertar por voz**. Es por teléfono.
+  Mientras está activo el teléfono escucha en segundo plano: una notificación lo avisa y Android muestra el micrófono en
+  uso. El teléfono solo detecta voz por volumen y manda clips cortos (menos de 3 segundos) a tu computadora, que los
+  transcribe con su propia voz (la de APX o whisper.cpp) y busca el nombre. No se guarda nada.
+- **El panel en pantalla.** Cuando se oye el nombre aparece un panel flotante sobre lo que estés haciendo, o sobre la
+  pantalla de bloqueo, con un botón para cortar. Expandilo para ver una pantalla de llamada: la imagen de tu agente
+  arriba, ondas que siguen su voz y el botón de cortar. La misma pantalla se abre al llamar desde el botón de llamada de
+  la app.
+- **En tu computadora (opcional).** En **Configuración › Voz y llamadas › Despertar por voz** elegí las frases (son las
+  mismas para todos los dispositivos; vacío significa "ok", "che" o "hey" más el nombre) y activá **Escuchar en esta
+  computadora** solo para esta computadora.
+- **Cortar por voz.** En cualquier llamada, "cortá", "listo, nada más", "eso es todo", "hang up" o "that's all" la
+  termina, y la voz también puede cortar sola. También podés cortar desde el teléfono o, si la llamada está en el
+  teléfono, desde la barra de llamada en curso del panel.
+- **En el chat.** El chat de la llamada la marca como pedido rápido por voz y el teléfono desde el que se hizo.
+
+La voz, el modelo y los servicios de la llamada son los configurados en tu computadora: el teléfono solo lleva el audio.
+
+<Aside type="caution">
+Para abrirse sobre otras apps, Android necesita el permiso **Mostrar sobre otras apps** para APX; la app lo pide al
+activar el interruptor. Algunos teléfonos además frenan las apps en segundo plano para ahorrar batería: si la escucha se
+corta sola, excluí a APX de la optimización de batería en los ajustes de Android.
+</Aside>
+
 ## Dónde quedan las llamadas
 
 Cada llamada es un chat en el grupo **Llamadas** de la Bandeja, con lo que dijiste y lo que contestó la voz. Cada cosa

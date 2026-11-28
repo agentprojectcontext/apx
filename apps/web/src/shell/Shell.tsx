@@ -1,15 +1,17 @@
 import type { CSSProperties } from "react";
 import { Suspense, useEffect } from "react";
 import { applyDesktopPrefs } from "../config/desktopPrefs.ts";
-import { useCalls } from "../data/calls.ts";
+import { callScene, useCalls } from "../data/calls.ts";
 import { useSlice } from "../data/createStore.ts";
 import { mcpPeek } from "../data/mcpPeek.ts";
 import { usePrefs } from "../data/prefs.ts";
 import { data } from "../data/state.ts";
 import { useThreadDialog } from "../data/threadAdmin.ts";
+import { useWake } from "../data/wake.ts";
 import {
   AppScreen,
   CallCard,
+  CallCompanion,
   ChannelDialogs,
   ChannelScreen,
   ChannelsScreen,
@@ -72,6 +74,9 @@ export function Shell() {
   const phone = useNav((s) => s.phone);
   const usageDialog = useNav((s) => s.usageDialog);
   const callCard = useCalls((s) => s.card != null);
+  const scene = useCalls(callScene);
+  // This computer listens for the voice's name while the owner allows it here and no call goes on.
+  const wakeOn = useWake((s) => s.on && !s.problem);
   const mcpDialog = useSlice(mcpPeek, (s) => s.target != null);
   const extensionInstall = useExtensionInstall() != null;
   // A task opened from a chat floats over it; the Tasks screen shows its own beside the list.
@@ -217,6 +222,11 @@ export function Shell() {
       {callCard && (
         <Suspense fallback={null}>
           <CallCard />
+        </Suspense>
+      )}
+      {(scene === "elsewhere" || (scene === "quiet" && wakeOn)) && (
+        <Suspense fallback={null}>
+          <CallCompanion />
         </Suspense>
       )}
       <Toasts />

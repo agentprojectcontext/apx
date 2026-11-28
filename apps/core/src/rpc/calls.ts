@@ -3,9 +3,11 @@
 import type { CallStatus, VoiceStatus } from "@apx/protocol";
 import type { createCallServices } from "../engine/call-services.ts";
 import type { Calls } from "../engine/calls.ts";
-import { unavailable } from "../errors.ts";
+import { defaultWakeWords, wakeMatch } from "../engine/wake.ts";
+import { errorMessage, unavailable } from "../errors.ts";
 import type { NativeVoiceSettings } from "../services/native-voice.ts";
 import type { VoiceEngine } from "../services/voice-engine.ts";
+import type { CallContext } from "./context.ts";
 import type { Handlers } from "./router.ts";
 
 const NEEDS = {
@@ -31,6 +33,7 @@ const NONE: VoiceStatus = {
   calls: false,
   quality: "auto",
   can_full: false,
+  wake_words: [],
 };
 
 export type VoiceDeps = {
@@ -41,9 +44,19 @@ export type VoiceDeps = {
   callEngine?: () => VoiceEngine;
   callServices?: () => Omit<Parameters<typeof createCallServices>[0], "send" | "failed"> | undefined;
   hasService?: (kind: "speech" | "transcription", id: string | undefined) => boolean;
+  /** Words in a short clip, from a transcription engine on this machine (undefined: none here). */
+  listen?: (bytes: Buffer, mime: string, signal: AbortSignal) => Promise<string | undefined>;
+  /** The super-agent's name, what wakes it by default. */
+  bossName?: () => string;
 };
 
 export function callHandlers(d: VoiceDeps | undefined) {
+  /** The owner's phrases, or a call word and the super-agent's name. */
+  const wakeWords = () => {
+    const set = d?.native.wakeWords() ?? [];
+    return set.length ? set : defaultWakeWords(d?.bossName?.() ?? "");
+  };
+  const withWake = (s: VoiceStatus): VoiceStatus => ({ ...s, wake_words: wakeWords() });
   function callStatus(): CallStatus {
     if (!d) return { ready: false, running: false, missing: "platform" };
     const v = d.native.status();
@@ -60,30 +73,42 @@ export function callHandlers(d: VoiceDeps | undefined) {
     const missing: CallStatus["missing"] = !v.calls
       ? "disabled"
       : (audioMissing ?? (!d.calls.hasModel() ? "model" : undefined));
-    const live = d.calls.status().live;
+    const { live, device, mode } = d.calls.status();
     return {
       // Not downloaded yet is not missing: the first call waits for it.
       ready: !missing,
       engine: remote ? "services" : "native",
       running: remote ? Boolean(d.remote?.running()) : v.running,
       ...(missing ? { missing } : {}),
-      ...(live ? { live } : {}),
+      ...(live ? { live, ...(device ? { live_device: device } : {}), ...(mode ? { live_mode: mode } : {}) } : {}),
       voice: v.voice,
     };
   }
 
   return {
-    "voice.status": () => d?.native.status() ?? NONE,
+    "voice.status": () => withWake(d?.native.status() ?? NONE),
     "voice.install": async (p) => {
       if (!d) throw unavailable(NEEDS.platform);
       return d.native.install(p.part);
     },
     "voice.set": (p) => {
       if (!d) throw unavailable(NEEDS.platform);
-      return d.native.set(p);
+      return withWake(d.native.set(p));
+    },
+    "voice.wake": async ({ data, mime }) => {
+      const none = "waking by voice needs a transcription engine on this computer";
+      if (!d?.listen) throw unavailable(none);
+      let text: string | undefined;
+      try {
+        text = await d.listen(Buffer.from(data, "base64"), mime, AbortSignal.timeout(25_000));
+      } catch (err) {
+        throw unavailable(errorMessage(err, 200));
+      }
+      if (text === undefined) throw unavailable(none);
+      return { awake: Boolean(wakeMatch(text, wakeWords())), text };
     },
     "calls.status": callStatus,
-    "calls.start": (p) => {
+    "calls.start": (p, ctx?: Pick<CallContext, "device">) => {
       const s = callStatus();
       if (!d || s.missing) throw unavailable(NEEDS[s.missing ?? "platform"]);
       if (d.native.status().call_engine !== "services" && !d.engine.installed()) d.native.install();
@@ -93,6 +118,8 @@ export function callHandlers(d: VoiceDeps | undefined) {
         voice: p.voice ?? v.gender,
         locale: p.locale ?? v.locale,
         thread: p.thread,
+        mode: p.mode,
+        device: ctx?.device?.name,
       });
     },
     "calls.prepare": () => {

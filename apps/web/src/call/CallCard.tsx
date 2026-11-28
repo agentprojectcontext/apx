@@ -42,6 +42,9 @@ export function CallCard() {
   const agent = useData((s) => (called ? s.agents[called] : secretary(s.agents)));
   const name = agent?.name ?? "";
   const thread = useCalls((s) => s.card?.thread);
+  // Said by name: it calls at once, and closes once the voice hangs up.
+  const mode = useCalls((s) => s.card?.mode);
+  const quick = useRef(false);
   const status = useCalls((s) => s.status);
   const lang = usePrefs((s) => s.language);
   // What the owner picked on this card; until then, the last pick on this device or the voice set in Settings.
@@ -109,7 +112,7 @@ export function CallCard() {
     line.current = undefined;
     calls.set({ live: undefined });
     void loadCallStatus();
-    if (hungUp.current) {
+    if (hungUp.current || (quick.current && !reason)) {
       closeCall();
       return;
     }
@@ -137,6 +140,7 @@ export function CallCard() {
 
   const start = async () => {
     if (!agent) return;
+    quick.current = mode === "quick";
     hungUp.current = false;
     setProblem(undefined);
     setPartial("");
@@ -162,6 +166,7 @@ export function CallCard() {
         voice,
         locale,
         ...(thread ? { thread } : {}),
+        ...(quick.current ? { mode: "quick" as const } : {}),
       });
     } catch (err) {
       stop();
@@ -192,6 +197,13 @@ export function CallCard() {
     line.current.setSound(chosen.current.sound);
     if (hungUp.current) line.current.hangUp();
   };
+
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (mode !== "quick" || autoStarted.current || !agent || status?.ready !== true) return;
+    autoStarted.current = true;
+    void start();
+  });
 
   const hangUp = () => {
     hungUp.current = true;

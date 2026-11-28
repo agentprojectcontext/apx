@@ -657,6 +657,20 @@ export function useWorkspace(creds: Creds) {
     [client],
   );
 
+  /** APX's voice on the computer: whether calls can run, and the phrases that wake it by name. */
+  const voiceStatus = useCallback(
+    async () =>
+      Promise.all([
+        rpc<{ wake_words: string[] }>(client, "voice.status", {}),
+        rpc<{ ready: boolean }>(client, "calls.status", {}),
+      ]).then(([v, c]) => ({ wake_words: v.wake_words ?? [], ready: c.ready })),
+    [client],
+  );
+  const setWakeWords = useCallback(
+    async (words: string[]) => rpc<{ wake_words: string[] }>(client, "voice.set", { wake_words: words }),
+    [client],
+  );
+
   /** A new session to open: checked here, made in the core with its first message (see chat/newChat.ts). */
   const newSession = useCallback(
     (engineId: string, projectId: string): Thread => {
@@ -750,6 +764,8 @@ export function useWorkspace(creds: Creds) {
     removeMemory,
     noticePrefs,
     setNoticePrefs,
+    voiceStatus,
+    setWakeWords,
     serverInfo,
     fileTree,
     readFile,

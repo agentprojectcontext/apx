@@ -66,4 +66,18 @@ export const esVoice: Record<keyof typeof enVoice, string> = {
   "calls.modelHint": "Con quién hablás en una llamada. El agente al que llamás sigue trabajando con su propio modelo.",
   "calls.mainModel": "Tu modelo principal",
   "calls.pickModel": "Otro modelo",
+  "wake.title": "Despertar por voz",
+  "wake.lead": "Decí una de estas frases y pedí algo sin tocar nada. Te contesta en pocas palabras y corta.",
+  "wake.words": "Frases que lo despiertan",
+  "wake.wordsHint": "Funcionan mejor las frases cortas con su nombre.",
+  "wake.placeholder": "Ok {name}…",
+  "wake.add": "Agregar",
+  "wake.remove": "Quitar {tag}",
+  "wake.reset": "Usar las de siempre",
+  "wake.here": "Escuchar en esta computadora",
+  "wake.hereHint":
+    "El micrófono queda abierto mientras no haya una llamada. Tu teléfono tiene su propio interruptor en la app.",
+  "wake.problem.mic": "Dejó de escuchar: el micrófono no está disponible. Permitilo y volvé a prenderlo.",
+  "wake.problem.unavailable":
+    "Dejó de escuchar: esta computadora todavía no entiende lo que decís. Configurá cómo escucha más arriba.",
 };

@@ -159,6 +159,14 @@ export const CallAgain = lazy(() => import("./shell/CallButton.tsx").then((m) =>
 export const CallCard = lazy(
   withPacks(["call"], () => import("./call/CallCard.tsx").then((m) => ({ default: m.CallCard }))),
 );
+// A call going on on the phone or in another window, with its hang up; or, where the owner turned it on, this computer
+// listening for the voice's name. A call's header says when it came by voice.
+export const CallCompanion = lazy(
+  withPacks(["call"], () => import("./call/CallCompanion.tsx").then((m) => ({ default: m.CallCompanion }))),
+);
+export const CallVoiceTag = lazy(
+  withPacks(["call"], () => import("./call/CallVoiceTag.tsx").then((m) => ({ default: m.CallVoiceTag }))),
+);
 export const SubthreadPart = lazy(() =>
   import("./chat/parts/SubthreadPart.tsx").then((m) => ({ default: m.SubthreadPart })),
 );

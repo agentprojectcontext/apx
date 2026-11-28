@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { hasNativeVoice } from "../modules/apx-voice";
 import { draftOf, keepDraft } from "./chat/drafts";
 import { latestPlan } from "./chat/media";
 import { type CatalogEngine, choiceLabel, type ModelChoice } from "./chat/models";
@@ -40,6 +41,7 @@ import { ModelSheet } from "./ui/ModelSheet";
 import { MediaClient } from "./ui/media/context";
 import { PersonAvatar } from "./ui/PersonAvatar";
 import { makeStyles, useTheme } from "./ui/theme";
+import { callAgent } from "./voice";
 
 export function ChatScreen({
   creds,
@@ -259,6 +261,16 @@ export function ChatScreen({
             </View>
           </View>
         </Pressable>
+        {hasNativeVoice && agent && !engine && !contact && !routineId ? (
+          <IconButton
+            icon="Phone"
+            label={t("voiceCall", { name })}
+            size={17}
+            color={theme.fgMuted}
+            style={s.headerButton}
+            onPress={() => void callAgent(agent.id, thread.kind === "call" ? thread.id : undefined)}
+          />
+        ) : null}
         {routineId ? (
           <IconButton
             icon="History"

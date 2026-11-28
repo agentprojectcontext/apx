@@ -8,6 +8,7 @@ import { catalogReading, extensionsChanged } from "../resources/extensionInstall
 import { go, nav } from "../shell/nav.ts";
 import { shown as shownPanelMode } from "../shell/panelMode.ts";
 import { bootstrap, refetchLoaded } from "./actions.ts";
+import { calls } from "./calls.ts";
 import { client } from "./client.ts";
 import { flowDraftChanged } from "./flowDrafts.ts";
 import { flowRunMoved, flowTestHeard } from "./flowTests.ts";
@@ -148,6 +149,12 @@ function apply(ev: CoreEvent): void {
   switch (ev.type) {
     case "thread.updated":
       data.set((s) => ({ threads: { ...s.threads, [ev.thread.id]: ev.thread } }));
+      // A call began, spoke or ended, maybe on the phone: whether one goes on (a panel that never asked shows none).
+      if (ev.thread.kind === "call" && calls.get().status)
+        void client.call("calls.status", {}).then(
+          (status) => calls.set({ status }),
+          () => {},
+        );
       return;
     case "thread.deleted":
       forgetThreads([ev.thread_id, ...ev.children]);
