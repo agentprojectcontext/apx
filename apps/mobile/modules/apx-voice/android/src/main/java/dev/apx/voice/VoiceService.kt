@@ -105,10 +105,13 @@ class VoiceService : Service() {
       if (wake?.running() != true) return
       val quiet = WakeListener.wav(ByteArray(WakeListener.RATE)) // half a second of silence
       work.execute {
+        val core = Core(settings.url, settings.token)
         try {
-          Core(settings.url, settings.token).call("voice.wake",
+          core.call("voice.wake",
             JSONObject().put("data", Base64.encodeToString(quiet, Base64.NO_WRAP)).put("mime", "audio/wav"), timeoutS = 30)
         } catch (_: Exception) {}
+        // The greeting played the moment the name is heard follows the owner's voice and language.
+        Greeting.refresh(this@VoiceService, core)
       }
       main.postDelayed(this, 7 * 60 * 1000L)
     }
@@ -126,7 +129,7 @@ class VoiceService : Service() {
         val r = core.call("voice.wake",
           JSONObject().put("data", Base64.encodeToString(clip, Base64.NO_WRAP)).put("mime", "audio/wav"), timeoutS = 30)
         Log.d(TAG, "wake check ${ms}ms: ${r.optBoolean("awake")} \"${r.optString("text")}\"")
-        if (r.optBoolean("awake")) main.post { startCall("quick", null, null, false) }
+        if (r.optBoolean("awake")) main.post { startCall("quick", null, null, false, greet = true) }
       } catch (e: Exception) {
         Log.d(TAG, "wake check failed: $e")
       } finally {
@@ -135,7 +138,7 @@ class VoiceService : Service() {
     }
   }
 
-  private fun startCall(mode: String, agent: String?, thread: String?, full: Boolean) {
+  private fun startCall(mode: String, agent: String?, thread: String?, full: Boolean, greet: Boolean = false) {
     if (call != null) {
       show(full)
       return
@@ -148,7 +151,8 @@ class VoiceService : Service() {
     show(full)
     // The wake listener lets go of the microphone before the call takes it.
     main.postDelayed({
-      call = CallSession(this, Core(settings.url, settings.token), mode, agent, thread) { reason ->
+      val greeting = if (greet) Greeting.load(this) else null
+      call = CallSession(this, Core(settings.url, settings.token), mode, agent, thread, greeting) { reason ->
         main.post {
           call = null
           Log.i(TAG, "back from the call: $reason")

@@ -61,6 +61,19 @@ goes through `src/i18n` (English, Spanish).
 
 Metro watches files only outside CI mode: start it without `CI=1`, or saved changes never reach the phone.
 
+## Chat keyboard checks
+
+Use an isolated core and a lab Android device or AVD. Check the normal composer and a long question card near the
+bottom of the transcript with the IME open: both the focused field and Send must stay visible. Cover multiline text,
+switching fields, scrolling, closing/reopening the keyboard, a small display and gesture navigation. Record the Android
+API and dimensions; an AVD check does not establish behavior on every vendor's IME. Type characters and line breaks,
+not only a bulk replacement: Android can scroll the caret again after each edit. Check the settled native viewport and
+send with one tap while the keyboard remains open. Focus measurements must discard superseded native scroll/layout
+responses and use the reported scroll offset, not a requested offset that Android has not applied yet.
+
+Keep the existing keyboard inset adjustment as the single owner of screen space. Answer-card focus scrolls within the
+resulting transcript viewport rather than adding a second keyboard spacer.
+
 ## Native notifications
 
 Android creates a high-importance `default` channel before requesting notification permission. Unread

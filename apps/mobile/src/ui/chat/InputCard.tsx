@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { Alert, Pressable, Text, TextInput, View } from "react-native";
 import { needsComputerReview } from "../../approvalReview";
+import { AnswerVisibility } from "../../chat/answerVisibility";
 import { type Key, t } from "../../i18n";
 import type { Answer, Message } from "../../protocol";
 import { BrowserHelp, BrowserReview } from "../BrowserReview";
@@ -160,6 +161,12 @@ function PendingInput({ part, respond }: { part: InputPart; respond: Respond }) 
   const [busy, setBusy] = useState<string>();
   const [reply, setReply] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
+  const visibility = useContext(AnswerVisibility);
+  const replyRow = useRef<View>(null);
+  useEffect(() => {
+    const row = replyRow.current;
+    return () => visibility?.blur(row);
+  }, [visibility]);
   const action = isAction(part);
   const computerReview = needsComputerReview(part);
   const scopes = computerReview ? undefined : part.approval_scopes;
@@ -314,9 +321,11 @@ function PendingInput({ part, respond }: { part: InputPart; respond: Respond }) 
               onPress={() => answer("skip", { text: t("inputSkipped") })}
             />
           </View>
-          <View style={s.reply}>
+          <View ref={replyRow} collapsable={false} style={s.reply} onLayout={visibility?.reveal}>
             <TextInput
               value={reply}
+              onFocus={() => visibility?.focus(replyRow.current)}
+              onBlur={() => visibility?.blur(replyRow.current)}
               onChangeText={setReply}
               placeholder={t("yourAnswer")}
               placeholderTextColor={theme.fgSubtle}

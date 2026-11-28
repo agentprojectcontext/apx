@@ -45,6 +45,9 @@ export function CallCard() {
   // Said by name: it calls at once, and closes once the voice hangs up.
   const mode = useCalls((s) => s.card?.mode);
   const quick = useRef(false);
+  // This computer greeted the owner as it heard its name: no ring, the voice listens while it loads.
+  const greetedUntil = useCalls((s) => s.card?.greetedUntil);
+  const greeted = useRef<number | undefined>(undefined);
   const status = useCalls((s) => s.status);
   const lang = usePrefs((s) => s.language);
   // What the owner picked on this card; until then, the last pick on this device or the voice set in Settings.
@@ -87,7 +90,7 @@ export function CallCard() {
     return () => clearTimeout(t);
   }, [ringing]);
   useEffect(() => {
-    if (!ringing || !chosen.current.sound) return;
+    if (!ringing || !chosen.current.sound || greeted.current !== undefined) return;
     const tone = ringback();
     return () => tone.stop();
   }, [ringing]);
@@ -138,9 +141,11 @@ export function CallCard() {
     } else if (f.type === "end") finish(END_REASON[f.reason]);
   };
 
-  const start = async () => {
+  // `byName`: the call the voice's name placed, the only one the greeting played for.
+  const start = async (byName = false) => {
     if (!agent) return;
     quick.current = mode === "quick";
+    greeted.current = byName && quick.current ? greetedUntil : undefined;
     hungUp.current = false;
     setProblem(undefined);
     setPartial("");
@@ -167,6 +172,7 @@ export function CallCard() {
         locale,
         ...(thread ? { thread } : {}),
         ...(quick.current ? { mode: "quick" as const } : {}),
+        ...(greeted.current !== undefined ? { greeted: true } : {}),
       });
     } catch (err) {
       stop();
@@ -182,12 +188,17 @@ export function CallCard() {
     calls.set({ live: placed.thread_id, card: { thread: placed.thread_id } });
     go.inboxThread(placed.thread_id);
     try {
-      line.current = await openLine(mic, placed.ticket, {
-        frame: onFrame,
-        closed: (ended) => {
-          if (!ended) finish(hungUp.current ? undefined : "callCard.end.network");
+      line.current = await openLine(
+        mic,
+        placed.ticket,
+        {
+          frame: onFrame,
+          closed: (ended) => {
+            if (!ended) finish(hungUp.current ? undefined : "callCard.end.network");
+          },
         },
-      });
+        greeted.current,
+      );
     } catch {
       stop();
       finish("callCard.failed");
@@ -202,7 +213,7 @@ export function CallCard() {
   useEffect(() => {
     if (mode !== "quick" || autoStarted.current || !agent || status?.ready !== true) return;
     autoStarted.current = true;
-    void start();
+    void start(true);
   });
 
   const hangUp = () => {
@@ -214,8 +225,11 @@ export function CallCard() {
   const ready = status?.ready !== false;
   const missing = !ready && status?.missing ? status.missing : undefined;
   const busy = stage === "calling" || stage === "preparing" || stage === "live";
-  const state =
-    stage === "calling"
+  // Greeted, the owner talks right away: the card says it listens while the voice loads.
+  const listensEarly = ringing && greeted.current !== undefined;
+  const state = listensEarly
+    ? t("callCard.listening")
+    : stage === "calling"
       ? t("callCard.calling")
       : stage === "preparing"
         ? t("callCard.preparing")
@@ -270,8 +284,8 @@ export function CallCard() {
       {small && busy ? null : (
         <>
           {stage === "live" && partial && <p className="callcard__caption">{partial}</p>}
-          {stage === "preparing" && prep && <PrepareBar prep={prep} now={now} />}
-          {(stage === "preparing" || (ringing && slow)) && !prep && (
+          {stage === "preparing" && prep && !listensEarly && <PrepareBar prep={prep} now={now} />}
+          {(stage === "preparing" || (ringing && slow)) && !prep && !listensEarly && (
             <p className="callcard__hint">{t("callCard.preparingHint")}</p>
           )}
           {(problem || (missing && !busy)) && (
@@ -373,7 +387,7 @@ export function CallCard() {
               fullWidth
               leadingIcon={<Icons.Phone size={14} />}
               disabled={!ready || !agent}
-              onClick={start}
+              onClick={() => void start()}
             >
               {stage === "ended" ? t("call.again") : t("callCard.call")}
             </Button>

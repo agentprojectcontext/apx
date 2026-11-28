@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { hasNativeVoice } from "../modules/apx-voice";
+import { AnswerVisibility, useAnswerVisibility } from "./chat/answerVisibility";
 import { draftOf, keepDraft } from "./chat/drafts";
 import { latestPlan } from "./chat/media";
 import { type CatalogEngine, choiceLabel, type ModelChoice } from "./chat/models";
@@ -118,6 +119,7 @@ export function ChatScreen({
     onWords: (words) => setTextNow((current) => (current.trim() ? `${current.trim()} ${words}` : words)),
   });
   const list = useRef<FlatList<TranscriptRow>>(null);
+  const answers = useAnswerVisibility(list);
   // The messages are drawn once the screen has slid in: the slide starts at once instead of after the whole list.
   const [settled, setSettled] = useState(false);
   useEffect(() => {
@@ -310,63 +312,70 @@ export function ChatScreen({
         </View>
       ) : (
         <MediaClient.Provider value={live.client}>
-          <FlatList
-            ref={list}
-            inverted
-            data={rows}
-            keyExtractor={(row) => (row.kind === "day" ? row.key : row.message.id)}
-            // Rows not drawn yet have no size: jump near by the average, then aim again.
-            onScrollToIndexFailed={({ index, averageItemLength }) => {
-              list.current?.scrollToOffset({ offset: index * averageItemLength, animated: false });
-              setTimeout(() => list.current?.scrollToIndex({ index, viewPosition: 0.5 }), 120);
-            }}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
-            contentContainerStyle={s.transcript}
-            // The list is inverted: its header sits below the newest message, where the panel shows activity.
-            ListHeaderComponent={
-              working ? (
-                <ActivityPill tone="brand" label={doing} from={avatar} />
-              ) : live.state === "input-required" ? (
-                <ActivityPill tone="danger" label={t("isWaitingForYou", { name })} />
-              ) : null
-            }
-            ListHeaderComponentStyle={s.activity}
-            renderItem={({ item }) =>
-              item.kind === "day" ? (
-                <Text style={s.day}>{dayLabel(item.at)}</Text>
-              ) : thread.kind === "routine" &&
-                item.message.author.kind === "user" &&
-                item.message.id === live.messages[0]?.id ? (
-                <RoutinePrompt name={routineName(thread)} message={item.message} />
-              ) : (
-                <View style={item.message.id === flash ? s.flash : undefined}>
-                  <ChatMessage
-                    message={item.message}
-                    agents={data.agents}
-                    waiting={live.state === "input-required"}
-                    runState={live.state}
-                    runStates={live.runStates}
-                    thread={thread}
-                    projects={data.projects}
-                    last={item.message.id === live.messages.at(-1)?.id}
-                    client={live.client}
-                    send={(words) => live.send(words)}
-                    respond={live.respond}
-                    goOn={(thread, mode) => live.client.call("threads.go_on", { thread, mode })}
-                    continueSession={(session) => continueSession(live.client, session)}
-                    sessionState={(session) => sessionState(live.client, session)}
-                    {...(onOpenThread ? { openThread: onOpenThread } : {})}
-                    mailChannels={mailChannels}
-                    channels={data.channels}
-                    queue={queue}
-                    showPlan={item.message.id === planAt}
-                    restartSuperseded={restarted.has(item.message.id)}
-                  />
-                </View>
-              )
-            }
-          />
+          <AnswerVisibility.Provider value={answers.focus}>
+            <View ref={answers.viewport} style={s.messages} onLayout={answers.reveal} collapsable={false}>
+              <FlatList
+                ref={list}
+                inverted
+                data={rows}
+                keyExtractor={(row) => (row.kind === "day" ? row.key : row.message.id)}
+                // Rows not drawn yet have no size: jump near by the average, then aim again.
+                onScrollToIndexFailed={({ index, averageItemLength }) => {
+                  list.current?.scrollToOffset({ offset: index * averageItemLength, animated: false });
+                  setTimeout(() => list.current?.scrollToIndex({ index, viewPosition: 0.5 }), 120);
+                }}
+                onScroll={answers.onScroll}
+                onScrollBeginDrag={answers.onScrollBeginDrag}
+                scrollEventThrottle={16}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
+                contentContainerStyle={s.transcript}
+                // The list is inverted: its header sits below the newest message, where the panel shows activity.
+                ListHeaderComponent={
+                  working ? (
+                    <ActivityPill tone="brand" label={doing} from={avatar} />
+                  ) : live.state === "input-required" ? (
+                    <ActivityPill tone="danger" label={t("isWaitingForYou", { name })} />
+                  ) : null
+                }
+                ListHeaderComponentStyle={s.activity}
+                renderItem={({ item }) =>
+                  item.kind === "day" ? (
+                    <Text style={s.day}>{dayLabel(item.at)}</Text>
+                  ) : thread.kind === "routine" &&
+                    item.message.author.kind === "user" &&
+                    item.message.id === live.messages[0]?.id ? (
+                    <RoutinePrompt name={routineName(thread)} message={item.message} />
+                  ) : (
+                    <View style={item.message.id === flash ? s.flash : undefined}>
+                      <ChatMessage
+                        message={item.message}
+                        agents={data.agents}
+                        waiting={live.state === "input-required"}
+                        runState={live.state}
+                        runStates={live.runStates}
+                        thread={thread}
+                        projects={data.projects}
+                        last={item.message.id === live.messages.at(-1)?.id}
+                        client={live.client}
+                        send={(words) => live.send(words)}
+                        respond={live.respond}
+                        goOn={(thread, mode) => live.client.call("threads.go_on", { thread, mode })}
+                        continueSession={(session) => continueSession(live.client, session)}
+                        sessionState={(session) => sessionState(live.client, session)}
+                        {...(onOpenThread ? { openThread: onOpenThread } : {})}
+                        mailChannels={mailChannels}
+                        channels={data.channels}
+                        queue={queue}
+                        showPlan={item.message.id === planAt}
+                        restartSuperseded={restarted.has(item.message.id)}
+                      />
+                    </View>
+                  )
+                }
+              />
+            </View>
+          </AnswerVisibility.Provider>
         </MediaClient.Provider>
       )}
       {live.computer ? <ComputerProgress stage={live.computer} /> : null}
@@ -536,6 +545,7 @@ const useStyles = makeStyles((theme) => ({
     flexShrink: 0,
   },
   startedByText: { color: theme.fgMuted, fontSize: 11 },
+  messages: { flex: 1 },
   transcript: { paddingHorizontal: 16, paddingVertical: 12 },
   empty: { flex: 1, justifyContent: "center" },
   activity: { paddingTop: 6 },

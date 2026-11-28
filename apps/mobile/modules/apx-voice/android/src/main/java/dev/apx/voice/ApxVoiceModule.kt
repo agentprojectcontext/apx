@@ -77,6 +77,7 @@ class ApxVoiceModule : Module() {
       val s = Settings(context)
       s.wake = false
       VoiceService.current?.hangUp()
+      Greeting.forget(context)
       s.clear()
       VoiceService.current?.stopSelf()
     }

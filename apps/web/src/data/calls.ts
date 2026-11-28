@@ -9,10 +9,19 @@ type CallState = {
   /**
    * The call card is on screen: `agent` is who it calls (the super-agent when none), `thread` the call it goes on in
    * (calling again from a call's chat), `mode` `quick` when the owner said the voice's name: it starts on its own.
+   * `greetedUntil`: this computer already greeted the owner, and its microphone waits until then (ms) so the call
+   * does not hear the greeting.
    */
-  card?: { agent?: string | undefined; thread?: string | undefined; mode?: CallMode | undefined } | undefined;
+  card?: CallTarget | undefined;
   /** The call going on from this panel, once its thread exists. */
   live?: string | undefined;
+};
+
+type CallTarget = {
+  agent?: string | undefined;
+  thread?: string | undefined;
+  mode?: CallMode | undefined;
+  greetedUntil?: number | undefined;
 };
 
 export const calls = createStore<CallState>({});
@@ -20,10 +29,10 @@ export const calls = createStore<CallState>({});
 export const useCalls = <T>(select: (s: CallState) => T): T => useSlice(calls, select);
 
 /** Opens the call card: a new call with `agent`, or (`thread`) the same call's chat again. */
-export function openCall(
-  target: { agent?: string | undefined; thread?: string | undefined; mode?: CallMode | undefined } = {},
-): void {
-  calls.set({ card: { agent: target.agent, thread: target.thread, mode: target.mode } });
+export function openCall(target: CallTarget = {}): void {
+  calls.set({
+    card: { agent: target.agent, thread: target.thread, mode: target.mode, greetedUntil: target.greetedUntil },
+  });
 }
 
 /**

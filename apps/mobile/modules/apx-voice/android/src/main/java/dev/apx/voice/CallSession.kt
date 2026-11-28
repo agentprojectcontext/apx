@@ -36,6 +36,8 @@ class CallSession(
   private val mode: String,
   private val agentId: String?,
   private val thread: String?,
+  /** The greeting recorded ahead (24 kHz PCM16): it plays at once, and the call listens while the voice loads. */
+  private val greeting: ByteArray?,
   private val onEnd: (reason: String) -> Unit,
 ) {
   @Volatile private var ended = false
@@ -47,12 +49,30 @@ class CallSession(
   private var track: AudioTrack? = null
   private val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
   private var focus: AudioFocusRequest? = null
+  @Volatile private var audioStarted = false
+  @Volatile private var opened = false
+  /** The microphone before the call's line opens: sent as soon as it does. */
+  private val early = ArrayList<ByteArray>()
+  private var earlyBytes = 0
+  /** Until then the greeting plays: what the microphone hears meanwhile is the greeting itself. */
+  @Volatile private var greetingUntil = 0L
 
   fun start() {
     VoiceState.set(phase = "connecting", heard = "", mode = mode, clearProblem = true)
+    if (greeting != null) {
+      startAudio()
+      greetingUntil = android.os.SystemClock.uptimeMillis() + greeting.size * 1000L / 2 / DOWN_RATE + 400
+      var at = 0
+      while (at < greeting.size) {
+        val n = minOf(DOWN_RATE / 5 * 2, greeting.size - at) // 200 ms pieces, like the voice's own
+        down.offer(greeting.copyOfRange(at, at + n))
+        at += n
+      }
+    }
     Thread({
       try {
         val p = JSONObject().put("mode", mode)
+        if (greeting != null) p.put("greeted", true)
         if (agentId != null) p.put("agent_id", agentId)
         if (thread != null) p.put("thread", thread)
         val r = core.call("calls.start", p, effect = true)
@@ -78,6 +98,12 @@ class CallSession(
     val req = Request.Builder().url(core.socket("/voice-call?ticket=${java.net.URLEncoder.encode(ticket, "UTF-8")}")).build()
     ws = Core.http.newWebSocket(req, object : WebSocketListener() {
       override fun onOpen(webSocket: WebSocket, response: Response) {
+        synchronized(early) {
+          for (b in early) webSocket.send(b.toByteString())
+          early.clear()
+          earlyBytes = 0
+          opened = true
+        }
         startAudio()
       }
 
@@ -113,8 +139,23 @@ class CallSession(
     })
   }
 
+  /** The microphone's 100 ms up the line, kept while the line is not open yet. */
+  private fun up(b: ByteArray) {
+    if (android.os.SystemClock.uptimeMillis() < greetingUntil) return
+    synchronized(early) {
+      if (opened) ws?.send(b.toByteString())
+      else if (earlyBytes < EARLY_MAX) {
+        early.add(b)
+        earlyBytes += b.size
+      }
+    }
+  }
+
   @SuppressLint("MissingPermission")
+  @Synchronized
   private fun startAudio() {
+    if (audioStarted || ended) return
+    audioStarted = true
     audio.mode = AudioManager.MODE_IN_COMMUNICATION
     speaker(true)
     val attrs = AudioAttributes.Builder()
@@ -177,7 +218,7 @@ class CallSession(
           val n = r.read(buf, 0, buf.size)
           if (n < 0) break
           if (n == 0 || muted) continue
-          ws?.send(WakeListener.bytes(buf, n).toByteString())
+          up(WakeListener.bytes(buf, n))
         }
       } catch (_: InterruptedException) {
       } catch (e: Exception) {
@@ -247,6 +288,8 @@ class CallSession(
     const val TAG = "apx-voice"
     const val UP_RATE = 16000
     const val DOWN_RATE = 24000
+    /** What a greeted call keeps before its line opens: 20 s of 16 kHz PCM16. */
+    const val EARLY_MAX = 20 * UP_RATE * 2
 
     fun level(b: ByteArray): Float {
       var sum = 0.0

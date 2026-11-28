@@ -5,6 +5,7 @@ import type { createCallServices } from "../engine/call-services.ts";
 import type { Calls } from "../engine/calls.ts";
 import { defaultWakeWords, wakeMatch } from "../engine/wake.ts";
 import { errorMessage, unavailable } from "../errors.ts";
+import { type Greetings, pcmWav } from "../services/greetings.ts";
 import type { NativeVoiceSettings } from "../services/native-voice.ts";
 import type { VoiceEngine } from "../services/voice-engine.ts";
 import type { CallContext } from "./context.ts";
@@ -48,6 +49,8 @@ export type VoiceDeps = {
   listen?: (bytes: Buffer, mime: string, signal: AbortSignal) => Promise<string | undefined>;
   /** The super-agent's name, what wakes it by default. */
   bossName?: () => string;
+  /** Greetings recorded ahead for devices that wake the voice by name. */
+  greetings?: Greetings;
 };
 
 export function callHandlers(d: VoiceDeps | undefined) {
@@ -56,7 +59,10 @@ export function callHandlers(d: VoiceDeps | undefined) {
     const set = d?.native.wakeWords() ?? [];
     return set.length ? set : defaultWakeWords(d?.bossName?.() ?? "");
   };
-  const withWake = (s: VoiceStatus): VoiceStatus => ({ ...s, wake_words: wakeWords() });
+  const withWake = (s: VoiceStatus): VoiceStatus => {
+    const greeting = d?.greetings?.status();
+    return { ...s, wake_words: wakeWords(), ...(greeting ? { greeting } : {}) };
+  };
   function callStatus(): CallStatus {
     if (!d) return { ready: false, running: false, missing: "platform" };
     const v = d.native.status();
@@ -93,7 +99,16 @@ export function callHandlers(d: VoiceDeps | undefined) {
     },
     "voice.set": (p) => {
       if (!d) throw unavailable(NEEDS.platform);
-      return withWake(d.native.set(p));
+      const s = d.native.set(p);
+      d.greetings?.refresh();
+      return withWake(s);
+    },
+    "voice.greeting": ({ mode, have }) => {
+      if (!d?.greetings || callStatus().missing) return { ready: false };
+      const g = d.greetings.get(mode);
+      if (!g.pcm) return { ready: false, key: g.key, text: g.text };
+      if (have === g.key) return { ready: true, key: g.key, text: g.text };
+      return { ready: true, key: g.key, text: g.text, data: pcmWav(g.pcm).toString("base64") };
     },
     "voice.wake": async ({ data, mime }) => {
       const none = "waking by voice needs a transcription engine on this computer";
@@ -120,6 +135,7 @@ export function callHandlers(d: VoiceDeps | undefined) {
         thread: p.thread,
         mode: p.mode,
         device: ctx?.device?.name,
+        greeted: p.greeted,
       });
     },
     "calls.prepare": () => {

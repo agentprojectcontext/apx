@@ -6,6 +6,8 @@ import { mediaUrl } from "../data/media.ts";
 import { notify } from "../data/notices.ts";
 import { installVoice, loadVoice, setVoice, voiceId } from "../data/voice.ts";
 import { useLanguage, useT } from "../i18n/index.ts";
+import { GreetingNote } from "./GreetingNote.tsx";
+import { greetingNoteAt } from "./greetingNote.ts";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 /** Each language's accents, the neutral one first. */
@@ -138,6 +140,7 @@ export function VoiceRow({ kind, status: s }: { kind: "speech" | "transcription"
         />
       )}
       {speech && s.installed && s.enabled && <VoicePicker voice={s.voice} />}
+      {speech && greetingNoteAt(s) === "voice" && <GreetingNote className="res__desc voicerow__note" />}
     </>
   );
 }

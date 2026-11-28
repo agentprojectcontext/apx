@@ -8,7 +8,7 @@ import { microphone } from "../voice";
 import { Button, IconTile, ListGroup, ListRow, Toggle, useType } from "./kit";
 import { makeStyles, useTheme } from "./theme";
 
-type Status = { wake_words: string[]; ready: boolean };
+type Status = { wake_words: string[]; ready: boolean; preparing?: boolean };
 
 export function VoiceSettings({
   name,
@@ -56,7 +56,7 @@ export function VoiceSettings({
       .catch(() => undefined);
   }, [words, saveWords]);
   if (!hasNativeVoice) return null;
-  const phrase = status?.wake_words[0] ?? `ok ${name}`;
+  const phrase = status?.wake_words[0] ?? `Ok ${name}`;
   const ready = status?.ready !== false;
   return (
     <>
@@ -64,7 +64,13 @@ export function VoiceSettings({
       <ListGroup>
         <ListRow
           label={t("voiceWake")}
-          sub={ready ? t("voiceWakeHelp", { phrase, name }) : t("voiceWakeOff")}
+          sub={
+            !ready
+              ? t("voiceWakeOff")
+              : status?.preparing
+                ? t("voiceGreetingPreparing")
+                : t("voiceWakeHelp", { phrase, name })
+          }
           leading={<IconTile icon="Mic" />}
           trailing={<Toggle value={wake} label={t("voiceWake")} onChange={(on) => void toggle(on)} />}
           chevron={false}

@@ -14,6 +14,7 @@ import { conflict, notFound, unauthorized } from "../errors.ts";
 import type { Log } from "../log.ts";
 import type { Llm } from "../providers/llm.ts";
 import type { ChatItem } from "../providers/types.ts";
+import { greetingLine } from "../services/greetings.ts";
 import type { AdmitFn } from "./engine.ts";
 import { answerOf } from "./run-outcome.ts";
 
@@ -100,6 +101,8 @@ export type CallTicket = {
   locale: VoiceLocale;
   mode: CallMode;
   device?: string | undefined;
+  /** The device played the greeting itself before the call began. */
+  greeted?: boolean | undefined;
   until: number;
 };
 
@@ -313,6 +316,7 @@ export function createCalls(deps: {
       mode?: CallMode | undefined;
       /** The paired device placing the call. */
       device?: string | undefined;
+      greeted?: boolean | undefined;
     }) {
       if (live) throw conflict("a call is already going on");
       let thread = p.thread ? store.threads.get(p.thread) : undefined;
@@ -339,6 +343,7 @@ export function createCalls(deps: {
         locale: p.locale,
         mode,
         ...(p.device ? { device: p.device } : {}),
+        ...(p.greeted ? { greeted: true } : {}),
         until: now() + TICKET_MS,
       });
       return { thread_id: thread.id, ticket, expires_in: TICKET_MS / 1000 };
@@ -372,6 +377,8 @@ export function createCalls(deps: {
           locale: t.locale,
           mode: t.mode,
           owner,
+          greeting: greetingLine(t.mode, t.locale, owner),
+          greeted: t.greeted ? ("1" as const) : ("" as const),
           agent: agent.name,
           who: isBoss
             ? `${ownerName}'s personal assistant in APX`

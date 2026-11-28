@@ -133,6 +133,7 @@ import {
 } from "./server-wiring.ts";
 import { createCallAudio } from "./services/call-audio.ts";
 import { CODEX_IMAGES, createCodexImages } from "./services/codex-images.ts";
+import { createGreetings, wavPcm } from "./services/greetings.ts";
 import { createLocalEmbeddings } from "./services/local-embed.ts";
 import { createModelInstaller } from "./services/local-whisper.ts";
 import { createNativeVoice } from "./services/native-voice.ts";
@@ -735,6 +736,25 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     listen: (bytes: Buffer, mime: string, signal: AbortSignal) =>
       services.listen(bytes, mime, signal, native.voice().locale === "en-US" ? "en" : "es"),
     bossName: () => store.agents.list().find((a) => a.kind === "secretary")?.name ?? "",
+    greetings: createGreetings({
+      dir: path.join(config.home, "voice", "greetings"),
+      voice: () => {
+        const s = native.status();
+        const v = native.voice();
+        return {
+          locale: v.locale,
+          gender: v.gender,
+          owner: ownerIdentity(store).name,
+          engine: s.call_engine === "services" ? "services" : "native",
+          service: s.call_engine === "services" ? s.call_speech : undefined,
+        };
+      },
+      record: async (text, v, signal) =>
+        v.engine === "services"
+          ? services.callSpeech(text, v.service, signal)
+          : wavPcm((await voiceEngine.speak(text, `${v.locale}-${v.gender}`, signal)).bytes),
+      log,
+    }),
     engine: voiceEngine,
     native,
     calls: createCalls({

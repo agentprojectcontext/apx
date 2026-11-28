@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
-import { test } from "node:test";
+import { type TestContext, test } from "node:test";
 import WebSocket, { WebSocketServer } from "ws";
 import type { Calls } from "../engine/calls.ts";
 import type { VoiceEngine } from "../services/voice-engine.ts";
@@ -11,7 +11,7 @@ import { attachVoiceCall } from "./voice-call.ts";
 const quiet = { info() {}, warn() {}, error() {} };
 const ORIGIN = "http://127.0.0.1:7440";
 
-test("what the owner says while the call loads is never heard: the call begins with its greeting", async (t) => {
+async function callWhileLoading(t: TestContext, setup: object) {
   // A voice engine that loads, then answers when told to, keeping the audio it gets.
   const heard: string[] = [];
   let toEngine: WebSocket | undefined;
@@ -38,7 +38,7 @@ test("what the owner says while the call loads is never heard: the call begins w
     },
   } as unknown as VoiceEngine;
   const calls = {
-    redeem: () => ({ thread: "th_1", setup: {} }),
+    redeem: () => ({ thread: "th_1", setup }),
     end() {},
     attach() {},
     hear() {},
@@ -74,6 +74,17 @@ test("what the owner says while the call loads is never heard: the call begins w
   toEngine?.send(JSON.stringify({ type: "ready" }));
   await waitFor(() => frames.some((f) => f.type === "ready"), "the call to be answered");
   panel.send(Buffer.from("after the greeting"));
+  return heard;
+}
+
+test("what the owner says while the call loads is never heard: the call begins with its greeting", async (t) => {
+  const heard = await callWhileLoading(t, {});
   await waitFor(() => heard.length > 0, "the voice to hear the owner");
   assert.deepEqual(heard, ["after the greeting"]);
+});
+
+test("a device that played the greeting itself is heard from the start, once the voice is up", async (t) => {
+  const heard = await callWhileLoading(t, { greeted: "1" });
+  await waitFor(() => heard.length > 1, "the voice to hear the owner");
+  assert.deepEqual(heard, ["while it loads", "after the greeting"]);
 });

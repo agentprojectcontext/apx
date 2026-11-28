@@ -56,6 +56,9 @@ export type CallSetup = {
   /** `quick`: a request said by name, answered in a few words; the voice hangs up once answered. */
   mode: "call" | "quick";
   owner: string;
+  /** What the voice says first; `greeted` ("1"): the device already played it, so the voice listens at once. */
+  greeting: string;
+  greeted: "1" | "";
   agent: string;
   /** How the voice presents itself ("Acme's personal assistant in APX"), and what its agent can reach. */
   who: string;

@@ -676,9 +676,13 @@ export function useWorkspace(creds: Creds) {
   const voiceStatus = useCallback(
     async () =>
       Promise.all([
-        rpc<{ wake_words: string[] }>(client, "voice.status", {}),
+        rpc<{ wake_words: string[]; greeting?: "ready" | "preparing" }>(client, "voice.status", {}),
         rpc<{ ready: boolean }>(client, "calls.status", {}),
-      ]).then(([v, c]) => ({ wake_words: v.wake_words ?? [], ready: c.ready })),
+      ]).then(([v, c]) => ({
+        wake_words: v.wake_words ?? [],
+        ready: c.ready,
+        preparing: v.greeting === "preparing",
+      })),
     [client],
   );
   const setWakeWords = useCallback(
