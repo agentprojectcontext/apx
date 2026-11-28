@@ -4,6 +4,8 @@ import type { MessageKey } from "./en.ts";
 export const esCallSlim: Partial<Record<MessageKey, string>> = {
   "call.titled": "Llamada · {when}",
   "call.name": "Llamada",
+  "call.quickTitled": "Pedido por voz · {when}",
+  "call.quickName": "Pedido por voz",
   "call.calls": "Llamadas",
   "call.count": "{n} llamadas",
   "call.open": "Mostrar tus llamadas",

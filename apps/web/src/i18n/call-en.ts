@@ -49,7 +49,5 @@ export const enCall = {
   "callBar.onDevice": "By voice on {device}",
   "callBar.elsewhere": "On another screen",
   "callBar.failed": "Couldn't hang up. Try again in a moment.",
-  "callChip.quick": "Voice request",
-  "callChip.quickFrom": "Voice request from {device}",
   "callChip.fromDevice": "From {device}",
 };
