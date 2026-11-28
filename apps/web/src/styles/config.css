@@ -89,6 +89,13 @@
 .config__sub + .config__lead {
   margin-top: -4px;
 }
+/* Right under the section's own heading, the gap alone separates them. */
+.config__head + .config__sub {
+  margin-top: 0;
+}
+.config__sub:focus {
+  outline: none;
+}
 /* What the helper model does: one short line per job, each with its icon. */
 .helper__jobs {
   display: flex;
