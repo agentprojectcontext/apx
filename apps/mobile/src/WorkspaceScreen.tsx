@@ -379,6 +379,7 @@ export function WorkspaceScreen({
                 save={workspace.setNoticePrefs}
                 openCar={() => push({ kind: "car" })}
                 voice={workspace.voiceStatus}
+                online={workspace.online}
                 saveWakeWords={workspace.setWakeWords}
               />
             );
